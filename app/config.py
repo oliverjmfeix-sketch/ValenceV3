@@ -2,7 +2,6 @@
 Valence Backend Configuration - TypeDB 3.x Compatible
 """
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
 from typing import List
 import os
 
@@ -20,8 +19,8 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = ""
     
-    # CORS - accepts comma-separated string or JSON array
-    cors_origins: List[str] = ["http://localhost:5173"]
+    # CORS - stored as string, parsed via property
+    cors_origins_str: str = "http://localhost:5173"
     
     # File Storage
     upload_dir: str = "/app/uploads"
@@ -31,14 +30,10 @@ class Settings(BaseSettings):
     app_version: str = "2.0.0"
     debug: bool = False
     
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse CORS origins from comma-separated string or list."""
-        if isinstance(v, str):
-            # Handle comma-separated string
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        return [origin.strip() for origin in self.cors_origins_str.split(",") if origin.strip()]
     
     @property
     def normalized_typedb_address(self) -> str:
