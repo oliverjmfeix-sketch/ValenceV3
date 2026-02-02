@@ -43,21 +43,13 @@ async def pattern_summary() -> Dict[str, Any]:
         try:
             result = tx.query("match $d isa deal; select $d;").resolve()
             total = len(list(result.as_concept_rows()))
-            
+
             return {
                 "total_deals": total,
                 "jcrew_vulnerable_count": 0,
                 "jcrew_vulnerable_deals": [],
                 "status": "ok"
             }
-        finally:
-            tx.close()
-    except Exception as e:
-        return {
-            "total_deals": 0,
-            "error": str(e),
-            "status": "error"
-        }
         finally:
             tx.close()
     except Exception as e:
