@@ -963,3 +963,219 @@ $rat5 isa reallocation_target,
     has name "Liens basket",
     has description "Reallocation to liens permitted",
     has display_order 5;
+
+################################################################################
+# FEE_EXCLUSION - Fees excluded from MFN yield calculation
+################################################################################
+
+$fe1 isa fee_exclusion,
+    has concept_id "fe_arrangement_fees",
+    has name "Arrangement Fees",
+    has description "Fees paid to arrangers for structuring the facility",
+    has display_order 1;
+
+$fe2 isa fee_exclusion,
+    has concept_id "fe_commitment_fees",
+    has name "Commitment Fees",
+    has description "Fees on undrawn commitments",
+    has display_order 2;
+
+$fe3 isa fee_exclusion,
+    has concept_id "fe_agency_fees",
+    has name "Agency Fees",
+    has description "Administrative agent fees",
+    has display_order 3;
+
+$fe4 isa fee_exclusion,
+    has concept_id "fe_amendment_fees",
+    has name "Amendment Fees",
+    has description "Fees for amendments and waivers",
+    has display_order 4;
+
+$fe5 isa fee_exclusion,
+    has concept_id "fe_participation_fees",
+    has name "Participation Fees",
+    has description "Fees paid to participating lenders",
+    has display_order 5;
+
+################################################################################
+# SUNSET_TYPE - MFN sunset provision types
+################################################################################
+
+$st1 isa sunset_type,
+    has concept_id "st_time_based",
+    has name "Time-Based Sunset",
+    has description "MFN protection expires after fixed period (e.g., 6-18 months)",
+    has display_order 1;
+
+$st2 isa sunset_type,
+    has concept_id "st_refinancing_reset",
+    has name "Refinancing Reset",
+    has description "Sunset period resets upon refinancing",
+    has display_order 2;
+
+$st3 isa sunset_type,
+    has concept_id "st_amendment_reset",
+    has name "Amendment Reset",
+    has description "Sunset period resets upon material amendment",
+    has display_order 3;
+
+$st4 isa sunset_type,
+    has concept_id "st_no_sunset",
+    has name "No Sunset",
+    has description "MFN protection has no expiration",
+    has display_order 4;
+
+$st5 isa sunset_type,
+    has concept_id "st_ipo_termination",
+    has name "IPO Termination",
+    has description "MFN terminates upon qualified IPO",
+    has display_order 5;
+
+################################################################################
+# BLOCKER_TIMING - When J.Crew blocker restrictions apply
+################################################################################
+
+$bt1 isa blocker_timing,
+    has concept_id "bt_at_designation",
+    has name "At Designation",
+    has description "Blocker applies when subsidiary is designated as Unrestricted",
+    has display_order 1;
+
+$bt2 isa blocker_timing,
+    has concept_id "bt_at_transfer",
+    has name "At Transfer",
+    has description "Blocker applies when assets are transferred to Unrestricted Sub",
+    has display_order 2;
+
+$bt3 isa blocker_timing,
+    has concept_id "bt_at_both",
+    has name "At Both Events",
+    has description "Blocker applies at both designation and transfer",
+    has display_order 3;
+
+$bt4 isa blocker_timing,
+    has concept_id "bt_ongoing",
+    has name "Ongoing Restriction",
+    has description "Blocker is a continuous covenant, not event-triggered",
+    has display_order 4;
+
+################################################################################
+# INVESTMENT_BASKET - RP permitted investment basket types
+################################################################################
+
+$ib1 isa investment_basket,
+    has concept_id "ib_general_basket",
+    has name "General Investment Basket",
+    has description "Fixed dollar amount for general investments",
+    has display_order 1;
+
+$ib2 isa investment_basket,
+    has concept_id "ib_ratio_basket",
+    has name "Ratio-Based Basket",
+    has description "Investments permitted if leverage ratio met",
+    has display_order 2;
+
+$ib3 isa investment_basket,
+    has concept_id "ib_cumulative_credit",
+    has name "Cumulative Credit Basket",
+    has description "Investments using builder basket capacity",
+    has display_order 3;
+
+$ib4 isa investment_basket,
+    has concept_id "ib_acquisition_basket",
+    has name "Acquisition Basket",
+    has description "Investments for permitted acquisitions",
+    has display_order 4;
+
+$ib5 isa investment_basket,
+    has concept_id "ib_jv_basket",
+    has name "Joint Venture Basket",
+    has description "Investments in joint ventures",
+    has display_order 5;
+
+$ib6 isa investment_basket,
+    has concept_id "ib_unrestricted_sub",
+    has name "Unrestricted Sub Basket",
+    has description "Investments in Unrestricted Subsidiaries",
+    has display_order 6;
+
+################################################################################
+# DEFAULT_TYPE - Types of events of default
+################################################################################
+
+$dt1 isa default_type,
+    has concept_id "dt_payment_default",
+    has name "Payment Default",
+    has description "Failure to pay principal, interest, or fees",
+    has display_order 1;
+
+$dt2 isa default_type,
+    has concept_id "dt_covenant_default",
+    has name "Covenant Default",
+    has description "Breach of financial or negative covenants",
+    has display_order 2;
+
+$dt3 isa default_type,
+    has concept_id "dt_cross_default",
+    has name "Cross-Default",
+    has description "Default under other material indebtedness",
+    has display_order 3;
+
+$dt4 isa default_type,
+    has concept_id "dt_bankruptcy",
+    has name "Bankruptcy/Insolvency",
+    has description "Bankruptcy filing or insolvency event",
+    has display_order 4;
+
+$dt5 isa default_type,
+    has concept_id "dt_change_of_control",
+    has name "Change of Control",
+    has description "Prohibited change of control event",
+    has display_order 5;
+
+$dt6 isa default_type,
+    has concept_id "dt_judgment",
+    has name "Judgment Default",
+    has description "Material unsatisfied judgments",
+    has display_order 6;
+
+################################################################################
+# PROTECTION_TYPE - Lender protection mechanisms
+################################################################################
+
+$pt1 isa protection_type,
+    has concept_id "pt_sacred_rights",
+    has name "Sacred Rights",
+    has description "Amendments requiring affected lender consent",
+    has display_order 1;
+
+$pt2 isa protection_type,
+    has concept_id "pt_mfn_protection",
+    has name "MFN Protection",
+    has description "Most Favored Nation yield protection",
+    has display_order 2;
+
+$pt3 isa protection_type,
+    has concept_id "pt_pro_rata_sharing",
+    has name "Pro Rata Sharing",
+    has description "Pro rata payment and sharing provisions",
+    has display_order 3;
+
+$pt4 isa protection_type,
+    has concept_id "pt_anti_layering",
+    has name "Anti-Layering",
+    has description "Prohibition on debt between senior and junior",
+    has display_order 4;
+
+$pt5 isa protection_type,
+    has concept_id "pt_collateral_release",
+    has name "Collateral Release Protections",
+    has description "Restrictions on releasing collateral",
+    has display_order 5;
+
+$pt6 isa protection_type,
+    has concept_id "pt_uptier_protection",
+    has name "Uptier Protection",
+    has description "Protection against priming/Serta-style transactions",
+    has display_order 6;
