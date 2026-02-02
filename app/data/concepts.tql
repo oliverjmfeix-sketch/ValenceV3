@@ -1,0 +1,503 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# TypeDB 3.x Seed Data - Part 5: Concept Instances
+#
+# This file populates the concept type instances - the vocabulary for
+# multi-select fields. Each concept instance has:
+# - concept_id: Unique identifier (snake_case)
+# - name: Human-readable name
+# - description: Explanation for UI tooltips
+# - display_order: Sorting order in UI
+################################################################################
+
+insert
+
+################################################################################
+# FACILITY_PRONG - Types of debt facilities covered by MFN
+################################################################################
+
+$fp1 isa facility_prong,
+    has concept_id "incremental_term_loans",
+    has name "Incremental Term Loans",
+    has description "Additional term loans under incremental facility",
+    has display_order 1;
+
+$fp2 isa facility_prong,
+    has concept_id "incremental_revolving",
+    has name "Incremental Revolving",
+    has description "Additional revolving commitments under incremental facility",
+    has display_order 2;
+
+$fp3 isa facility_prong,
+    has concept_id "incremental_equivalent",
+    has name "Incremental Equivalent Debt",
+    has description "Debt outside the credit agreement treated as incremental",
+    has display_order 3;
+
+$fp4 isa facility_prong,
+    has concept_id "ratio_debt",
+    has name "Ratio Debt",
+    has description "Debt incurred under ratio-based incurrence test",
+    has display_order 4;
+
+$fp5 isa facility_prong,
+    has concept_id "refinancing_debt",
+    has name "Refinancing Debt",
+    has description "Debt incurred to refinance existing debt",
+    has display_order 5;
+
+################################################################################
+# YIELD_COMPONENT - Components of yield calculation
+################################################################################
+
+$yc1 isa yield_component,
+    has concept_id "interest_margin",
+    has name "Interest Margin",
+    has description "Base interest rate spread over reference rate",
+    has display_order 1;
+
+$yc2 isa yield_component,
+    has concept_id "libor_floor",
+    has name "LIBOR/SOFR Floor",
+    has description "Minimum reference rate floor",
+    has display_order 2;
+
+$yc3 isa yield_component,
+    has concept_id "oid",
+    has name "Original Issue Discount",
+    has description "Discount from par at issuance",
+    has display_order 3;
+
+$yc4 isa yield_component,
+    has concept_id "upfront_fees",
+    has name "Upfront Fees",
+    has description "One-time fees paid at closing",
+    has display_order 4;
+
+$yc5 isa yield_component,
+    has concept_id "commitment_fees",
+    has name "Commitment Fees",
+    has description "Fees on undrawn commitments",
+    has display_order 5;
+
+$yc6 isa yield_component,
+    has concept_id "structuring_fees",
+    has name "Structuring Fees",
+    has description "Fees for deal structuring",
+    has display_order 6;
+
+$yc7 isa yield_component,
+    has concept_id "arrangement_fees",
+    has name "Arrangement Fees",
+    has description "Fees for arranging the facility",
+    has display_order 7;
+
+$yc8 isa yield_component,
+    has concept_id "pik_interest",
+    has name "PIK Interest",
+    has description "Payment-in-kind interest added to principal",
+    has display_order 8;
+
+################################################################################
+# LIEN_PRIORITY - Security position
+################################################################################
+
+$lp1 isa lien_priority,
+    has concept_id "first_lien",
+    has name "First Lien",
+    has description "Senior secured, first priority position",
+    has display_order 1;
+
+$lp2 isa lien_priority,
+    has concept_id "second_lien",
+    has name "Second Lien",
+    has description "Junior secured, second priority position",
+    has display_order 2;
+
+$lp3 isa lien_priority,
+    has concept_id "pari_passu",
+    has name "Pari Passu",
+    has description "Equal ranking with existing debt",
+    has display_order 3;
+
+$lp4 isa lien_priority,
+    has concept_id "junior_lien",
+    has name "Junior Lien",
+    has description "Subordinated secured position",
+    has display_order 4;
+
+################################################################################
+# GOVERNANCE_CONCEPT - Consent requirements
+################################################################################
+
+$gc1 isa governance_concept,
+    has concept_id "majority_lenders",
+    has name "Required Lenders / Majority",
+    has description "Typically >50% of commitments",
+    has display_order 1;
+
+$gc2 isa governance_concept,
+    has concept_id "super_majority_lenders",
+    has name "Super Majority Lenders",
+    has description "Typically 66.67% or higher of commitments",
+    has display_order 2;
+
+$gc3 isa governance_concept,
+    has concept_id "affected_lenders",
+    has name "Affected Lenders",
+    has description "Lenders directly affected by the change",
+    has display_order 3;
+
+$gc4 isa governance_concept,
+    has concept_id "all_lenders",
+    has name "All Lenders",
+    has description "100% of lenders must consent",
+    has display_order 4;
+
+$gc5 isa governance_concept,
+    has concept_id "administrative_agent",
+    has name "Administrative Agent",
+    has description "Agent consent required",
+    has display_order 5;
+
+################################################################################
+# COVERED_PERSON - Management equity basket coverage
+################################################################################
+
+$cp1 isa covered_person,
+    has concept_id "current_officers",
+    has name "Current Officers",
+    has description "Officers currently employed",
+    has display_order 1;
+
+$cp2 isa covered_person,
+    has concept_id "former_officers",
+    has name "Former Officers",
+    has description "Officers no longer employed",
+    has display_order 2;
+
+$cp3 isa covered_person,
+    has concept_id "current_directors",
+    has name "Current Directors",
+    has description "Directors currently serving",
+    has display_order 3;
+
+$cp4 isa covered_person,
+    has concept_id "former_directors",
+    has name "Former Directors",
+    has description "Directors no longer serving",
+    has display_order 4;
+
+$cp5 isa covered_person,
+    has concept_id "current_employees",
+    has name "Current Employees",
+    has description "Employees currently employed",
+    has display_order 5;
+
+$cp6 isa covered_person,
+    has concept_id "former_employees",
+    has name "Former Employees",
+    has description "Employees no longer employed",
+    has display_order 6;
+
+$cp7 isa covered_person,
+    has concept_id "consultants",
+    has name "Consultants",
+    has description "Independent consultants and advisors",
+    has display_order 7;
+
+$cp8 isa covered_person,
+    has concept_id "spouses",
+    has name "Spouses",
+    has description "Spouses of covered persons",
+    has display_order 8;
+
+$cp9 isa covered_person,
+    has concept_id "ex_spouses",
+    has name "Ex-Spouses",
+    has description "Former spouses of covered persons",
+    has display_order 9;
+
+$cp10 isa covered_person,
+    has concept_id "heirs",
+    has name "Heirs",
+    has description "Heirs of covered persons",
+    has display_order 10;
+
+$cp11 isa covered_person,
+    has concept_id "estates",
+    has name "Estates",
+    has description "Estates of deceased covered persons",
+    has display_order 11;
+
+$cp12 isa covered_person,
+    has concept_id "beneficiaries",
+    has name "Beneficiaries",
+    has description "Beneficiaries under estates",
+    has display_order 12;
+
+$cp13 isa covered_person,
+    has concept_id "transferees",
+    has name "Transferees",
+    has description "Transferees of covered persons",
+    has display_order 13;
+
+$cp14 isa covered_person,
+    has concept_id "family_members",
+    has name "Family Members",
+    has description "Family members of covered persons",
+    has display_order 14;
+
+################################################################################
+# REPURCHASE_TRIGGER - Events triggering management equity repurchase
+################################################################################
+
+$rt1 isa repurchase_trigger,
+    has concept_id "death",
+    has name "Death",
+    has description "Death of covered person",
+    has display_order 1;
+
+$rt2 isa repurchase_trigger,
+    has concept_id "disability",
+    has name "Disability",
+    has description "Disability of covered person",
+    has display_order 2;
+
+$rt3 isa repurchase_trigger,
+    has concept_id "retirement",
+    has name "Retirement",
+    has description "Retirement of covered person",
+    has display_order 3;
+
+$rt4 isa repurchase_trigger,
+    has concept_id "severance",
+    has name "Severance",
+    has description "Severance/separation from service",
+    has display_order 4;
+
+$rt5 isa repurchase_trigger,
+    has concept_id "termination_of_employment",
+    has name "Termination of Employment",
+    has description "Termination of employment or service",
+    has display_order 5;
+
+################################################################################
+# IP_TYPE - Intellectual property types for definition analysis
+################################################################################
+
+$ip1 isa ip_type,
+    has concept_id "patents",
+    has name "Patents",
+    has description "Patents and patent rights",
+    has display_order 1;
+
+$ip2 isa ip_type,
+    has concept_id "patent_applications",
+    has name "Patent Applications",
+    has description "Pending patent applications",
+    has display_order 2;
+
+$ip3 isa ip_type,
+    has concept_id "trademarks",
+    has name "Trademarks",
+    has description "Trademarks and trademark registrations",
+    has display_order 3;
+
+$ip4 isa ip_type,
+    has concept_id "service_marks",
+    has name "Service Marks",
+    has description "Service marks and registrations",
+    has display_order 4;
+
+$ip5 isa ip_type,
+    has concept_id "copyrights",
+    has name "Copyrights",
+    has description "Copyrights and copyright registrations",
+    has display_order 5;
+
+$ip6 isa ip_type,
+    has concept_id "trade_secrets",
+    has name "Trade Secrets",
+    has description "Trade secrets and confidential information",
+    has display_order 6;
+
+$ip7 isa ip_type,
+    has concept_id "know_how",
+    has name "Know-How",
+    has description "Technical know-how and expertise",
+    has display_order 7;
+
+$ip8 isa ip_type,
+    has concept_id "software",
+    has name "Software",
+    has description "Software and source code",
+    has display_order 8;
+
+$ip9 isa ip_type,
+    has concept_id "domain_names",
+    has name "Domain Names",
+    has description "Internet domain names",
+    has display_order 9;
+
+$ip10 isa ip_type,
+    has concept_id "licenses_received",
+    has name "Licenses Received",
+    has description "Licenses received from third parties",
+    has display_order 10;
+
+$ip11 isa ip_type,
+    has concept_id "customer_lists",
+    has name "Customer Lists",
+    has description "Customer lists and data",
+    has display_order 11;
+
+$ip12 isa ip_type,
+    has concept_id "databases",
+    has name "Databases",
+    has description "Databases and data compilations",
+    has display_order 12;
+
+################################################################################
+# TRANSFER_TYPE - What constitutes a "transfer"
+################################################################################
+
+$tt1 isa transfer_type,
+    has concept_id "assignment",
+    has name "Assignment",
+    has description "Assignment of ownership",
+    has display_order 1;
+
+$tt2 isa transfer_type,
+    has concept_id "sale",
+    has name "Sale",
+    has description "Sale or disposition",
+    has display_order 2;
+
+$tt3 isa transfer_type,
+    has concept_id "contribution_to_capital",
+    has name "Contribution to Capital",
+    has description "Contribution to subsidiary capital",
+    has display_order 3;
+
+$tt4 isa transfer_type,
+    has concept_id "exclusive_license",
+    has name "Exclusive License",
+    has description "Exclusive license grant",
+    has display_order 4;
+
+$tt5 isa transfer_type,
+    has concept_id "non_exclusive_license",
+    has name "Non-Exclusive License",
+    has description "Non-exclusive license grant",
+    has display_order 5;
+
+$tt6 isa transfer_type,
+    has concept_id "pledge",
+    has name "Pledge",
+    has description "Pledge or hypothecation",
+    has display_order 6;
+
+$tt7 isa transfer_type,
+    has concept_id "abandonment",
+    has name "Abandonment",
+    has description "Abandonment or non-maintenance",
+    has display_order 7;
+
+$tt8 isa transfer_type,
+    has concept_id "non_renewal",
+    has name "Non-Renewal",
+    has description "Failure to renew registrations",
+    has display_order 8;
+
+################################################################################
+# BLOCKER_BINDING_ENTITY - Entities bound by J.Crew blocker
+################################################################################
+
+$be1 isa blocker_binding_entity,
+    has concept_id "loan_parties",
+    has name "Loan Parties",
+    has description "Borrower and guarantors",
+    has display_order 1;
+
+$be2 isa blocker_binding_entity,
+    has concept_id "borrower",
+    has name "Borrower",
+    has description "The borrower only",
+    has display_order 2;
+
+$be3 isa blocker_binding_entity,
+    has concept_id "guarantors",
+    has name "Guarantors",
+    has description "Subsidiary guarantors",
+    has display_order 3;
+
+$be4 isa blocker_binding_entity,
+    has concept_id "restricted_subsidiaries",
+    has name "Restricted Subsidiaries",
+    has description "All restricted subsidiaries",
+    has display_order 4;
+
+$be5 isa blocker_binding_entity,
+    has concept_id "all_restricted_subs",
+    has name "All Restricted Subs",
+    has description "All restricted subsidiaries including non-guarantors",
+    has display_order 5;
+
+$be6 isa blocker_binding_entity,
+    has concept_id "non_guarantor_restricted_subs",
+    has name "Non-Guarantor Restricted Subs",
+    has description "Restricted subs that are not guarantors",
+    has display_order 6;
+
+################################################################################
+# LOOPHOLE_TYPE - Types of covenant vulnerabilities
+################################################################################
+
+$lt1 isa loophole_type,
+    has concept_id "jcrew_trapdoor",
+    has name "J.Crew Trapdoor",
+    has description "Asset transfer to unrestricted sub without blocker",
+    has display_order 1;
+
+$lt2 isa loophole_type,
+    has concept_id "serta_uptier",
+    has name "Serta Uptier",
+    has description "Non-pro-rata exchange creating senior tranche",
+    has display_order 2;
+
+$lt3 isa loophole_type,
+    has concept_id "collateral_leakage",
+    has name "Collateral Leakage",
+    has description "Material assets transferable outside covenant group",
+    has display_order 3;
+
+$lt4 isa loophole_type,
+    has concept_id "definition_gap",
+    has name "Definition Gap",
+    has description "Narrow definitions undermining protections",
+    has display_order 4;
+
+$lt5 isa loophole_type,
+    has concept_id "basket_stacking",
+    has name "Basket Stacking",
+    has description "Multiple baskets combinable for same transaction",
+    has display_order 5;
+
+$lt6 isa loophole_type,
+    has concept_id "chain_pathway",
+    has name "Chain Pathway",
+    has description "Multi-step investment path to unrestricted subs",
+    has display_order 6;
+
+$lt7 isa loophole_type,
+    has concept_id "sunset_manipulation",
+    has name "Sunset Manipulation",
+    has description "Sunset resettable through amendments",
+    has display_order 7;
+
+$lt8 isa loophole_type,
+    has concept_id "yield_exclusion",
+    has name "Yield Component Exclusion",
+    has description "Key yield components excluded from MFN calculation",
+    has display_order 8;
