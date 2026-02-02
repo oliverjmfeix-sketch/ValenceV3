@@ -29,7 +29,7 @@ async def detect_deal_patterns(deal_id: str) -> Dict[str, Any]:
 @router.get("/jcrew-vulnerable")
 async def get_jcrew_vulnerable() -> List[Dict[str, Any]]:
     """Find all deals with J.Crew vulnerability."""
-    return []  # Placeholder
+    return []
 
 
 @router.get("/summary")
@@ -41,7 +41,7 @@ async def pattern_summary() -> Dict[str, Any]:
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
-            result = tx.query("match $d isa deal; select $d;")
+            result = tx.query("match $d isa deal; select $d;").resolve()
             total = len(list(result.as_concept_rows()))
             
             return {
@@ -50,6 +50,14 @@ async def pattern_summary() -> Dict[str, Any]:
                 "jcrew_vulnerable_deals": [],
                 "status": "ok"
             }
+        finally:
+            tx.close()
+    except Exception as e:
+        return {
+            "total_deals": 0,
+            "error": str(e),
+            "status": "error"
+        }
         finally:
             tx.close()
     except Exception as e:
