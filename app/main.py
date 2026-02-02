@@ -3,7 +3,7 @@ Valence V3 Backend - Covenant Intelligence Platform
 
 FastAPI application with:
 - TypeDB 3.x connection on startup
-- Auto-initialization of schema if empty
+- Auto-schema initialization if database is empty
 - CORS configuration for Lovable frontend
 - All API routers mounted
 """
@@ -13,6 +13,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typedb.driver import TransactionType
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
@@ -26,98 +27,108 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _load_tql_file(filepath: Path) -> str:
+    """Load and clean TQL file - remove comments."""
+    if not filepath.exists():
+        logger.warning(f"TQL file not found: {filepath}")
+        return ""
+    content = filepath.read_text()
+    lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
+    return '\n'.join(lines)
+
+
 async def _ensure_schema_loaded():
     """
     Auto-initialize schema if database is empty.
     
-    Checks for ontology_category entities - if none exist, loads schema.
-    This runs once on first deployment, then skips on subsequent restarts.
+    Uses TypeDB 3.x API directly via the driver.
     """
-    try:
-        # Check if schema already loaded
-        results = typedb_client.query_read(
-            "match $x isa ontology_category; limit 1; select $x;"
-        )
-        if results:
-            logger.info("✓ Schema already loaded (found ontology_category)")
-            return
-    except Exception as e:
-        logger.info(f"Schema check failed (expected on first run): {e}")
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
     
-    # Schema not found - initialize
-    logger.info("=" * 50)
-    logger.info("Schema not found - auto-initializing...")
-    logger.info("=" * 50)
+    if not driver:
+        logger.error("No TypeDB driver available")
+        return
     
+    # Check if database exists
+    if not driver.databases.contains(db_name):
+        logger.info(f"Creating database: {db_name}")
+        driver.databases.create(db_name)
+    
+    # Check if schema already loaded by looking for ontology_category
     try:
-        from typedb.driver import SessionType, TransactionType
-        
-        DATA_DIR = Path(__file__).parent / "data"
-        
-        def load_tql(filepath: Path) -> str:
-            """Load and clean TQL file."""
-            if not filepath.exists():
-                logger.error(f"File not found: {filepath}")
-                return ""
-            content = filepath.read_text()
-            # Remove comment-only lines
-            lines = [l for l in content.split('\n') 
-                    if l.strip() and not l.strip().startswith('#')]
-            return '\n'.join(lines)
-        
-        # Load schema
-        schema_file = DATA_DIR / "schema.tql"
-        if schema_file.exists():
-            logger.info("Loading schema.tql...")
-            schema_tql = load_tql(schema_file)
-            typedb_client.query_schema(schema_tql)
-            logger.info("✓ Schema loaded")
-        else:
-            logger.error(f"✗ Schema file not found: {schema_file}")
-            return
-        
-        # Load concepts
-        concepts_file = DATA_DIR / "concepts.tql"
-        if concepts_file.exists():
-            logger.info("Loading concepts.tql...")
-            concepts_tql = load_tql(concepts_file)
-            typedb_client.query_write(concepts_tql)
-            logger.info("✓ Concepts loaded")
-        else:
-            logger.warning(f"⚠ Concepts file not found: {concepts_file}")
-        
-        # Load questions
-        questions_file = DATA_DIR / "questions.tql"
-        if questions_file.exists():
-            logger.info("Loading questions.tql...")
-            questions_tql = load_tql(questions_file)
-            typedb_client.query_write(questions_tql)
-            logger.info("✓ Questions loaded")
-        else:
-            logger.warning(f"⚠ Questions file not found: {questions_file}")
-        
-        logger.info("=" * 50)
-        logger.info("✓ Schema auto-initialization complete!")
-        logger.info("=" * 50)
-        
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            result = list(tx.query("match $x isa ontology_category; limit 1;").as_concept_rows())
+            if result:
+                logger.info("✓ Schema already loaded")
+                return
+        finally:
+            tx.close()
     except Exception as e:
-        logger.error(f"✗ Schema initialization failed: {e}")
-        raise
+        logger.info(f"Schema check: {e} - will initialize")
+    
+    # Load schema files
+    DATA_DIR = Path(__file__).parent / "data"
+    
+    # 1. Load schema (define statements)
+    schema_file = DATA_DIR / "schema.tql"
+    if schema_file.exists():
+        logger.info("Loading schema.tql...")
+        schema_tql = _load_tql_file(schema_file)
+        if schema_tql:
+            tx = driver.transaction(db_name, TransactionType.SCHEMA)
+            try:
+                tx.query(schema_tql)
+                tx.commit()
+                logger.info("✓ Schema loaded")
+            except Exception as e:
+                logger.error(f"Schema load failed: {e}")
+                tx.close()
+                return
+    else:
+        logger.error(f"Schema file not found: {schema_file}")
+        return
+    
+    # 2. Load concepts (insert statements)
+    concepts_file = DATA_DIR / "concepts.tql"
+    if concepts_file.exists():
+        logger.info("Loading concepts.tql...")
+        concepts_tql = _load_tql_file(concepts_file)
+        if concepts_tql:
+            tx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                tx.query(concepts_tql)
+                tx.commit()
+                logger.info("✓ Concepts loaded")
+            except Exception as e:
+                logger.error(f"Concepts load failed: {e}")
+                tx.close()
+    
+    # 3. Load questions (insert statements)
+    questions_file = DATA_DIR / "questions.tql"
+    if questions_file.exists():
+        logger.info("Loading questions.tql...")
+        questions_tql = _load_tql_file(questions_file)
+        if questions_tql:
+            tx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                tx.query(questions_tql)
+                tx.commit()
+                logger.info("✓ Questions loaded")
+            except Exception as e:
+                logger.error(f"Questions load failed: {e}")
+                tx.close()
+    
+    logger.info("✓ Schema initialization complete!")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Startup and shutdown events.
-    
-    - Connects to TypeDB on startup
-    - Auto-initializes schema if empty
-    - Closes connection on shutdown
-    """
-    # Startup
-    logger.info("=" * 50)
+    """Startup and shutdown events."""
+    logger.info("=" * 60)
     logger.info("Starting Valence V3 Backend...")
-    logger.info("=" * 50)
+    logger.info("=" * 60)
     logger.info(f"TypeDB: {settings.typedb_address}/{settings.typedb_database}")
     logger.info(f"CORS origins: {settings.cors_origins}")
     
@@ -126,7 +137,7 @@ async def lifespan(app: FastAPI):
         typedb_client.connect()
         logger.info("✓ TypeDB connected")
         
-        # Auto-initialize schema if needed
+        # Auto-initialize schema if database is empty
         await _ensure_schema_loaded()
         
     except Exception as e:
@@ -136,8 +147,9 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down...")
+    logger.info("Shutting down Valence V3...")
     typedb_client.close()
+    logger.info("✓ Shutdown complete")
 
 
 # Create FastAPI app
@@ -148,7 +160,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - allow Lovable frontend
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
