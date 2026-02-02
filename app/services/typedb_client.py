@@ -29,14 +29,13 @@ class TypeDBClient:
         try:
             logger.info(f"Connecting to TypeDB at {self.address}...")
             
-            # TypeDB 3.x API: cloud_driver(address, Credentials, DriverOptions)
-            self.driver = TypeDB.cloud_driver(
+            # TypeDB 3.x API: TypeDB.driver() not cloud_driver()
+            self.driver = TypeDB.driver(
                 self.address,
                 Credentials(settings.typedb_username, settings.typedb_password),
                 DriverOptions()
             )
             
-            # Check if database exists
             if not self.driver.databases.contains(self.database):
                 logger.info(f"Creating database: {self.database}")
                 self.driver.databases.create(self.database)
