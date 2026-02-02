@@ -273,14 +273,18 @@ class DealRepository:
         
         if not attr_clauses:
             return True
-        
+
         attrs_str = ",\n                    ".join(attr_clauses)
-        
+
+        # provision_id is required (@key in schema)
+        provision_id = f"{deal_id}_mfn"
+
         query = f"""
             match
                 $d isa deal, has deal_id "{deal_id}";
             insert
                 $p isa mfn_provision,
+                    has provision_id "{provision_id}",
                     {attrs_str};
                 ($d, $p) isa deal_has_provision;
         """
@@ -324,18 +328,22 @@ class DealRepository:
         
         if not attr_clauses:
             return True
-        
+
         attrs_str = ",\n                    ".join(attr_clauses)
-        
+
+        # provision_id is required (@key in schema)
+        provision_id = f"{deal_id}_rp"
+
         query = f"""
             match
                 $d isa deal, has deal_id "{deal_id}";
             insert
                 $p isa rp_provision,
+                    has provision_id "{provision_id}",
                     {attrs_str};
                 ($d, $p) isa deal_has_provision;
         """
-        
+
         try:
             with self.client.write_transaction() as tx:
                 tx.query(query).resolve()
