@@ -11,7 +11,7 @@ import logging
 from typing import Optional, Any, Generator
 from contextlib import contextmanager
 
-from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType
+from typedb.driver import TypeDB, Credentials, TransactionType
 
 from app.config import settings
 
@@ -47,22 +47,13 @@ class TypeDBClient:
         logger.info(f"TypeDB client initialized for {self.address}/{self.database}")
     
     def connect(self, raise_on_error: bool = False) -> bool:
-        """
-        Connect to TypeDB Cloud.
-        
-        Args:
-            raise_on_error: If True, raises ConnectionError on failure
-            
-        Returns:
-            True if connection successful
-        """
+        """Connect to TypeDB Cloud."""
         try:
             logger.info(f"Connecting to TypeDB at {self.address}...")
             
             self.driver = TypeDB.cloud_driver(
                 self.address,
-                self.credentials,
-                self.driver_options
+                Credentials(settings.typedb_username, settings.typedb_password)
             )
             
             # Verify database exists
@@ -77,30 +68,7 @@ class TypeDBClient:
             
         except Exception as e:
             self.is_connected = False
-            error_msg = str(e).lower()
-            
-            # Provide helpful error messages for common issues
-            if "failed to connect" in error_msg or "connection" in error_msg:
-                self.connection_error = (
-                    f"TypeDB connection failed. "
-                    f"Address: '{self.address}'. "
-                    f"Ensure TYPEDB_ADDRESS is 'host:port' format (no https://, no paths). "
-                    f"Original error: {e}"
-                )
-            elif "authentication" in error_msg or "credential" in error_msg:
-                self.connection_error = (
-                    f"TypeDB authentication failed. Check TYPEDB_USERNAME and TYPEDB_PASSWORD. "
-                    f"Original error: {e}"
-                )
-            elif "tls" in error_msg or "ssl" in error_msg:
-                self.connection_error = (
-                    f"TypeDB TLS error. TLS enabled: {settings.typedb_tls_enabled}. "
-                    f"Try TYPEDB_TLS_ENABLED=false for self-hosted. "
-                    f"Original error: {e}"
-                )
-            else:
-                self.connection_error = f"Failed to connect to TypeDB: {e}"
-            
+            self.connection_error = f"Failed to connect to TypeDB: {e}"
             logger.error(self.connection_error)
             
             if raise_on_error:
