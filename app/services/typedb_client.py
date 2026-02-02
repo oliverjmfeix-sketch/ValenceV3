@@ -5,7 +5,7 @@ import logging
 from typing import Optional, Any, Generator
 from contextlib import contextmanager
 
-from typedb.driver import Driver
+from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType
 
 from app.config import settings
 
@@ -29,14 +29,15 @@ class TypeDBClient:
         try:
             logger.info(f"Connecting to TypeDB at {self.address}...")
             
-            # TypeDB 3.x API
-            self.driver = Driver.cloud(
+            # TypeDB 3.x API: cloud_driver(address, Credentials, DriverOptions)
+            self.driver = TypeDB.cloud_driver(
                 self.address,
-                settings.typedb_username,
-                settings.typedb_password
+                Credentials(settings.typedb_username, settings.typedb_password),
+                DriverOptions()
             )
             
-            if self.database not in [db.name for db in self.driver.databases.all()]:
+            # Check if database exists
+            if not self.driver.databases.contains(self.database):
                 logger.info(f"Creating database: {self.database}")
                 self.driver.databases.create(self.database)
             
@@ -68,9 +69,11 @@ class TypeDBClient:
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        with self.driver.session(self.database, SessionType.DATA) as session:
-            with session.transaction(TransactionType.READ) as tx:
-                yield tx
+        tx = self.driver.transaction(self.database, TransactionType.READ)
+        try:
+            yield tx
+        finally:
+            tx.close()
     
     @contextmanager
     def write_transaction(self) -> Generator:
@@ -78,10 +81,15 @@ class TypeDBClient:
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        with self.driver.session(self.database, SessionType.DATA) as session:
-            with session.transaction(TransactionType.WRITE) as tx:
-                yield tx
-                tx.commit()
+        tx = self.driver.transaction(self.database, TransactionType.WRITE)
+        try:
+            yield tx
+            tx.commit()
+        except Exception:
+            raise
+        finally:
+            if tx.is_open():
+                tx.close()
     
     @contextmanager
     def schema_transaction(self) -> Generator:
@@ -89,10 +97,15 @@ class TypeDBClient:
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        with self.driver.session(self.database, SessionType.SCHEMA) as session:
-            with session.transaction(TransactionType.WRITE) as tx:
-                yield tx
-                tx.commit()
+        tx = self.driver.transaction(self.database, TransactionType.SCHEMA)
+        try:
+            yield tx
+            tx.commit()
+        except Exception:
+            raise
+        finally:
+            if tx.is_open():
+                tx.close()
     
     def health_check(self) -> dict:
         """Check TypeDB connection health."""
@@ -111,14 +124,6 @@ class TypeDBClient:
             "address": self.address,
             "database": self.database
         }
-
-
-# Import session/transaction types
-try:
-    from typedb.driver import SessionType, TransactionType
-except ImportError:
-    from typedb.api.connection.session import SessionType
-    from typedb.api.connection.transaction import TransactionType
 
 
 # Global client instance
