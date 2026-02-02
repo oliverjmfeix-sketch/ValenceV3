@@ -29,8 +29,9 @@ class TypeDBClient:
         try:
             logger.info(f"Connecting to TypeDB at {self.address}...")
             
+            # Address must be a list for cloud_driver
             self.driver = TypeDB.cloud_driver(
-                self.address,
+                [self.address],
                 Credentials(settings.typedb_username, settings.typedb_password)
             )
             
