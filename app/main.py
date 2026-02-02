@@ -42,6 +42,7 @@ async def _ensure_schema_loaded():
     Auto-initialize schema if database is empty.
     
     Uses TypeDB 3.x API directly via the driver.
+    Handles "already exists" errors gracefully.
     """
     driver = typedb_client.driver
     db_name = settings.typedb_database
@@ -55,20 +56,6 @@ async def _ensure_schema_loaded():
         logger.info(f"Creating database: {db_name}")
         driver.databases.create(db_name)
     
-    # Check if schema already loaded by looking for ontology_category
-    try:
-        tx = driver.transaction(db_name, TransactionType.READ)
-        try:
-            result = list(tx.query("match $x isa ontology_category; limit 1;").as_concept_rows())
-            if result:
-                logger.info("✓ Schema already loaded")
-                return
-        finally:
-            tx.close()
-    except Exception as e:
-        logger.info(f"Schema check: {e} - will initialize")
-    
-    # Load schema files
     DATA_DIR = Path(__file__).parent / "data"
     
     # 1. Load schema (define statements)
@@ -83,14 +70,19 @@ async def _ensure_schema_loaded():
                 tx.commit()
                 logger.info("✓ Schema loaded")
             except Exception as e:
-                logger.error(f"Schema load failed: {e}")
                 tx.close()
-                return
+                error_msg = str(e).lower()
+                # Schema already exists - this is fine
+                if "already exists" in error_msg or "duplicate" in error_msg:
+                    logger.info("✓ Schema already exists (skipping)")
+                else:
+                    logger.error(f"Schema load failed: {e}")
+                    return
     else:
         logger.error(f"Schema file not found: {schema_file}")
         return
     
-    # 2. Load concepts (insert statements)
+    # 2. Load concepts (insert statements) - skip if already loaded
     concepts_file = DATA_DIR / "concepts.tql"
     if concepts_file.exists():
         logger.info("Loading concepts.tql...")
@@ -102,10 +94,14 @@ async def _ensure_schema_loaded():
                 tx.commit()
                 logger.info("✓ Concepts loaded")
             except Exception as e:
-                logger.error(f"Concepts load failed: {e}")
                 tx.close()
+                error_msg = str(e).lower()
+                if "already exists" in error_msg or "duplicate" in error_msg:
+                    logger.info("✓ Concepts already exist (skipping)")
+                else:
+                    logger.warning(f"Concepts load: {e}")
     
-    # 3. Load questions (insert statements)
+    # 3. Load questions (insert statements) - skip if already loaded
     questions_file = DATA_DIR / "questions.tql"
     if questions_file.exists():
         logger.info("Loading questions.tql...")
@@ -117,8 +113,12 @@ async def _ensure_schema_loaded():
                 tx.commit()
                 logger.info("✓ Questions loaded")
             except Exception as e:
-                logger.error(f"Questions load failed: {e}")
                 tx.close()
+                error_msg = str(e).lower()
+                if "already exists" in error_msg or "duplicate" in error_msg:
+                    logger.info("✓ Questions already exist (skipping)")
+                else:
+                    logger.warning(f"Questions load: {e}")
     
     logger.info("✓ Schema initialization complete!")
 
