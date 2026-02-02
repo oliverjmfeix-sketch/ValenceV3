@@ -1,31 +1,29 @@
 """
-Health check endpoints.
+Health check endpoints - Simplified
 """
-from fastapi import APIRouter, Depends
+from typing import Dict, Any
+from fastapi import APIRouter
 
-from app.services.typedb_client import TypeDBClient, get_typedb_client
-from app.schemas.models import HealthCheck, TypeDBHealth
+from app.services.typedb_client import typedb_client
 
 router = APIRouter(tags=["Health"])
 
 
-@router.get("/health", response_model=HealthCheck)
-async def health_check():
+@router.get("/health")
+async def health_check() -> Dict[str, Any]:
     """Basic health check."""
-    return HealthCheck(status="ok", version="2.0.0")
+    return {
+        "status": "ok" if typedb_client.is_connected else "degraded",
+        "version": "3.0.0",
+        "typedb_connected": typedb_client.is_connected
+    }
 
 
-@router.get("/health/typedb", response_model=TypeDBHealth)
-async def typedb_health(
-    client: TypeDBClient = Depends(get_typedb_client)
-):
-    """
-    Deep TypeDB connection health check.
-    
-    Verifies:
-    - Connection to TypeDB Cloud
-    - Database exists
-    - Can execute queries
-    """
-    result = client.health_check()
-    return TypeDBHealth(**result)
+@router.get("/api/health")
+async def api_health_check() -> Dict[str, Any]:
+    """API health check (with /api prefix)."""
+    return {
+        "status": "ok" if typedb_client.is_connected else "degraded",
+        "version": "3.0.0",
+        "typedb_connected": typedb_client.is_connected
+    }
