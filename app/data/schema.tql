@@ -1,0 +1,471 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# TypeDB 3.x Consolidated Schema
+# 
+# This file combines all schema definitions into a single deployable file.
+# Use this for initial database setup or clean migrations.
+#
+# Version: 1.0.0
+# Date: 2026-02-02
+################################################################################
+
+define
+
+################################################################################
+# GLOBAL ATTRIBUTES
+################################################################################
+
+# Unique identifiers
+attribute deal_id, value string;
+attribute provision_id, value string;
+attribute question_id, value string;
+attribute concept_id, value string;
+attribute category_id, value string;
+attribute answer_id, value string;
+
+# Human-readable names and descriptions
+attribute name, value string;
+attribute description, value string;
+attribute display_order, value integer;
+
+# Timestamps
+attribute created_at, value datetime;
+attribute updated_at, value datetime;
+attribute extracted_at, value datetime;
+
+# Provenance attributes
+attribute source_text, value string;
+attribute source_page, value integer;
+attribute source_section, value string;
+attribute confidence, value string;
+
+# Question metadata
+attribute question_text, value string;
+attribute question_number, value integer;
+attribute answer_type, value string;
+attribute ui_display_type, value string;
+attribute is_required, value boolean;
+attribute default_value, value string;
+attribute covenant_type, value string;
+attribute target_field_name, value string;
+attribute target_entity_type, value string;
+attribute target_concept_type, value string;
+
+# Deal metadata
+attribute deal_name, value string;
+attribute borrower_name, value string;
+attribute deal_date, value date;
+attribute deal_amount, value double;
+attribute deal_currency, value string;
+attribute deal_type, value string;
+attribute facility_type, value string;
+
+# Document metadata
+attribute document_url, value string;
+attribute document_hash, value string;
+attribute page_count, value integer;
+
+# Answer values
+attribute answer_boolean, value boolean;
+attribute answer_integer, value integer;
+attribute answer_double, value double;
+attribute answer_string, value string;
+attribute answer_date, value date;
+attribute applicability_status, value string;
+
+# Provenance tracking
+attribute attributed_field_name, value string;
+
+# Benchmark attributes
+attribute benchmark_value_double, value double;
+attribute benchmark_value_boolean_pct, value double;
+attribute sample_size, value integer;
+attribute as_of_date, value date;
+
+################################################################################
+# MFN PROVISION ATTRIBUTES
+################################################################################
+
+attribute mfn_exists, value boolean;
+attribute mfn_applies_to_term_loans, value boolean;
+attribute mfn_applies_to_revolving, value boolean;
+attribute mfn_applies_to_incremental_term, value boolean;
+attribute mfn_applies_to_incremental_equivalent, value boolean;
+attribute mfn_applies_to_ratio_debt, value boolean;
+attribute threshold_bps, value integer;
+attribute threshold_applies_to_margin_only, value boolean;
+attribute threshold_applies_to_floor, value boolean;
+attribute threshold_applies_to_oid, value boolean;
+attribute threshold_applies_to_upfront_fees, value boolean;
+attribute floor_included_in_yield, value boolean;
+attribute oid_included_in_yield, value boolean;
+attribute upfront_fees_included_in_yield, value boolean;
+attribute commitment_fees_included_in_yield, value boolean;
+attribute pik_included_in_yield, value boolean;
+attribute sunset_exists, value boolean;
+attribute sunset_period_months, value integer;
+attribute sunset_resets_on_amendment, value boolean;
+attribute requires_majority_lender_consent, value boolean;
+attribute requires_affected_lender_consent, value boolean;
+attribute requires_all_lender_consent, value boolean;
+attribute yield_exclusion_pattern_detected, value boolean;
+
+################################################################################
+# RP PROVISION ATTRIBUTES
+################################################################################
+
+attribute general_dividend_prohibition_exists, value boolean;
+attribute covenant_applies_to_holdings, value boolean;
+attribute covenant_applies_to_borrower, value boolean;
+attribute covenant_applies_to_restricted_subs, value boolean;
+attribute builder_basket_exists, value boolean;
+attribute builder_starter_amount_usd, value double;
+attribute builder_starter_pct_ebitda, value double;
+attribute builder_uses_greater_of, value boolean;
+attribute builder_cni_addition_pct, value double;
+attribute builder_equity_addition_pct, value double;
+attribute ratio_dividend_basket_exists, value boolean;
+attribute ratio_leverage_threshold, value double;
+attribute ratio_interest_coverage_threshold, value double;
+attribute ratio_is_unlimited_if_met, value boolean;
+attribute mgmt_equity_basket_exists, value boolean;
+attribute mgmt_equity_annual_cap_usd, value double;
+attribute mgmt_equity_annual_cap_pct_ebitda, value double;
+attribute mgmt_equity_uses_greater_of, value boolean;
+attribute mgmt_equity_carryforward_permitted, value boolean;
+attribute tax_distribution_basket_exists, value boolean;
+attribute tax_standalone_taxpayer_limit, value boolean;
+attribute unsub_designation_permitted, value boolean;
+attribute unsub_requires_no_default, value boolean;
+attribute unsub_requires_board_approval, value boolean;
+attribute unsub_dollar_cap_usd, value double;
+attribute unsub_pct_cap_assets, value double;
+attribute jcrew_blocker_exists, value boolean;
+attribute blocker_covers_ip, value boolean;
+attribute blocker_covers_material_assets, value boolean;
+attribute blocker_binds_loan_parties, value boolean;
+attribute blocker_binds_restricted_subs, value boolean;
+attribute blocker_applies_at_designation, value boolean;
+attribute blocker_applies_at_transfer, value boolean;
+attribute blocker_is_sacred_right, value boolean;
+attribute ip_transfers_to_subs_permitted, value boolean;
+attribute ip_transfer_requires_fair_value, value boolean;
+attribute ip_licensing_restricted, value boolean;
+attribute jcrew_pattern_detected, value boolean;
+attribute serta_pattern_detected, value boolean;
+attribute collateral_leakage_pattern_detected, value boolean;
+
+################################################################################
+# CORE ENTITIES
+################################################################################
+
+entity deal,
+    owns deal_id @key,
+    owns deal_name,
+    owns borrower_name,
+    owns deal_date,
+    owns deal_amount,
+    owns deal_currency,
+    owns deal_type,
+    owns facility_type,
+    owns created_at,
+    owns updated_at,
+    plays deal_has_provision:deal,
+    plays deal_has_document:deal,
+    plays comparison_includes_deal:deal;
+
+entity document,
+    owns document_url @key,
+    owns document_hash,
+    owns page_count,
+    owns created_at,
+    plays deal_has_document:document;
+
+entity provision @abstract,
+    owns provision_id @key,
+    owns extracted_at,
+    plays deal_has_provision:provision,
+    plays provision_has_answer:provision,
+    plays has_provenance:attributed_entity,
+    plays concept_applicability:provision;
+
+entity mfn_provision sub provision,
+    owns mfn_exists,
+    owns mfn_applies_to_term_loans,
+    owns mfn_applies_to_revolving,
+    owns mfn_applies_to_incremental_term,
+    owns mfn_applies_to_incremental_equivalent,
+    owns mfn_applies_to_ratio_debt,
+    owns threshold_bps,
+    owns threshold_applies_to_margin_only,
+    owns threshold_applies_to_floor,
+    owns threshold_applies_to_oid,
+    owns threshold_applies_to_upfront_fees,
+    owns floor_included_in_yield,
+    owns oid_included_in_yield,
+    owns upfront_fees_included_in_yield,
+    owns commitment_fees_included_in_yield,
+    owns pik_included_in_yield,
+    owns sunset_exists,
+    owns sunset_period_months,
+    owns sunset_resets_on_amendment,
+    owns requires_majority_lender_consent,
+    owns requires_affected_lender_consent,
+    owns requires_all_lender_consent,
+    owns yield_exclusion_pattern_detected;
+
+entity rp_provision sub provision,
+    owns general_dividend_prohibition_exists,
+    owns covenant_applies_to_holdings,
+    owns covenant_applies_to_borrower,
+    owns covenant_applies_to_restricted_subs,
+    owns builder_basket_exists,
+    owns builder_starter_amount_usd,
+    owns builder_starter_pct_ebitda,
+    owns builder_uses_greater_of,
+    owns builder_cni_addition_pct,
+    owns builder_equity_addition_pct,
+    owns ratio_dividend_basket_exists,
+    owns ratio_leverage_threshold,
+    owns ratio_interest_coverage_threshold,
+    owns ratio_is_unlimited_if_met,
+    owns mgmt_equity_basket_exists,
+    owns mgmt_equity_annual_cap_usd,
+    owns mgmt_equity_annual_cap_pct_ebitda,
+    owns mgmt_equity_uses_greater_of,
+    owns mgmt_equity_carryforward_permitted,
+    owns tax_distribution_basket_exists,
+    owns tax_standalone_taxpayer_limit,
+    owns unsub_designation_permitted,
+    owns unsub_requires_no_default,
+    owns unsub_requires_board_approval,
+    owns unsub_dollar_cap_usd,
+    owns unsub_pct_cap_assets,
+    owns jcrew_blocker_exists,
+    owns blocker_covers_ip,
+    owns blocker_covers_material_assets,
+    owns blocker_binds_loan_parties,
+    owns blocker_binds_restricted_subs,
+    owns blocker_applies_at_designation,
+    owns blocker_applies_at_transfer,
+    owns blocker_is_sacred_right,
+    owns ip_transfers_to_subs_permitted,
+    owns ip_transfer_requires_fair_value,
+    owns ip_licensing_restricted,
+    owns jcrew_pattern_detected,
+    owns serta_pattern_detected,
+    owns collateral_leakage_pattern_detected;
+
+################################################################################
+# CONCEPT TYPE HIERARCHY
+################################################################################
+
+entity concept @abstract,
+    owns concept_id @key,
+    owns name,
+    owns description,
+    owns display_order,
+    plays concept_applicability:concept,
+    plays concept_hierarchy:parent,
+    plays concept_hierarchy:child;
+
+entity facility_prong sub concept;
+entity yield_component sub concept;
+entity fee_exclusion sub concept;
+entity lien_priority sub concept;
+entity governance_concept sub concept;
+entity sunset_type sub concept;
+entity covered_person sub concept;
+entity repurchase_trigger sub concept;
+entity dividend_definition_element sub concept;
+entity builder_source sub concept;
+entity ip_type sub concept;
+entity transfer_type sub concept;
+entity blocker_binding_entity sub concept;
+entity blocker_timing sub concept;
+entity investment_basket sub concept;
+entity rdp_basket_type sub concept;
+entity default_type sub concept;
+entity reallocation_target sub concept;
+entity loophole_type sub concept;
+entity protection_type sub concept;
+
+################################################################################
+# ONTOLOGY SYSTEM
+################################################################################
+
+entity ontology_category,
+    owns category_id @key,
+    owns name,
+    owns description,
+    owns display_order,
+    plays category_has_question:category,
+    plays category_hierarchy:parent_category,
+    plays category_hierarchy:child_category;
+
+entity ontology_question,
+    owns question_id @key,
+    owns question_number,
+    owns question_text,
+    owns description,
+    owns answer_type,
+    owns ui_display_type,
+    owns is_required,
+    owns default_value,
+    owns display_order,
+    owns covenant_type,
+    plays category_has_question:question,
+    plays question_targets_field:question,
+    plays question_targets_concept:question,
+    plays provision_has_answer:question;
+
+entity attribute_provenance,
+    owns attributed_field_name,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence,
+    owns extracted_at,
+    plays has_provenance:provenance;
+
+entity comparison_set,
+    owns name,
+    owns description,
+    owns created_at,
+    plays comparison_includes_deal:comparison;
+
+entity benchmark,
+    owns question_id,
+    owns benchmark_value_double,
+    owns benchmark_value_boolean_pct,
+    owns sample_size,
+    owns as_of_date;
+
+################################################################################
+# RELATIONS
+################################################################################
+
+relation deal_has_document,
+    relates deal,
+    relates document;
+
+relation deal_has_provision,
+    relates deal,
+    relates provision;
+
+relation concept_hierarchy,
+    relates parent,
+    relates child;
+
+relation category_hierarchy,
+    relates parent_category,
+    relates child_category;
+
+relation concept_applicability,
+    relates provision,
+    relates concept,
+    owns applicability_status,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence;
+
+relation category_has_question,
+    relates category,
+    relates question;
+
+relation question_targets_field,
+    relates question,
+    owns target_field_name,
+    owns target_entity_type;
+
+relation question_targets_concept,
+    relates question,
+    owns target_concept_type;
+
+relation provision_has_answer,
+    relates provision,
+    relates question,
+    owns answer_id @key,
+    owns answer_boolean,
+    owns answer_integer,
+    owns answer_double,
+    owns answer_string,
+    owns answer_date,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence,
+    owns extracted_at;
+
+relation has_provenance,
+    relates attributed_entity,
+    relates provenance;
+
+relation comparison_includes_deal,
+    relates comparison,
+    relates deal;
+
+################################################################################
+# FUNCTIONS FOR PATTERN DETECTION (TypeDB 3.x)
+################################################################################
+
+fun find_jcrew_vulnerable_provisions() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has unsub_designation_permitted true;
+        $rp has jcrew_blocker_exists false;
+    return { $rp };
+
+fun find_jcrew_blocker_scope_gap() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has jcrew_blocker_exists true;
+        $rp has blocker_binds_loan_parties true;
+        $rp has blocker_binds_restricted_subs false;
+    return { $rp };
+
+fun find_collateral_leakage() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has unsub_designation_permitted true;
+        $rp has blocker_covers_material_assets false;
+    return { $rp };
+
+fun find_yield_exclusion_pattern() -> { mfn_provision }:
+    match
+        $mfn isa mfn_provision;
+        $mfn has mfn_exists true;
+        $mfn has floor_included_in_yield false;
+        $mfn has oid_included_in_yield false;
+    return { $mfn };
+
+fun find_greater_of_builder_baskets() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has builder_basket_exists true;
+        $rp has builder_uses_greater_of true;
+        $rp has builder_starter_amount_usd $dollar;
+        $rp has builder_starter_pct_ebitda $pct;
+        $dollar > 0;
+        $pct > 0;
+    return { $rp };
+
+fun find_unlimited_ratio_baskets() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has ratio_dividend_basket_exists true;
+        $rp has ratio_is_unlimited_if_met true;
+    return { $rp };
+
+fun find_strong_jcrew_protection() -> { rp_provision }:
+    match
+        $rp isa rp_provision;
+        $rp has jcrew_blocker_exists true;
+        $rp has blocker_covers_ip true;
+        $rp has blocker_covers_material_assets true;
+        $rp has blocker_binds_loan_parties true;
+        $rp has blocker_binds_restricted_subs true;
+        $rp has blocker_is_sacred_right true;
+        $rp has ip_licensing_restricted true;
+    return { $rp };
