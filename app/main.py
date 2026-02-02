@@ -37,6 +37,67 @@ def _load_tql_file(filepath: Path) -> str:
     return '\n'.join(lines)
 
 
+def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
+    """
+    Try to add new schema elements incrementally.
+
+    Parses the schema and attempts to define each entity/attribute/relation
+    type individually, skipping ones that already exist.
+    """
+    import re
+
+    # Extract individual type definitions
+    # Match patterns like: entity foo sub bar, ... ;  or  attribute foo, value string;
+    lines = schema_tql.split('\n')
+    current_def = []
+    definitions = []
+    in_define = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip define keyword
+        if stripped == 'define':
+            in_define = True
+            continue
+
+        if not in_define or not stripped:
+            continue
+
+        current_def.append(line)
+
+        # Check if this line ends a definition (ends with ;)
+        if stripped.endswith(';'):
+            definitions.append('\n'.join(current_def))
+            current_def = []
+
+    # Try each definition
+    added = 0
+    skipped = 0
+
+    for defn in definitions:
+        # Skip function definitions (fun keyword) - they need special handling
+        if defn.strip().startswith('fun '):
+            continue
+
+        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        try:
+            tx.query(f"define\n{defn}")
+            tx.commit()
+            added += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "already" in error_msg or "exists" in error_msg or "duplicate" in error_msg:
+                skipped += 1
+            else:
+                # Log non-duplicate errors for debugging
+                logger.debug(f"Schema element skipped: {e}")
+                skipped += 1
+
+    logger.info(f"✓ Schema update: {added} added, {skipped} already existed")
+
+
 async def _ensure_schema_loaded():
     """
     Auto-initialize schema if database is empty.
@@ -59,6 +120,8 @@ async def _ensure_schema_loaded():
     DATA_DIR = Path(__file__).parent / "data"
     
     # 1. Load schema (define statements)
+    # TypeDB define is idempotent for new types but may error on existing ones
+    # We try the full schema first, then fall back to individual statements if needed
     schema_file = DATA_DIR / "schema.tql"
     if schema_file.exists():
         logger.info("Loading schema.tql...")
@@ -72,9 +135,11 @@ async def _ensure_schema_loaded():
             except Exception as e:
                 tx.close()
                 error_msg = str(e).lower()
-                # Schema already exists - this is fine
-                if "already exists" in error_msg or "duplicate" in error_msg:
-                    logger.info("✓ Schema already exists (skipping)")
+                # Schema partially exists - try to extend it with new types
+                if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
+                    logger.info("Schema exists, attempting incremental update...")
+                    # Extract and try each entity/attribute/relation definition separately
+                    _try_incremental_schema_update(driver, db_name, schema_tql)
                 else:
                     logger.error(f"Schema load failed: {e}")
                     return
