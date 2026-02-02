@@ -432,15 +432,28 @@ IMPORTANT:
             valid_concept_ids[f.target_concept_type] = {opt.concept_id for opt in f.options}
 
         try:
+            # Clean up response - remove markdown code fences
+            cleaned = response_text
+            if "```json" in cleaned:
+                cleaned = cleaned.split("```json", 1)[1]
+            if "```" in cleaned:
+                cleaned = cleaned.split("```")[0]
+
             # Find JSON object in response
-            start = response_text.find('{')
-            end = response_text.rfind('}') + 1
+            start = cleaned.find('{')
+            end = cleaned.rfind('}') + 1
 
             if start == -1 or end == 0:
                 logger.warning("No JSON object found in response")
                 return [], []
 
-            json_str = response_text[start:end]
+            json_str = cleaned[start:end]
+
+            # Try to fix common JSON issues (trailing commas)
+            import re
+            json_str = re.sub(r',\s*}', '}', json_str)
+            json_str = re.sub(r',\s*]', ']', json_str)
+
             data = json.loads(json_str)
 
             # Parse scalar answers

@@ -342,3 +342,133 @@ async def get_extraction_status(deal_id: str) -> ExtractionStatus:
         pass
 
     raise HTTPException(status_code=404, detail="Deal not found")
+
+
+@router.get("/{deal_id}/answers")
+async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
+    """Get all extracted answers (provision attributes) for a deal."""
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Check deal exists
+            deal_query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                select $d;
+            """
+            deal_result = tx.query(deal_query).resolve()
+            if not list(deal_result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="Deal not found")
+
+            answers = {}
+
+            # Get MFN provision attributes
+            mfn_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa mfn_provision;
+                select $p;
+            """
+            mfn_result = tx.query(mfn_query).resolve()
+            for row in mfn_result.as_concept_rows():
+                provision = row.get("p").as_entity()
+                for attr in provision.get_has(tx):
+                    attr_type = attr.get_type().get_label()
+                    if attr_type != "provision_id":
+                        answers[attr_type] = attr.get_value()
+
+            # Get RP provision attributes
+            rp_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa rp_provision;
+                select $p;
+            """
+            rp_result = tx.query(rp_query).resolve()
+            for row in rp_result.as_concept_rows():
+                provision = row.get("p").as_entity()
+                for attr in provision.get_has(tx):
+                    attr_type = attr.get_type().get_label()
+                    if attr_type != "provision_id":
+                        answers[attr_type] = attr.get_value()
+
+            return {
+                "deal_id": deal_id,
+                "answers": answers,
+                "count": len(answers)
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting answers for deal {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{deal_id}/qa")
+async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Q&A endpoint for asking questions about a deal.
+    For MVP, returns extracted answers that match the question.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    question = request.get("question", "")
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    try:
+        # Get all answers for context
+        answers_response = await get_deal_answers(deal_id)
+        answers = answers_response.get("answers", {})
+
+        # For MVP: return relevant answers based on keyword matching
+        # In production, this would use Claude for semantic Q&A
+        relevant = {}
+        question_lower = question.lower()
+
+        # Simple keyword matching for common queries
+        keyword_map = {
+            "mfn": ["mfn_exists", "mfn_applies_to", "threshold_bps", "sunset"],
+            "dividend": ["general_dividend_prohibition_exists", "ratio_dividend_basket"],
+            "builder": ["builder_basket_exists", "builder_starter", "builder_uses_greater_of"],
+            "jcrew": ["jcrew_blocker_exists", "blocker_covers", "unsub_designation"],
+            "blocker": ["jcrew_blocker_exists", "blocker_covers", "blocker_binds", "blocker_is_sacred_right"],
+            "tax": ["tax_distribution_basket_exists", "tax_standalone_taxpayer_limit"],
+            "ip": ["blocker_covers_ip", "ip_transfers", "ip_licensing_restricted"],
+            "ratio": ["ratio_dividend_basket", "ratio_leverage_threshold", "ratio_interest_coverage"],
+            "management": ["mgmt_equity_basket_exists", "mgmt_equity_annual_cap"],
+        }
+
+        for keyword, fields in keyword_map.items():
+            if keyword in question_lower:
+                for field in fields:
+                    for answer_key, answer_val in answers.items():
+                        if field in answer_key:
+                            relevant[answer_key] = answer_val
+
+        # If no keyword match, return all answers
+        if not relevant:
+            relevant = answers
+
+        return {
+            "deal_id": deal_id,
+            "question": question,
+            "answer": f"Based on the extracted data, here are the relevant findings:",
+            "relevant_fields": relevant,
+            "total_extracted": len(answers)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Q&A error for deal {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

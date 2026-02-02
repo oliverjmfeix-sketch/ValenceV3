@@ -413,11 +413,11 @@ class DealRepository:
                     $prov isa {provision_type};
                 insert
                     $provenance isa attribute_provenance,
-                        has attribute_name "{p.attribute_name}",
+                        has attributed_field_name "{p.attribute_name}",
                         has source_text "{sanitize_for_typeql(p.source_text[:1000])}",
                         has source_page {p.source_page},
                         has source_section "{sanitize_for_typeql(p.source_section or '')}",
-                        has extraction_confidence "{p.confidence}",
+                        has confidence "{p.confidence}",
                         has extracted_at {datetime.now().isoformat()};
                     ($prov, $provenance) isa has_provenance;
             """
