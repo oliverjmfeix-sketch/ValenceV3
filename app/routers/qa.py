@@ -27,8 +27,3 @@ async def qa_status() -> Dict[str, Any]:
         "version": "3.0.0",
         "features": ["deal_lookup", "cross_deal_query"]
     }
-    """
-    return await engine.cross_deal_query(
-        request.question,
-        request.deal_ids
-    )
