@@ -1,66 +1,110 @@
 """
-Ontology endpoints - Questions from TypeDB (SSoT).
-
-IMPORTANT: Questions are fetched from TypeDB, NOT hardcoded.
-This is the single source of truth for the ontology.
+Ontology endpoints - Questions from TypeDB (SSoT)
 """
 from typing import List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
-from app.repositories.ontology_repository import OntologyRepository, get_ontology_repository
-from app.schemas.models import OntologyQuestion, CategoryWithQuestions
+from app.config import settings
+from app.services.typedb_client import typedb_client
+from typedb.driver import TransactionType
 
 router = APIRouter(prefix="/api/ontology", tags=["Ontology"])
 
 
-@router.get("/questions", response_model=List[OntologyQuestion])
-async def get_all_questions(
-    repo: OntologyRepository = Depends(get_ontology_repository)
-):
-    """
-    Get all ontology questions.
+@router.get("/categories")
+async def get_categories() -> List[Dict[str, Any]]:
+    """Get all ontology categories."""
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
     
-    These come from TypeDB (SSoT), not hardcoded lists.
-    """
-    return repo.get_all_questions()
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = """
+                match 
+                    $c isa ontology_category,
+                    has category_id $id,
+                    has name $name;
+                select $id, $name;
+            """
+            result = tx.query(query)
+            
+            categories = []
+            for row in result.as_concept_rows():
+                categories.append({
+                    "category_id": row.get("id").as_attribute().get_value(),
+                    "name": row.get("name").as_attribute().get_value()
+                })
+            return categories
+        finally:
+            tx.close()
+    except Exception as e:
+        return []  # Return empty on error
 
 
-@router.get("/questions/by-category", response_model=Dict[str, List[OntologyQuestion]])
-async def get_questions_by_category(
-    repo: OntologyRepository = Depends(get_ontology_repository)
-):
-    """Get questions grouped by category."""
-    return repo.get_questions_by_category()
-
-
-@router.get("/categories", response_model=List[Dict[str, Any]])
-async def get_categories(
-    repo: OntologyRepository = Depends(get_ontology_repository)
-):
-    """Get list of categories with question counts."""
-    return repo.get_categories()
-
-
-@router.get("/deals/{deal_id}/answers", response_model=List[CategoryWithQuestions])
-async def get_deal_answers(
-    deal_id: str,
-    repo: OntologyRepository = Depends(get_ontology_repository)
-):
-    """
-    Get all questions with answers for a specific deal.
+@router.get("/questions")
+async def get_questions() -> List[Dict[str, Any]]:
+    """Get all ontology questions."""
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
     
-    This powers the Ontology Browser in the UI:
-    - Shows all questions organized by category
-    - Shows extracted answers (or "Not found")
-    - Includes provenance for each answer
-    """
-    categories = repo.get_questions_with_answers(deal_id)
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = """
+                match 
+                    $q isa ontology_question,
+                    has question_id $id,
+                    has question_text $text,
+                    has answer_type $type;
+                select $id, $text, $type;
+            """
+            result = tx.query(query)
+            
+            questions = []
+            for row in result.as_concept_rows():
+                questions.append({
+                    "question_id": row.get("id").as_attribute().get_value(),
+                    "question_text": row.get("text").as_attribute().get_value(),
+                    "answer_type": row.get("type").as_attribute().get_value()
+                })
+            return questions
+        finally:
+            tx.close()
+    except Exception as e:
+        return []
+
+
+@router.get("/concepts")
+async def get_concepts() -> Dict[str, List[Dict[str, Any]]]:
+    """Get all concepts grouped by type."""
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
     
-    if not categories:
-        raise HTTPException(
-            status_code=404,
-            detail="Deal not found or no data extracted"
-        )
-    
-    return categories
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = """
+                match 
+                    $c isa concept,
+                    has concept_id $id,
+                    has name $name;
+                select $c, $id, $name;
+            """
+            result = tx.query(query)
+            
+            concepts = {}
+            for row in result.as_concept_rows():
+                concept_type = row.get("c").as_entity().get_type().get_label()
+                if concept_type not in concepts:
+                    concepts[concept_type] = []
+                concepts[concept_type].append({
+                    "concept_id": row.get("id").as_attribute().get_value(),
+                    "name": row.get("name").as_attribute().get_value()
+                })
+            return concepts
+        finally:
+            tx.close()
+    except Exception as e:
+        return {}
