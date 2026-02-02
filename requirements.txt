@@ -1,0 +1,24 @@
+# Valence Backend Dependencies
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# TypeDB
+typedb-driver>=3.0.0
+
+# Claude API
+anthropic>=0.40.0
+
+# PDF Processing - PyMuPDF is faster than pdfplumber
+PyMuPDF>=1.23.0
+
+# Settings
+python-dotenv==1.0.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Async
+aiofiles==23.2.1
+httpx==0.26.0
