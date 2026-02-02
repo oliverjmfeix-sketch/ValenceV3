@@ -28,7 +28,7 @@ async def get_categories() -> List[Dict[str, Any]]:
                     has name $name;
                 select $id, $name;
             """
-            result = tx.query(query)
+            result = tx.query(query).resolve()
             
             categories = []
             for row in result.as_concept_rows():
@@ -40,7 +40,7 @@ async def get_categories() -> List[Dict[str, Any]]:
         finally:
             tx.close()
     except Exception as e:
-        return []  # Return empty on error
+        return []
 
 
 @router.get("/questions")
@@ -60,7 +60,7 @@ async def get_questions() -> List[Dict[str, Any]]:
                     has answer_type $type;
                 select $id, $text, $type;
             """
-            result = tx.query(query)
+            result = tx.query(query).resolve()
             
             questions = []
             for row in result.as_concept_rows():
@@ -92,7 +92,7 @@ async def get_concepts() -> Dict[str, List[Dict[str, Any]]]:
                     has name $name;
                 select $c, $id, $name;
             """
-            result = tx.query(query)
+            result = tx.query(query).resolve()
             
             concepts = {}
             for row in result.as_concept_rows():
