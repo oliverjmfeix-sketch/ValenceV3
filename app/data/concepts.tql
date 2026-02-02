@@ -501,3 +501,465 @@ $lt8 isa loophole_type,
     has name "Yield Component Exclusion",
     has description "Key yield components excluded from MFN calculation",
     has display_order 8;
+
+################################################################################
+# DIVIDEND_DEFINITION_ELEMENT - What's included in Dividend definition
+################################################################################
+
+$dde1 isa dividend_definition_element,
+    has concept_id "dde_declaring",
+    has name "Declaring dividends",
+    has description "Includes declaring dividends (not just paying)",
+    has display_order 1;
+
+$dde2 isa dividend_definition_element,
+    has concept_id "dde_authorizing",
+    has name "Authorizing distributions",
+    has description "Includes authorizing distributions",
+    has display_order 2;
+
+$dde3 isa dividend_definition_element,
+    has concept_id "dde_returning_capital",
+    has name "Returning equity capital",
+    has description "Includes returning equity capital to holders",
+    has display_order 3;
+
+$dde4 isa dividend_definition_element,
+    has concept_id "dde_redemptions",
+    has name "Redemptions",
+    has description "Includes redemptions of Equity Interests",
+    has display_order 4;
+
+$dde5 isa dividend_definition_element,
+    has concept_id "dde_retirements",
+    has name "Retirements",
+    has description "Includes retirements of Equity Interests",
+    has display_order 5;
+
+$dde6 isa dividend_definition_element,
+    has concept_id "dde_purchases",
+    has name "Purchases",
+    has description "Includes purchases of Equity Interests",
+    has display_order 6;
+
+$dde7 isa dividend_definition_element,
+    has concept_id "dde_acquisitions",
+    has name "Acquisitions for consideration",
+    has description "Includes acquisitions of Equity Interests for consideration",
+    has display_order 7;
+
+$dde8 isa dividend_definition_element,
+    has concept_id "dde_options_warrants",
+    has name "Options/warrants payments",
+    has description "Includes payments on options or warrants",
+    has display_order 8;
+
+$dde9 isa dividend_definition_element,
+    has concept_id "dde_property_delivery",
+    has name "Property delivery",
+    has description "Includes delivery of property (non-Qualified Stock)",
+    has display_order 9;
+
+################################################################################
+# BUILDER_SOURCE - What builds Cumulative Amount
+################################################################################
+
+$bs1 isa builder_source,
+    has concept_id "bs_net_income",
+    has name "Consolidated Net Income %",
+    has description "Percentage of cumulative CNI builds into basket",
+    has display_order 1;
+
+$bs2 isa builder_source,
+    has concept_id "bs_retained_ecf",
+    has name "Retained ECF Amount",
+    has description "Available Retained ECF Amount",
+    has display_order 2;
+
+$bs3 isa builder_source,
+    has concept_id "bs_equity_proceeds",
+    has name "Equity issuance proceeds",
+    has description "Net cash proceeds from eligible equity issuances",
+    has display_order 3;
+
+$bs4 isa builder_source,
+    has concept_id "bs_debt_to_equity",
+    has name "Debt converted to equity",
+    has description "Proceeds from debt converted to Qualified Stock",
+    has display_order 4;
+
+$bs5 isa builder_source,
+    has concept_id "bs_noncash_contributions",
+    has name "Non-cash contributions",
+    has description "FMV of contributed assets",
+    has display_order 5;
+
+$bs6 isa builder_source,
+    has concept_id "bs_declined_proceeds",
+    has name "Retained Declined Proceeds",
+    has description "Declined prepayment proceeds",
+    has display_order 6;
+
+$bs7 isa builder_source,
+    has concept_id "bs_asset_sale_proceeds",
+    has name "Retained Asset Sale Proceeds",
+    has description "Retained proceeds from asset sales",
+    has display_order 7;
+
+$bs8 isa builder_source,
+    has concept_id "bs_jv_dividends",
+    has name "JV dividends",
+    has description "Cash dividends from joint ventures",
+    has display_order 8;
+
+$bs9 isa builder_source,
+    has concept_id "bs_unsub_dividends",
+    has name "Unrestricted Sub dividends",
+    has description "Cash dividends from Unrestricted Subs",
+    has display_order 9;
+
+$bs10 isa builder_source,
+    has concept_id "bs_investment_returns",
+    has name "Investment returns",
+    has description "Returns/dividends/profits on Investments",
+    has display_order 10;
+
+$bs11 isa builder_source,
+    has concept_id "bs_unsub_redesignation",
+    has name "Unsub redesignation FMV",
+    has description "FMV upon redesignation of Unrestricted Sub",
+    has display_order 11;
+
+################################################################################
+# BUILDER_REDUCTION_TYPE - What reduces builder basket
+################################################################################
+
+$br1 isa builder_reduction_type,
+    has concept_id "br_investments",
+    has name "Investment usage",
+    has description "Investments reduce builder capacity",
+    has display_order 1;
+
+$br2 isa builder_reduction_type,
+    has concept_id "br_dividends",
+    has name "Dividend usage",
+    has description "Dividends reduce builder capacity",
+    has display_order 2;
+
+$br3 isa builder_reduction_type,
+    has concept_id "br_rdp",
+    has name "RDP usage",
+    has description "Restricted Debt Payments reduce builder capacity",
+    has display_order 3;
+
+################################################################################
+# RDP_BASKET_TYPE - Baskets available for RDP
+################################################################################
+
+$rb1 isa rdp_basket_type,
+    has concept_id "rb_cumulative_amount",
+    has name "Cumulative Amount",
+    has description "Builder basket available for RDP",
+    has display_order 1;
+
+$rb2 isa rdp_basket_type,
+    has concept_id "rb_equity_proceeds",
+    has name "Equity proceeds",
+    has description "RDP from Qualified Capital Stock proceeds",
+    has display_order 2;
+
+$rb3 isa rdp_basket_type,
+    has concept_id "rb_exchange",
+    has name "Debt-for-debt exchange",
+    has description "Exchange for like Subordinated Debt",
+    has display_order 3;
+
+$rb4 isa rdp_basket_type,
+    has concept_id "rb_intercompany",
+    has name "Intercompany payments",
+    has description "Payments to Group Members",
+    has display_order 4;
+
+$rb5 isa rdp_basket_type,
+    has concept_id "rb_scheduled",
+    has name "Scheduled payments",
+    has description "Regularly scheduled interest/fees",
+    has display_order 5;
+
+$rb6 isa rdp_basket_type,
+    has concept_id "rb_equity_contribution",
+    has name "Equity contribution funded",
+    has description "RDP funded by equity contributions",
+    has display_order 6;
+
+$rb7 isa rdp_basket_type,
+    has concept_id "rb_conversion",
+    has name "Conversion to equity",
+    has description "Conversion to Qualified Stock",
+    has display_order 7;
+
+$rb8 isa rdp_basket_type,
+    has concept_id "rb_ahydo",
+    has name "AHYDO payments",
+    has description "AHYDO catch-up payments",
+    has display_order 8;
+
+$rb9 isa rdp_basket_type,
+    has concept_id "rb_fixed_basket",
+    has name "Fixed dollar basket",
+    has description "Fixed dollar basket for RDP",
+    has display_order 9;
+
+$rb10 isa rdp_basket_type,
+    has concept_id "rb_ratio_unlimited",
+    has name "Ratio-based unlimited",
+    has description "Unlimited RDP at leverage threshold",
+    has display_order 10;
+
+################################################################################
+# INTERCOMPANY_RECIPIENT_TYPE - Permitted intercompany recipients
+################################################################################
+
+$icr1 isa intercompany_recipient_type,
+    has concept_id "icr_borrower",
+    has name "Any Borrower",
+    has description "Dividends to any Borrower permitted",
+    has display_order 1;
+
+$icr2 isa intercompany_recipient_type,
+    has concept_id "icr_guarantor",
+    has name "Subsidiary Guarantors",
+    has description "Dividends to Subsidiary Guarantors permitted",
+    has display_order 2;
+
+$icr3 isa intercompany_recipient_type,
+    has concept_id "icr_holdings",
+    has name "Holdings",
+    has description "Dividends to Holdings permitted",
+    has display_order 3;
+
+$icr4 isa intercompany_recipient_type,
+    has concept_id "icr_non_guarantor_sub",
+    has name "Non-Guarantor Subs",
+    has description "Dividends to non-Guarantor Restricted Subs permitted",
+    has display_order 4;
+
+################################################################################
+# TAX_GROUP_TYPE - Tax distribution group types
+################################################################################
+
+$tgt1 isa tax_group_type,
+    has concept_id "tgt_consolidated",
+    has name "Consolidated group",
+    has description "Consolidated income tax group",
+    has display_order 1;
+
+$tgt2 isa tax_group_type,
+    has concept_id "tgt_combined",
+    has name "Combined group",
+    has description "Combined income tax group",
+    has display_order 2;
+
+$tgt3 isa tax_group_type,
+    has concept_id "tgt_similar",
+    has name "Similar groups",
+    has description "Similar income tax groups",
+    has display_order 3;
+
+$tgt4 isa tax_group_type,
+    has concept_id "tgt_disregarded",
+    has name "Disregarded entities",
+    has description "Entities disregarded for US federal tax",
+    has display_order 4;
+
+################################################################################
+# RDP_PAYMENT_TYPE - Types of Restricted Debt Payments
+################################################################################
+
+$rdp1 isa rdp_payment_type,
+    has concept_id "rdp_voluntary",
+    has name "Voluntary payments",
+    has description "Voluntary payments restricted",
+    has display_order 1;
+
+$rdp2 isa rdp_payment_type,
+    has concept_id "rdp_optional",
+    has name "Optional payments",
+    has description "Optional payments restricted",
+    has display_order 2;
+
+$rdp3 isa rdp_payment_type,
+    has concept_id "rdp_prepayments",
+    has name "Prepayments",
+    has description "Prepayments restricted",
+    has display_order 3;
+
+$rdp4 isa rdp_payment_type,
+    has concept_id "rdp_repurchases",
+    has name "Repurchases",
+    has description "Repurchases restricted",
+    has display_order 4;
+
+$rdp5 isa rdp_payment_type,
+    has concept_id "rdp_redemptions",
+    has name "Redemptions",
+    has description "Redemptions restricted",
+    has display_order 5;
+
+$rdp6 isa rdp_payment_type,
+    has concept_id "rdp_acquisitions",
+    has name "Acquisitions for value",
+    has description "Acquisitions for value restricted",
+    has display_order 6;
+
+################################################################################
+# OVERHEAD_COST_TYPE - Permitted overhead costs
+################################################################################
+
+$oct1 isa overhead_cost_type,
+    has concept_id "oct_general_admin",
+    has name "General & administrative",
+    has description "General and administrative expenses",
+    has display_order 1;
+
+$oct2 isa overhead_cost_type,
+    has concept_id "oct_legal",
+    has name "Legal expenses",
+    has description "Legal and compliance costs",
+    has display_order 2;
+
+$oct3 isa overhead_cost_type,
+    has concept_id "oct_accounting",
+    has name "Accounting expenses",
+    has description "Accounting and audit costs",
+    has display_order 3;
+
+$oct4 isa overhead_cost_type,
+    has concept_id "oct_insurance",
+    has name "Insurance premiums",
+    has description "D&O and other insurance premiums",
+    has display_order 4;
+
+$oct5 isa overhead_cost_type,
+    has concept_id "oct_franchise_taxes",
+    has name "Franchise taxes",
+    has description "State franchise and similar taxes",
+    has display_order 5;
+
+################################################################################
+# TRANSACTION_COST_TYPE - Permitted transaction costs
+################################################################################
+
+$tct1 isa transaction_cost_type,
+    has concept_id "tct_acquisition",
+    has name "Acquisition costs",
+    has description "Costs related to permitted acquisitions",
+    has display_order 1;
+
+$tct2 isa transaction_cost_type,
+    has concept_id "tct_disposition",
+    has name "Disposition costs",
+    has description "Costs related to asset sales",
+    has display_order 2;
+
+$tct3 isa transaction_cost_type,
+    has concept_id "tct_financing",
+    has name "Financing costs",
+    has description "Costs related to debt/equity financings",
+    has display_order 3;
+
+$tct4 isa transaction_cost_type,
+    has concept_id "tct_ipo",
+    has name "IPO costs",
+    has description "Costs related to initial public offering",
+    has display_order 4;
+
+################################################################################
+# EQUITY_AWARD_TYPE - Equity awards for tax repurchases
+################################################################################
+
+$eat1 isa equity_award_type,
+    has concept_id "eat_stock_options",
+    has name "Stock options",
+    has description "Stock option exercises",
+    has display_order 1;
+
+$eat2 isa equity_award_type,
+    has concept_id "eat_restricted_stock",
+    has name "Restricted stock",
+    has description "Restricted stock awards",
+    has display_order 2;
+
+$eat3 isa equity_award_type,
+    has concept_id "eat_rsus",
+    has name "RSUs",
+    has description "Restricted stock units",
+    has display_order 3;
+
+$eat4 isa equity_award_type,
+    has concept_id "eat_phantom",
+    has name "Phantom equity",
+    has description "Phantom equity or SARs",
+    has display_order 4;
+
+################################################################################
+# REALLOCATION_REDUCTION_TYPE - What reduces general basket
+################################################################################
+
+$rrt1 isa reallocation_reduction_type,
+    has concept_id "rrt_investments",
+    has name "Investment usage",
+    has description "Investments reduce general basket",
+    has display_order 1;
+
+$rrt2 isa reallocation_reduction_type,
+    has concept_id "rrt_dividends",
+    has name "Dividend usage",
+    has description "Dividends reduce general basket",
+    has display_order 2;
+
+$rrt3 isa reallocation_reduction_type,
+    has concept_id "rrt_rdp",
+    has name "RDP usage",
+    has description "Restricted Debt Payments reduce general basket",
+    has display_order 3;
+
+$rrt4 isa reallocation_reduction_type,
+    has concept_id "rrt_prepayments",
+    has name "Prepayment usage",
+    has description "Voluntary prepayments reduce general basket",
+    has display_order 4;
+
+################################################################################
+# REALLOCATION_TARGET - Cross-covenant reallocation targets
+################################################################################
+
+$rat1 isa reallocation_target,
+    has concept_id "rat_investments",
+    has name "Investments basket",
+    has description "Reallocation to investments permitted",
+    has display_order 1;
+
+$rat2 isa reallocation_target,
+    has concept_id "rat_dividends",
+    has name "Dividends basket",
+    has description "Reallocation to dividends permitted",
+    has display_order 2;
+
+$rat3 isa reallocation_target,
+    has concept_id "rat_rdp",
+    has name "RDP basket",
+    has description "Reallocation to restricted debt payments permitted",
+    has display_order 3;
+
+$rat4 isa reallocation_target,
+    has concept_id "rat_prepayments",
+    has name "Prepayments basket",
+    has description "Reallocation to voluntary prepayments permitted",
+    has display_order 4;
+
+$rat5 isa reallocation_target,
+    has concept_id "rat_liens",
+    has name "Liens basket",
+    has description "Reallocation to liens permitted",
+    has display_order 5;

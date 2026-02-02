@@ -290,6 +290,16 @@ entity reallocation_target sub concept;
 entity loophole_type sub concept;
 entity protection_type sub concept;
 
+# Additional RP Concept Types for multi-select consolidation
+entity builder_reduction_type sub concept;
+entity intercompany_recipient_type sub concept;
+entity tax_group_type sub concept;
+entity overhead_cost_type sub concept;
+entity transaction_cost_type sub concept;
+entity equity_award_type sub concept;
+entity rdp_payment_type sub concept;
+entity reallocation_reduction_type sub concept;
+
 ################################################################################
 # ONTOLOGY SYSTEM
 ################################################################################
