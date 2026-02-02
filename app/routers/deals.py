@@ -1,5 +1,5 @@
 """
-Deal endpoints - Simplified for V3 launch
+Deal endpoints - Simplified for V3 launch (TypeDB 3.x API)
 """
 import os
 import uuid
@@ -32,7 +32,7 @@ async def list_deals() -> List[Dict[str, Any]]:
                     has deal_name $name;
                 select $id, $name;
             """
-            result = tx.query(query)
+            result = tx.query(query).resolve()
             
             deals = []
             for row in result.as_concept_rows():
@@ -45,7 +45,7 @@ async def list_deals() -> List[Dict[str, Any]]:
             tx.close()
     except Exception as e:
         logger.error(f"Error listing deals: {e}")
-        return []  # Return empty list on error
+        return []
 
 
 @router.get("/{deal_id}")
@@ -64,7 +64,7 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
                     has deal_name $name;
                 select $name;
             """
-            result = tx.query(query)
+            result = tx.query(query).resolve()
             rows = list(result.as_concept_rows())
             
             if not rows:
@@ -73,8 +73,8 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
             return {
                 "deal_id": deal_id,
                 "deal_name": rows[0].get("name").as_attribute().get_value(),
-                "answers": {},  # TODO: Fetch from provision_has_answer
-                "applicabilities": {}  # TODO: Fetch from concept_applicability
+                "answers": {},
+                "applicabilities": {}
             }
         finally:
             tx.close()
@@ -106,7 +106,7 @@ async def create_deal(
                     has deal_name "{deal_name}",
                     has borrower_name "{borrower}";
             """
-            tx.query(query)
+            tx.query(query).resolve()
             tx.commit()
             
             return {
@@ -138,7 +138,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
                 delete 
                     $d isa deal;
             """
-            tx.query(query)
+            tx.query(query).resolve()
             tx.commit()
             
             return {"status": "deleted", "deal_id": deal_id}
