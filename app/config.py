@@ -32,9 +32,14 @@ class Settings(BaseSettings):
     debug: bool = False
     
     @property
-    def cors_origins(self) -> List[str]:
+    def cors_origins_list(self) -> List[str]:
         """Parse CORS origins from comma-separated string."""
         return [origin.strip() for origin in self.cors_origins_str.split(",") if origin.strip()]
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Alias for cors_origins_list."""
+        return self.cors_origins_list
     
     @property
     def normalized_typedb_address(self) -> str:
