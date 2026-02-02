@@ -1,0 +1,380 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# TypeDB 3.x Seed Data - Part 6: Ontology Categories & Sample Questions
+#
+# This file creates the category structure and demonstrates how questions
+# are linked to categories and target fields. A full implementation would
+# include all 471 questions (42 MFN + 429 RP).
+#
+# STRUCTURE:
+# - Categories have hierarchy (A -> A1, A2, etc.)
+# - Questions belong to categories
+# - Questions target specific fields on provisions
+# - Multiselect questions target concept types
+################################################################################
+
+insert
+
+################################################################################
+# MFN ONTOLOGY CATEGORIES
+################################################################################
+
+$mfn_cat isa ontology_category,
+    has category_id "mfn_root",
+    has name "MFN Analysis",
+    has description "Most Favored Nation provision analysis",
+    has display_order 1;
+
+$mfn_existence isa ontology_category,
+    has category_id "mfn_existence",
+    has name "MFN Existence and Scope",
+    has description "Whether MFN exists and what debt it covers",
+    has display_order 1;
+
+(parent_category: $mfn_cat, child_category: $mfn_existence) isa category_hierarchy;
+
+$mfn_yield isa ontology_category,
+    has category_id "mfn_yield",
+    has name "MFN Yield Mechanics",
+    has description "How yield is calculated for MFN purposes",
+    has display_order 2;
+
+(parent_category: $mfn_cat, child_category: $mfn_yield) isa category_hierarchy;
+
+$mfn_governance isa ontology_category,
+    has category_id "mfn_governance",
+    has name "MFN Governance & Timing",
+    has description "Sunset provisions and amendment requirements",
+    has display_order 3;
+
+(parent_category: $mfn_cat, child_category: $mfn_governance) isa category_hierarchy;
+
+################################################################################
+# RP ONTOLOGY CATEGORIES (25 categories A-Y)
+################################################################################
+
+$rp_cat isa ontology_category,
+    has category_id "rp_root",
+    has name "Restricted Payments Analysis",
+    has description "Section 6.06 (Dividends) and 6.09 (RDP) analysis",
+    has display_order 2;
+
+# Category A: Dividend Restrictions - General Structure
+$cat_a isa ontology_category,
+    has category_id "rp_cat_a",
+    has name "A: Dividend Restrictions - General Structure",
+    has description "Existence and scope of dividend prohibitions",
+    has display_order 1;
+
+(parent_category: $rp_cat, child_category: $cat_a) isa category_hierarchy;
+
+# Subcategory A1
+$cat_a1 isa ontology_category,
+    has category_id "rp_cat_a1",
+    has name "A1: Existence and Scope",
+    has description "Whether dividend restrictions exist and who they apply to",
+    has display_order 1;
+
+(parent_category: $cat_a, child_category: $cat_a1) isa category_hierarchy;
+
+# Subcategory A2
+$cat_a2 isa ontology_category,
+    has category_id "rp_cat_a2",
+    has name "A2: Measurement and Valuation",
+    has description "How dividends are measured and valued",
+    has display_order 2;
+
+(parent_category: $cat_a, child_category: $cat_a2) isa category_hierarchy;
+
+# Category B: Intercompany Dividends
+$cat_b isa ontology_category,
+    has category_id "rp_cat_b",
+    has name "B: Permitted Dividend Baskets - Intercompany",
+    has description "Upstream and intercompany dividend permissions",
+    has display_order 2;
+
+(parent_category: $rp_cat, child_category: $cat_b) isa category_hierarchy;
+
+# Category C: Management Equity
+$cat_c isa ontology_category,
+    has category_id "rp_cat_c",
+    has name "C: Permitted Dividend Baskets - Management Equity",
+    has description "Management equity repurchase basket",
+    has display_order 3;
+
+(parent_category: $rp_cat, child_category: $cat_c) isa category_hierarchy;
+
+# Category D: Tax Distributions
+$cat_d isa ontology_category,
+    has category_id "rp_cat_d",
+    has name "D: Permitted Dividend Baskets - Tax Distributions",
+    has description "Tax distribution permissions",
+    has display_order 4;
+
+(parent_category: $rp_cat, child_category: $cat_d) isa category_hierarchy;
+
+# Category F: Builder Basket
+$cat_f isa ontology_category,
+    has category_id "rp_cat_f",
+    has name "F: Permitted Dividend Baskets - Builder Basket",
+    has description "Cumulative amount / builder basket mechanics",
+    has display_order 6;
+
+(parent_category: $rp_cat, child_category: $cat_f) isa category_hierarchy;
+
+# Category G: Ratio Basket
+$cat_g isa ontology_category,
+    has category_id "rp_cat_g",
+    has name "G: Permitted Dividend Baskets - Ratio Basket",
+    has description "Leverage and coverage ratio-based baskets",
+    has display_order 7;
+
+(parent_category: $rp_cat, child_category: $cat_g) isa category_hierarchy;
+
+################################################################################
+# SAMPLE MFN QUESTIONS (42 total in full implementation)
+################################################################################
+
+# Q1: MFN Existence
+$mfn_q1 isa ontology_question,
+    has question_id "mfn_q1",
+    has question_number 1,
+    has question_text "Does the credit agreement contain an MFN provision?",
+    has description "Whether yield protection exists for existing lenders",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 1,
+    has covenant_type "MFN";
+
+(category: $mfn_existence, question: $mfn_q1) isa category_has_question;
+(question: $mfn_q1) isa question_targets_field, has target_field_name "mfn_exists", has target_entity_type "mfn_provision";
+
+# Q2-Q6: MFN Debt Scope (multiselect)
+$mfn_q2 isa ontology_question,
+    has question_id "mfn_q2",
+    has question_number 2,
+    has question_text "Which types of incremental debt trigger MFN protection?",
+    has description "Select all facility types covered by the MFN",
+    has answer_type "multiselect",
+    has ui_display_type "multiselect",
+    has is_required true,
+    has display_order 2,
+    has covenant_type "MFN";
+
+(category: $mfn_existence, question: $mfn_q2) isa category_has_question;
+(question: $mfn_q2) isa question_targets_concept, has target_concept_type "facility_prong";
+
+# Q27: Threshold BPS
+$mfn_q27 isa ontology_question,
+    has question_id "mfn_q27",
+    has question_number 27,
+    has question_text "What is the MFN threshold in basis points?",
+    has description "The minimum yield differential that triggers MFN adjustment",
+    has answer_type "integer",
+    has ui_display_type "number",
+    has is_required false,
+    has default_value "50",
+    has display_order 27,
+    has covenant_type "MFN";
+
+(category: $mfn_yield, question: $mfn_q27) isa category_has_question;
+(question: $mfn_q27) isa question_targets_field, has target_field_name "threshold_bps", has target_entity_type "mfn_provision";
+
+# Q28-Q32: Yield Components (multiselect)
+$mfn_q28 isa ontology_question,
+    has question_id "mfn_q28",
+    has question_number 28,
+    has question_text "Which yield components are included in the MFN calculation?",
+    has description "Select all components that count toward all-in yield",
+    has answer_type "multiselect",
+    has ui_display_type "multiselect",
+    has is_required true,
+    has display_order 28,
+    has covenant_type "MFN";
+
+(category: $mfn_yield, question: $mfn_q28) isa category_has_question;
+(question: $mfn_q28) isa question_targets_concept, has target_concept_type "yield_component";
+
+# Q37: Sunset Exists
+$mfn_q37 isa ontology_question,
+    has question_id "mfn_q37",
+    has question_number 37,
+    has question_text "Does the MFN have a sunset provision?",
+    has description "Whether MFN protection expires after a period",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 37,
+    has covenant_type "MFN";
+
+(category: $mfn_governance, question: $mfn_q37) isa category_has_question;
+(question: $mfn_q37) isa question_targets_field, has target_field_name "sunset_exists", has target_entity_type "mfn_provision";
+
+# Q38: Sunset Period
+$mfn_q38 isa ontology_question,
+    has question_id "mfn_q38",
+    has question_number 38,
+    has question_text "What is the sunset period in months?",
+    has description "Number of months until MFN expires",
+    has answer_type "integer",
+    has ui_display_type "number",
+    has is_required false,
+    has display_order 38,
+    has covenant_type "MFN";
+
+(category: $mfn_governance, question: $mfn_q38) isa category_has_question;
+(question: $mfn_q38) isa question_targets_field, has target_field_name "sunset_period_months", has target_entity_type "mfn_provision";
+
+################################################################################
+# SAMPLE RP QUESTIONS (429 total in full implementation)
+################################################################################
+
+# Q1: General Prohibition
+$rp_q1 isa ontology_question,
+    has question_id "rp_q1",
+    has question_number 1,
+    has question_text "Is there a general prohibition on dividends/distributions?",
+    has description "Whether the agreement contains a baseline prohibition",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 1,
+    has covenant_type "RP";
+
+(category: $cat_a1, question: $rp_q1) isa category_has_question;
+(question: $rp_q1) isa question_targets_field, has target_field_name "general_dividend_prohibition_exists", has target_entity_type "rp_provision";
+
+# Q30: Management Equity Basket - Covered Persons (multiselect)
+$rp_q30 isa ontology_question,
+    has question_id "rp_q30",
+    has question_number 30,
+    has question_text "Which persons are covered by the management equity repurchase basket?",
+    has description "Select all persons whose equity can be repurchased",
+    has answer_type "multiselect",
+    has ui_display_type "multiselect",
+    has is_required false,
+    has display_order 30,
+    has covenant_type "RP";
+
+(category: $cat_c, question: $rp_q30) isa category_has_question;
+(question: $rp_q30) isa question_targets_concept, has target_concept_type "covered_person";
+
+# Q51: Management Equity Annual Cap (currency)
+$rp_q51 isa ontology_question,
+    has question_id "rp_q51",
+    has question_number 51,
+    has question_text "What is the annual dollar cap on management equity repurchases?",
+    has description "Maximum annual amount in USD",
+    has answer_type "currency",
+    has ui_display_type "currency",
+    has is_required false,
+    has display_order 51,
+    has covenant_type "RP";
+
+(category: $cat_c, question: $rp_q51) isa category_has_question;
+(question: $rp_q51) isa question_targets_field, has target_field_name "mgmt_equity_annual_cap_usd", has target_entity_type "rp_provision";
+
+# Q52: Management Equity EBITDA Cap (percentage)
+$rp_q52 isa ontology_question,
+    has question_id "rp_q52",
+    has question_number 52,
+    has question_text "What is the EBITDA-based annual cap percentage?",
+    has description "Cap as percentage of Consolidated EBITDA",
+    has answer_type "percentage",
+    has ui_display_type "percentage",
+    has is_required false,
+    has display_order 52,
+    has covenant_type "RP";
+
+(category: $cat_c, question: $rp_q52) isa category_has_question;
+(question: $rp_q52) isa question_targets_field, has target_field_name "mgmt_equity_annual_cap_pct_ebitda", has target_entity_type "rp_provision";
+
+# Q87: Builder Basket Exists
+$rp_q87 isa ontology_question,
+    has question_id "rp_q87",
+    has question_number 87,
+    has question_text "Does the agreement include a builder basket / Cumulative Amount?",
+    has description "Whether CNI/equity-based capacity exists",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 87,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q87) isa category_has_question;
+(question: $rp_q87) isa question_targets_field, has target_field_name "builder_basket_exists", has target_entity_type "rp_provision";
+
+# Q88: Builder Starter Amount
+$rp_q88 isa ontology_question,
+    has question_id "rp_q88",
+    has question_number 88,
+    has question_text "What is the builder basket starter amount in USD?",
+    has description "Initial capacity before CNI additions",
+    has answer_type "currency",
+    has ui_display_type "currency",
+    has is_required false,
+    has display_order 88,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q88) isa category_has_question;
+(question: $rp_q88) isa question_targets_field, has target_field_name "builder_starter_amount_usd", has target_entity_type "rp_provision";
+
+# Q89: Builder Uses Greater-Of
+$rp_q89 isa ontology_question,
+    has question_id "rp_q89",
+    has question_number 89,
+    has question_text "Is the builder basket the greater of dollar amount and EBITDA %?",
+    has description "Whether grower mechanic applies",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 89,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q89) isa category_has_question;
+(question: $rp_q89) isa question_targets_field, has target_field_name "builder_uses_greater_of", has target_entity_type "rp_provision";
+
+# J.Crew specific questions
+$rp_q250 isa ontology_question,
+    has question_id "rp_q250",
+    has question_number 250,
+    has question_text "Is unrestricted subsidiary designation permitted?",
+    has description "Whether borrower can designate subsidiaries as unrestricted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 250,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q250) isa category_has_question;
+(question: $rp_q250) isa question_targets_field, has target_field_name "unsub_designation_permitted", has target_entity_type "rp_provision";
+
+$rp_q260 isa ontology_question,
+    has question_id "rp_q260",
+    has question_number 260,
+    has question_text "Does the agreement contain a J.Crew blocker?",
+    has description "Provision restricting IP/asset transfers to unrestricted subs",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required true,
+    has display_order 260,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q260) isa category_has_question;
+(question: $rp_q260) isa question_targets_field, has target_field_name "jcrew_blocker_exists", has target_entity_type "rp_provision";
+
+# IP Definition Analysis (tristate)
+$rp_q270 isa ontology_question,
+    has question_id "rp_q270",
+    has question_number 270,
+    has question_text "What types of intellectual property are included in the IP definition?",
+    has description "Analyze IP definition scope",
+    has answer_type "multiselect",
+    has ui_display_type "multiselect",
+    has is_required false,
+    has display_order 270,
+    has covenant_type "RP";
+
+(category: $cat_f, question: $rp_q270) isa category_has_question;
+(question: $rp_q270) isa question_targets_concept, has target_concept_type "ip_type";
