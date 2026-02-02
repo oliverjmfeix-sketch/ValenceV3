@@ -2,6 +2,7 @@
 Valence Backend Configuration - TypeDB 3.x Compatible
 """
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List
 import os
 
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = ""
     
-    # CORS
+    # CORS - accepts comma-separated string or JSON array
     cors_origins: List[str] = ["http://localhost:5173"]
     
     # File Storage
@@ -29,6 +30,15 @@ class Settings(BaseSettings):
     app_name: str = "Valence Backend"
     app_version: str = "2.0.0"
     debug: bool = False
+    
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(v, str):
+            # Handle comma-separated string
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     
     @property
     def normalized_typedb_address(self) -> str:
@@ -50,13 +60,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-        # Handle CORS_ORIGINS as comma-separated string
-        
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str):
-            if field_name == "cors_origins":
-                return [x.strip() for x in raw_val.split(",")]
-            return raw_val
 
 
 # Create settings instance
