@@ -194,12 +194,26 @@ async def run_extraction(deal_id: str, pdf_path: str):
         if result.rp_primitives:
             deal_repo.store_rp_primitives(deal_id, result.rp_primitives)
 
+        # Store MFN concept applicabilities (after provision exists)
+        if result.mfn_multiselect:
+            deal_repo.store_concept_applicabilities(
+                deal_id, "mfn_provision", result.mfn_multiselect
+            )
+
+        # Store RP concept applicabilities (after provision exists)
+        if result.rp_multiselect:
+            deal_repo.store_concept_applicabilities(
+                deal_id, "rp_provision", result.rp_multiselect
+            )
+
         # Update status: complete
+        mfn_count = len(result.mfn_primitives) + len(result.mfn_multiselect)
+        rp_count = len(result.rp_primitives) + len(result.rp_multiselect)
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
             progress=100,
-            current_step=f"Extracted {len(result.mfn_primitives)} MFN and {len(result.rp_primitives)} RP primitives"
+            current_step=f"Extracted {mfn_count} MFN and {rp_count} RP fields"
         )
 
         logger.info(f"Extraction complete for deal {deal_id}")

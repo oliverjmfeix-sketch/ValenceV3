@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from anthropic import Anthropic
 
 from app.config import settings
-from app.schemas.models import ExtractedPrimitive, ExtractionResult
+from app.schemas.models import ExtractedPrimitive, ExtractionResult, MultiselectAnswer as MultiselectAnswerModel
 from app.services.pdf_parser import PDFParser, get_pdf_parser
 from app.services.typedb_client import typedb_client
 
@@ -249,6 +249,8 @@ class ExtractionService:
             deal_id=deal_id,
             mfn_primitives=mfn_result['primitives'],
             rp_primitives=rp_result['primitives'],
+            mfn_multiselect=mfn_result['multiselect'],
+            rp_multiselect=rp_result['multiselect'],
             extraction_time_seconds=extraction_time
         )
 
@@ -287,16 +289,21 @@ class ExtractionService:
                 response_text, scalar_fields, multiselect_fields
             )
 
-            # Store multiselect as concept_applicability
-            if multiselect_answers:
-                provision_type = "mfn_provision" if covenant_type == "MFN" else "rp_provision"
-                self._store_concept_applicabilities(
-                    deal_id, provision_type, multiselect_answers
+            # Convert internal MultiselectAnswer to model for return
+            multiselect_models = [
+                MultiselectAnswerModel(
+                    concept_type=ans.concept_type,
+                    included=ans.included,
+                    excluded=ans.excluded,
+                    source_text=ans.source_text,
+                    source_page=ans.source_page
                 )
+                for ans in multiselect_answers
+            ]
 
             return {
                 'primitives': primitives,
-                'multiselect': multiselect_answers
+                'multiselect': multiselect_models
             }
 
         except Exception as e:
@@ -490,55 +497,6 @@ IMPORTANT:
         except Exception as e:
             logger.error(f"Error parsing extraction response: {e}")
             return [], []
-
-    def _store_concept_applicabilities(
-        self,
-        deal_id: str,
-        provision_type: str,
-        multiselect_answers: List[MultiselectAnswer]
-    ):
-        """Store multiselect answers as concept_applicability relations."""
-        if not typedb_client.driver:
-            logger.warning("TypeDB not connected, cannot store concept applicabilities")
-            return
-
-        provision_id = f"{deal_id}_{'mfn' if provision_type == 'mfn_provision' else 'rp'}"
-
-        from typedb.driver import TransactionType
-
-        for answer in multiselect_answers:
-            for concept_id in answer.included:
-                try:
-                    tx = typedb_client.driver.transaction(
-                        settings.typedb_database,
-                        TransactionType.WRITE
-                    )
-                    try:
-                        # Escape source text
-                        safe_source = (answer.source_text or "")[:500].replace('"', '\\"').replace('\n', ' ')
-
-                        query = f"""
-                            match
-                                $p isa {provision_type}, has provision_id "{provision_id}";
-                                $c isa {answer.concept_type}, has concept_id "{concept_id}";
-                            insert
-                                (provision: $p, concept: $c) isa concept_applicability,
-                                    has applicability_status "INCLUDED",
-                                    has source_text "{safe_source}",
-                                    has source_page {answer.source_page};
-                        """
-
-                        tx.query(query).resolve()
-                        tx.commit()
-                        logger.debug(f"Stored applicability: {concept_id} for {provision_id}")
-
-                    except Exception as e:
-                        tx.close()
-                        logger.warning(f"Error storing applicability for {concept_id}: {e}")
-
-                except Exception as e:
-                    logger.error(f"Transaction error for {concept_id}: {e}")
-
 
 # Global extraction service instance
 extraction_service = ExtractionService()

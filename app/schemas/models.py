@@ -141,11 +141,22 @@ class ExtractedPrimitive(BaseModel):
     confidence: str = "high"
 
 
+class MultiselectAnswer(BaseModel):
+    """Answer to a multiselect question with concept applicabilities."""
+    concept_type: str
+    included: List[str] = []  # concept_ids that apply
+    excluded: List[str] = []  # concept_ids explicitly excluded
+    source_text: str = ""
+    source_page: int = 0
+
+
 class ExtractionResult(BaseModel):
     """Result of document extraction."""
     deal_id: str
     mfn_primitives: List[ExtractedPrimitive] = []
     rp_primitives: List[ExtractedPrimitive] = []
+    mfn_multiselect: List[MultiselectAnswer] = []
+    rp_multiselect: List[MultiselectAnswer] = []
     extraction_time_seconds: float
     token_count: Optional[int] = None
 

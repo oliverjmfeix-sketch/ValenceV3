@@ -14,7 +14,7 @@ from typedb.driver import TransactionType
 
 from app.services.typedb_client import TypeDBClient, get_typedb_client
 from app.schemas.models import (
-    DealSummary, Deal, ExtractedPrimitive, Provenance
+    DealSummary, Deal, ExtractedPrimitive, Provenance, MultiselectAnswer
 )
 
 logger = logging.getLogger(__name__)
@@ -357,6 +357,44 @@ class DealRepository:
             logger.error(f"Error storing RP primitives: {e}")
             return False
     
+    def store_concept_applicabilities(
+        self,
+        deal_id: str,
+        provision_type: str,
+        multiselect_answers: List[MultiselectAnswer]
+    ) -> bool:
+        """Store multiselect answers as concept_applicability relations."""
+        if not multiselect_answers:
+            return True
+
+        provision_id = f"{deal_id}_{'mfn' if provision_type == 'mfn_provision' else 'rp'}"
+
+        for answer in multiselect_answers:
+            for concept_id in answer.included:
+                # Escape source text
+                safe_source = sanitize_for_typeql((answer.source_text or "")[:500])
+
+                query = f"""
+                    match
+                        $p isa {provision_type}, has provision_id "{provision_id}";
+                        $c isa {answer.concept_type}, has concept_id "{concept_id}";
+                    insert
+                        (provision: $p, concept: $c) isa concept_applicability,
+                            has applicability_status "INCLUDED",
+                            has source_text "{safe_source}",
+                            has source_page {answer.source_page};
+                """
+
+                try:
+                    with self.client.write_transaction() as tx:
+                        tx.query(query).resolve()
+                    logger.debug(f"Stored applicability: {concept_id} for {provision_id}")
+                except Exception as e:
+                    logger.warning(f"Error storing applicability for {concept_id}: {e}")
+
+        logger.info(f"Stored concept applicabilities for {provision_type} on deal {deal_id}")
+        return True
+
     def _store_provenance(
         self,
         deal_id: str,
