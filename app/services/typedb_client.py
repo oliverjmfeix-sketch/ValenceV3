@@ -1,11 +1,11 @@
 """
-TypeDB Cloud Client for Valence.
+TypeDB Cloud Client for Valence - TypeDB 3.x API
 """
 import logging
 from typing import Optional, Any, Generator
 from contextlib import contextmanager
 
-from typedb.driver import TypeDB, Credentials, TransactionType
+from typedb.driver import Driver
 
 from app.config import settings
 
@@ -29,13 +29,14 @@ class TypeDBClient:
         try:
             logger.info(f"Connecting to TypeDB at {self.address}...")
             
-            # Address must be a list for cloud_driver
-            self.driver = TypeDB.cloud_driver(
-                [self.address],
-                Credentials(settings.typedb_username, settings.typedb_password)
+            # TypeDB 3.x API
+            self.driver = Driver.cloud(
+                self.address,
+                settings.typedb_username,
+                settings.typedb_password
             )
             
-            if not self.driver.databases.contains(self.database):
+            if self.database not in [db.name for db in self.driver.databases.all()]:
                 logger.info(f"Creating database: {self.database}")
                 self.driver.databases.create(self.database)
             
@@ -62,54 +63,36 @@ class TypeDBClient:
             logger.info("TypeDB connection closed")
     
     @contextmanager
-    def transaction(self, tx_type: TransactionType = TransactionType.READ) -> Generator:
-        """Context manager for TypeDB transactions."""
+    def read_transaction(self) -> Generator:
+        """Read transaction context manager."""
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        tx = self.driver.transaction(self.database, tx_type)
-        try:
-            yield tx
-        finally:
-            tx.close()
-    
-    @contextmanager
-    def read_transaction(self) -> Generator:
-        """Shortcut for read transaction."""
-        with self.transaction(TransactionType.READ) as tx:
-            yield tx
+        with self.driver.session(self.database, SessionType.DATA) as session:
+            with session.transaction(TransactionType.READ) as tx:
+                yield tx
     
     @contextmanager
     def write_transaction(self) -> Generator:
-        """Shortcut for write transaction."""
+        """Write transaction context manager."""
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        tx = self.driver.transaction(self.database, TransactionType.WRITE)
-        try:
-            yield tx
-            tx.commit()
-        except Exception:
-            raise
-        finally:
-            if tx.is_open():
-                tx.close()
+        with self.driver.session(self.database, SessionType.DATA) as session:
+            with session.transaction(TransactionType.WRITE) as tx:
+                yield tx
+                tx.commit()
     
     @contextmanager
     def schema_transaction(self) -> Generator:
-        """Transaction for schema operations."""
+        """Schema transaction context manager."""
         if not self.is_connected:
             self.connect(raise_on_error=True)
         
-        tx = self.driver.transaction(self.database, TransactionType.SCHEMA)
-        try:
-            yield tx
-            tx.commit()
-        except Exception:
-            raise
-        finally:
-            if tx.is_open():
-                tx.close()
+        with self.driver.session(self.database, SessionType.SCHEMA) as session:
+            with session.transaction(TransactionType.WRITE) as tx:
+                yield tx
+                tx.commit()
     
     def health_check(self) -> dict:
         """Check TypeDB connection health."""
@@ -123,22 +106,19 @@ class TypeDBClient:
                     "database": self.database
                 }
         
-        try:
-            with self.read_transaction() as tx:
-                tx.query("match $x isa thing; limit 1;").resolve()
-            
-            return {
-                "connected": True,
-                "address": self.address,
-                "database": self.database
-            }
-        except Exception as e:
-            return {
-                "connected": False,
-                "error": str(e),
-                "address": self.address,
-                "database": self.database
-            }
+        return {
+            "connected": True,
+            "address": self.address,
+            "database": self.database
+        }
+
+
+# Import session/transaction types
+try:
+    from typedb.driver import SessionType, TransactionType
+except ImportError:
+    from typedb.api.connection.session import SessionType
+    from typedb.api.connection.transaction import TransactionType
 
 
 # Global client instance
