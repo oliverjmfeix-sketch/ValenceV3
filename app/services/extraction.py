@@ -229,9 +229,14 @@ IMPORTANT:
             start = response_text.find('{')
             end = response_text.rfind('}') + 1
             if start == -1 or end == 0:
+                logger.warning("No JSON object found in content extraction response")
                 return RPExtraction()
 
-            data = json.loads(response_text[start:end])
+            json_str = response_text[start:end]
+            logger.debug(f"Parsing content extraction JSON: {json_str[:500]}...")
+
+            data = json.loads(json_str)
+            logger.info(f"Content extraction keys: {list(data.keys())}")
 
             dividend_prohibition = None
             if data.get("dividend_prohibition"):
@@ -239,16 +244,17 @@ IMPORTANT:
                 dividend_prohibition = ExtractedContent(
                     section_type="dividend_prohibition",
                     text=dp.get("text", ""),
-                    pages=dp.get("pages", []),
+                    pages=(dp.get("pages") or []),
                     section_reference=dp.get("section_reference")
                 )
 
             permitted_baskets = []
-            for basket in data.get("permitted_baskets", []):
+            # Handle null from Claude - use 'or []' pattern
+            for basket in (data.get("permitted_baskets") or []):
                 permitted_baskets.append(ExtractedContent(
                     section_type=f"basket_{basket.get('basket_name', 'unknown')}",
                     text=basket.get("text", ""),
-                    pages=basket.get("pages", []),
+                    pages=(basket.get("pages") or []),
                     section_reference=basket.get("section_reference")
                 ))
 
@@ -258,17 +264,20 @@ IMPORTANT:
                 rdp_restrictions = ExtractedContent(
                     section_type="rdp_restrictions",
                     text=rdp.get("text", ""),
-                    pages=rdp.get("pages", []),
+                    pages=(rdp.get("pages") or []),
                     section_reference=rdp.get("section_reference")
                 )
 
             definitions = []
-            for defn in data.get("definitions", []):
+            # Handle null from Claude - use 'or []' pattern
+            for defn in (data.get("definitions") or []):
                 definitions.append(ExtractedContent(
                     section_type=f"definition_{defn.get('term', 'unknown')}",
                     text=defn.get("text", ""),
-                    pages=defn.get("pages", [])
+                    pages=(defn.get("pages") or [])
                 ))
+
+            logger.info(f"Parsed: {len(permitted_baskets)} baskets, {len(definitions)} definitions")
 
             return RPExtraction(
                 dividend_prohibition=dividend_prohibition,
@@ -279,6 +288,7 @@ IMPORTANT:
             )
         except json.JSONDecodeError as e:
             logger.error(f"JSON parse error in content extraction: {e}")
+            logger.error(f"Response text: {response_text[:500]}")
             return RPExtraction()
 
     # =========================================================================
