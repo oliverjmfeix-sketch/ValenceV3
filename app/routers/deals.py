@@ -356,37 +356,35 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
 
             answers = {}
 
-            # Get MFN provision attributes
-            mfn_query = f"""
+            # Get RP provision attributes via direct query (TypeDB 3.x compatible)
+            rp_attrs_query = f"""
                 match
                     $d isa deal, has deal_id "{deal_id}";
-                    ($d, $p) isa deal_has_provision;
-                    $p isa mfn_provision;
-                select $p;
+                    (deal: $d, provision: $p) isa deal_has_provision;
+                    $p isa rp_provision, has $attr;
+                select $attr;
             """
-            mfn_result = tx.query(mfn_query).resolve()
-            for row in mfn_result.as_concept_rows():
-                provision = row.get("p").as_entity()
-                for attr in provision.get_has(tx):
-                    attr_type = attr.get_type().get_label()
-                    if attr_type != "provision_id":
-                        answers[attr_type] = attr.get_value()
-
-            # Get RP provision attributes
-            rp_query = f"""
-                match
-                    $d isa deal, has deal_id "{deal_id}";
-                    ($d, $p) isa deal_has_provision;
-                    $p isa rp_provision;
-                select $p;
-            """
-            rp_result = tx.query(rp_query).resolve()
+            rp_result = tx.query(rp_attrs_query).resolve()
             for row in rp_result.as_concept_rows():
-                provision = row.get("p").as_entity()
-                for attr in provision.get_has(tx):
-                    attr_type = attr.get_type().get_label()
-                    if attr_type != "provision_id":
-                        answers[attr_type] = attr.get_value()
+                attr = row.get("attr").as_attribute()
+                attr_type = attr.get_type().get_label()
+                if attr_type != "provision_id":
+                    answers[attr_type] = attr.get_value()
+
+            # Get MFN provision attributes
+            mfn_attrs_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    (deal: $d, provision: $p) isa deal_has_provision;
+                    $p isa mfn_provision, has $attr;
+                select $attr;
+            """
+            mfn_result = tx.query(mfn_attrs_query).resolve()
+            for row in mfn_result.as_concept_rows():
+                attr = row.get("attr").as_attribute()
+                attr_type = attr.get_type().get_label()
+                if attr_type != "provision_id":
+                    answers[attr_type] = attr.get_value()
 
             return {
                 "deal_id": deal_id,

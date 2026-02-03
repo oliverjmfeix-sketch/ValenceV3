@@ -291,12 +291,31 @@ IMPORTANT:
             logger.warning("TypeDB not connected")
             return {}
 
+        # Category names mapping (derived from question_id prefix like rp_a1 -> A)
+        category_names = {
+            "A": "Dividend Restrictions - General Structure",
+            "B": "Intercompany Dividends",
+            "C": "Management Equity Basket",
+            "D": "Tax Distribution Basket",
+            "E": "Equity Awards",
+            "F": "Builder Basket / Cumulative Amount",
+            "G": "Ratio-Based Dividend Basket",
+            "H": "Holding Company Overhead",
+            "I": "Basket Reallocation",
+            "J": "Unrestricted Subsidiaries",
+            "K": "J.Crew Blocker",
+            "S": "Restricted Debt Payments - General",
+            "T": "RDP Baskets",
+            "Z": "Pattern Detection",
+        }
+
         try:
             from typedb.driver import TransactionType
             tx = typedb_client.driver.transaction(
                 settings.typedb_database, TransactionType.READ
             )
             try:
+                # Query questions directly - category derived from question_id
                 query = f"""
                     match
                         $q isa ontology_question,
@@ -305,26 +324,32 @@ IMPORTANT:
                             has answer_type $at,
                             has covenant_type "{covenant_type}",
                             has display_order $order;
-                        (category: $cat, question: $q) isa category_has_question;
-                        $cat has category_id $cid, has name $cname;
-                    select $qid, $qt, $at, $order, $cid, $cname;
+                    select $qid, $qt, $at, $order;
                 """
 
                 result = tx.query(query).resolve()
                 questions_by_cat: Dict[str, List[Dict]] = {}
 
                 for row in result.as_concept_rows():
-                    cat_id = row.get("cid").as_attribute().get_value()
-                    if cat_id not in questions_by_cat:
-                        questions_by_cat[cat_id] = []
+                    qid = row.get("qid").as_attribute().get_value()
+                    # Extract category from question_id: "rp_a1" -> "A", "rp_k2" -> "K"
+                    # Format: {prefix}_{category_letter}{number}
+                    parts = qid.split("_")
+                    if len(parts) >= 2 and len(parts[1]) >= 1:
+                        cat_letter = parts[1][0].upper()
+                    else:
+                        cat_letter = "Z"  # Default to Pattern Detection
 
-                    questions_by_cat[cat_id].append({
-                        "question_id": row.get("qid").as_attribute().get_value(),
+                    if cat_letter not in questions_by_cat:
+                        questions_by_cat[cat_letter] = []
+
+                    questions_by_cat[cat_letter].append({
+                        "question_id": qid,
                         "question_text": row.get("qt").as_attribute().get_value(),
                         "answer_type": row.get("at").as_attribute().get_value(),
                         "display_order": row.get("order").as_attribute().get_value(),
-                        "category_id": cat_id,
-                        "category_name": row.get("cname").as_attribute().get_value()
+                        "category_id": cat_letter,
+                        "category_name": category_names.get(cat_letter, f"Category {cat_letter}")
                     })
 
                 # Load target field/concept mappings AND multiselect options

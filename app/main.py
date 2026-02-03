@@ -221,10 +221,10 @@ def _cleanup_old_sample_questions():
             rows = list(check_result.as_concept_rows())
 
             if rows:
-                # Delete the question entity (relations cascade)
+                # Delete the question entity (TypeDB 3.x syntax)
                 delete_query = f"""
                     match $q isa ontology_question, has question_id "{qid}";
-                    delete $q isa ontology_question;
+                    delete $q;
                 """
                 tx.query(delete_query).resolve()
                 tx.commit()
