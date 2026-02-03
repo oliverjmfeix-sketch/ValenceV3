@@ -82,6 +82,27 @@ async def get_questions_by_type(covenant_type: str) -> Dict[str, Any]:
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
+    # Category names derived from question_id prefix (e.g., rp_a1 -> A)
+    category_names = {
+        "A": "Dividend Restrictions - General Structure",
+        "B": "Intercompany Dividends",
+        "C": "Management Equity Basket",
+        "D": "Tax Distribution Basket",
+        "E": "Equity Awards",
+        "F": "Builder Basket / Cumulative Amount",
+        "G": "Ratio-Based Dividend Basket",
+        "H": "Holding Company Overhead",
+        "I": "Basket Reallocation",
+        "J": "Unrestricted Subsidiaries",
+        "K": "J.Crew Blocker",
+        "S": "Restricted Debt Payments - General",
+        "T": "RDP Baskets",
+        "Z": "Pattern Detection",
+        # MFN categories
+        "M": "MFN General",
+        "Q": "Legacy Questions",
+    }
+
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
@@ -99,11 +120,24 @@ async def get_questions_by_type(covenant_type: str) -> Dict[str, Any]:
 
             questions = []
             for row in result.as_concept_rows():
+                qid = row.get("id").as_attribute().get_value()
+                # Extract category from question_id: "rp_a1" -> "A", "mfn_q1" -> "Q"
+                parts = qid.split("_")
+                if len(parts) >= 2 and len(parts[1]) >= 1:
+                    cat_letter = parts[1][0].upper()
+                else:
+                    cat_letter = "Z"
+
                 questions.append({
-                    "question_id": row.get("id").as_attribute().get_value(),
+                    "question_id": qid,
                     "question_text": row.get("text").as_attribute().get_value(),
-                    "answer_type": row.get("type").as_attribute().get_value()
+                    "answer_type": row.get("type").as_attribute().get_value(),
+                    "category_id": cat_letter,
+                    "category_name": category_names.get(cat_letter, f"Category {cat_letter}")
                 })
+
+            # Sort by category_id then question_id for consistent ordering
+            questions.sort(key=lambda q: (q["category_id"], q["question_id"]))
 
             return {
                 "covenant_type": covenant_type.upper(),
