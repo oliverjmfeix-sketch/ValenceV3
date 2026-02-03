@@ -157,7 +157,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
                 tx.query(f"""
                     match
                         $p isa rp_provision, has provision_id "{deal_id}_rp";
-                        $rel (provision: $p, concept: $c) isa concept_applicability;
+                        $rel isa concept_applicability, links (provision: $p, concept: $c);
                     delete $rel;
                 """).resolve()
             except Exception:
@@ -186,7 +186,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
                 tx.query(f"""
                     match
                         $d isa deal, has deal_id "{deal_id}";
-                        $rel (deal: $d, provision: $p) isa deal_has_provision;
+                        $rel isa deal_has_provision, links (deal: $d, provision: $p);
                     delete $rel;
                 """).resolve()
             except Exception:
