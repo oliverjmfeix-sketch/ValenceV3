@@ -693,12 +693,20 @@ Return ONLY the JSON array."""
                 multiselect_count = 0
 
                 for cat_answers in category_answers:
+                    logger.debug(f"Processing category {cat_answers.category_id}: {len(cat_answers.answers)} answers")
                     for answer in cat_answers.answers:
-                        if answer.value is None or answer.confidence == "not_found":
+                        logger.debug(f"Processing answer: {answer.question_id} -> {answer.attribute_name} = {answer.value} (confidence: {answer.confidence})")
+
+                        if answer.value is None:
+                            logger.debug(f"  Skipped: value is None")
+                            continue
+                        if answer.confidence == "not_found":
+                            logger.debug(f"  Skipped: confidence is not_found")
                             continue
 
                         if isinstance(answer.value, list):
                             # Multiselect answer → concept_applicability
+                            logger.debug(f"  Storing as multiselect: {len(answer.value)} concepts")
                             for concept_id in answer.value:
                                 self._store_concept_applicability(
                                     tx, provision_id, answer.attribute_name,
@@ -708,6 +716,7 @@ Return ONLY the JSON array."""
                                 multiselect_count += 1
                         else:
                             # Scalar answer → provision attribute
+                            logger.debug(f"  Storing as scalar: {answer.attribute_name} = {answer.value}")
                             self._store_scalar_attribute(
                                 tx, provision_id, answer.attribute_name,
                                 answer.value, answer.answer_type
@@ -792,7 +801,7 @@ Return ONLY the JSON array."""
             logger.debug(f"Stored {attribute_name} = {formatted_value}")
         except Exception as e:
             # Attribute may already exist or not be defined in schema
-            logger.warning(f"Could not store {attribute_name}: {e}")
+            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
 
     def _store_concept_applicability(
         self,
