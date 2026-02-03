@@ -3,7 +3,10 @@ Simplified Extraction Pipeline for Covenant Analysis.
 
 Flow:
 1. Parse PDF → raw text with page markers
-2. ONE Claude call to extract RP content (format-agnostic verbatim extraction)
+2. Multi-chunk content extraction for complete document coverage
+   - Small docs (<250k chars): single Claude call
+   - Large docs: split into overlapping 250k chunks, extract each, merge results
+   - This ensures definitions (front) AND covenants (middle/back) are captured
 3. Query questions from TypeDB by category (SSoT)
 4. For each category, Claude answers using extracted content
 5. Store as typed attributes + concept_applicability
@@ -122,17 +125,69 @@ class ExtractionService:
         return full_text
 
     # =========================================================================
-    # STEP 2: Extract RP Content (ONE Claude call - verbatim extraction)
+    # STEP 2: Extract RP Content (multi-chunk for complete coverage)
     # =========================================================================
 
     def extract_rp_content(self, document_text: str) -> RPExtraction:
         """
         Extract ALL RP-related content verbatim from the document.
 
+        For long documents (>250k chars), splits into overlapping chunks to ensure
+        complete coverage - definitions at front, covenants in middle/back.
+
         This is format-agnostic - just extracts the actual text with page numbers.
         Does NOT try to answer questions or interpret the content.
         """
-        prompt = self._build_content_extraction_prompt(document_text)
+        doc_length = len(document_text)
+        chunk_size = 250000  # ~250k chars per chunk (safe for Claude's context)
+        overlap = 50000      # 50k overlap to avoid cutting mid-section
+
+        # If document fits in one chunk, extract directly
+        if doc_length <= chunk_size:
+            logger.info(f"Document fits in single chunk ({doc_length} chars)")
+            return self._extract_rp_content_chunk(document_text, chunk_num=1, total_chunks=1)
+
+        # Split into overlapping chunks
+        chunks = []
+        start = 0
+        while start < doc_length:
+            end = min(start + chunk_size, doc_length)
+            chunks.append({
+                "start": start,
+                "end": end,
+                "text": document_text[start:end]
+            })
+            # Move start forward, but with overlap
+            start = end - overlap
+            # Stop if we've covered everything
+            if end >= doc_length:
+                break
+
+        logger.info(f"Document {doc_length} chars split into {len(chunks)} chunks")
+        for i, chunk in enumerate(chunks):
+            logger.info(f"  Chunk {i+1}: chars {chunk['start']}-{chunk['end']}")
+
+        # Extract from each chunk
+        extractions = []
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Extracting chunk {i+1}/{len(chunks)}...")
+            extraction = self._extract_rp_content_chunk(
+                chunk["text"],
+                chunk_num=i+1,
+                total_chunks=len(chunks)
+            )
+            extractions.append(extraction)
+            logger.info(f"  Chunk {i+1}: {len(extraction.permitted_baskets)} baskets, {len(extraction.definitions)} definitions")
+
+        # Merge all extractions
+        merged = self._merge_extractions(extractions)
+        logger.info(f"Merged: {len(merged.permitted_baskets)} baskets, {len(merged.definitions)} definitions")
+
+        return merged
+
+    def _extract_rp_content_chunk(self, chunk_text: str, chunk_num: int, total_chunks: int) -> RPExtraction:
+        """Extract RP content from a single document chunk."""
+        prompt = self._build_content_extraction_prompt(chunk_text, chunk_num, total_chunks)
 
         try:
             response = self.client.messages.create(
@@ -142,27 +197,78 @@ class ExtractionService:
             )
             return self._parse_content_extraction(response.content[0].text)
         except Exception as e:
-            logger.error(f"Content extraction error: {e}")
+            logger.error(f"Content extraction error (chunk {chunk_num}): {e}")
             return RPExtraction()
 
-    def _build_content_extraction_prompt(self, document_text: str) -> str:
-        """Build prompt for verbatim content extraction."""
-        # Claude Sonnet has 200k token limit ≈ 700-800k chars
-        # Credit agreements: definitions at front, covenants in middle/back (pages 80-120)
-        # If document is too long, prioritize the back half where covenants live
-        doc_len = len(document_text)
-        max_chars = 700000
+    def _merge_extractions(self, extractions: List[RPExtraction]) -> RPExtraction:
+        """
+        Merge multiple chunk extractions into one, deduplicating by section_reference.
 
-        if doc_len > max_chars:
-            # Skip front matter, send middle-to-end where covenants are
-            start_pos = doc_len - max_chars
-            doc_excerpt = document_text[start_pos:]
-            logger.info(f"Document too long ({doc_len} chars), sending last {max_chars} chars (skipping first {start_pos})")
+        Priority: Take the first non-null dividend_prohibition and rdp_restrictions.
+        For baskets and definitions, deduplicate by section_reference or basket_name.
+        """
+        merged = RPExtraction()
+
+        # Take first non-null dividend prohibition
+        for ext in extractions:
+            if ext.dividend_prohibition and not merged.dividend_prohibition:
+                merged.dividend_prohibition = ext.dividend_prohibition
+                break
+
+        # Take first non-null RDP restrictions
+        for ext in extractions:
+            if ext.rdp_restrictions and not merged.rdp_restrictions:
+                merged.rdp_restrictions = ext.rdp_restrictions
+                break
+
+        # Merge baskets - deduplicate by section_reference or section_type
+        seen_baskets = set()
+        for ext in extractions:
+            for basket in ext.permitted_baskets:
+                # Use section_reference if available, else section_type
+                key = basket.section_reference or basket.section_type
+                if key and key not in seen_baskets:
+                    seen_baskets.add(key)
+                    merged.permitted_baskets.append(basket)
+                elif not key:
+                    # No key - add anyway but may have duplicates
+                    merged.permitted_baskets.append(basket)
+
+        # Merge definitions - deduplicate by section_type (which includes term name)
+        seen_definitions = set()
+        for ext in extractions:
+            for defn in ext.definitions:
+                if defn.section_type not in seen_definitions:
+                    seen_definitions.add(defn.section_type)
+                    merged.definitions.append(defn)
+
+        # Combine raw JSON from all extractions
+        merged.raw_json = {
+            "merged_from_chunks": len(extractions),
+            "extractions": [ext.raw_json for ext in extractions if ext.raw_json]
+        }
+
+        return merged
+
+    def _build_content_extraction_prompt(self, document_text: str, chunk_num: int = 1, total_chunks: int = 1) -> str:
+        """Build prompt for verbatim content extraction."""
+        doc_excerpt = document_text
+
+        # Add chunk context for multi-chunk extraction
+        if total_chunks > 1:
+            chunk_context = f"""
+NOTE: This is chunk {chunk_num} of {total_chunks} from a large document.
+- Chunk 1 typically contains: definitions, early sections
+- Middle chunks contain: negative covenants including RP sections
+- Later chunks contain: remaining covenants, schedules
+
+Extract ALL relevant content you find in THIS chunk. Duplicates will be merged later.
+"""
         else:
-            doc_excerpt = document_text
-            logger.info(f"Sending full document ({doc_len} chars)")
+            chunk_context = ""
 
         return f"""You are extracting Restricted Payments (RP) covenant content from a credit agreement.
+{chunk_context}
 
 FIND AND EXTRACT VERBATIM the following sections. Do NOT interpret or summarize - extract the actual text with page numbers.
 
