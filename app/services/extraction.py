@@ -614,6 +614,205 @@ Return ONLY the JSON array."""
             return []
 
     # =========================================================================
+    # STEP 5: Store Results to TypeDB
+    # =========================================================================
+
+    def store_extraction_result(
+        self,
+        deal_id: str,
+        category_answers: List[CategoryAnswers]
+    ) -> bool:
+        """
+        Store extraction results to TypeDB.
+
+        - Creates rp_provision entity if not exists
+        - Stores scalar answers as provision attributes
+        - Stores multiselect answers as concept_applicability relations
+        """
+        if not typedb_client.driver:
+            logger.error("TypeDB not connected, cannot store results")
+            return False
+
+        provision_id = f"{deal_id}_rp"
+
+        try:
+            from typedb.driver import TransactionType
+
+            # Step 5a: Create rp_provision if not exists
+            self._ensure_provision_exists(deal_id, provision_id)
+
+            # Step 5b & 5c: Store answers
+            tx = typedb_client.driver.transaction(
+                settings.typedb_database, TransactionType.WRITE
+            )
+            try:
+                scalar_count = 0
+                multiselect_count = 0
+
+                for cat_answers in category_answers:
+                    for answer in cat_answers.answers:
+                        if answer.value is None or answer.confidence == "not_found":
+                            continue
+
+                        if isinstance(answer.value, list):
+                            # Multiselect answer → concept_applicability
+                            for concept_id in answer.value:
+                                self._store_concept_applicability(
+                                    tx, provision_id, answer.attribute_name,
+                                    concept_id, answer.source_text,
+                                    answer.source_pages[0] if answer.source_pages else 0
+                                )
+                                multiselect_count += 1
+                        else:
+                            # Scalar answer → provision attribute
+                            self._store_scalar_attribute(
+                                tx, provision_id, answer.attribute_name,
+                                answer.value, answer.answer_type
+                            )
+                            scalar_count += 1
+
+                tx.commit()
+                logger.info(f"Stored {scalar_count} scalar, {multiselect_count} multiselect answers")
+                return True
+
+            except Exception as e:
+                tx.close()
+                logger.error(f"Error storing answers: {e}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Storage error: {e}")
+            return False
+
+    def _ensure_provision_exists(self, deal_id: str, provision_id: str):
+        """Create rp_provision entity linked to deal if not exists."""
+        from typedb.driver import TransactionType
+
+        # Check if provision exists
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            exists = len(result) > 0
+        finally:
+            tx.close()
+
+        if exists:
+            logger.debug(f"Provision {provision_id} already exists")
+            return
+
+        # Create provision
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                insert
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    (deal: $d, provision: $p) isa deal_has_provision;
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.info(f"Created rp_provision: {provision_id}")
+        except Exception as e:
+            tx.close()
+            logger.error(f"Error creating provision: {e}")
+            raise
+
+    def _store_scalar_attribute(
+        self,
+        tx,
+        provision_id: str,
+        attribute_name: str,
+        value: Any,
+        answer_type: str
+    ):
+        """Store a scalar answer as a provision attribute."""
+        # Format value based on type
+        formatted_value = self._format_typedb_value(value, answer_type)
+        if formatted_value is None:
+            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
+            return
+
+        try:
+            query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                insert $p has {attribute_name} {formatted_value};
+            """
+            tx.query(query).resolve()
+            logger.debug(f"Stored {attribute_name} = {formatted_value}")
+        except Exception as e:
+            # Attribute may already exist or not be defined in schema
+            logger.warning(f"Could not store {attribute_name}: {e}")
+
+    def _store_concept_applicability(
+        self,
+        tx,
+        provision_id: str,
+        concept_type: str,
+        concept_id: str,
+        source_text: str,
+        source_page: int
+    ):
+        """Store a multiselect answer as a concept_applicability relation."""
+        # Escape source text for TypeQL
+        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
+
+        try:
+            query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $c isa {concept_type}, has concept_id "{concept_id}";
+                insert
+                    (provision: $p, concept: $c) isa concept_applicability,
+                        has applicability_status "INCLUDED",
+                        has source_text "{escaped_text}",
+                        has source_page {source_page};
+            """
+            tx.query(query).resolve()
+            logger.debug(f"Stored applicability: {concept_type}/{concept_id}")
+        except Exception as e:
+            logger.warning(f"Could not store applicability for {concept_id}: {e}")
+
+    def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
+        """Format a Python value for TypeQL insertion."""
+        if value is None:
+            return None
+
+        if answer_type == "boolean":
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            if isinstance(value, str):
+                return "true" if value.lower() in ("true", "yes", "1") else "false"
+            return None
+
+        if answer_type in ("integer",):
+            try:
+                return str(int(value))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("double", "percentage", "currency"):
+            try:
+                return str(float(value))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("string", "text"):
+            escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
+            return f'"{escaped}"'
+
+        # Default: try as string
+        escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
+        return f'"{escaped}"'
+
+    # =========================================================================
     # MAIN EXTRACTION FLOW
     # =========================================================================
 
@@ -621,7 +820,8 @@ Return ONLY the JSON array."""
         self,
         pdf_path: str,
         deal_id: str,
-        questions_by_category: Optional[Dict[str, List[Dict]]] = None
+        questions_by_category: Optional[Dict[str, List[Dict]]] = None,
+        store_results: bool = True
     ) -> ExtractionResult:
         """
         Full RP extraction pipeline.
@@ -630,6 +830,7 @@ Return ONLY the JSON array."""
         2. Extract ALL RP content (ONE Claude call)
         3. Load questions from TypeDB (if not provided)
         4. Answer questions by category
+        5. Store results to TypeDB (if store_results=True)
         """
         start_time = time.time()
 
@@ -665,6 +866,11 @@ Return ONLY the JSON array."""
                 extracted_content=extracted_content
             )
             category_answers.append(answers)
+
+        # Step 5: Store results to TypeDB
+        if store_results:
+            logger.info("Step 5: Storing results to TypeDB...")
+            self.store_extraction_result(deal_id, category_answers)
 
         extraction_time = time.time() - start_time
         logger.info(f"Extraction complete in {extraction_time:.1f}s")
