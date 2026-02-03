@@ -37,6 +37,103 @@ def _load_tql_file(filepath: Path) -> str:
     return '\n'.join(lines)
 
 
+def _load_categories_with_relations(driver, db_name: str, filepath: Path):
+    """
+    Load categories.tql which contains both insert and match-insert statements.
+
+    The file has:
+    1. A bulk 'insert' block for category entities
+    2. Individual 'match ... insert' statements for category_has_question relations
+
+    These must be executed separately because TypeQL can't mix them in one query.
+    """
+    if not filepath.exists():
+        logger.warning(f"Categories file not found: {filepath}")
+        return
+
+    content = filepath.read_text()
+
+    # Split into insert block and match-insert statements
+    # The insert block ends when we hit the first 'match' keyword
+    lines = content.split('\n')
+    insert_lines = []
+    match_insert_statements = []
+    current_statement = []
+    in_insert_block = False
+    in_match_block = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip comments and empty lines
+        if not stripped or stripped.startswith('#'):
+            continue
+
+        # Detect start of insert block
+        if stripped == 'insert':
+            in_insert_block = True
+            insert_lines.append(stripped)
+            continue
+
+        # Detect start of match-insert statement
+        if stripped.startswith('match '):
+            in_insert_block = False
+            in_match_block = True
+            if current_statement:
+                match_insert_statements.append('\n'.join(current_statement))
+            current_statement = [stripped]
+            continue
+
+        # Add to current context
+        if in_insert_block:
+            insert_lines.append(stripped)
+        elif in_match_block:
+            current_statement.append(stripped)
+
+    # Don't forget the last statement
+    if current_statement:
+        match_insert_statements.append('\n'.join(current_statement))
+
+    # 1. Execute insert block for categories
+    if insert_lines:
+        insert_tql = '\n'.join(insert_lines)
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(insert_tql)
+            tx.commit()
+            logger.info(f"✓ Category entities loaded")
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg:
+                logger.info("✓ Category entities already exist")
+            else:
+                logger.warning(f"Category insert error: {e}")
+
+    # 2. Execute each match-insert statement for relations
+    relations_created = 0
+    relations_skipped = 0
+
+    for stmt in match_insert_statements:
+        if not stmt.strip():
+            continue
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt)
+            tx.commit()
+            relations_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                relations_skipped += 1
+            else:
+                logger.debug(f"Relation insert error: {e}")
+                relations_skipped += 1
+
+    logger.info(f"✓ Category relations: {relations_created} created, {relations_skipped} skipped")
+
+
 def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
     """
     Try to add new schema elements incrementally.
@@ -185,24 +282,11 @@ async def _ensure_schema_loaded():
                 else:
                     logger.warning(f"Questions load: {e}")
 
-    # 4. Load categories and relations
+    # 4. Load categories and relations (requires special handling for match-insert)
     categories_file = DATA_DIR / "categories.tql"
     if categories_file.exists():
         logger.info("Loading categories.tql...")
-        categories_tql = _load_tql_file(categories_file)
-        if categories_tql:
-            tx = driver.transaction(db_name, TransactionType.WRITE)
-            try:
-                tx.query(categories_tql)
-                tx.commit()
-                logger.info("✓ Categories loaded")
-            except Exception as e:
-                tx.close()
-                error_msg = str(e).lower()
-                if "already exists" in error_msg or "duplicate" in error_msg or "unique" in error_msg:
-                    logger.info("✓ Categories already exist (skipping)")
-                else:
-                    logger.warning(f"Categories load: {e}")
+        _load_categories_with_relations(driver, db_name, categories_file)
 
     logger.info("✓ Schema initialization complete!")
 
