@@ -842,8 +842,10 @@ Return ONLY the JSON array."""
         Store extraction results to TypeDB.
 
         - Creates rp_provision entity if not exists
-        - Stores scalar answers as provision attributes
+        - Stores scalar answers as provision attributes (individual transactions)
         - Stores multiselect answers as concept_applicability relations
+
+        Uses individual transactions per write to avoid one failure poisoning all writes.
         """
         if not typedb_client.driver:
             logger.error("TypeDB not connected, cannot store results")
@@ -857,56 +859,119 @@ Return ONLY the JSON array."""
             # Step 5a: Create rp_provision if not exists
             self._ensure_provision_exists(deal_id, provision_id)
 
-            # Step 5b & 5c: Store answers
-            tx = typedb_client.driver.transaction(
-                settings.typedb_database, TransactionType.WRITE
-            )
-            try:
-                scalar_count = 0
-                multiselect_count = 0
+            # Step 5b & 5c: Store answers (individual transactions to avoid cascade failures)
+            scalar_count = 0
+            scalar_failed = 0
+            multiselect_count = 0
+            multiselect_failed = 0
 
-                for cat_answers in category_answers:
-                    logger.debug(f"Processing category {cat_answers.category_id}: {len(cat_answers.answers)} answers")
-                    for answer in cat_answers.answers:
-                        logger.debug(f"Processing answer: {answer.question_id} -> {answer.attribute_name} = {answer.value} (confidence: {answer.confidence})")
+            for cat_answers in category_answers:
+                logger.debug(f"Processing category {cat_answers.category_id}: {len(cat_answers.answers)} answers")
+                for answer in cat_answers.answers:
+                    if answer.value is None:
+                        continue
+                    if answer.confidence == "not_found":
+                        continue
 
-                        if answer.value is None:
-                            logger.debug(f"  Skipped: value is None")
-                            continue
-                        if answer.confidence == "not_found":
-                            logger.debug(f"  Skipped: confidence is not_found")
-                            continue
-
-                        if isinstance(answer.value, list):
-                            # Multiselect answer → concept_applicability
-                            logger.debug(f"  Storing as multiselect: {len(answer.value)} concepts")
-                            for concept_id in answer.value:
-                                self._store_concept_applicability(
-                                    tx, provision_id, answer.attribute_name,
-                                    concept_id, answer.source_text,
-                                    answer.source_pages[0] if answer.source_pages else 0
-                                )
-                                multiselect_count += 1
-                        else:
-                            # Scalar answer → provision attribute
-                            logger.debug(f"  Storing as scalar: {answer.attribute_name} = {answer.value}")
-                            self._store_scalar_attribute(
-                                tx, provision_id, answer.attribute_name,
-                                answer.value, answer.answer_type
+                    if isinstance(answer.value, list):
+                        # Multiselect answer → concept_applicability
+                        for concept_id in answer.value:
+                            success = self._store_concept_applicability_safe(
+                                provision_id, answer.attribute_name,
+                                concept_id, answer.source_text,
+                                answer.source_pages[0] if answer.source_pages else 0
                             )
+                            if success:
+                                multiselect_count += 1
+                            else:
+                                multiselect_failed += 1
+                    else:
+                        # Scalar answer → provision attribute
+                        success = self._store_scalar_attribute_safe(
+                            provision_id, answer.attribute_name,
+                            answer.value, answer.answer_type
+                        )
+                        if success:
                             scalar_count += 1
+                        else:
+                            scalar_failed += 1
 
-                tx.commit()
-                logger.info(f"Stored {scalar_count} scalar, {multiselect_count} multiselect answers")
-                return True
-
-            except Exception as e:
-                tx.close()
-                logger.error(f"Error storing answers: {e}")
-                return False
+            logger.info(
+                f"Stored {scalar_count} scalar ({scalar_failed} failed), "
+                f"{multiselect_count} multiselect ({multiselect_failed} failed)"
+            )
+            return True
 
         except Exception as e:
             logger.error(f"Storage error: {e}")
+            return False
+
+    def _store_scalar_attribute_safe(
+        self,
+        provision_id: str,
+        attribute_name: str,
+        value: Any,
+        answer_type: str
+    ) -> bool:
+        """Store a scalar answer with its own transaction (safe from cascade failures)."""
+        from typedb.driver import TransactionType
+
+        formatted_value = self._format_typedb_value(value, answer_type)
+        if formatted_value is None:
+            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
+            return False
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                insert $p has {attribute_name} {formatted_value};
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.debug(f"Stored {attribute_name} = {formatted_value}")
+            return True
+        except Exception as e:
+            tx.close()
+            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
+            return False
+
+    def _store_concept_applicability_safe(
+        self,
+        provision_id: str,
+        concept_type: str,
+        concept_id: str,
+        source_text: str,
+        source_page: int
+    ) -> bool:
+        """Store a concept applicability with its own transaction (safe from cascade failures)."""
+        from typedb.driver import TransactionType
+
+        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $c isa {concept_type}, has concept_id "{concept_id}";
+                insert
+                    (provision: $p, concept: $c) isa concept_applicability,
+                        has applicability_status "INCLUDED",
+                        has source_text "{escaped_text}",
+                        has source_page {source_page};
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.debug(f"Stored applicability: {concept_type}/{concept_id}")
+            return True
+        except Exception as e:
+            tx.close()
+            logger.warning(f"Could not store applicability for {concept_id}: {e}")
             return False
 
     def _ensure_provision_exists(self, deal_id: str, provision_id: str):
@@ -950,64 +1015,13 @@ Return ONLY the JSON array."""
             logger.error(f"Error creating provision: {e}")
             raise
 
-    def _store_scalar_attribute(
-        self,
-        tx,
-        provision_id: str,
-        attribute_name: str,
-        value: Any,
-        answer_type: str
-    ):
-        """Store a scalar answer as a provision attribute."""
-        # Format value based on type
-        formatted_value = self._format_typedb_value(value, answer_type)
-        if formatted_value is None:
-            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
-            return
-
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                insert $p has {attribute_name} {formatted_value};
-            """
-            tx.query(query).resolve()
-            logger.debug(f"Stored {attribute_name} = {formatted_value}")
-        except Exception as e:
-            # Attribute may already exist or not be defined in schema
-            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
-
-    def _store_concept_applicability(
-        self,
-        tx,
-        provision_id: str,
-        concept_type: str,
-        concept_id: str,
-        source_text: str,
-        source_page: int
-    ):
-        """Store a multiselect answer as a concept_applicability relation."""
-        # Escape source text for TypeQL
-        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
-
-        try:
-            query = f"""
-                match
-                    $p isa rp_provision, has provision_id "{provision_id}";
-                    $c isa {concept_type}, has concept_id "{concept_id}";
-                insert
-                    (provision: $p, concept: $c) isa concept_applicability,
-                        has applicability_status "INCLUDED",
-                        has source_text "{escaped_text}",
-                        has source_page {source_page};
-            """
-            tx.query(query).resolve()
-            logger.debug(f"Stored applicability: {concept_type}/{concept_id}")
-        except Exception as e:
-            logger.warning(f"Could not store applicability for {concept_id}: {e}")
-
     def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
         """Format a Python value for TypeQL insertion."""
         if value is None:
+            return None
+
+        # Handle "not_found" or similar non-values
+        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
             return None
 
         if answer_type == "boolean":
@@ -1017,15 +1031,19 @@ Return ONLY the JSON array."""
                 return "true" if value.lower() in ("true", "yes", "1") else "false"
             return None
 
-        if answer_type in ("integer",):
+        if answer_type in ("integer", "int", "number"):
             try:
-                return str(int(value))
+                # Strip quotes if Claude wrapped the number in quotes
+                clean_value = str(value).strip('"\'')
+                return str(int(float(clean_value)))  # Handle "4.0" -> 4
             except (ValueError, TypeError):
                 return None
 
-        if answer_type in ("double", "percentage", "currency"):
+        if answer_type in ("double", "decimal", "percentage", "currency", "float"):
             try:
-                return str(float(value))
+                # Strip quotes if Claude wrapped the number in quotes
+                clean_value = str(value).strip('"\'')
+                return str(float(clean_value))
             except (ValueError, TypeError):
                 return None
 
@@ -1033,7 +1051,16 @@ Return ONLY the JSON array."""
             escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
             return f'"{escaped}"'
 
-        # Default: try as string
+        # Default: try to detect type from value
+        # If it looks numeric, don't quote it
+        try:
+            clean_value = str(value).strip('"\'')
+            float_val = float(clean_value)
+            return str(float_val)
+        except (ValueError, TypeError):
+            pass
+
+        # Fall back to string
         escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
         return f'"{escaped}"'
 
