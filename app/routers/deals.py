@@ -145,8 +145,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             query = f"""
                 match
                     $d isa deal, has deal_id "{deal_id}";
-                delete
-                    $d isa deal;
+                delete $d;
             """
             tx.query(query).resolve()
             tx.commit()
@@ -399,6 +398,91 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Error getting answers for deal {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{deal_id}/rp-provision")
+async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
+    """
+    Get the RP provision for a deal with all scalar attributes and concept applicabilities.
+
+    Returns:
+        - provision_id
+        - scalar_answers: all boolean/string/number attributes
+        - multiselect_answers: concept_applicability relations grouped by concept type
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    provision_id = f"{deal_id}_rp"
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Check if provision exists
+            check_query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
+            """
+            check_result = tx.query(check_query).resolve()
+            if not list(check_result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="RP provision not found for this deal")
+
+            # Get all scalar attributes
+            scalar_answers = {}
+            attrs_query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $p has $attr;
+                select $attr;
+            """
+            attrs_result = tx.query(attrs_query).resolve()
+            for row in attrs_result.as_concept_rows():
+                attr = row.get("attr").as_attribute()
+                attr_type = attr.get_type().get_label()
+                if attr_type != "provision_id":
+                    scalar_answers[attr_type] = attr.get_value()
+
+            # Get all concept applicabilities (multiselect answers)
+            multiselect_answers = {}
+            applicability_query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    (provision: $p, concept: $c) isa concept_applicability;
+                    $c has concept_id $cid, has name $cname;
+                select $c, $cid, $cname;
+            """
+            applicability_result = tx.query(applicability_query).resolve()
+            for row in applicability_result.as_concept_rows():
+                concept = row.get("c").as_entity()
+                concept_type = concept.get_type().get_label()
+                concept_id = row.get("cid").as_attribute().get_value()
+                concept_name = row.get("cname").as_attribute().get_value()
+
+                if concept_type not in multiselect_answers:
+                    multiselect_answers[concept_type] = []
+                multiselect_answers[concept_type].append({
+                    "concept_id": concept_id,
+                    "name": concept_name
+                })
+
+            return {
+                "deal_id": deal_id,
+                "provision_id": provision_id,
+                "provision_type": "rp_provision",
+                "scalar_answers": scalar_answers,
+                "multiselect_answers": multiselect_answers,
+                "scalar_count": len(scalar_answers),
+                "multiselect_count": sum(len(v) for v in multiselect_answers.values())
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting RP provision for deal {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
