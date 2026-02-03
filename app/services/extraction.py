@@ -238,6 +238,12 @@ IMPORTANT:
             data = json.loads(json_str)
             logger.info(f"Content extraction keys: {list(data.keys())}")
 
+            # Log raw values to debug extraction issues
+            raw_baskets = data.get("permitted_baskets")
+            raw_definitions = data.get("definitions")
+            logger.info(f"Raw permitted_baskets type: {type(raw_baskets).__name__}, value: {raw_baskets if raw_baskets is None else f'[{len(raw_baskets) if isinstance(raw_baskets, list) else \"not a list\"}]'}")
+            logger.info(f"Raw definitions type: {type(raw_definitions).__name__}, value: {raw_definitions if raw_definitions is None else f'[{len(raw_definitions) if isinstance(raw_definitions, list) else \"not a list\"}]'}")
+
             dividend_prohibition = None
             if data.get("dividend_prohibition"):
                 dp = data["dividend_prohibition"]
@@ -247,10 +253,11 @@ IMPORTANT:
                     pages=(dp.get("pages") or []),
                     section_reference=dp.get("section_reference")
                 )
+                logger.info(f"Dividend prohibition found: {dp.get('section_reference', 'no ref')}")
 
             permitted_baskets = []
             # Handle null from Claude - use 'or []' pattern
-            for basket in (data.get("permitted_baskets") or []):
+            for basket in (raw_baskets or []):
                 permitted_baskets.append(ExtractedContent(
                     section_type=f"basket_{basket.get('basket_name', 'unknown')}",
                     text=basket.get("text", ""),
