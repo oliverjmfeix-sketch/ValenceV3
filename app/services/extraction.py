@@ -1,19 +1,20 @@
 """
-Smart Chunked Extraction Pipeline for Covenant Analysis.
+Format-Agnostic RP Universe Extraction for Covenant Analysis.
 
 Flow:
 1. Parse PDF → raw text with page markers
-2. Create overlapping chunks (250k chars, 50k overlap)
+2. Extract RP-Relevant Universe (focused ~150-200k chars):
+   - All relevant definitions (by term pattern, not section number)
+   - Complete dividend/RP covenant with ALL baskets
+   - Investment, Asset Sale, RDP covenants
+   - Unrestricted Sub mechanics, Pro forma provisions
 3. Load questions from TypeDB (SSoT)
-4. For each chunk, ask UNANSWERED questions:
-   - HIGH confidence → mark as answered, stop searching
-   - MEDIUM/LOW → keep best answer, try next chunk
-   - NOT_FOUND → try next chunk
-5. Early exit when all questions answered OR chunks exhausted
-6. Store best answers to TypeDB
+4. Answer ALL questions against the focused RP universe
+5. Store results to TypeDB
 
-Key insight: Questions are answered DIRECTLY against chunks with early exit.
-This minimizes Claude calls while ensuring complete document coverage.
+Key insight: Extract the complete RP-relevant "mini-agreement" by CONTENT PATTERN
+(not section numbers) to preserve cross-references, then answer all questions
+against this focused context.
 """
 import json
 import logging
@@ -45,13 +46,16 @@ class ExtractedContent:
 
 
 @dataclass
-class RPExtraction:
-    """All extracted RP content from a document."""
-    dividend_prohibition: Optional[ExtractedContent] = None
-    permitted_baskets: List[ExtractedContent] = field(default_factory=list)
-    rdp_restrictions: Optional[ExtractedContent] = None
-    definitions: List[ExtractedContent] = field(default_factory=list)
-    raw_json: Optional[Dict] = None
+class RPUniverse:
+    """Complete RP-relevant universe extracted from a document."""
+    definitions: str = ""           # All relevant definitions
+    dividend_covenant: str = ""     # Complete dividend/RP covenant with all baskets
+    investment_covenant: str = ""   # Investment restrictions
+    asset_sale_covenant: str = ""   # Asset sale restrictions
+    rdp_covenant: str = ""          # Restricted Debt Payment covenant
+    unsub_mechanics: str = ""       # Unrestricted subsidiary designation
+    pro_forma_mechanics: str = ""   # Pro forma calculation provisions
+    raw_text: str = ""              # Combined focused context for QA
 
 
 @dataclass
@@ -65,7 +69,7 @@ class AnsweredQuestion:
     source_pages: List[int]
     confidence: str
     reasoning: Optional[str] = None
-    chunk_index: int = 0  # Which chunk this answer came from
+    chunk_index: int = 0
 
 
 @dataclass
@@ -77,7 +81,7 @@ class CategoryAnswers:
 
 
 class AnswerTracker:
-    """Track best answer per question across chunks."""
+    """Track best answer per question across extraction passes."""
 
     CONFIDENCE_RANK = {"high": 3, "medium": 2, "low": 1, "not_found": 0}
 
@@ -123,7 +127,7 @@ class ExtractionResult:
     chunks_processed: int = 0
     total_questions: int = 0
     high_confidence_answers: int = 0
-    extracted_content: Optional[RPExtraction] = None  # Legacy, kept for compatibility
+    rp_universe_chars: int = 0
 
 
 # =============================================================================
@@ -132,11 +136,10 @@ class ExtractionResult:
 
 class ExtractionService:
     """
-    Smart chunked extraction pipeline with early exit.
+    Format-agnostic RP Universe extraction pipeline.
 
-    Processes document in chunks, asking questions directly against each chunk.
-    Tracks best answer per question, stopping early when all questions have
-    HIGH confidence answers.
+    Extracts the complete RP-relevant "mini-agreement" by CONTENT PATTERN
+    (not section numbers), then answers all questions against this focused context.
     """
 
     def __init__(
@@ -168,69 +171,34 @@ class ExtractionService:
         return full_text
 
     # =========================================================================
-    # STEP 2: Extract RP Content (multi-chunk for complete coverage)
+    # STEP 2: Extract RP-Relevant Universe (Format-Agnostic)
     # =========================================================================
 
-    def extract_rp_content(self, document_text: str) -> RPExtraction:
+    def extract_rp_universe(self, document_text: str) -> RPUniverse:
         """
-        Extract ALL RP-related content verbatim from the document.
+        Extract the complete RP-relevant universe from the document.
 
-        For long documents (>250k chars), splits into overlapping chunks to ensure
-        complete coverage - definitions at front, covenants in middle/back.
+        Uses CONTENT PATTERNS (not section numbers) to find:
+        - All relevant definitions (Restricted Payment, CNI, Cumulative Amount, etc.)
+        - Complete dividend/RP covenant with ALL baskets
+        - Related covenants (Investment, Asset Sale, RDP)
+        - Mechanics (Unrestricted Sub designation, Pro forma)
 
-        This is format-agnostic - just extracts the actual text with page numbers.
-        Does NOT try to answer questions or interpret the content.
+        For docs > 400k chars, uses 2-call merge strategy.
         """
-        doc_length = len(document_text)
-        chunk_size = 250000  # ~250k chars per chunk (safe for Claude's context)
-        overlap = 50000      # 50k overlap to avoid cutting mid-section
+        doc_len = len(document_text)
+        logger.info(f"Extracting RP universe from {doc_len} char document")
 
-        # If document fits in one chunk, extract directly
-        if doc_length <= chunk_size:
-            logger.info(f"Document fits in single chunk ({doc_length} chars)")
-            return self._extract_rp_content_chunk(document_text, chunk_num=1, total_chunks=1)
+        if doc_len <= 400000:
+            # Single call for smaller documents
+            return self._extract_rp_universe_single(document_text)
+        else:
+            # Two-call merge for large documents
+            return self._extract_rp_universe_merge(document_text)
 
-        # Split into overlapping chunks
-        chunks = []
-        start = 0
-        while start < doc_length:
-            end = min(start + chunk_size, doc_length)
-            chunks.append({
-                "start": start,
-                "end": end,
-                "text": document_text[start:end]
-            })
-            # Move start forward, but with overlap
-            start = end - overlap
-            # Stop if we've covered everything
-            if end >= doc_length:
-                break
-
-        logger.info(f"Document {doc_length} chars split into {len(chunks)} chunks")
-        for i, chunk in enumerate(chunks):
-            logger.info(f"  Chunk {i+1}: chars {chunk['start']}-{chunk['end']}")
-
-        # Extract from each chunk
-        extractions = []
-        for i, chunk in enumerate(chunks):
-            logger.info(f"Extracting chunk {i+1}/{len(chunks)}...")
-            extraction = self._extract_rp_content_chunk(
-                chunk["text"],
-                chunk_num=i+1,
-                total_chunks=len(chunks)
-            )
-            extractions.append(extraction)
-            logger.info(f"  Chunk {i+1}: {len(extraction.permitted_baskets)} baskets, {len(extraction.definitions)} definitions")
-
-        # Merge all extractions
-        merged = self._merge_extractions(extractions)
-        logger.info(f"Merged: {len(merged.permitted_baskets)} baskets, {len(merged.definitions)} definitions")
-
-        return merged
-
-    def _extract_rp_content_chunk(self, chunk_text: str, chunk_num: int, total_chunks: int) -> RPExtraction:
-        """Extract RP content from a single document chunk."""
-        prompt = self._build_content_extraction_prompt(chunk_text, chunk_num, total_chunks)
+    def _extract_rp_universe_single(self, document_text: str) -> RPUniverse:
+        """Extract RP universe with a single Claude call."""
+        prompt = self._build_universe_extraction_prompt(document_text)
 
         try:
             response = self.client.messages.create(
@@ -238,231 +206,318 @@ class ExtractionService:
                 max_tokens=16000,
                 messages=[{"role": "user", "content": prompt}]
             )
-            return self._parse_content_extraction(response.content[0].text)
+            return self._parse_universe_extraction(response.content[0].text)
         except Exception as e:
-            logger.error(f"Content extraction error (chunk {chunk_num}): {e}")
-            return RPExtraction()
+            logger.error(f"RP universe extraction error: {e}")
+            return RPUniverse()
 
-    def _merge_extractions(self, extractions: List[RPExtraction]) -> RPExtraction:
-        """
-        Merge multiple chunk extractions into one, deduplicating by section_reference.
+    def _extract_rp_universe_merge(self, document_text: str) -> RPUniverse:
+        """Extract RP universe with two calls for large documents, then merge."""
+        doc_len = len(document_text)
+        midpoint = doc_len // 2
+        overlap = 50000  # 50k overlap to catch content at boundaries
 
-        Priority: Take the first non-null dividend_prohibition and rdp_restrictions.
-        For baskets and definitions, deduplicate by section_reference or basket_name.
-        """
-        merged = RPExtraction()
+        # First half (definitions are usually here)
+        first_half = document_text[:midpoint + overlap]
+        # Second half (covenants are usually here)
+        second_half = document_text[midpoint - overlap:]
 
-        # Take first non-null dividend prohibition
-        for ext in extractions:
-            if ext.dividend_prohibition and not merged.dividend_prohibition:
-                merged.dividend_prohibition = ext.dividend_prohibition
-                break
+        logger.info(f"Large doc ({doc_len} chars): extracting in two parts")
+        logger.info(f"  Part 1: chars 0-{midpoint + overlap} (definitions)")
+        logger.info(f"  Part 2: chars {midpoint - overlap}-{doc_len} (covenants)")
 
-        # Take first non-null RDP restrictions
-        for ext in extractions:
-            if ext.rdp_restrictions and not merged.rdp_restrictions:
-                merged.rdp_restrictions = ext.rdp_restrictions
-                break
+        # Extract from first half (expect definitions)
+        prompt1 = self._build_universe_extraction_prompt(first_half, part=1, focus="definitions")
+        try:
+            response1 = self.client.messages.create(
+                model=self.model,
+                max_tokens=16000,
+                messages=[{"role": "user", "content": prompt1}]
+            )
+            universe1 = self._parse_universe_extraction(response1.content[0].text)
+            logger.info(f"Part 1: definitions={len(universe1.definitions)} chars")
+        except Exception as e:
+            logger.error(f"Part 1 extraction error: {e}")
+            universe1 = RPUniverse()
 
-        # Merge baskets - deduplicate by section_reference or section_type
-        seen_baskets = set()
-        for ext in extractions:
-            for basket in ext.permitted_baskets:
-                # Use section_reference if available, else section_type
-                key = basket.section_reference or basket.section_type
-                if key and key not in seen_baskets:
-                    seen_baskets.add(key)
-                    merged.permitted_baskets.append(basket)
-                elif not key:
-                    # No key - add anyway but may have duplicates
-                    merged.permitted_baskets.append(basket)
+        # Extract from second half (expect covenants)
+        prompt2 = self._build_universe_extraction_prompt(second_half, part=2, focus="covenants")
+        try:
+            response2 = self.client.messages.create(
+                model=self.model,
+                max_tokens=16000,
+                messages=[{"role": "user", "content": prompt2}]
+            )
+            universe2 = self._parse_universe_extraction(response2.content[0].text)
+            logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
+        except Exception as e:
+            logger.error(f"Part 2 extraction error: {e}")
+            universe2 = RPUniverse()
 
-        # Merge definitions - deduplicate by section_type (which includes term name)
-        seen_definitions = set()
-        for ext in extractions:
-            for defn in ext.definitions:
-                if defn.section_type not in seen_definitions:
-                    seen_definitions.add(defn.section_type)
-                    merged.definitions.append(defn)
+        # Merge: definitions from part 1, covenants from part 2 (or whichever has them)
+        merged = RPUniverse(
+            definitions=universe1.definitions or universe2.definitions,
+            dividend_covenant=universe2.dividend_covenant or universe1.dividend_covenant,
+            investment_covenant=universe2.investment_covenant or universe1.investment_covenant,
+            asset_sale_covenant=universe2.asset_sale_covenant or universe1.asset_sale_covenant,
+            rdp_covenant=universe2.rdp_covenant or universe1.rdp_covenant,
+            unsub_mechanics=universe2.unsub_mechanics or universe1.unsub_mechanics,
+            pro_forma_mechanics=universe1.pro_forma_mechanics or universe2.pro_forma_mechanics,
+        )
 
-        # Combine raw JSON from all extractions
-        merged.raw_json = {
-            "merged_from_chunks": len(extractions),
-            "extractions": [ext.raw_json for ext in extractions if ext.raw_json]
-        }
+        # Build combined raw text
+        merged.raw_text = self._build_combined_context(merged)
+        logger.info(f"Merged RP universe: {len(merged.raw_text)} chars")
 
         return merged
 
-    def _build_content_extraction_prompt(self, document_text: str, chunk_num: int = 1, total_chunks: int = 1) -> str:
-        """Build prompt for verbatim content extraction."""
-        doc_excerpt = document_text
+    def _build_universe_extraction_prompt(
+        self,
+        document_text: str,
+        part: int = 0,
+        focus: str = "all"
+    ) -> str:
+        """Build the format-agnostic RP universe extraction prompt."""
 
-        # Add chunk context for multi-chunk extraction
-        if total_chunks > 1:
-            chunk_context = f"""
-NOTE: This is chunk {chunk_num} of {total_chunks} from a large document.
-- Chunk 1 typically contains: definitions, early sections
-- Middle chunks contain: negative covenants including RP sections
-- Later chunks contain: remaining covenants, schedules
-
-Extract ALL relevant content you find in THIS chunk. Duplicates will be merged later.
+        if part == 1:
+            focus_instruction = """
+FOCUS: This is the FIRST HALF of a large document. Definitions are usually here.
+Prioritize extracting ALL DEFINITIONS. Covenants may be partial or missing - that's OK.
+"""
+        elif part == 2:
+            focus_instruction = """
+FOCUS: This is the SECOND HALF of a large document. Covenants are usually here.
+Prioritize extracting COMPLETE COVENANTS with all baskets. Definitions may be missing - that's OK.
 """
         else:
-            chunk_context = ""
+            focus_instruction = ""
 
-        return f"""You are extracting Restricted Payments (RP) covenant content from a credit agreement.
-{chunk_context}
+        return f"""You are extracting Restricted Payments-relevant content from a US credit agreement.
+{focus_instruction}
+## YOUR TASK
 
-FIND AND EXTRACT VERBATIM the following sections. Do NOT interpret or summarize - extract the actual text with page numbers.
+Extract the COMPLETE VERBATIM TEXT of everything needed to analyze the Restricted Payments covenant.
+This includes definitions, covenant sections, and related mechanics.
+
+DO NOT summarize. Extract the ACTUAL TEXT with page numbers.
 
 ## WHAT TO EXTRACT
 
-1. **DIVIDEND/RESTRICTED PAYMENT PROHIBITION**
-   - The main prohibition clause (typically Section 6.06 or 7.06)
-   - Who is restricted (Holdings, Borrower, Restricted Subsidiaries)
+### 1. DEFINITIONS
+Find the definitions section (usually Article I, Section 1.01, or just "DEFINITIONS").
+Extract COMPLETE definitions for these terms (include variants/similar terms):
 
-2. **PERMITTED BASKETS/EXCEPTIONS** (extract EACH basket separately)
-   - Intercompany dividends
-   - Management equity repurchase basket
-   - Tax distribution basket
-   - Builder basket / Cumulative Amount
-   - Ratio-based dividend basket
-   - General / fixed dollar baskets
-   - Any other permitted dividend exceptions
+**Core Restricted Payment terms:**
+- "Restricted Payment" or "Dividend" or "Distribution" (however defined)
+- "Cumulative Amount" or "Available Amount" or "Cumulative Credit" or "Builder Basket"
+- "Consolidated Net Income" or "Net Income"
+- "Excess Cash Flow" or "ECF" or "Available Retained ECF"
+- "Retained Excess Cash Flow Amount"
 
-3. **RESTRICTED DEBT PAYMENT (RDP) RESTRICTIONS** (if separate)
-   - Section 6.09 or similar
-   - Permitted RDP baskets
+**Unrestricted Subsidiary terms:**
+- "Unrestricted Subsidiary" or "Excluded Subsidiary" or "Non-Guarantor Subsidiary"
+- "Intellectual Property" or "Material IP" or "Principal Property"
+- "Investment" (the defined term, not casual usage)
+- "Permitted Investment"
 
-4. **REFERENCED DEFINITIONS** (extract each verbatim)
-   - "Restricted Payment" definition
-   - "Cumulative Amount" or "Available Amount" definition
-   - "Unrestricted Subsidiary" definition
-   - "Qualified Equity Interests" / "Qualified Stock" definition
-   - "Consolidated Net Income" definition
-   - "Material Intellectual Property" or IP definitions
-   - Any other definitions referenced in RP sections
+**Ratio terms:**
+- "First Lien Leverage Ratio" or "Secured Leverage Ratio" or "Total Leverage Ratio"
+- "Consolidated EBITDA" or "EBITDA" or "Adjusted EBITDA"
+- "Fixed Charge Coverage Ratio" or "Interest Coverage Ratio"
+
+**Equity terms:**
+- "Qualified Capital Stock" or "Qualified Equity Interests"
+- "Disqualified Capital Stock" or "Disqualified Equity Interests"
+- "Equity Interests"
+
+**Person/Entity terms:**
+- Any definition of covered persons (management, employees, directors, etc.)
+- "Credit Party" or "Loan Party"
+- "Subsidiary Guarantor"
+- "Permitted Holder" or "Sponsor"
+
+### 2. NEGATIVE COVENANTS
+Find and extract COMPLETE sections (all subsections) that restrict:
+
+- **Dividends/Distributions** - Look for language like "shall not declare or pay any dividend"
+  or "shall not make any Restricted Payment"
+  INCLUDE ALL PERMITTED BASKETS/EXCEPTIONS (usually labeled (a), (b), (c)... through the end)
+  This is typically the longest covenant - extract it COMPLETELY
+
+- **Restricted Debt Payments** - Look for language about prepaying subordinated/junior debt
+  or "prepay, redeem, purchase, defease" any Junior Debt
+
+- **Investments** - Look for language about making loans, advances, or investments
+  ESPECIALLY subsections about Unrestricted Subsidiaries
+
+- **Asset Sales** - Look for language about selling or disposing of assets
+  or "Disposition" restrictions
+
+### 3. RELATED PROVISIONS
+- **Unrestricted Subsidiary designation mechanics** - how subs are designated/redesignated
+- **Pro forma calculation provisions** - how ratios are calculated
+- **Limited Condition Transaction provisions** - LCT mechanics
+- **Any J.Crew blocker language** - restrictions on IP transfers to unrestricted subs
 
 ## DOCUMENT
 
-{doc_excerpt}
+{document_text}
 
 ## OUTPUT FORMAT
 
-Return JSON:
-```json
-{{
-  "dividend_prohibition": {{
-    "text": "[VERBATIM TEXT]",
-    "pages": [89, 90],
-    "section_reference": "Section 6.06"
-  }},
-  "permitted_baskets": [
-    {{
-      "basket_name": "Management Equity",
-      "text": "[VERBATIM TEXT]",
-      "pages": [91],
-      "section_reference": "Section 6.06(c)"
-    }}
-  ],
-  "rdp_restrictions": {{
-    "text": "[VERBATIM TEXT]",
-    "pages": [95],
-    "section_reference": "Section 6.09"
-  }},
-  "definitions": [
-    {{
-      "term": "Restricted Payment",
-      "text": "[VERBATIM TEXT]",
-      "pages": [42]
-    }}
-  ]
-}}
+Return your extraction in this EXACT format with clear section markers:
+
+```
+=== DEFINITIONS ===
+
+"Restricted Payment" means [VERBATIM TEXT]
+[PAGE X]
+
+"Cumulative Amount" means [VERBATIM TEXT]
+[PAGE Y]
+
+[... continue for all relevant definitions ...]
+
+=== DIVIDEND/RESTRICTED PAYMENT COVENANT ===
+
+[SECTION HEADER AS IT APPEARS IN DOCUMENT]
+
+[COMPLETE VERBATIM TEXT OF SECTION INCLUDING ALL SUBSECTIONS AND BASKETS]
+
+[PAGES X-Y]
+
+=== INVESTMENT COVENANT ===
+
+[COMPLETE VERBATIM TEXT]
+
+[PAGES X-Y]
+
+=== ASSET SALE COVENANT ===
+
+[COMPLETE VERBATIM TEXT]
+
+[PAGES X-Y]
+
+=== RESTRICTED DEBT PAYMENT COVENANT ===
+
+[COMPLETE VERBATIM TEXT]
+
+[PAGES X-Y]
+
+=== UNRESTRICTED SUBSIDIARY MECHANICS ===
+
+[COMPLETE VERBATIM TEXT]
+
+[PAGES X-Y]
+
+=== PRO FORMA / CALCULATION MECHANICS ===
+
+[RELEVANT PROVISIONS]
+
+[PAGES X-Y]
 ```
 
-IMPORTANT:
-- Extract VERBATIM text, do not summarize
-- Include ALL permitted baskets, even small ones
-- Page numbers from [PAGE X] markers
-- If a section doesn't exist, use null
-- Return ONLY the JSON"""
+## IMPORTANT
 
-    def _parse_content_extraction(self, response_text: str) -> RPExtraction:
-        """Parse content extraction response."""
-        try:
-            start = response_text.find('{')
-            end = response_text.rfind('}') + 1
-            if start == -1 or end == 0:
-                logger.warning("No JSON object found in content extraction response")
-                return RPExtraction()
+- Extract VERBATIM - do not summarize or paraphrase
+- Include ALL subsections, especially all permitted payment baskets ((a) through (z) or more)
+- Include page numbers from [PAGE X] markers in the document
+- If a section doesn't exist, write "NOT FOUND" for that section
+- For definitions, include the COMPLETE definition even if very long
+- When in doubt, include more rather than less
+- Use the exact section markers shown above (=== SECTION NAME ===)"""
 
-            json_str = response_text[start:end]
-            logger.debug(f"Parsing content extraction JSON: {json_str[:500]}...")
+    def _parse_universe_extraction(self, response_text: str) -> RPUniverse:
+        """Parse the RP universe extraction response."""
+        universe = RPUniverse()
 
-            data = json.loads(json_str)
-            logger.info(f"Content extraction keys: {list(data.keys())}")
+        # Parse each section using markers
+        sections = {
+            "definitions": "=== DEFINITIONS ===",
+            "dividend_covenant": "=== DIVIDEND/RESTRICTED PAYMENT COVENANT ===",
+            "investment_covenant": "=== INVESTMENT COVENANT ===",
+            "asset_sale_covenant": "=== ASSET SALE COVENANT ===",
+            "rdp_covenant": "=== RESTRICTED DEBT PAYMENT COVENANT ===",
+            "unsub_mechanics": "=== UNRESTRICTED SUBSIDIARY MECHANICS ===",
+            "pro_forma_mechanics": "=== PRO FORMA / CALCULATION MECHANICS ===",
+        }
 
-            # Log raw values to debug extraction issues
-            raw_baskets = data.get("permitted_baskets")
-            raw_definitions = data.get("definitions")
-            baskets_info = "None" if raw_baskets is None else (f"[{len(raw_baskets)} items]" if isinstance(raw_baskets, list) else "not a list")
-            definitions_info = "None" if raw_definitions is None else (f"[{len(raw_definitions)} items]" if isinstance(raw_definitions, list) else "not a list")
-            logger.info(f"Raw permitted_baskets: {type(raw_baskets).__name__}, {baskets_info}")
-            logger.info(f"Raw definitions: {type(raw_definitions).__name__}, {definitions_info}")
+        for field_name, marker in sections.items():
+            content = self._extract_section(response_text, marker, list(sections.values()))
+            if content and content.strip().upper() != "NOT FOUND":
+                setattr(universe, field_name, content.strip())
 
-            dividend_prohibition = None
-            if data.get("dividend_prohibition"):
-                dp = data["dividend_prohibition"]
-                dividend_prohibition = ExtractedContent(
-                    section_type="dividend_prohibition",
-                    text=dp.get("text", ""),
-                    pages=(dp.get("pages") or []),
-                    section_reference=dp.get("section_reference")
-                )
-                logger.info(f"Dividend prohibition found: {dp.get('section_reference', 'no ref')}")
+        # Build combined raw text for QA
+        universe.raw_text = self._build_combined_context(universe)
 
-            permitted_baskets = []
-            # Handle null from Claude - use 'or []' pattern
-            for basket in (raw_baskets or []):
-                permitted_baskets.append(ExtractedContent(
-                    section_type=f"basket_{basket.get('basket_name', 'unknown')}",
-                    text=basket.get("text", ""),
-                    pages=(basket.get("pages") or []),
-                    section_reference=basket.get("section_reference")
-                ))
+        logger.info(
+            f"Parsed RP universe: definitions={len(universe.definitions)}, "
+            f"dividend={len(universe.dividend_covenant)}, "
+            f"investment={len(universe.investment_covenant)}, "
+            f"rdp={len(universe.rdp_covenant)} chars"
+        )
 
-            rdp_restrictions = None
-            if data.get("rdp_restrictions"):
-                rdp = data["rdp_restrictions"]
-                rdp_restrictions = ExtractedContent(
-                    section_type="rdp_restrictions",
-                    text=rdp.get("text", ""),
-                    pages=(rdp.get("pages") or []),
-                    section_reference=rdp.get("section_reference")
-                )
+        return universe
 
-            definitions = []
-            # Handle null from Claude - use 'or []' pattern
-            for defn in (data.get("definitions") or []):
-                definitions.append(ExtractedContent(
-                    section_type=f"definition_{defn.get('term', 'unknown')}",
-                    text=defn.get("text", ""),
-                    pages=(defn.get("pages") or [])
-                ))
+    def _extract_section(self, text: str, start_marker: str, all_markers: List[str]) -> str:
+        """Extract content between a marker and the next marker."""
+        start_idx = text.find(start_marker)
+        if start_idx == -1:
+            return ""
 
-            logger.info(f"Parsed: {len(permitted_baskets)} baskets, {len(definitions)} definitions")
+        content_start = start_idx + len(start_marker)
 
-            return RPExtraction(
-                dividend_prohibition=dividend_prohibition,
-                permitted_baskets=permitted_baskets,
-                rdp_restrictions=rdp_restrictions,
-                definitions=definitions,
-                raw_json=data
-            )
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error in content extraction: {e}")
-            logger.error(f"Response text: {response_text[:500]}")
-            return RPExtraction()
+        # Find the next section marker
+        end_idx = len(text)
+        for marker in all_markers:
+            if marker == start_marker:
+                continue
+            marker_idx = text.find(marker, content_start)
+            if marker_idx != -1 and marker_idx < end_idx:
+                end_idx = marker_idx
+
+        return text[content_start:end_idx].strip()
+
+    def _build_combined_context(self, universe: RPUniverse) -> str:
+        """Build combined context string for QA."""
+        parts = []
+
+        if universe.definitions:
+            parts.append("## DEFINITIONS\n")
+            parts.append(universe.definitions)
+            parts.append("\n")
+
+        if universe.dividend_covenant:
+            parts.append("## DIVIDEND/RESTRICTED PAYMENT COVENANT\n")
+            parts.append(universe.dividend_covenant)
+            parts.append("\n")
+
+        if universe.investment_covenant:
+            parts.append("## INVESTMENT COVENANT\n")
+            parts.append(universe.investment_covenant)
+            parts.append("\n")
+
+        if universe.asset_sale_covenant:
+            parts.append("## ASSET SALE COVENANT\n")
+            parts.append(universe.asset_sale_covenant)
+            parts.append("\n")
+
+        if universe.rdp_covenant:
+            parts.append("## RESTRICTED DEBT PAYMENT COVENANT\n")
+            parts.append(universe.rdp_covenant)
+            parts.append("\n")
+
+        if universe.unsub_mechanics:
+            parts.append("## UNRESTRICTED SUBSIDIARY MECHANICS\n")
+            parts.append(universe.unsub_mechanics)
+            parts.append("\n")
+
+        if universe.pro_forma_mechanics:
+            parts.append("## PRO FORMA / CALCULATION MECHANICS\n")
+            parts.append(universe.pro_forma_mechanics)
+            parts.append("\n")
+
+        return "\n".join(parts)
 
     # =========================================================================
     # STEP 3: Load Questions from TypeDB (SSoT)
@@ -474,7 +529,6 @@ IMPORTANT:
             logger.warning("TypeDB not connected")
             return {}
 
-        # Category names mapping (derived from question_id prefix like rp_a1 -> A)
         category_names = {
             "A": "Dividend Restrictions - General Structure",
             "B": "Intercompany Dividends",
@@ -498,7 +552,6 @@ IMPORTANT:
                 settings.typedb_database, TransactionType.READ
             )
             try:
-                # Query questions directly - category derived from question_id
                 query = f"""
                     match
                         $q isa ontology_question,
@@ -515,13 +568,11 @@ IMPORTANT:
 
                 for row in result.as_concept_rows():
                     qid = row.get("qid").as_attribute().get_value()
-                    # Extract category from question_id: "rp_a1" -> "A", "rp_k2" -> "K"
-                    # Format: {prefix}_{category_letter}{number}
                     parts = qid.split("_")
                     if len(parts) >= 2 and len(parts[1]) >= 1:
                         cat_letter = parts[1][0].upper()
                     else:
-                        cat_letter = "Z"  # Default to Pattern Detection
+                        cat_letter = "Z"
 
                     if cat_letter not in questions_by_cat:
                         questions_by_cat[cat_letter] = []
@@ -535,16 +586,16 @@ IMPORTANT:
                         "category_name": category_names.get(cat_letter, f"Category {cat_letter}")
                     })
 
-                # Load target field/concept mappings AND multiselect options
+                # Load target field/concept mappings
                 for cat_id, questions in questions_by_cat.items():
                     for q in questions:
                         target_info = self._get_question_target(tx, q["question_id"])
-                        q["target_type"] = target_info["type"]  # "field" or "concept"
+                        q["target_type"] = target_info["type"]
                         q["target_field_name"] = target_info["name"]
                         q["target_concept_type"] = target_info.get("concept_type")
                         q["concept_options"] = target_info.get("options", [])
 
-                logger.info(f"Loaded {sum(len(qs) for qs in questions_by_cat.values())} {covenant_type} questions in {len(questions_by_cat)} categories")
+                logger.info(f"Loaded {sum(len(qs) for qs in questions_by_cat.values())} {covenant_type} questions")
                 return questions_by_cat
 
             finally:
@@ -554,20 +605,7 @@ IMPORTANT:
             return {}
 
     def _get_question_target(self, tx, question_id: str) -> Dict[str, Any]:
-        """
-        Get target field or concept type for a question.
-
-        For multiselect questions (target_concept_type), also loads the valid
-        concept options so the QA prompt can show them.
-
-        Returns:
-            {
-                "type": "field" | "concept",
-                "name": field_name or concept_type,
-                "concept_type": concept_type (if multiselect),
-                "options": [{"id": "...", "name": "..."}, ...] (if multiselect)
-            }
-        """
+        """Get target field or concept type for a question."""
         try:
             # Try field target first
             query = f"""
@@ -593,10 +631,7 @@ IMPORTANT:
             result = list(tx.query(query).resolve().as_concept_rows())
             if result:
                 concept_type = result[0].get("ct").as_attribute().get_value()
-
-                # Load the concept options for this type
                 options = self._load_concept_options(tx, concept_type)
-
                 return {
                     "type": "concept",
                     "name": concept_type,
@@ -610,11 +645,7 @@ IMPORTANT:
         return {"type": "unknown", "name": ""}
 
     def _load_concept_options(self, tx, concept_type: str) -> List[Dict[str, str]]:
-        """
-        Load all concept instances for a given concept type.
-
-        Returns list of {"id": concept_id, "name": display_name}
-        """
+        """Load all concept instances for a given concept type."""
         options = []
         try:
             query = f"""
@@ -630,26 +661,85 @@ IMPORTANT:
                     "id": row.get("cid").as_attribute().get_value(),
                     "name": row.get("name").as_attribute().get_value()
                 })
-            logger.debug(f"Loaded {len(options)} options for {concept_type}")
         except Exception as e:
             logger.warning(f"Error loading concept options for {concept_type}: {e}")
         return options
 
     # =========================================================================
-    # STEP 4: Answer Questions Using Extracted Content
+    # STEP 4: Answer Questions Against RP Universe
     # =========================================================================
 
-    def answer_category_questions(
+    def answer_questions_against_universe(
         self,
-        category_id: str,
-        category_name: str,
-        questions: List[Dict[str, Any]],
-        extracted_content: RPExtraction
-    ) -> CategoryAnswers:
-        """Answer all questions in a category using the extracted content."""
-        context = self._build_qa_context(extracted_content)
+        rp_universe: RPUniverse,
+        questions_by_category: Dict[str, List[Dict]]
+    ) -> List[CategoryAnswers]:
+        """Answer ALL questions against the focused RP universe."""
+        category_answers = []
+
+        for cat_id, questions in sorted(questions_by_category.items()):
+            cat_name = questions[0]["category_name"] if questions else cat_id
+            logger.info(f"Answering {len(questions)} questions for {cat_name}")
+
+            answers = self._answer_category_questions(
+                rp_universe.raw_text,
+                questions,
+                cat_name
+            )
+
+            category_answers.append(CategoryAnswers(
+                category_id=cat_id,
+                category_name=cat_name,
+                answers=answers
+            ))
+
+        return category_answers
+
+    def _answer_category_questions(
+        self,
+        context: str,
+        questions: List[Dict],
+        category_name: str
+    ) -> List[AnsweredQuestion]:
+        """Answer a category's questions against the RP universe context."""
         questions_text = self._format_questions_for_prompt(questions)
-        prompt = self._build_qa_prompt(category_name, questions_text, context)
+
+        prompt = f"""Answer covenant analysis questions using the extracted RP-relevant content.
+
+## RP-RELEVANT CONTEXT
+
+{context}
+
+## CATEGORY: {category_name}
+
+## QUESTIONS
+
+{questions_text}
+
+## INSTRUCTIONS
+
+For EACH question, answer based ONLY on the extracted content above:
+- question_id: The ID in brackets
+- value: The answer (true/false for boolean, number for numeric, array for multiselect)
+- source_text: EXACT quote from the context supporting your answer (max 500 chars)
+- source_pages: Page numbers from [PAGE X] markers
+- confidence:
+  - "high" = explicit answer found in text
+  - "medium" = answer inferred from context
+  - "low" = uncertain, partial information
+  - "not_found" = no relevant information found
+- reasoning: Brief explanation (1 sentence)
+
+## OUTPUT
+
+Return JSON array:
+```json
+[
+  {{"question_id": "rp_a1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
+]
+```
+
+Return ONLY the JSON array."""
 
         try:
             response = self.client.messages.create(
@@ -657,45 +747,10 @@ IMPORTANT:
                 max_tokens=8000,
                 messages=[{"role": "user", "content": prompt}]
             )
-            answers = self._parse_qa_response(response.content[0].text, questions)
-            return CategoryAnswers(category_id=category_id, category_name=category_name, answers=answers)
+            return self._parse_qa_response(response.content[0].text, questions)
         except Exception as e:
             logger.error(f"QA error for {category_name}: {e}")
-            return CategoryAnswers(category_id=category_id, category_name=category_name, answers=[])
-
-    def _build_qa_context(self, content: RPExtraction) -> str:
-        """Build context string from extracted content."""
-        parts = []
-
-        if content.dividend_prohibition:
-            parts.append("## DIVIDEND PROHIBITION")
-            parts.append(f"[Pages {content.dividend_prohibition.pages}]")
-            parts.append(content.dividend_prohibition.text)
-            parts.append("")
-
-        if content.permitted_baskets:
-            parts.append("## PERMITTED BASKETS")
-            for basket in content.permitted_baskets:
-                parts.append(f"### {basket.section_type}")
-                parts.append(f"[Pages {basket.pages}]")
-                parts.append(basket.text)
-                parts.append("")
-
-        if content.rdp_restrictions:
-            parts.append("## RDP RESTRICTIONS")
-            parts.append(f"[Pages {content.rdp_restrictions.pages}]")
-            parts.append(content.rdp_restrictions.text)
-            parts.append("")
-
-        if content.definitions:
-            parts.append("## DEFINITIONS")
-            for defn in content.definitions:
-                parts.append(f"### {defn.section_type}")
-                parts.append(f"[Pages {defn.pages}]")
-                parts.append(defn.text)
-                parts.append("")
-
-        return "\n".join(parts)
+            return []
 
     def _format_questions_for_prompt(self, questions: List[Dict]) -> str:
         """Format questions for the QA prompt, including multiselect options."""
@@ -718,7 +773,6 @@ IMPORTANT:
             lines.append(f"{i}. [{q['question_id']}] {q['question_text']} {type_hint}")
 
             if target_type == "concept" and concept_options:
-                # Show valid options for multiselect
                 lines.append(f"   → Concept: {target}")
                 option_strs = [f"{opt['id']} ({opt['name']})" for opt in concept_options]
                 lines.append(f"   → Valid options: {', '.join(option_strs)}")
@@ -727,543 +781,13 @@ IMPORTANT:
 
         return "\n".join(lines)
 
-    def _build_qa_prompt(self, category_name: str, questions_text: str, context: str) -> str:
-        """Build the QA prompt for a category."""
-        return f"""Answer covenant analysis questions using extracted credit agreement content.
-
-## CATEGORY: {category_name}
-
-## QUESTIONS
-
-{questions_text}
-
-## EXTRACTED CONTENT
-
-{context}
-
-## INSTRUCTIONS
-
-For EACH question, answer based ONLY on the extracted content:
-- question_id: The ID in brackets
-- value: The answer (true/false, number, or array for multiselect)
-- source_text: EXACT quote supporting your answer
-- source_pages: Page numbers
-- confidence: "high" (explicit), "medium" (inferred), "low" (uncertain), "not_found" (cannot answer)
-- reasoning: Brief explanation (1 sentence)
-
-## OUTPUT
-
-Return JSON array:
-```json
-[
-  {{"question_id": "rp_q1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
-]
-```
-
-Return ONLY the JSON array."""
-
     def _parse_qa_response(self, response_text: str, questions: List[Dict]) -> List[AnsweredQuestion]:
-        """Parse QA response, handling both scalar and multiselect answers."""
+        """Parse QA response into AnsweredQuestion objects."""
         try:
             start = response_text.find('[')
             end = response_text.rfind(']') + 1
             if start == -1 or end == 0:
-                logger.warning(f"No JSON array found in QA response: {response_text[:200]}")
-                return []
-
-            # Clean JSON - fix trailing commas
-            json_str = response_text[start:end]
-            json_str = re.sub(r',\s*}', '}', json_str)
-            json_str = re.sub(r',\s*]', ']', json_str)
-
-            data = json.loads(json_str)
-            logger.info(f"Parsed {len(data)} answers from QA response")
-
-            # Log first answer for debugging
-            if data:
-                logger.debug(f"First answer: {data[0]}")
-
-            q_lookup = {q['question_id']: q for q in questions}
-            answers = []
-
-            for item in data:
-                qid = item.get("question_id")
-                if not qid or qid not in q_lookup:
-                    continue
-
-                q = q_lookup[qid]
-                target_type = q.get("target_type", "field")
-
-                # For multiselect (concept), use concept_type as attribute_name
-                # For scalar (field), use target_field_name
-                if target_type == "concept":
-                    attr_name = q.get("target_concept_type", q.get("target_field_name", ""))
-                else:
-                    attr_name = q.get("target_field_name", "")
-
-                # Validate multiselect values against known options
-                value = item.get("value")
-                if target_type == "concept" and isinstance(value, list):
-                    valid_ids = {opt["id"] for opt in q.get("concept_options", [])}
-                    if valid_ids:
-                        validated = [v for v in value if v in valid_ids]
-                        invalid = [v for v in value if v not in valid_ids]
-                        if invalid:
-                            logger.warning(f"Invalid concept_ids for {qid}: {invalid}")
-                        value = validated
-
-                answers.append(AnsweredQuestion(
-                    question_id=qid,
-                    attribute_name=attr_name,
-                    answer_type=q.get("answer_type", "string"),
-                    value=value,
-                    source_text=item.get("source_text") or "",
-                    source_pages=(item.get("source_pages") or []),
-                    confidence=item.get("confidence") or "medium",
-                    reasoning=item.get("reasoning")
-                ))
-
-            return answers
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error in QA: {e}")
-            logger.error(f"QA response text: {response_text[:500]}")
-            return []
-
-    # =========================================================================
-    # STEP 5: Store Results to TypeDB
-    # =========================================================================
-
-    def store_extraction_result(
-        self,
-        deal_id: str,
-        category_answers: List[CategoryAnswers]
-    ) -> bool:
-        """
-        Store extraction results to TypeDB.
-
-        - Creates rp_provision entity if not exists
-        - Stores scalar answers as provision attributes (individual transactions)
-        - Stores multiselect answers as concept_applicability relations
-
-        Uses individual transactions per write to avoid one failure poisoning all writes.
-        """
-        if not typedb_client.driver:
-            logger.error("TypeDB not connected, cannot store results")
-            return False
-
-        provision_id = f"{deal_id}_rp"
-
-        try:
-            from typedb.driver import TransactionType
-
-            # Step 5a: Create rp_provision if not exists
-            self._ensure_provision_exists(deal_id, provision_id)
-
-            # Step 5b & 5c: Store answers (individual transactions to avoid cascade failures)
-            scalar_count = 0
-            scalar_failed = 0
-            multiselect_count = 0
-            multiselect_failed = 0
-
-            for cat_answers in category_answers:
-                logger.debug(f"Processing category {cat_answers.category_id}: {len(cat_answers.answers)} answers")
-                for answer in cat_answers.answers:
-                    if answer.value is None:
-                        continue
-                    if answer.confidence == "not_found":
-                        continue
-
-                    if isinstance(answer.value, list):
-                        # Multiselect answer → concept_applicability
-                        for concept_id in answer.value:
-                            success = self._store_concept_applicability_safe(
-                                provision_id, answer.attribute_name,
-                                concept_id, answer.source_text,
-                                answer.source_pages[0] if answer.source_pages else 0
-                            )
-                            if success:
-                                multiselect_count += 1
-                            else:
-                                multiselect_failed += 1
-                    else:
-                        # Scalar answer → provision attribute
-                        success = self._store_scalar_attribute_safe(
-                            provision_id, answer.attribute_name,
-                            answer.value, answer.answer_type
-                        )
-                        if success:
-                            scalar_count += 1
-                        else:
-                            scalar_failed += 1
-
-            logger.info(
-                f"Stored {scalar_count} scalar ({scalar_failed} failed), "
-                f"{multiselect_count} multiselect ({multiselect_failed} failed)"
-            )
-            return True
-
-        except Exception as e:
-            logger.error(f"Storage error: {e}")
-            return False
-
-    def _store_scalar_attribute_safe(
-        self,
-        provision_id: str,
-        attribute_name: str,
-        value: Any,
-        answer_type: str
-    ) -> bool:
-        """Store a scalar answer with its own transaction (safe from cascade failures)."""
-        from typedb.driver import TransactionType
-
-        formatted_value = self._format_typedb_value(value, answer_type)
-        if formatted_value is None:
-            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
-            return False
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                insert $p has {attribute_name} {formatted_value};
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.debug(f"Stored {attribute_name} = {formatted_value}")
-            return True
-        except Exception as e:
-            tx.close()
-            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
-            return False
-
-    def _store_concept_applicability_safe(
-        self,
-        provision_id: str,
-        concept_type: str,
-        concept_id: str,
-        source_text: str,
-        source_page: int
-    ) -> bool:
-        """Store a concept applicability with its own transaction (safe from cascade failures)."""
-        from typedb.driver import TransactionType
-
-        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match
-                    $p isa rp_provision, has provision_id "{provision_id}";
-                    $c isa {concept_type}, has concept_id "{concept_id}";
-                insert
-                    (provision: $p, concept: $c) isa concept_applicability,
-                        has applicability_status "INCLUDED",
-                        has source_text "{escaped_text}",
-                        has source_page {source_page};
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.debug(f"Stored applicability: {concept_type}/{concept_id}")
-            return True
-        except Exception as e:
-            tx.close()
-            logger.warning(f"Could not store applicability for {concept_id}: {e}")
-            return False
-
-    def _ensure_provision_exists(self, deal_id: str, provision_id: str):
-        """Create rp_provision entity linked to deal if not exists."""
-        from typedb.driver import TransactionType
-
-        # Check if provision exists
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.READ
-        )
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                select $p;
-            """
-            result = list(tx.query(query).resolve().as_concept_rows())
-            exists = len(result) > 0
-        finally:
-            tx.close()
-
-        if exists:
-            logger.debug(f"Provision {provision_id} already exists")
-            return
-
-        # Create provision
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $d isa deal, has deal_id "{deal_id}";
-                insert
-                    $p isa rp_provision, has provision_id "{provision_id}";
-                    (deal: $d, provision: $p) isa deal_has_provision;
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.info(f"Created rp_provision: {provision_id}")
-        except Exception as e:
-            tx.close()
-            logger.error(f"Error creating provision: {e}")
-            raise
-
-    def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
-        """Format a Python value for TypeQL insertion."""
-        if value is None:
-            return None
-
-        # Handle "not_found" or similar non-values
-        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
-            return None
-
-        if answer_type == "boolean":
-            if isinstance(value, bool):
-                return "true" if value else "false"
-            if isinstance(value, str):
-                return "true" if value.lower() in ("true", "yes", "1") else "false"
-            return None
-
-        if answer_type in ("integer", "int", "number"):
-            try:
-                # Strip quotes if Claude wrapped the number in quotes
-                clean_value = str(value).strip('"\'')
-                return str(int(float(clean_value)))  # Handle "4.0" -> 4
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("double", "decimal", "percentage", "currency", "float"):
-            try:
-                # Strip quotes if Claude wrapped the number in quotes
-                clean_value = str(value).strip('"\'')
-                return str(float(clean_value))
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("string", "text"):
-            escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"'
-
-        # Default: try to detect type from value
-        # If it looks numeric, don't quote it
-        try:
-            clean_value = str(value).strip('"\'')
-            float_val = float(clean_value)
-            return str(float_val)
-        except (ValueError, TypeError):
-            pass
-
-        # Fall back to string
-        escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-        return f'"{escaped}"'
-
-    # =========================================================================
-    # MAIN EXTRACTION FLOW - Smart Chunked with Early Exit
-    # =========================================================================
-
-    async def extract_rp_provision(
-        self,
-        pdf_path: str,
-        deal_id: str,
-        questions_by_category: Optional[Dict[str, List[Dict]]] = None,
-        store_results: bool = True
-    ) -> ExtractionResult:
-        """
-        Smart chunked RP extraction pipeline with early exit.
-
-        1. Parse PDF
-        2. Create overlapping chunks (250k chars, 50k overlap)
-        3. Load questions from TypeDB
-        4. For each chunk, ask only UNANSWERED questions
-           - HIGH confidence → stop searching for that question
-           - MEDIUM/LOW → keep best, try next chunk
-        5. Early exit when all questions have HIGH confidence
-        6. Store best answers to TypeDB
-        """
-        start_time = time.time()
-
-        # Step 1: Parse PDF
-        document_text = self.parse_document(pdf_path)
-
-        # Step 2: Create overlapping chunks
-        chunks = self._create_chunks(document_text, chunk_size=250000, overlap=50000)
-        logger.info(f"Created {len(chunks)} chunks from {len(document_text)} char document")
-
-        # Step 3: Load questions from TypeDB
-        if questions_by_category is None:
-            logger.info("Step 3: Loading questions from TypeDB...")
-            questions_by_category = self.load_questions_by_category("RP")
-
-        all_questions = [q for qs in questions_by_category.values() for q in qs]
-        total_questions = len(all_questions)
-        logger.info(f"Loaded {total_questions} questions")
-
-        # Step 4: Process chunks with early exit
-        answer_tracker = AnswerTracker()
-        chunks_processed = 0
-
-        for chunk_idx, chunk_text in enumerate(chunks):
-            # Get questions that still need answers
-            unanswered = answer_tracker.get_unanswered_questions(all_questions)
-
-            if not unanswered:
-                logger.info(f"All questions have HIGH confidence answers, stopping at chunk {chunk_idx}")
-                break
-
-            chunks_processed += 1
-            logger.info(f"Chunk {chunk_idx + 1}/{len(chunks)}: {len(unanswered)} questions remaining")
-
-            # Group unanswered by category for batching
-            unanswered_by_cat = self._group_by_category(unanswered)
-
-            # Ask questions against this chunk
-            for cat_id, cat_questions in unanswered_by_cat.items():
-                cat_name = cat_questions[0]["category_name"] if cat_questions else cat_id
-                logger.info(f"  Asking {len(cat_questions)} questions from {cat_name}")
-
-                answers = self._answer_questions_against_chunk(
-                    chunk_text, cat_questions, chunk_idx
-                )
-                for answer in answers:
-                    answer_tracker.update(answer)
-
-            # Log progress
-            high_conf = answer_tracker.get_high_confidence_count()
-            logger.info(f"After chunk {chunk_idx + 1}: {high_conf}/{total_questions} HIGH confidence")
-
-        # Convert tracked answers to CategoryAnswers format
-        category_answers = self._organize_answers_by_category(
-            answer_tracker.get_all_answers(),
-            questions_by_category
-        )
-
-        # Step 5: Store results to TypeDB
-        if store_results:
-            logger.info("Step 5: Storing results to TypeDB...")
-            self.store_extraction_result(deal_id, category_answers)
-
-        extraction_time = time.time() - start_time
-        high_conf_count = answer_tracker.get_high_confidence_count()
-        logger.info(
-            f"Extraction complete in {extraction_time:.1f}s: "
-            f"{chunks_processed} chunks, {high_conf_count}/{total_questions} HIGH confidence"
-        )
-
-        return ExtractionResult(
-            deal_id=deal_id,
-            covenant_type="RP",
-            category_answers=category_answers,
-            extraction_time_seconds=extraction_time,
-            chunks_processed=chunks_processed,
-            total_questions=total_questions,
-            high_confidence_answers=high_conf_count
-        )
-
-    def _create_chunks(self, text: str, chunk_size: int, overlap: int) -> List[str]:
-        """Split document into overlapping chunks."""
-        if len(text) <= chunk_size:
-            return [text]
-
-        chunks = []
-        start = 0
-        while start < len(text):
-            end = min(start + chunk_size, len(text))
-            chunks.append(text[start:end])
-            start = end - overlap
-            if end >= len(text):
-                break
-        return chunks
-
-    def _group_by_category(self, questions: List[Dict]) -> Dict[str, List[Dict]]:
-        """Group questions by category_id."""
-        by_cat: Dict[str, List[Dict]] = {}
-        for q in questions:
-            cat_id = q.get("category_id", "Z")
-            if cat_id not in by_cat:
-                by_cat[cat_id] = []
-            by_cat[cat_id].append(q)
-        return by_cat
-
-    def _answer_questions_against_chunk(
-        self,
-        chunk_text: str,
-        questions: List[Dict],
-        chunk_idx: int
-    ) -> List[AnsweredQuestion]:
-        """Ask questions directly against a document chunk."""
-        prompt = self._build_chunk_qa_prompt(chunk_text, questions, chunk_idx)
-
-        try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=8000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return self._parse_chunk_qa_response(response.content[0].text, questions, chunk_idx)
-        except Exception as e:
-            logger.error(f"QA error for chunk {chunk_idx}: {e}")
-            return []
-
-    def _build_chunk_qa_prompt(self, chunk_text: str, questions: List[Dict], chunk_idx: int) -> str:
-        """Build prompt for answering questions against a document chunk."""
-        questions_text = self._format_questions_for_prompt(questions)
-
-        return f"""Answer covenant analysis questions using this document excerpt.
-
-## DOCUMENT EXCERPT (Chunk {chunk_idx + 1})
-
-{chunk_text}
-
-## QUESTIONS
-
-{questions_text}
-
-## INSTRUCTIONS
-
-For EACH question, analyze the document excerpt:
-- question_id: The ID in brackets
-- value: The answer (true/false, number, or array for multiselect)
-- source_text: EXACT quote from the document supporting your answer (max 500 chars)
-- source_pages: Page numbers from [PAGE X] markers
-- confidence:
-  - "high" = explicit answer found in text
-  - "medium" = answer inferred from context
-  - "low" = uncertain, partial information
-  - "not_found" = no relevant information in this excerpt
-- reasoning: Brief explanation (1 sentence)
-
-IMPORTANT: If information is NOT in this excerpt, use "not_found" - it may be in another part of the document.
-
-## OUTPUT
-
-Return JSON array:
-```json
-[
-  {{"question_id": "rp_a1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
-]
-```
-
-Return ONLY the JSON array."""
-
-    def _parse_chunk_qa_response(
-        self,
-        response_text: str,
-        questions: List[Dict],
-        chunk_idx: int
-    ) -> List[AnsweredQuestion]:
-        """Parse QA response from chunk, including chunk_index."""
-        try:
-            start = response_text.find('[')
-            end = response_text.rfind(']') + 1
-            if start == -1 or end == 0:
-                logger.warning(f"No JSON array in chunk {chunk_idx} response")
+                logger.warning(f"No JSON array in QA response")
                 return []
 
             json_str = response_text[start:end]
@@ -1302,50 +826,310 @@ Return ONLY the JSON array."""
                     source_text=item.get("source_text") or "",
                     source_pages=(item.get("source_pages") or []),
                     confidence=item.get("confidence") or "not_found",
-                    reasoning=item.get("reasoning"),
-                    chunk_index=chunk_idx
+                    reasoning=item.get("reasoning")
                 ))
 
-            logger.debug(f"Chunk {chunk_idx}: parsed {len(answers)} answers")
+            logger.info(f"Parsed {len(answers)} answers")
             return answers
 
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error in chunk {chunk_idx}: {e}")
+            logger.error(f"JSON parse error in QA: {e}")
             return []
 
-    def _organize_answers_by_category(
+    # =========================================================================
+    # STEP 5: Store Results to TypeDB
+    # =========================================================================
+
+    def store_extraction_result(
         self,
-        answers: List[AnsweredQuestion],
-        questions_by_category: Dict[str, List[Dict]]
-    ) -> List[CategoryAnswers]:
-        """Organize flat answer list into CategoryAnswers structure."""
-        # Build question_id -> category mapping
-        qid_to_cat: Dict[str, str] = {}
-        cat_names: Dict[str, str] = {}
+        deal_id: str,
+        category_answers: List[CategoryAnswers]
+    ) -> bool:
+        """Store extraction results to TypeDB with individual transactions."""
+        if not typedb_client.driver:
+            logger.error("TypeDB not connected, cannot store results")
+            return False
 
-        for cat_id, questions in questions_by_category.items():
-            if questions:
-                cat_names[cat_id] = questions[0].get("category_name", cat_id)
-            for q in questions:
-                qid_to_cat[q["question_id"]] = cat_id
+        provision_id = f"{deal_id}_rp"
 
-        # Group answers by category
-        answers_by_cat: Dict[str, List[AnsweredQuestion]] = {}
-        for answer in answers:
-            cat_id = qid_to_cat.get(answer.question_id, "Z")
-            if cat_id not in answers_by_cat:
-                answers_by_cat[cat_id] = []
-            answers_by_cat[cat_id].append(answer)
+        try:
+            from typedb.driver import TransactionType
 
-        # Build CategoryAnswers list
-        return [
-            CategoryAnswers(
-                category_id=cat_id,
-                category_name=cat_names.get(cat_id, f"Category {cat_id}"),
-                answers=cat_answers
+            self._ensure_provision_exists(deal_id, provision_id)
+
+            scalar_count = 0
+            scalar_failed = 0
+            multiselect_count = 0
+            multiselect_failed = 0
+
+            for cat_answers in category_answers:
+                for answer in cat_answers.answers:
+                    if answer.value is None:
+                        continue
+                    if answer.confidence == "not_found":
+                        continue
+
+                    if isinstance(answer.value, list):
+                        for concept_id in answer.value:
+                            success = self._store_concept_applicability_safe(
+                                provision_id, answer.attribute_name,
+                                concept_id, answer.source_text,
+                                answer.source_pages[0] if answer.source_pages else 0
+                            )
+                            if success:
+                                multiselect_count += 1
+                            else:
+                                multiselect_failed += 1
+                    else:
+                        success = self._store_scalar_attribute_safe(
+                            provision_id, answer.attribute_name,
+                            answer.value, answer.answer_type
+                        )
+                        if success:
+                            scalar_count += 1
+                        else:
+                            scalar_failed += 1
+
+            logger.info(
+                f"Stored {scalar_count} scalar ({scalar_failed} failed), "
+                f"{multiselect_count} multiselect ({multiselect_failed} failed)"
             )
-            for cat_id, cat_answers in sorted(answers_by_cat.items())
-        ]
+            return True
+
+        except Exception as e:
+            logger.error(f"Storage error: {e}")
+            return False
+
+    def _ensure_provision_exists(self, deal_id: str, provision_id: str):
+        """Create rp_provision entity linked to deal if not exists."""
+        from typedb.driver import TransactionType
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            exists = len(result) > 0
+        finally:
+            tx.close()
+
+        if exists:
+            logger.debug(f"Provision {provision_id} already exists")
+            return
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                insert
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    (deal: $d, provision: $p) isa deal_has_provision;
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.info(f"Created rp_provision: {provision_id}")
+        except Exception as e:
+            tx.close()
+            logger.error(f"Error creating provision: {e}")
+            raise
+
+    def _store_scalar_attribute_safe(
+        self,
+        provision_id: str,
+        attribute_name: str,
+        value: Any,
+        answer_type: str
+    ) -> bool:
+        """Store a scalar answer with its own transaction."""
+        from typedb.driver import TransactionType
+
+        formatted_value = self._format_typedb_value(value, answer_type)
+        if formatted_value is None:
+            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
+            return False
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                insert $p has {attribute_name} {formatted_value};
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.debug(f"Stored {attribute_name} = {formatted_value}")
+            return True
+        except Exception as e:
+            tx.close()
+            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
+            return False
+
+    def _store_concept_applicability_safe(
+        self,
+        provision_id: str,
+        concept_type: str,
+        concept_id: str,
+        source_text: str,
+        source_page: int
+    ) -> bool:
+        """Store a concept applicability with its own transaction."""
+        from typedb.driver import TransactionType
+
+        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $c isa {concept_type}, has concept_id "{concept_id}";
+                insert
+                    (provision: $p, concept: $c) isa concept_applicability,
+                        has applicability_status "INCLUDED",
+                        has source_text "{escaped_text}",
+                        has source_page {source_page};
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.debug(f"Stored applicability: {concept_type}/{concept_id}")
+            return True
+        except Exception as e:
+            tx.close()
+            logger.warning(f"Could not store applicability for {concept_id}: {e}")
+            return False
+
+    def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
+        """Format a Python value for TypeQL insertion."""
+        if value is None:
+            return None
+
+        # Handle "not_found" or similar non-values
+        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
+            return None
+
+        if answer_type == "boolean":
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            if isinstance(value, str):
+                return "true" if value.lower() in ("true", "yes", "1") else "false"
+            return None
+
+        if answer_type in ("integer", "int", "number"):
+            try:
+                clean_value = str(value).strip('"\'')
+                return str(int(float(clean_value)))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("double", "decimal", "percentage", "currency", "float"):
+            try:
+                clean_value = str(value).strip('"\'')
+                return str(float(clean_value))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("string", "text"):
+            escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
+            return f'"{escaped}"'
+
+        # Default: try to detect type from value
+        try:
+            clean_value = str(value).strip('"\'')
+            float_val = float(clean_value)
+            return str(float_val)
+        except (ValueError, TypeError):
+            pass
+
+        # Fall back to string
+        escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
+        return f'"{escaped}"'
+
+    # =========================================================================
+    # MAIN EXTRACTION FLOW
+    # =========================================================================
+
+    async def extract_rp_provision(
+        self,
+        pdf_path: str,
+        deal_id: str,
+        questions_by_category: Optional[Dict[str, List[Dict]]] = None,
+        store_results: bool = True
+    ) -> ExtractionResult:
+        """
+        Full RP extraction pipeline using format-agnostic universe extraction.
+
+        1. Parse PDF
+        2. Extract RP-Relevant Universe (definitions + covenants + mechanics)
+        3. Load questions from TypeDB
+        4. Answer ALL questions against the focused RP universe
+        5. Store results to TypeDB
+        """
+        start_time = time.time()
+
+        # Step 1: Parse PDF
+        document_text = self.parse_document(pdf_path)
+
+        # Step 2: Extract RP Universe
+        logger.info("Step 2: Extracting RP-Relevant Universe...")
+        rp_universe = self.extract_rp_universe(document_text)
+        universe_chars = len(rp_universe.raw_text)
+        logger.info(f"RP Universe extracted: {universe_chars} chars")
+
+        if universe_chars < 1000:
+            logger.warning("RP Universe extraction yielded minimal content - extraction may fail")
+
+        # Step 3: Load questions from TypeDB
+        if questions_by_category is None:
+            logger.info("Step 3: Loading questions from TypeDB...")
+            questions_by_category = self.load_questions_by_category("RP")
+
+        total_questions = sum(len(qs) for qs in questions_by_category.values())
+        logger.info(f"Loaded {total_questions} questions in {len(questions_by_category)} categories")
+
+        # Step 4: Answer ALL questions against RP Universe
+        logger.info("Step 4: Answering questions against RP Universe...")
+        category_answers = self.answer_questions_against_universe(
+            rp_universe,
+            questions_by_category
+        )
+
+        # Count high confidence answers
+        high_conf_count = sum(
+            1 for cat in category_answers
+            for ans in cat.answers
+            if ans.confidence == "high"
+        )
+
+        # Step 5: Store results to TypeDB
+        if store_results:
+            logger.info("Step 5: Storing results to TypeDB...")
+            self.store_extraction_result(deal_id, category_answers)
+
+        extraction_time = time.time() - start_time
+        logger.info(
+            f"Extraction complete in {extraction_time:.1f}s: "
+            f"{high_conf_count}/{total_questions} HIGH confidence"
+        )
+
+        return ExtractionResult(
+            deal_id=deal_id,
+            covenant_type="RP",
+            category_answers=category_answers,
+            extraction_time_seconds=extraction_time,
+            chunks_processed=1,  # Universe extraction counts as 1
+            total_questions=total_questions,
+            high_confidence_answers=high_conf_count,
+            rp_universe_chars=universe_chars
+        )
 
 
 # =============================================================================
