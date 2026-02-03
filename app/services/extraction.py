@@ -241,8 +241,10 @@ IMPORTANT:
             # Log raw values to debug extraction issues
             raw_baskets = data.get("permitted_baskets")
             raw_definitions = data.get("definitions")
-            logger.info(f"Raw permitted_baskets type: {type(raw_baskets).__name__}, value: {raw_baskets if raw_baskets is None else f'[{len(raw_baskets) if isinstance(raw_baskets, list) else \"not a list\"}]'}")
-            logger.info(f"Raw definitions type: {type(raw_definitions).__name__}, value: {raw_definitions if raw_definitions is None else f'[{len(raw_definitions) if isinstance(raw_definitions, list) else \"not a list\"}]'}")
+            baskets_info = "None" if raw_baskets is None else (f"[{len(raw_baskets)} items]" if isinstance(raw_baskets, list) else "not a list")
+            definitions_info = "None" if raw_definitions is None else (f"[{len(raw_definitions)} items]" if isinstance(raw_definitions, list) else "not a list")
+            logger.info(f"Raw permitted_baskets: {type(raw_baskets).__name__}, {baskets_info}")
+            logger.info(f"Raw definitions: {type(raw_definitions).__name__}, {definitions_info}")
 
             dividend_prohibition = None
             if data.get("dividend_prohibition"):
