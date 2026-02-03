@@ -595,14 +595,21 @@ Return ONLY the JSON array."""
             start = response_text.find('[')
             end = response_text.rfind(']') + 1
             if start == -1 or end == 0:
+                logger.warning(f"No JSON array found in QA response: {response_text[:200]}")
                 return []
 
-            # Clean JSON
+            # Clean JSON - fix trailing commas
             json_str = response_text[start:end]
             json_str = re.sub(r',\s*}', '}', json_str)
             json_str = re.sub(r',\s*]', ']', json_str)
 
             data = json.loads(json_str)
+            logger.info(f"Parsed {len(data)} answers from QA response")
+
+            # Log first answer for debugging
+            if data:
+                logger.debug(f"First answer: {data[0]}")
+
             q_lookup = {q['question_id']: q for q in questions}
             answers = []
 
@@ -637,15 +644,16 @@ Return ONLY the JSON array."""
                     attribute_name=attr_name,
                     answer_type=q.get("answer_type", "string"),
                     value=value,
-                    source_text=item.get("source_text", ""),
-                    source_pages=item.get("source_pages", []),
-                    confidence=item.get("confidence", "medium"),
+                    source_text=item.get("source_text") or "",
+                    source_pages=(item.get("source_pages") or []),
+                    confidence=item.get("confidence") or "medium",
                     reasoning=item.get("reasoning")
                 ))
 
             return answers
         except json.JSONDecodeError as e:
             logger.error(f"JSON parse error in QA: {e}")
+            logger.error(f"QA response text: {response_text[:500]}")
             return []
 
     # =========================================================================
