@@ -1,72 +1,96 @@
 """
-Claude Extraction Service - SSoT Compliant.
+Simplified Extraction Pipeline for Covenant Analysis.
 
-Extracts TYPED PRIMITIVES from credit agreements.
-Field names are loaded dynamically from TypeDB ontology questions,
-ensuring the extraction prompt always matches the schema.
+Flow:
+1. Parse PDF → raw text with page markers
+2. ONE Claude call to extract RP content (format-agnostic verbatim extraction)
+3. Query questions from TypeDB by category (SSoT)
+4. For each category, Claude answers using extracted content
+5. Store as typed attributes + concept_applicability
 
-Supports two question types:
-- Scalar questions → question_targets_field → provision attributes
-- Multiselect questions → question_targets_concept → concept_applicability relations
+Key insight: Separate CONTENT EXTRACTION (step 2) from QUESTION ANSWERING (step 4).
+Step 2 extracts ALL RP content verbatim. Steps 3-4 query/answer against it.
 """
 import json
 import logging
+import re
 import time
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
 
 from anthropic import Anthropic
 
 from app.config import settings
-from app.schemas.models import ExtractedPrimitive, ExtractionResult, MultiselectAnswer as MultiselectAnswerModel
 from app.services.pdf_parser import PDFParser, get_pdf_parser
 from app.services.typedb_client import typedb_client
 
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# DATA MODELS
+# =============================================================================
+
 @dataclass
-class OntologyField:
-    """A scalar field to extract, loaded from TypeDB ontology."""
+class ExtractedContent:
+    """Verbatim extracted content with page references."""
+    section_type: str
+    text: str
+    pages: List[int]
+    section_reference: Optional[str] = None
+
+
+@dataclass
+class RPExtraction:
+    """All extracted RP content from a document."""
+    dividend_prohibition: Optional[ExtractedContent] = None
+    permitted_baskets: List[ExtractedContent] = field(default_factory=list)
+    rdp_restrictions: Optional[ExtractedContent] = None
+    definitions: List[ExtractedContent] = field(default_factory=list)
+    raw_json: Optional[Dict] = None
+
+
+@dataclass
+class AnsweredQuestion:
+    """A question answered by Claude with provenance."""
     question_id: str
-    question_text: str
-    target_field_name: str
-    target_entity_type: str
+    attribute_name: str
     answer_type: str
-
-
-@dataclass
-class ConceptOption:
-    """A concept instance that can be selected in a multiselect."""
-    concept_id: str
-    name: str
-
-
-@dataclass
-class MultiselectField:
-    """A multiselect field to extract, loaded from TypeDB ontology."""
-    question_id: str
-    question_text: str
-    target_concept_type: str
-    options: List[ConceptOption] = field(default_factory=list)
-
-
-@dataclass
-class MultiselectAnswer:
-    """Answer to a multiselect question."""
-    concept_type: str
-    included: List[str]
-    excluded: List[str]
+    value: Any
     source_text: str
-    source_page: int
+    source_pages: List[int]
+    confidence: str
+    reasoning: Optional[str] = None
 
+
+@dataclass
+class CategoryAnswers:
+    """All answers for a category."""
+    category_id: str
+    category_name: str
+    answers: List[AnsweredQuestion]
+
+
+@dataclass
+class ExtractionResult:
+    """Complete extraction result."""
+    deal_id: str
+    covenant_type: str
+    extracted_content: RPExtraction
+    category_answers: List[CategoryAnswers]
+    extraction_time_seconds: float
+
+
+# =============================================================================
+# EXTRACTION SERVICE
+# =============================================================================
 
 class ExtractionService:
     """
-    Extract typed primitives from credit agreements using Claude.
+    Simplified extraction pipeline.
 
-    Field names are loaded dynamically from TypeDB ontology questions,
-    ensuring SSoT compliance - the prompt always matches the schema.
+    Separates CONTENT EXTRACTION (getting verbatim text) from
+    QUESTION ANSWERING (interpreting that text to answer ontology questions).
     """
 
     def __init__(
@@ -78,24 +102,199 @@ class ExtractionService:
         self.client = Anthropic(api_key=api_key or settings.anthropic_api_key)
         self.model = model or settings.claude_model
         self.parser = parser or get_pdf_parser()
-        self._scalar_cache: Dict[str, List[OntologyField]] = {}
-        self._multiselect_cache: Dict[str, List[MultiselectField]] = {}
 
-    def _load_scalar_fields(self, covenant_type: str) -> List[OntologyField]:
-        """Load scalar extraction fields from TypeDB ontology."""
-        cache_key = covenant_type
-        if cache_key in self._scalar_cache:
-            return self._scalar_cache[cache_key]
+    # =========================================================================
+    # STEP 1: Parse PDF
+    # =========================================================================
 
+    def parse_document(self, pdf_path: str) -> str:
+        """Parse PDF to text with [PAGE X] markers for provenance."""
+        logger.info(f"Parsing PDF: {pdf_path}")
+        pages = self.parser.extract_pages(pdf_path)
+
+        text_parts = []
+        for page in pages:
+            text_parts.append(f"\n[PAGE {page['page_number']}]\n")
+            text_parts.append(page['text'])
+
+        full_text = ''.join(text_parts)
+        logger.info(f"Parsed {len(pages)} pages, {len(full_text)} chars")
+        return full_text
+
+    # =========================================================================
+    # STEP 2: Extract RP Content (ONE Claude call - verbatim extraction)
+    # =========================================================================
+
+    def extract_rp_content(self, document_text: str) -> RPExtraction:
+        """
+        Extract ALL RP-related content verbatim from the document.
+
+        This is format-agnostic - just extracts the actual text with page numbers.
+        Does NOT try to answer questions or interpret the content.
+        """
+        prompt = self._build_content_extraction_prompt(document_text)
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=16000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return self._parse_content_extraction(response.content[0].text)
+        except Exception as e:
+            logger.error(f"Content extraction error: {e}")
+            return RPExtraction()
+
+    def _build_content_extraction_prompt(self, document_text: str) -> str:
+        """Build prompt for verbatim content extraction."""
+        return f"""You are extracting Restricted Payments (RP) covenant content from a credit agreement.
+
+FIND AND EXTRACT VERBATIM the following sections. Do NOT interpret or summarize - extract the actual text with page numbers.
+
+## WHAT TO EXTRACT
+
+1. **DIVIDEND/RESTRICTED PAYMENT PROHIBITION**
+   - The main prohibition clause (typically Section 6.06 or 7.06)
+   - Who is restricted (Holdings, Borrower, Restricted Subsidiaries)
+
+2. **PERMITTED BASKETS/EXCEPTIONS** (extract EACH basket separately)
+   - Intercompany dividends
+   - Management equity repurchase basket
+   - Tax distribution basket
+   - Builder basket / Cumulative Amount
+   - Ratio-based dividend basket
+   - General / fixed dollar baskets
+   - Any other permitted dividend exceptions
+
+3. **RESTRICTED DEBT PAYMENT (RDP) RESTRICTIONS** (if separate)
+   - Section 6.09 or similar
+   - Permitted RDP baskets
+
+4. **REFERENCED DEFINITIONS** (extract each verbatim)
+   - "Restricted Payment" definition
+   - "Cumulative Amount" or "Available Amount" definition
+   - "Unrestricted Subsidiary" definition
+   - "Qualified Equity Interests" / "Qualified Stock" definition
+   - "Consolidated Net Income" definition
+   - "Material Intellectual Property" or IP definitions
+   - Any other definitions referenced in RP sections
+
+## DOCUMENT
+
+{document_text[:250000]}
+
+## OUTPUT FORMAT
+
+Return JSON:
+```json
+{{
+  "dividend_prohibition": {{
+    "text": "[VERBATIM TEXT]",
+    "pages": [89, 90],
+    "section_reference": "Section 6.06"
+  }},
+  "permitted_baskets": [
+    {{
+      "basket_name": "Management Equity",
+      "text": "[VERBATIM TEXT]",
+      "pages": [91],
+      "section_reference": "Section 6.06(c)"
+    }}
+  ],
+  "rdp_restrictions": {{
+    "text": "[VERBATIM TEXT]",
+    "pages": [95],
+    "section_reference": "Section 6.09"
+  }},
+  "definitions": [
+    {{
+      "term": "Restricted Payment",
+      "text": "[VERBATIM TEXT]",
+      "pages": [42]
+    }}
+  ]
+}}
+```
+
+IMPORTANT:
+- Extract VERBATIM text, do not summarize
+- Include ALL permitted baskets, even small ones
+- Page numbers from [PAGE X] markers
+- If a section doesn't exist, use null
+- Return ONLY the JSON"""
+
+    def _parse_content_extraction(self, response_text: str) -> RPExtraction:
+        """Parse content extraction response."""
+        try:
+            start = response_text.find('{')
+            end = response_text.rfind('}') + 1
+            if start == -1 or end == 0:
+                return RPExtraction()
+
+            data = json.loads(response_text[start:end])
+
+            dividend_prohibition = None
+            if data.get("dividend_prohibition"):
+                dp = data["dividend_prohibition"]
+                dividend_prohibition = ExtractedContent(
+                    section_type="dividend_prohibition",
+                    text=dp.get("text", ""),
+                    pages=dp.get("pages", []),
+                    section_reference=dp.get("section_reference")
+                )
+
+            permitted_baskets = []
+            for basket in data.get("permitted_baskets", []):
+                permitted_baskets.append(ExtractedContent(
+                    section_type=f"basket_{basket.get('basket_name', 'unknown')}",
+                    text=basket.get("text", ""),
+                    pages=basket.get("pages", []),
+                    section_reference=basket.get("section_reference")
+                ))
+
+            rdp_restrictions = None
+            if data.get("rdp_restrictions"):
+                rdp = data["rdp_restrictions"]
+                rdp_restrictions = ExtractedContent(
+                    section_type="rdp_restrictions",
+                    text=rdp.get("text", ""),
+                    pages=rdp.get("pages", []),
+                    section_reference=rdp.get("section_reference")
+                )
+
+            definitions = []
+            for defn in data.get("definitions", []):
+                definitions.append(ExtractedContent(
+                    section_type=f"definition_{defn.get('term', 'unknown')}",
+                    text=defn.get("text", ""),
+                    pages=defn.get("pages", [])
+                ))
+
+            return RPExtraction(
+                dividend_prohibition=dividend_prohibition,
+                permitted_baskets=permitted_baskets,
+                rdp_restrictions=rdp_restrictions,
+                definitions=definitions,
+                raw_json=data
+            )
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error in content extraction: {e}")
+            return RPExtraction()
+
+    # =========================================================================
+    # STEP 3: Load Questions from TypeDB (SSoT)
+    # =========================================================================
+
+    def load_questions_by_category(self, covenant_type: str) -> Dict[str, List[Dict]]:
+        """Load questions from TypeDB grouped by category."""
         if not typedb_client.driver:
-            logger.warning("TypeDB not connected, using empty field list")
-            return []
+            logger.warning("TypeDB not connected")
+            return {}
 
         try:
             from typedb.driver import TransactionType
             tx = typedb_client.driver.transaction(
-                settings.typedb_database,
-                TransactionType.READ
+                settings.typedb_database, TransactionType.READ
             )
             try:
                 query = f"""
@@ -104,414 +303,300 @@ class ExtractionService:
                             has question_id $qid,
                             has question_text $qt,
                             has answer_type $at,
-                            has covenant_type "{covenant_type}";
-                        (question: $q) isa question_targets_field,
-                            has target_field_name $fn,
-                            has target_entity_type $et;
-                    select $qid, $qt, $fn, $et, $at;
+                            has covenant_type "{covenant_type}",
+                            has display_order $order;
+                        (category: $cat, question: $q) isa category_has_question;
+                        $cat has category_id $cid, has name $cname;
+                    select $qid, $qt, $at, $order, $cid, $cname;
                 """
 
                 result = tx.query(query).resolve()
-                fields = []
+                questions_by_cat: Dict[str, List[Dict]] = {}
 
                 for row in result.as_concept_rows():
-                    fields.append(OntologyField(
-                        question_id=row.get("qid").as_attribute().get_value(),
-                        question_text=row.get("qt").as_attribute().get_value(),
-                        target_field_name=row.get("fn").as_attribute().get_value(),
-                        target_entity_type=row.get("et").as_attribute().get_value(),
-                        answer_type=row.get("at").as_attribute().get_value()
-                    ))
+                    cat_id = row.get("cid").as_attribute().get_value()
+                    if cat_id not in questions_by_cat:
+                        questions_by_cat[cat_id] = []
 
-                logger.info(f"Loaded {len(fields)} scalar {covenant_type} fields from ontology")
-                self._scalar_cache[cache_key] = fields
-                return fields
+                    questions_by_cat[cat_id].append({
+                        "question_id": row.get("qid").as_attribute().get_value(),
+                        "question_text": row.get("qt").as_attribute().get_value(),
+                        "answer_type": row.get("at").as_attribute().get_value(),
+                        "display_order": row.get("order").as_attribute().get_value(),
+                        "category_id": cat_id,
+                        "category_name": row.get("cname").as_attribute().get_value()
+                    })
+
+                # Also load target field/concept mappings
+                for cat_id, questions in questions_by_cat.items():
+                    for q in questions:
+                        q["target_field_name"] = self._get_question_target(tx, q["question_id"])
+
+                logger.info(f"Loaded {sum(len(qs) for qs in questions_by_cat.values())} {covenant_type} questions in {len(questions_by_cat)} categories")
+                return questions_by_cat
 
             finally:
                 tx.close()
-
         except Exception as e:
-            logger.error(f"Error loading scalar ontology fields: {e}")
-            return []
+            logger.error(f"Error loading questions: {e}")
+            return {}
 
-    def _load_multiselect_fields(self, covenant_type: str) -> List[MultiselectField]:
-        """Load multiselect fields and their concept options from TypeDB ontology."""
-        cache_key = covenant_type
-        if cache_key in self._multiselect_cache:
-            return self._multiselect_cache[cache_key]
-
-        if not typedb_client.driver:
-            logger.warning("TypeDB not connected, using empty multiselect list")
-            return []
-
+    def _get_question_target(self, tx, question_id: str) -> str:
+        """Get target field or concept type for a question."""
         try:
-            from typedb.driver import TransactionType
-            tx = typedb_client.driver.transaction(
-                settings.typedb_database,
-                TransactionType.READ
-            )
-            try:
-                # Get multiselect questions
-                query = f"""
-                    match
-                        $q isa ontology_question,
-                            has question_id $qid,
-                            has question_text $qt,
-                            has covenant_type "{covenant_type}";
-                        (question: $q) isa question_targets_concept,
-                            has target_concept_type $ct;
-                    select $qid, $qt, $ct;
-                """
+            # Try field target first
+            query = f"""
+                match
+                    $q isa ontology_question, has question_id "{question_id}";
+                    (question: $q) isa question_targets_field, has target_field_name $fn;
+                select $fn;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            if result:
+                return result[0].get("fn").as_attribute().get_value()
 
-                result = tx.query(query).resolve()
-                fields = []
+            # Try concept target
+            query = f"""
+                match
+                    $q isa ontology_question, has question_id "{question_id}";
+                    (question: $q) isa question_targets_concept, has target_concept_type $ct;
+                select $ct;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            if result:
+                return result[0].get("ct").as_attribute().get_value()
 
-                for row in result.as_concept_rows():
-                    concept_type = row.get("ct").as_attribute().get_value()
+        except Exception:
+            pass
+        return ""
 
-                    ms_field = MultiselectField(
-                        question_id=row.get("qid").as_attribute().get_value(),
-                        question_text=row.get("qt").as_attribute().get_value(),
-                        target_concept_type=concept_type,
-                        options=[]
-                    )
+    # =========================================================================
+    # STEP 4: Answer Questions Using Extracted Content
+    # =========================================================================
 
-                    # Load concept options for this type
-                    options_query = f"""
-                        match
-                            $c isa {concept_type},
-                                has concept_id $cid,
-                                has name $name;
-                        select $cid, $name;
-                    """
-
-                    try:
-                        options_result = tx.query(options_query).resolve()
-                        for opt_row in options_result.as_concept_rows():
-                            ms_field.options.append(ConceptOption(
-                                concept_id=opt_row.get("cid").as_attribute().get_value(),
-                                name=opt_row.get("name").as_attribute().get_value()
-                            ))
-                    except Exception as e:
-                        logger.warning(f"Error loading options for {concept_type}: {e}")
-
-                    fields.append(ms_field)
-
-                logger.info(f"Loaded {len(fields)} multiselect {covenant_type} fields from ontology")
-                self._multiselect_cache[cache_key] = fields
-                return fields
-
-            finally:
-                tx.close()
-
-        except Exception as e:
-            logger.error(f"Error loading multiselect ontology fields: {e}")
-            return []
-
-    async def extract_document(
+    def answer_category_questions(
         self,
-        pdf_path: str,
-        deal_id: str
-    ) -> ExtractionResult:
-        """
-        Extract all primitives from a credit agreement.
-
-        Returns:
-            ExtractionResult with MFN and RP primitives
-        """
-        start_time = time.time()
-
-        # Parse PDF
-        logger.info(f"Parsing PDF: {pdf_path}")
-        pages = self.parser.extract_pages(pdf_path)
-        full_text = self.parser.get_full_text(pages)
-
-        logger.info(f"Extracted {len(pages)} pages, {len(full_text)} chars")
-
-        # Extract MFN primitives
-        logger.info("Extracting MFN primitives...")
-        mfn_result = await self._extract_covenant(full_text, "MFN", deal_id)
-
-        # Extract RP primitives
-        logger.info("Extracting RP primitives...")
-        rp_result = await self._extract_covenant(full_text, "RP", deal_id)
-
-        extraction_time = time.time() - start_time
-
-        logger.info(
-            f"Extraction complete: {len(mfn_result['primitives'])} MFN, "
-            f"{len(rp_result['primitives'])} RP primitives, "
-            f"{len(mfn_result['multiselect'])} MFN multiselect, "
-            f"{len(rp_result['multiselect'])} RP multiselect in {extraction_time:.1f}s"
-        )
-
-        return ExtractionResult(
-            deal_id=deal_id,
-            mfn_primitives=mfn_result['primitives'],
-            rp_primitives=rp_result['primitives'],
-            mfn_multiselect=mfn_result['multiselect'],
-            rp_multiselect=rp_result['multiselect'],
-            extraction_time_seconds=extraction_time
-        )
-
-    async def _extract_covenant(
-        self,
-        document_text: str,
-        covenant_type: str,
-        deal_id: str
-    ) -> Dict[str, Any]:
-        """Extract primitives and multiselect answers for a covenant type."""
-
-        # Load fields from TypeDB ontology
-        scalar_fields = self._load_scalar_fields(covenant_type)
-        multiselect_fields = self._load_multiselect_fields(covenant_type)
-
-        if not scalar_fields and not multiselect_fields:
-            logger.warning(f"No {covenant_type} fields found in ontology")
-            return {'primitives': [], 'multiselect': []}
-
-        # Build combined prompt
-        prompt = self._build_combined_prompt(
-            document_text, covenant_type, scalar_fields, multiselect_fields
-        )
+        category_id: str,
+        category_name: str,
+        questions: List[Dict[str, Any]],
+        extracted_content: RPExtraction
+    ) -> CategoryAnswers:
+        """Answer all questions in a category using the extracted content."""
+        context = self._build_qa_context(extracted_content)
+        questions_text = self._format_questions_for_prompt(questions)
+        prompt = self._build_qa_prompt(category_name, questions_text, context)
 
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=16000,
+                max_tokens=8000,
                 messages=[{"role": "user", "content": prompt}]
             )
-
-            response_text = response.content[0].text
-
-            # Parse response
-            primitives, multiselect_answers = self._parse_combined_response(
-                response_text, scalar_fields, multiselect_fields
-            )
-
-            # Convert internal MultiselectAnswer to model for return
-            multiselect_models = [
-                MultiselectAnswerModel(
-                    concept_type=ans.concept_type,
-                    included=ans.included,
-                    excluded=ans.excluded,
-                    source_text=ans.source_text,
-                    source_page=ans.source_page
-                )
-                for ans in multiselect_answers
-            ]
-
-            return {
-                'primitives': primitives,
-                'multiselect': multiselect_models
-            }
-
+            answers = self._parse_qa_response(response.content[0].text, questions)
+            return CategoryAnswers(category_id=category_id, category_name=category_name, answers=answers)
         except Exception as e:
-            logger.error(f"{covenant_type} extraction error: {e}")
-            return {'primitives': [], 'multiselect': []}
+            logger.error(f"QA error for {category_name}: {e}")
+            return CategoryAnswers(category_id=category_id, category_name=category_name, answers=[])
 
-    def _build_combined_prompt(
-        self,
-        document_text: str,
-        covenant_type: str,
-        scalar_fields: List[OntologyField],
-        multiselect_fields: List[MultiselectField]
-    ) -> str:
-        """Build extraction prompt with both scalar and multiselect questions."""
+    def _build_qa_context(self, content: RPExtraction) -> str:
+        """Build context string from extracted content."""
+        parts = []
 
-        covenant_desc = {
-            "MFN": "Most Favored Nation (MFN) provision",
-            "RP": "Restricted Payments covenant (dividends and debt payments)"
-        }.get(covenant_type, covenant_type)
+        if content.dividend_prohibition:
+            parts.append("## DIVIDEND PROHIBITION")
+            parts.append(f"[Pages {content.dividend_prohibition.pages}]")
+            parts.append(content.dividend_prohibition.text)
+            parts.append("")
 
-        # Build scalar field list
-        scalar_lines = []
-        for f in scalar_fields:
-            type_hint = self._get_type_hint(f.answer_type)
-            scalar_lines.append(f"- {f.target_field_name} ({type_hint}): {f.question_text}")
-        scalar_section = "\n".join(scalar_lines) if scalar_lines else "(none)"
+        if content.permitted_baskets:
+            parts.append("## PERMITTED BASKETS")
+            for basket in content.permitted_baskets:
+                parts.append(f"### {basket.section_type}")
+                parts.append(f"[Pages {basket.pages}]")
+                parts.append(basket.text)
+                parts.append("")
 
-        # Build multiselect field list
-        multiselect_lines = []
-        for f in multiselect_fields:
-            option_ids = [opt.concept_id for opt in f.options]
-            options_str = ", ".join(option_ids) if option_ids else "(no options defined)"
-            multiselect_lines.append(f"- {f.target_concept_type}: {f.question_text}")
-            multiselect_lines.append(f"  Options: {options_str}")
-        multiselect_section = "\n".join(multiselect_lines) if multiselect_lines else "(none)"
+        if content.rdp_restrictions:
+            parts.append("## RDP RESTRICTIONS")
+            parts.append(f"[Pages {content.rdp_restrictions.pages}]")
+            parts.append(content.rdp_restrictions.text)
+            parts.append("")
 
-        return f"""You are a legal document analyst extracting {covenant_desc} details from a credit agreement.
+        if content.definitions:
+            parts.append("## DEFINITIONS")
+            for defn in content.definitions:
+                parts.append(f"### {defn.section_type}")
+                parts.append(f"[Pages {defn.pages}]")
+                parts.append(defn.text)
+                parts.append("")
 
-## DOCUMENT
+        return "\n".join(parts)
 
-{document_text[:200000]}
+    def _format_questions_for_prompt(self, questions: List[Dict]) -> str:
+        """Format questions for the QA prompt."""
+        lines = []
+        for i, q in enumerate(questions, 1):
+            answer_type = q.get("answer_type", "boolean")
+            target = q.get("target_field_name", "")
 
-## EXTRACTION INSTRUCTIONS
+            type_hint = {
+                "boolean": "(yes/no)",
+                "integer": "(number)",
+                "double": "(decimal)",
+                "percentage": "(decimal)",
+                "currency": "(dollar amount)",
+                "multiselect": "(list applicable items)"
+            }.get(answer_type, "")
 
-Extract information for both SCALAR questions and MULTISELECT questions.
+            lines.append(f"{i}. [{q['question_id']}] {q['question_text']} {type_hint}")
+            if target:
+                lines.append(f"   → Target: {target}")
 
-### SCALAR QUESTIONS
-For each scalar question, provide:
-- attribute_name: The EXACT attribute name (must match exactly)
-- value: The typed value (boolean true/false, integer, double, or string)
-- source_text: The exact quote from the document supporting this answer
-- source_page: The page number (look for [PAGE N] markers)
-- confidence: "high", "medium", or "low"
+        return "\n".join(lines)
 
-SCALAR FIELDS TO EXTRACT:
-{scalar_section}
+    def _build_qa_prompt(self, category_name: str, questions_text: str, context: str) -> str:
+        """Build the QA prompt for a category."""
+        return f"""Answer covenant analysis questions using extracted credit agreement content.
 
-### MULTISELECT QUESTIONS
-For each multiselect question, identify which concept_ids from the options list apply.
-Return ONLY concept_ids that are explicitly mentioned or clearly implied in the document.
-If a concept is NOT mentioned, do not include it.
+## CATEGORY: {category_name}
 
-MULTISELECT FIELDS TO EXTRACT:
-{multiselect_section}
+## QUESTIONS
 
-## OUTPUT FORMAT
+{questions_text}
 
-Return a JSON object with this EXACT structure:
+## EXTRACTED CONTENT
+
+{context}
+
+## INSTRUCTIONS
+
+For EACH question, answer based ONLY on the extracted content:
+- question_id: The ID in brackets
+- value: The answer (true/false, number, or array for multiselect)
+- source_text: EXACT quote supporting your answer
+- source_pages: Page numbers
+- confidence: "high" (explicit), "medium" (inferred), "low" (uncertain), "not_found" (cannot answer)
+- reasoning: Brief explanation (1 sentence)
+
+## OUTPUT
+
+Return JSON array:
 ```json
-{{
-  "scalar_answers": [
-    {{
-      "attribute_name": "example_field",
-      "value": true,
-      "source_text": "The exact quote...",
-      "source_page": 45,
-      "confidence": "high"
-    }}
-  ],
-  "multiselect_answers": {{
-    "concept_type_name": {{
-      "included": ["concept_id_1", "concept_id_2"],
-      "source_text": "The exact quote showing these apply...",
-      "source_page": 48
-    }}
-  }}
-}}
+[
+  {{"question_id": "rp_q1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
+]
 ```
 
-IMPORTANT:
-- Use ONLY the exact attribute_name values listed above for scalar questions
-- Use ONLY the exact concept_id values from the Options lists for multiselect questions
-- Extract ALL information you can find evidence for
-- If a question cannot be answered from the document, omit it entirely
-- Return ONLY the JSON object, no other text"""
+Return ONLY the JSON array."""
 
-    def _get_type_hint(self, answer_type: str) -> str:
-        """Convert answer_type to prompt type hint."""
-        type_map = {
-            "boolean": "boolean",
-            "integer": "integer",
-            "double": "double",
-            "currency": "double",
-            "percentage": "double",
-            "number": "double",
-            "string": "string",
-            "text": "string"
-        }
-        return type_map.get(answer_type, "string")
-
-    def _parse_combined_response(
-        self,
-        response_text: str,
-        scalar_fields: List[OntologyField],
-        multiselect_fields: List[MultiselectField]
-    ) -> tuple:
-        """Parse Claude's JSON response into primitives and multiselect answers."""
-        primitives = []
-        multiselect_answers = []
-
-        # Build validation sets
-        valid_scalar_fields = {f.target_field_name for f in scalar_fields}
-        valid_concept_types = {f.target_concept_type for f in multiselect_fields}
-        valid_concept_ids = {}
-        for f in multiselect_fields:
-            valid_concept_ids[f.target_concept_type] = {opt.concept_id for opt in f.options}
-
+    def _parse_qa_response(self, response_text: str, questions: List[Dict]) -> List[AnsweredQuestion]:
+        """Parse QA response."""
         try:
-            # Clean up response - remove markdown code fences
-            cleaned = response_text
-            if "```json" in cleaned:
-                cleaned = cleaned.split("```json", 1)[1]
-            if "```" in cleaned:
-                cleaned = cleaned.split("```")[0]
-
-            # Find JSON object in response
-            start = cleaned.find('{')
-            end = cleaned.rfind('}') + 1
-
+            start = response_text.find('[')
+            end = response_text.rfind(']') + 1
             if start == -1 or end == 0:
-                logger.warning("No JSON object found in response")
-                return [], []
+                return []
 
-            json_str = cleaned[start:end]
-
-            # Try to fix common JSON issues (trailing commas)
-            import re
+            # Clean JSON
+            json_str = response_text[start:end]
             json_str = re.sub(r',\s*}', '}', json_str)
             json_str = re.sub(r',\s*]', ']', json_str)
 
             data = json.loads(json_str)
+            q_lookup = {q['question_id']: q for q in questions}
+            answers = []
 
-            # Parse scalar answers
-            for item in data.get("scalar_answers", []):
-                attr_name = item.get("attribute_name")
-                if not attr_name:
+            for item in data:
+                qid = item.get("question_id")
+                if not qid or qid not in q_lookup:
                     continue
 
-                if attr_name not in valid_scalar_fields:
-                    logger.warning(f"Skipping unknown scalar field: {attr_name}")
-                    continue
-
-                primitives.append(ExtractedPrimitive(
-                    attribute_name=attr_name,
+                q = q_lookup[qid]
+                answers.append(AnsweredQuestion(
+                    question_id=qid,
+                    attribute_name=q.get("target_field_name", ""),
+                    answer_type=q.get("answer_type", "string"),
                     value=item.get("value"),
-                    source_text=item.get("source_text") or "",
-                    source_page=item.get("source_page") or 0,
-                    source_section=item.get("source_section"),
-                    confidence=item.get("confidence", "medium")
+                    source_text=item.get("source_text", ""),
+                    source_pages=item.get("source_pages", []),
+                    confidence=item.get("confidence", "medium"),
+                    reasoning=item.get("reasoning")
                 ))
 
-            # Parse multiselect answers
-            for concept_type, answer_data in data.get("multiselect_answers", {}).items():
-                if concept_type not in valid_concept_types:
-                    logger.warning(f"Skipping unknown concept type: {concept_type}")
-                    continue
-
-                included_ids = answer_data.get("included", [])
-                valid_ids = valid_concept_ids.get(concept_type, set())
-
-                # Filter to only valid concept IDs
-                validated_included = [cid for cid in included_ids if cid in valid_ids]
-                invalid_ids = [cid for cid in included_ids if cid not in valid_ids]
-
-                if invalid_ids:
-                    logger.warning(f"Skipping invalid concept_ids for {concept_type}: {invalid_ids}")
-
-                if validated_included:
-                    multiselect_answers.append(MultiselectAnswer(
-                        concept_type=concept_type,
-                        included=validated_included,
-                        excluded=answer_data.get("excluded", []),
-                        source_text=answer_data.get("source_text", ""),
-                        source_page=answer_data.get("source_page", 0)
-                    ))
-
-            logger.info(f"Parsed {len(primitives)} scalar, {len(multiselect_answers)} multiselect answers")
-            return primitives, multiselect_answers
-
+            return answers
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error: {e}")
-            logger.error(f"Response text: {response_text[:500]}")
-            return [], []
-        except Exception as e:
-            logger.error(f"Error parsing extraction response: {e}")
-            return [], []
+            logger.error(f"JSON parse error in QA: {e}")
+            return []
 
-# Global extraction service instance
+    # =========================================================================
+    # MAIN EXTRACTION FLOW
+    # =========================================================================
+
+    async def extract_rp_provision(
+        self,
+        pdf_path: str,
+        deal_id: str,
+        questions_by_category: Optional[Dict[str, List[Dict]]] = None
+    ) -> ExtractionResult:
+        """
+        Full RP extraction pipeline.
+
+        1. Parse PDF
+        2. Extract ALL RP content (ONE Claude call)
+        3. Load questions from TypeDB (if not provided)
+        4. Answer questions by category
+        """
+        start_time = time.time()
+
+        # Step 1: Parse PDF
+        document_text = self.parse_document(pdf_path)
+
+        # Step 2: Extract ALL RP content (ONE Claude call)
+        logger.info("Step 2: Extracting RP content...")
+        extracted_content = self.extract_rp_content(document_text)
+        logger.info(
+            f"Extracted: prohibition={extracted_content.dividend_prohibition is not None}, "
+            f"baskets={len(extracted_content.permitted_baskets)}, "
+            f"definitions={len(extracted_content.definitions)}"
+        )
+
+        # Step 3: Load questions from TypeDB
+        if questions_by_category is None:
+            logger.info("Step 3: Loading questions from TypeDB...")
+            questions_by_category = self.load_questions_by_category("RP")
+
+        # Step 4: Answer questions by category
+        logger.info(f"Step 4: Answering {len(questions_by_category)} categories...")
+        category_answers = []
+
+        for cat_id, questions in questions_by_category.items():
+            cat_name = questions[0]["category_name"] if questions else cat_id
+            logger.info(f"  {cat_name}: {len(questions)} questions")
+
+            answers = self.answer_category_questions(
+                category_id=cat_id,
+                category_name=cat_name,
+                questions=questions,
+                extracted_content=extracted_content
+            )
+            category_answers.append(answers)
+
+        extraction_time = time.time() - start_time
+        logger.info(f"Extraction complete in {extraction_time:.1f}s")
+
+        return ExtractionResult(
+            deal_id=deal_id,
+            covenant_type="RP",
+            extracted_content=extracted_content,
+            category_answers=category_answers,
+            extraction_time_seconds=extraction_time
+        )
+
+
+# =============================================================================
+# GLOBAL INSTANCE
+# =============================================================================
+
 extraction_service = ExtractionService()
 
 
