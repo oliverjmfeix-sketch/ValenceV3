@@ -1,18 +1,19 @@
 """
-Simplified Extraction Pipeline for Covenant Analysis.
+Smart Chunked Extraction Pipeline for Covenant Analysis.
 
 Flow:
 1. Parse PDF → raw text with page markers
-2. Multi-chunk content extraction for complete document coverage
-   - Small docs (<250k chars): single Claude call
-   - Large docs: split into overlapping 250k chunks, extract each, merge results
-   - This ensures definitions (front) AND covenants (middle/back) are captured
-3. Query questions from TypeDB by category (SSoT)
-4. For each category, Claude answers using extracted content
-5. Store as typed attributes + concept_applicability
+2. Create overlapping chunks (250k chars, 50k overlap)
+3. Load questions from TypeDB (SSoT)
+4. For each chunk, ask UNANSWERED questions:
+   - HIGH confidence → mark as answered, stop searching
+   - MEDIUM/LOW → keep best answer, try next chunk
+   - NOT_FOUND → try next chunk
+5. Early exit when all questions answered OR chunks exhausted
+6. Store best answers to TypeDB
 
-Key insight: Separate CONTENT EXTRACTION (step 2) from QUESTION ANSWERING (step 4).
-Step 2 extracts ALL RP content verbatim. Steps 3-4 query/answer against it.
+Key insight: Questions are answered DIRECTLY against chunks with early exit.
+This minimizes Claude calls while ensuring complete document coverage.
 """
 import json
 import logging
@@ -64,6 +65,7 @@ class AnsweredQuestion:
     source_pages: List[int]
     confidence: str
     reasoning: Optional[str] = None
+    chunk_index: int = 0  # Which chunk this answer came from
 
 
 @dataclass
@@ -74,14 +76,54 @@ class CategoryAnswers:
     answers: List[AnsweredQuestion]
 
 
+class AnswerTracker:
+    """Track best answer per question across chunks."""
+
+    CONFIDENCE_RANK = {"high": 3, "medium": 2, "low": 1, "not_found": 0}
+
+    def __init__(self):
+        self.answers: Dict[str, AnsweredQuestion] = {}
+
+    def update(self, answer: AnsweredQuestion):
+        """Keep answer if better than existing."""
+        existing = self.answers.get(answer.question_id)
+        if not existing or self._is_better(answer, existing):
+            self.answers[answer.question_id] = answer
+
+    def _is_better(self, new: AnsweredQuestion, old: AnsweredQuestion) -> bool:
+        """Check if new answer is better than old based on confidence."""
+        new_rank = self.CONFIDENCE_RANK.get(new.confidence, 0)
+        old_rank = self.CONFIDENCE_RANK.get(old.confidence, 0)
+        return new_rank > old_rank
+
+    def get_unanswered_questions(self, all_questions: List[Dict]) -> List[Dict]:
+        """Return questions without high-confidence answers."""
+        return [
+            q for q in all_questions
+            if q["question_id"] not in self.answers
+            or self.answers[q["question_id"]].confidence != "high"
+        ]
+
+    def get_high_confidence_count(self) -> int:
+        """Count questions with high confidence answers."""
+        return sum(1 for a in self.answers.values() if a.confidence == "high")
+
+    def get_all_answers(self) -> List[AnsweredQuestion]:
+        """Get all tracked answers."""
+        return list(self.answers.values())
+
+
 @dataclass
 class ExtractionResult:
     """Complete extraction result."""
     deal_id: str
     covenant_type: str
-    extracted_content: RPExtraction
     category_answers: List[CategoryAnswers]
     extraction_time_seconds: float
+    chunks_processed: int = 0
+    total_questions: int = 0
+    high_confidence_answers: int = 0
+    extracted_content: Optional[RPExtraction] = None  # Legacy, kept for compatibility
 
 
 # =============================================================================
@@ -90,10 +132,11 @@ class ExtractionResult:
 
 class ExtractionService:
     """
-    Simplified extraction pipeline.
+    Smart chunked extraction pipeline with early exit.
 
-    Separates CONTENT EXTRACTION (getting verbatim text) from
-    QUESTION ANSWERING (interpreting that text to answer ontology questions).
+    Processes document in chunks, asking questions directly against each chunk.
+    Tracks best answer per question, stopping early when all questions have
+    HIGH confidence answers.
     """
 
     def __init__(
@@ -995,7 +1038,7 @@ Return ONLY the JSON array."""
         return f'"{escaped}"'
 
     # =========================================================================
-    # MAIN EXTRACTION FLOW
+    # MAIN EXTRACTION FLOW - Smart Chunked with Early Exit
     # =========================================================================
 
     async def extract_rp_provision(
@@ -1006,48 +1049,73 @@ Return ONLY the JSON array."""
         store_results: bool = True
     ) -> ExtractionResult:
         """
-        Full RP extraction pipeline.
+        Smart chunked RP extraction pipeline with early exit.
 
         1. Parse PDF
-        2. Extract ALL RP content (ONE Claude call)
-        3. Load questions from TypeDB (if not provided)
-        4. Answer questions by category
-        5. Store results to TypeDB (if store_results=True)
+        2. Create overlapping chunks (250k chars, 50k overlap)
+        3. Load questions from TypeDB
+        4. For each chunk, ask only UNANSWERED questions
+           - HIGH confidence → stop searching for that question
+           - MEDIUM/LOW → keep best, try next chunk
+        5. Early exit when all questions have HIGH confidence
+        6. Store best answers to TypeDB
         """
         start_time = time.time()
 
         # Step 1: Parse PDF
         document_text = self.parse_document(pdf_path)
 
-        # Step 2: Extract ALL RP content (ONE Claude call)
-        logger.info("Step 2: Extracting RP content...")
-        extracted_content = self.extract_rp_content(document_text)
-        logger.info(
-            f"Extracted: prohibition={extracted_content.dividend_prohibition is not None}, "
-            f"baskets={len(extracted_content.permitted_baskets)}, "
-            f"definitions={len(extracted_content.definitions)}"
-        )
+        # Step 2: Create overlapping chunks
+        chunks = self._create_chunks(document_text, chunk_size=250000, overlap=50000)
+        logger.info(f"Created {len(chunks)} chunks from {len(document_text)} char document")
 
         # Step 3: Load questions from TypeDB
         if questions_by_category is None:
             logger.info("Step 3: Loading questions from TypeDB...")
             questions_by_category = self.load_questions_by_category("RP")
 
-        # Step 4: Answer questions by category
-        logger.info(f"Step 4: Answering {len(questions_by_category)} categories...")
-        category_answers = []
+        all_questions = [q for qs in questions_by_category.values() for q in qs]
+        total_questions = len(all_questions)
+        logger.info(f"Loaded {total_questions} questions")
 
-        for cat_id, questions in questions_by_category.items():
-            cat_name = questions[0]["category_name"] if questions else cat_id
-            logger.info(f"  {cat_name}: {len(questions)} questions")
+        # Step 4: Process chunks with early exit
+        answer_tracker = AnswerTracker()
+        chunks_processed = 0
 
-            answers = self.answer_category_questions(
-                category_id=cat_id,
-                category_name=cat_name,
-                questions=questions,
-                extracted_content=extracted_content
-            )
-            category_answers.append(answers)
+        for chunk_idx, chunk_text in enumerate(chunks):
+            # Get questions that still need answers
+            unanswered = answer_tracker.get_unanswered_questions(all_questions)
+
+            if not unanswered:
+                logger.info(f"All questions have HIGH confidence answers, stopping at chunk {chunk_idx}")
+                break
+
+            chunks_processed += 1
+            logger.info(f"Chunk {chunk_idx + 1}/{len(chunks)}: {len(unanswered)} questions remaining")
+
+            # Group unanswered by category for batching
+            unanswered_by_cat = self._group_by_category(unanswered)
+
+            # Ask questions against this chunk
+            for cat_id, cat_questions in unanswered_by_cat.items():
+                cat_name = cat_questions[0]["category_name"] if cat_questions else cat_id
+                logger.info(f"  Asking {len(cat_questions)} questions from {cat_name}")
+
+                answers = self._answer_questions_against_chunk(
+                    chunk_text, cat_questions, chunk_idx
+                )
+                for answer in answers:
+                    answer_tracker.update(answer)
+
+            # Log progress
+            high_conf = answer_tracker.get_high_confidence_count()
+            logger.info(f"After chunk {chunk_idx + 1}: {high_conf}/{total_questions} HIGH confidence")
+
+        # Convert tracked answers to CategoryAnswers format
+        category_answers = self._organize_answers_by_category(
+            answer_tracker.get_all_answers(),
+            questions_by_category
+        )
 
         # Step 5: Store results to TypeDB
         if store_results:
@@ -1055,15 +1123,202 @@ Return ONLY the JSON array."""
             self.store_extraction_result(deal_id, category_answers)
 
         extraction_time = time.time() - start_time
-        logger.info(f"Extraction complete in {extraction_time:.1f}s")
+        high_conf_count = answer_tracker.get_high_confidence_count()
+        logger.info(
+            f"Extraction complete in {extraction_time:.1f}s: "
+            f"{chunks_processed} chunks, {high_conf_count}/{total_questions} HIGH confidence"
+        )
 
         return ExtractionResult(
             deal_id=deal_id,
             covenant_type="RP",
-            extracted_content=extracted_content,
             category_answers=category_answers,
-            extraction_time_seconds=extraction_time
+            extraction_time_seconds=extraction_time,
+            chunks_processed=chunks_processed,
+            total_questions=total_questions,
+            high_confidence_answers=high_conf_count
         )
+
+    def _create_chunks(self, text: str, chunk_size: int, overlap: int) -> List[str]:
+        """Split document into overlapping chunks."""
+        if len(text) <= chunk_size:
+            return [text]
+
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(start + chunk_size, len(text))
+            chunks.append(text[start:end])
+            start = end - overlap
+            if end >= len(text):
+                break
+        return chunks
+
+    def _group_by_category(self, questions: List[Dict]) -> Dict[str, List[Dict]]:
+        """Group questions by category_id."""
+        by_cat: Dict[str, List[Dict]] = {}
+        for q in questions:
+            cat_id = q.get("category_id", "Z")
+            if cat_id not in by_cat:
+                by_cat[cat_id] = []
+            by_cat[cat_id].append(q)
+        return by_cat
+
+    def _answer_questions_against_chunk(
+        self,
+        chunk_text: str,
+        questions: List[Dict],
+        chunk_idx: int
+    ) -> List[AnsweredQuestion]:
+        """Ask questions directly against a document chunk."""
+        prompt = self._build_chunk_qa_prompt(chunk_text, questions, chunk_idx)
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=8000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return self._parse_chunk_qa_response(response.content[0].text, questions, chunk_idx)
+        except Exception as e:
+            logger.error(f"QA error for chunk {chunk_idx}: {e}")
+            return []
+
+    def _build_chunk_qa_prompt(self, chunk_text: str, questions: List[Dict], chunk_idx: int) -> str:
+        """Build prompt for answering questions against a document chunk."""
+        questions_text = self._format_questions_for_prompt(questions)
+
+        return f"""Answer covenant analysis questions using this document excerpt.
+
+## DOCUMENT EXCERPT (Chunk {chunk_idx + 1})
+
+{chunk_text}
+
+## QUESTIONS
+
+{questions_text}
+
+## INSTRUCTIONS
+
+For EACH question, analyze the document excerpt:
+- question_id: The ID in brackets
+- value: The answer (true/false, number, or array for multiselect)
+- source_text: EXACT quote from the document supporting your answer (max 500 chars)
+- source_pages: Page numbers from [PAGE X] markers
+- confidence:
+  - "high" = explicit answer found in text
+  - "medium" = answer inferred from context
+  - "low" = uncertain, partial information
+  - "not_found" = no relevant information in this excerpt
+- reasoning: Brief explanation (1 sentence)
+
+IMPORTANT: If information is NOT in this excerpt, use "not_found" - it may be in another part of the document.
+
+## OUTPUT
+
+Return JSON array:
+```json
+[
+  {{"question_id": "rp_a1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
+]
+```
+
+Return ONLY the JSON array."""
+
+    def _parse_chunk_qa_response(
+        self,
+        response_text: str,
+        questions: List[Dict],
+        chunk_idx: int
+    ) -> List[AnsweredQuestion]:
+        """Parse QA response from chunk, including chunk_index."""
+        try:
+            start = response_text.find('[')
+            end = response_text.rfind(']') + 1
+            if start == -1 or end == 0:
+                logger.warning(f"No JSON array in chunk {chunk_idx} response")
+                return []
+
+            json_str = response_text[start:end]
+            json_str = re.sub(r',\s*}', '}', json_str)
+            json_str = re.sub(r',\s*]', ']', json_str)
+
+            data = json.loads(json_str)
+            q_lookup = {q['question_id']: q for q in questions}
+            answers = []
+
+            for item in data:
+                qid = item.get("question_id")
+                if not qid or qid not in q_lookup:
+                    continue
+
+                q = q_lookup[qid]
+                target_type = q.get("target_type", "field")
+
+                if target_type == "concept":
+                    attr_name = q.get("target_concept_type", q.get("target_field_name", ""))
+                else:
+                    attr_name = q.get("target_field_name", "")
+
+                # Validate multiselect values
+                value = item.get("value")
+                if target_type == "concept" and isinstance(value, list):
+                    valid_ids = {opt["id"] for opt in q.get("concept_options", [])}
+                    if valid_ids:
+                        value = [v for v in value if v in valid_ids]
+
+                answers.append(AnsweredQuestion(
+                    question_id=qid,
+                    attribute_name=attr_name,
+                    answer_type=q.get("answer_type", "string"),
+                    value=value,
+                    source_text=item.get("source_text") or "",
+                    source_pages=(item.get("source_pages") or []),
+                    confidence=item.get("confidence") or "not_found",
+                    reasoning=item.get("reasoning"),
+                    chunk_index=chunk_idx
+                ))
+
+            logger.debug(f"Chunk {chunk_idx}: parsed {len(answers)} answers")
+            return answers
+
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error in chunk {chunk_idx}: {e}")
+            return []
+
+    def _organize_answers_by_category(
+        self,
+        answers: List[AnsweredQuestion],
+        questions_by_category: Dict[str, List[Dict]]
+    ) -> List[CategoryAnswers]:
+        """Organize flat answer list into CategoryAnswers structure."""
+        # Build question_id -> category mapping
+        qid_to_cat: Dict[str, str] = {}
+        cat_names: Dict[str, str] = {}
+
+        for cat_id, questions in questions_by_category.items():
+            if questions:
+                cat_names[cat_id] = questions[0].get("category_name", cat_id)
+            for q in questions:
+                qid_to_cat[q["question_id"]] = cat_id
+
+        # Group answers by category
+        answers_by_cat: Dict[str, List[AnsweredQuestion]] = {}
+        for answer in answers:
+            cat_id = qid_to_cat.get(answer.question_id, "Z")
+            if cat_id not in answers_by_cat:
+                answers_by_cat[cat_id] = []
+            answers_by_cat[cat_id].append(answer)
+
+        # Build CategoryAnswers list
+        return [
+            CategoryAnswers(
+                category_id=cat_id,
+                category_name=cat_names.get(cat_id, f"Category {cat_id}"),
+                answers=cat_answers
+            )
+            for cat_id, cat_answers in sorted(answers_by_cat.items())
+        ]
 
 
 # =============================================================================
