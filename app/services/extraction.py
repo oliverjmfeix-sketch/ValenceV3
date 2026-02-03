@@ -203,7 +203,7 @@ class ExtractionService:
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=16000,
+                max_tokens=32000,
                 messages=[{"role": "user", "content": prompt}]
             )
             return self._parse_universe_extraction(response.content[0].text)
@@ -231,7 +231,7 @@ class ExtractionService:
         try:
             response1 = self.client.messages.create(
                 model=self.model,
-                max_tokens=16000,
+                max_tokens=32000,
                 messages=[{"role": "user", "content": prompt1}]
             )
             universe1 = self._parse_universe_extraction(response1.content[0].text)
@@ -245,7 +245,7 @@ class ExtractionService:
         try:
             response2 = self.client.messages.create(
                 model=self.model,
-                max_tokens=16000,
+                max_tokens=32000,
                 messages=[{"role": "user", "content": prompt2}]
             )
             universe2 = self._parse_universe_extraction(response2.content[0].text)
@@ -299,7 +299,9 @@ Prioritize extracting COMPLETE COVENANTS with all baskets. Definitions may be mi
 Extract the COMPLETE VERBATIM TEXT of everything needed to analyze the Restricted Payments covenant.
 This includes definitions, covenant sections, and related mechanics.
 
-DO NOT summarize. Extract the ACTUAL TEXT with page numbers.
+CRITICAL: DO NOT SUMMARIZE. Copy the ACTUAL TEXT word-for-word from the document.
+The dividend/RP covenant alone is typically 15,000-30,000 characters with 20+ permitted baskets.
+Your output should be 50,000-100,000 characters of verbatim text.
 
 ## WHAT TO EXTRACT
 
@@ -417,15 +419,19 @@ Return your extraction in this EXACT format with clear section markers:
 [PAGES X-Y]
 ```
 
-## IMPORTANT
+## CRITICAL INSTRUCTIONS
 
-- Extract VERBATIM - do not summarize or paraphrase
-- Include ALL subsections, especially all permitted payment baskets ((a) through (z) or more)
-- Include page numbers from [PAGE X] markers in the document
-- If a section doesn't exist, write "NOT FOUND" for that section
-- For definitions, include the COMPLETE definition even if very long
-- When in doubt, include more rather than less
-- Use the exact section markers shown above (=== SECTION NAME ===)"""
+1. COPY THE ACTUAL TEXT WORD-FOR-WORD - do not summarize, paraphrase, or abbreviate
+2. The Restricted Payment covenant typically has 20-30 permitted baskets labeled (a) through (z)
+   - COPY EVERY SINGLE BASKET IN FULL
+   - Each basket may be 500-2000 characters
+3. Include page numbers from [PAGE X] markers in the document
+4. For definitions, include the COMPLETE definition even if it spans multiple paragraphs
+5. If a section doesn't exist, write "NOT FOUND"
+6. Use the exact section markers shown above (=== SECTION NAME ===)
+
+REMEMBER: Your output should be 50,000-100,000 characters of verbatim extracted text.
+If your output is less than 30,000 characters, you are likely summarizing instead of extracting."""
 
     def _parse_universe_extraction(self, response_text: str) -> RPUniverse:
         """Parse the RP universe extraction response."""

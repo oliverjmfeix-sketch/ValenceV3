@@ -256,15 +256,15 @@ async def run_extraction(deal_id: str, pdf_path: str):
         total_answers = sum(
             len(cat.answers) for cat in result.category_answers
         )
-        baskets_found = len(result.extracted_content.permitted_baskets)
-        definitions_found = len(result.extracted_content.definitions)
+        high_conf = result.high_confidence_answers
+        universe_kb = result.rp_universe_chars // 1024
 
         # Update status: complete
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
             progress=100,
-            current_step=f"Extracted {total_answers} answers, {baskets_found} baskets, {definitions_found} definitions in {result.extraction_time_seconds:.1f}s"
+            current_step=f"Extracted {total_answers} answers ({high_conf} high confidence), {universe_kb}KB RP universe in {result.extraction_time_seconds:.1f}s"
         )
 
         logger.info(
