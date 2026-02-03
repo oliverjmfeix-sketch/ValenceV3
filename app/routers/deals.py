@@ -12,7 +12,6 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Background
 from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
-from app.repositories.deal_repository import get_deal_repository
 from app.schemas.models import UploadResponse, ExtractionStatus
 from typedb.driver import TransactionType
 
@@ -162,61 +161,54 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
 
 
 async def run_extraction(deal_id: str, pdf_path: str):
-    """Background task: extract primitives from PDF and store in TypeDB."""
+    """
+    Background task: extract RP provision from PDF and store in TypeDB.
+
+    Uses the simplified 5-step pipeline:
+    1. Parse PDF
+    2. Extract RP content (ONE Claude call)
+    3. Load questions from TypeDB
+    4. Answer questions by category
+    5. Store results to TypeDB (automatic)
+    """
     extraction_svc = get_extraction_service()
-    deal_repo = get_deal_repository()
 
     try:
-        # Update status: extracting
+        # Update status: extracting content
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="extracting",
             progress=10,
-            current_step="Parsing PDF and extracting with Claude..."
+            current_step="Parsing PDF and extracting RP content..."
         )
 
-        # Run extraction (this calls Claude)
-        result = await extraction_svc.extract_document(pdf_path, deal_id)
-
-        # Update status: storing
-        extraction_status[deal_id] = ExtractionStatus(
+        # Run the simplified extraction pipeline
+        # This handles: parse → extract content → load questions → answer → store
+        result = await extraction_svc.extract_rp_provision(
+            pdf_path=pdf_path,
             deal_id=deal_id,
-            status="storing",
-            progress=70,
-            current_step="Storing extracted primitives in TypeDB..."
+            store_results=True  # Automatically stores to TypeDB
         )
 
-        # Store MFN primitives
-        if result.mfn_primitives:
-            deal_repo.store_mfn_primitives(deal_id, result.mfn_primitives)
-
-        # Store RP primitives
-        if result.rp_primitives:
-            deal_repo.store_rp_primitives(deal_id, result.rp_primitives)
-
-        # Store MFN concept applicabilities (after provision exists)
-        if result.mfn_multiselect:
-            deal_repo.store_concept_applicabilities(
-                deal_id, "mfn_provision", result.mfn_multiselect
-            )
-
-        # Store RP concept applicabilities (after provision exists)
-        if result.rp_multiselect:
-            deal_repo.store_concept_applicabilities(
-                deal_id, "rp_provision", result.rp_multiselect
-            )
+        # Count answers for status message
+        total_answers = sum(
+            len(cat.answers) for cat in result.category_answers
+        )
+        baskets_found = len(result.extracted_content.permitted_baskets)
+        definitions_found = len(result.extracted_content.definitions)
 
         # Update status: complete
-        mfn_count = len(result.mfn_primitives) + len(result.mfn_multiselect)
-        rp_count = len(result.rp_primitives) + len(result.rp_multiselect)
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
             progress=100,
-            current_step=f"Extracted {mfn_count} MFN and {rp_count} RP fields"
+            current_step=f"Extracted {total_answers} answers, {baskets_found} baskets, {definitions_found} definitions in {result.extraction_time_seconds:.1f}s"
         )
 
-        logger.info(f"Extraction complete for deal {deal_id}")
+        logger.info(
+            f"Extraction complete for deal {deal_id}: "
+            f"{total_answers} answers in {result.extraction_time_seconds:.1f}s"
+        )
 
     except Exception as e:
         logger.error(f"Extraction failed for deal {deal_id}: {e}")
