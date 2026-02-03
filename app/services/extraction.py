@@ -147,6 +147,21 @@ class ExtractionService:
 
     def _build_content_extraction_prompt(self, document_text: str) -> str:
         """Build prompt for verbatim content extraction."""
+        # Claude Sonnet has 200k token limit ≈ 700-800k chars
+        # Credit agreements: definitions at front, covenants in middle/back (pages 80-120)
+        # If document is too long, prioritize the back half where covenants live
+        doc_len = len(document_text)
+        max_chars = 700000
+
+        if doc_len > max_chars:
+            # Skip front matter, send middle-to-end where covenants are
+            start_pos = doc_len - max_chars
+            doc_excerpt = document_text[start_pos:]
+            logger.info(f"Document too long ({doc_len} chars), sending last {max_chars} chars (skipping first {start_pos})")
+        else:
+            doc_excerpt = document_text
+            logger.info(f"Sending full document ({doc_len} chars)")
+
         return f"""You are extracting Restricted Payments (RP) covenant content from a credit agreement.
 
 FIND AND EXTRACT VERBATIM the following sections. Do NOT interpret or summarize - extract the actual text with page numbers.
@@ -181,7 +196,7 @@ FIND AND EXTRACT VERBATIM the following sections. Do NOT interpret or summarize 
 
 ## DOCUMENT
 
-{document_text[:250000]}
+{doc_excerpt}
 
 ## OUTPUT FORMAT
 
