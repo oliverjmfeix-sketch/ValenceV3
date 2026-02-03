@@ -158,7 +158,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
                     match
                         $p isa rp_provision, has provision_id "{deal_id}_rp";
                         $rel (provision: $p, concept: $c) isa concept_applicability;
-                    delete $rel isa concept_applicability;
+                    delete $rel;
                 """).resolve()
             except Exception:
                 pass  # May not exist
@@ -167,7 +167,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             try:
                 tx.query(f"""
                     match $p isa rp_provision, has provision_id "{deal_id}_rp";
-                    delete $p isa rp_provision;
+                    delete $p;
                 """).resolve()
             except Exception:
                 pass  # May not exist
@@ -176,7 +176,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             try:
                 tx.query(f"""
                     match $p isa mfn_provision, has provision_id "{deal_id}_mfn";
-                    delete $p isa mfn_provision;
+                    delete $p;
                 """).resolve()
             except Exception:
                 pass  # May not exist
@@ -187,7 +187,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
                     match
                         $d isa deal, has deal_id "{deal_id}";
                         $rel (deal: $d, provision: $p) isa deal_has_provision;
-                    delete $rel isa deal_has_provision;
+                    delete $rel;
                 """).resolve()
             except Exception:
                 pass  # May not exist
@@ -195,7 +195,7 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             # 5. Delete deal entity
             tx.query(f"""
                 match $d isa deal, has deal_id "{deal_id}";
-                delete $d isa deal;
+                delete $d;
             """).resolve()
 
             tx.commit()
