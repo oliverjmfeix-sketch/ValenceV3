@@ -76,6 +76,46 @@ async def get_questions() -> List[Dict[str, Any]]:
         return []
 
 
+@router.get("/questions/{covenant_type}")
+async def get_questions_by_type(covenant_type: str) -> Dict[str, Any]:
+    """Get ontology questions filtered by covenant type (RP, MFN, etc.)."""
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Query questions by covenant_type
+            query = f"""
+                match
+                    $q isa ontology_question,
+                    has covenant_type "{covenant_type.upper()}",
+                    has question_id $id,
+                    has question_text $text,
+                    has answer_type $type;
+                select $id, $text, $type;
+            """
+            result = tx.query(query).resolve()
+
+            questions = []
+            for row in result.as_concept_rows():
+                questions.append({
+                    "question_id": row.get("id").as_attribute().get_value(),
+                    "question_text": row.get("text").as_attribute().get_value(),
+                    "answer_type": row.get("type").as_attribute().get_value()
+                })
+
+            return {
+                "covenant_type": covenant_type.upper(),
+                "count": len(questions),
+                "questions": questions
+            }
+        finally:
+            tx.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/concepts")
 async def get_concepts() -> Dict[str, List[Dict[str, Any]]]:
     """Get all concepts grouped by type."""
