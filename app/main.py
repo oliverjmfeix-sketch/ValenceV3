@@ -188,6 +188,47 @@ async def _ensure_schema_loaded():
     logger.info("✓ Schema initialization complete!")
 
 
+def _cleanup_old_sample_questions():
+    """
+    Remove old sample questions (rp_q*, mfn_q*) that have been replaced
+    by the consolidated ontology questions.
+    """
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
+
+    if not driver:
+        return
+
+    # Old question IDs to delete (replaced by consolidated questions)
+    old_question_ids = [
+        "rp_q1", "rp_q30", "rp_q51", "rp_q52", "rp_q87", "rp_q88", "rp_q89",
+        "rp_q250", "rp_q260", "rp_q270"
+    ]
+
+    deleted = 0
+    for qid in old_question_ids:
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            # Delete the question and its relations (TypeDB cascades)
+            query = f"""
+                match
+                    $q isa ontology_question, has question_id "{qid}";
+                delete
+                    $q isa ontology_question;
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            deleted += 1
+        except Exception as e:
+            tx.close()
+            # Question might not exist, that's fine
+            if "no answer" not in str(e).lower() and "empty" not in str(e).lower():
+                logger.debug(f"Could not delete {qid}: {e}")
+
+    if deleted > 0:
+        logger.info(f"✓ Cleaned up {deleted} old sample questions")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
@@ -201,9 +242,12 @@ async def lifespan(app: FastAPI):
     try:
         typedb_client.connect()
         logger.info("✓ TypeDB connected")
-        
+
         # Auto-initialize schema if database is empty
         await _ensure_schema_loaded()
+
+        # Clean up old sample questions replaced by consolidated ontology
+        _cleanup_old_sample_questions()
         
     except Exception as e:
         logger.error(f"✗ Startup error: {e}")
