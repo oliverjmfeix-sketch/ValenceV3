@@ -114,8 +114,8 @@ class ExtractionService:
 
         text_parts = []
         for page in pages:
-            text_parts.append(f"\n[PAGE {page['page_number']}]\n")
-            text_parts.append(page['text'])
+            text_parts.append(f"\n[PAGE {page.page_number}]\n")
+            text_parts.append(page.text)
 
         full_text = ''.join(text_parts)
         logger.info(f"Parsed {len(pages)} pages, {len(full_text)} chars")

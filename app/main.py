@@ -197,7 +197,10 @@ def _cleanup_old_sample_questions():
     db_name = settings.typedb_database
 
     if not driver:
+        logger.warning("No driver available for cleanup")
         return
+
+    logger.info("Checking for old sample questions to clean up...")
 
     # Old question IDs to delete (replaced by consolidated questions)
     old_question_ids = [
@@ -209,24 +212,31 @@ def _cleanup_old_sample_questions():
     for qid in old_question_ids:
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
-            # Delete the question and its relations (TypeDB cascades)
-            query = f"""
-                match
-                    $q isa ontology_question, has question_id "{qid}";
-                delete
-                    $q isa ontology_question;
+            # First check if question exists
+            check_query = f"""
+                match $q isa ontology_question, has question_id "{qid}";
+                select $q;
             """
-            tx.query(query).resolve()
-            tx.commit()
-            deleted += 1
+            check_result = tx.query(check_query).resolve()
+            rows = list(check_result.as_concept_rows())
+
+            if rows:
+                # Delete the question entity (relations cascade)
+                delete_query = f"""
+                    match $q isa ontology_question, has question_id "{qid}";
+                    delete $q isa ontology_question;
+                """
+                tx.query(delete_query).resolve()
+                tx.commit()
+                deleted += 1
+                logger.debug(f"Deleted old question: {qid}")
+            else:
+                tx.close()
         except Exception as e:
             tx.close()
-            # Question might not exist, that's fine
-            if "no answer" not in str(e).lower() and "empty" not in str(e).lower():
-                logger.debug(f"Could not delete {qid}: {e}")
+            logger.warning(f"Could not delete {qid}: {e}")
 
-    if deleted > 0:
-        logger.info(f"✓ Cleaned up {deleted} old sample questions")
+    logger.info(f"✓ Cleanup complete: {deleted} old sample questions removed")
 
 
 @asynccontextmanager
