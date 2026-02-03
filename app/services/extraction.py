@@ -199,17 +199,26 @@ class ExtractionService:
     def _extract_rp_universe_single(self, document_text: str) -> RPUniverse:
         """Extract RP universe with a single Claude call."""
         prompt = self._build_universe_extraction_prompt(document_text)
+        response_text = self._call_claude_streaming(prompt, max_tokens=32000)
+        if response_text:
+            return self._parse_universe_extraction(response_text)
+        return RPUniverse()
 
+    def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000) -> str:
+        """Call Claude with streaming to handle long operations."""
         try:
-            response = self.client.messages.create(
+            collected_text = []
+            with self.client.messages.stream(
                 model=self.model,
-                max_tokens=32000,
+                max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}]
-            )
-            return self._parse_universe_extraction(response.content[0].text)
+            ) as stream:
+                for text in stream.text_stream:
+                    collected_text.append(text)
+            return "".join(collected_text)
         except Exception as e:
-            logger.error(f"RP universe extraction error: {e}")
-            return RPUniverse()
+            logger.error(f"Claude streaming error: {e}")
+            return ""
 
     def _extract_rp_universe_merge(self, document_text: str) -> RPUniverse:
         """Extract RP universe with two calls for large documents, then merge."""
@@ -226,32 +235,26 @@ class ExtractionService:
         logger.info(f"  Part 1: chars 0-{midpoint + overlap} (definitions)")
         logger.info(f"  Part 2: chars {midpoint - overlap}-{doc_len} (covenants)")
 
-        # Extract from first half (expect definitions)
+        # Extract from first half (expect definitions) - use streaming for long operations
         prompt1 = self._build_universe_extraction_prompt(first_half, part=1, focus="definitions")
-        try:
-            response1 = self.client.messages.create(
-                model=self.model,
-                max_tokens=32000,
-                messages=[{"role": "user", "content": prompt1}]
-            )
-            universe1 = self._parse_universe_extraction(response1.content[0].text)
+        logger.info("Extracting Part 1 (definitions)...")
+        response1 = self._call_claude_streaming(prompt1, max_tokens=32000)
+        if response1:
+            universe1 = self._parse_universe_extraction(response1)
             logger.info(f"Part 1: definitions={len(universe1.definitions)} chars")
-        except Exception as e:
-            logger.error(f"Part 1 extraction error: {e}")
+        else:
+            logger.error("Part 1 extraction returned empty")
             universe1 = RPUniverse()
 
-        # Extract from second half (expect covenants)
+        # Extract from second half (expect covenants) - use streaming for long operations
         prompt2 = self._build_universe_extraction_prompt(second_half, part=2, focus="covenants")
-        try:
-            response2 = self.client.messages.create(
-                model=self.model,
-                max_tokens=32000,
-                messages=[{"role": "user", "content": prompt2}]
-            )
-            universe2 = self._parse_universe_extraction(response2.content[0].text)
+        logger.info("Extracting Part 2 (covenants)...")
+        response2 = self._call_claude_streaming(prompt2, max_tokens=32000)
+        if response2:
+            universe2 = self._parse_universe_extraction(response2)
             logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
-        except Exception as e:
-            logger.error(f"Part 2 extraction error: {e}")
+        else:
+            logger.error("Part 2 extraction returned empty")
             universe2 = RPUniverse()
 
         # Merge: definitions from part 1, covenants from part 2 (or whichever has them)
