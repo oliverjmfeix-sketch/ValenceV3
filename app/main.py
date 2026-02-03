@@ -184,7 +184,26 @@ async def _ensure_schema_loaded():
                     logger.info("✓ Questions already exist (skipping)")
                 else:
                     logger.warning(f"Questions load: {e}")
-    
+
+    # 4. Load categories and relations
+    categories_file = DATA_DIR / "categories.tql"
+    if categories_file.exists():
+        logger.info("Loading categories.tql...")
+        categories_tql = _load_tql_file(categories_file)
+        if categories_tql:
+            tx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                tx.query(categories_tql)
+                tx.commit()
+                logger.info("✓ Categories loaded")
+            except Exception as e:
+                tx.close()
+                error_msg = str(e).lower()
+                if "already exists" in error_msg or "duplicate" in error_msg or "unique" in error_msg:
+                    logger.info("✓ Categories already exist (skipping)")
+                else:
+                    logger.warning(f"Categories load: {e}")
+
     logger.info("✓ Schema initialization complete!")
 
 
