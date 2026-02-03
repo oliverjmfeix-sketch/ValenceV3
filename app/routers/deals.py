@@ -5,6 +5,7 @@ import os
 import asyncio
 import uuid
 import logging
+from pathlib import Path
 from typing import List, Dict, Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
@@ -135,27 +136,89 @@ async def create_deal(
 
 @router.delete("/{deal_id}")
 async def delete_deal(deal_id: str) -> Dict[str, Any]:
-    """Delete a deal."""
+    """
+    Delete a deal and all related data:
+    1. Delete concept_applicability relations
+    2. Delete rp_provision entity
+    3. Delete mfn_provision entity
+    4. Delete deal_has_provision relations
+    5. Delete deal entity
+    6. Delete PDF file from disk
+    7. Clear extraction status
+    """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
-            query = f"""
-                match
-                    $d isa deal, has deal_id "{deal_id}";
-                delete $d;
-            """
-            tx.query(query).resolve()
-            tx.commit()
+            # 1. Delete concept_applicability relations for RP provision
+            try:
+                tx.query(f"""
+                    match
+                        $p isa rp_provision, has provision_id "{deal_id}_rp";
+                        $rel (provision: $p, concept: $c) isa concept_applicability;
+                    delete $rel isa concept_applicability;
+                """).resolve()
+            except Exception:
+                pass  # May not exist
 
-            return {"status": "deleted", "deal_id": deal_id}
+            # 2. Delete rp_provision
+            try:
+                tx.query(f"""
+                    match $p isa rp_provision, has provision_id "{deal_id}_rp";
+                    delete $p isa rp_provision;
+                """).resolve()
+            except Exception:
+                pass  # May not exist
+
+            # 3. Delete mfn_provision (if exists)
+            try:
+                tx.query(f"""
+                    match $p isa mfn_provision, has provision_id "{deal_id}_mfn";
+                    delete $p isa mfn_provision;
+                """).resolve()
+            except Exception:
+                pass  # May not exist
+
+            # 4. Delete deal_has_provision relations
+            try:
+                tx.query(f"""
+                    match
+                        $d isa deal, has deal_id "{deal_id}";
+                        $rel (deal: $d, provision: $p) isa deal_has_provision;
+                    delete $rel isa deal_has_provision;
+                """).resolve()
+            except Exception:
+                pass  # May not exist
+
+            # 5. Delete deal entity
+            tx.query(f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                delete $d isa deal;
+            """).resolve()
+
+            tx.commit()
+            logger.info(f"Deleted deal {deal_id} from TypeDB")
+
         except Exception as e:
             tx.close()
             raise e
+
+        # 6. Delete PDF file
+        pdf_path = Path(UPLOADS_DIR) / f"{deal_id}.pdf"
+        if pdf_path.exists():
+            pdf_path.unlink()
+            logger.info(f"Deleted PDF: {pdf_path}")
+
+        # 7. Clear extraction status
+        if deal_id in extraction_status:
+            del extraction_status[deal_id]
+
+        return {"status": "deleted", "deal_id": deal_id}
+
     except Exception as e:
-        logger.error(f"Error deleting deal: {e}")
+        logger.error(f"Error deleting deal {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
