@@ -327,10 +327,14 @@ IMPORTANT:
                         "category_name": row.get("cname").as_attribute().get_value()
                     })
 
-                # Also load target field/concept mappings
+                # Load target field/concept mappings AND multiselect options
                 for cat_id, questions in questions_by_cat.items():
                     for q in questions:
-                        q["target_field_name"] = self._get_question_target(tx, q["question_id"])
+                        target_info = self._get_question_target(tx, q["question_id"])
+                        q["target_type"] = target_info["type"]  # "field" or "concept"
+                        q["target_field_name"] = target_info["name"]
+                        q["target_concept_type"] = target_info.get("concept_type")
+                        q["concept_options"] = target_info.get("options", [])
 
                 logger.info(f"Loaded {sum(len(qs) for qs in questions_by_cat.values())} {covenant_type} questions in {len(questions_by_cat)} categories")
                 return questions_by_cat
@@ -341,8 +345,21 @@ IMPORTANT:
             logger.error(f"Error loading questions: {e}")
             return {}
 
-    def _get_question_target(self, tx, question_id: str) -> str:
-        """Get target field or concept type for a question."""
+    def _get_question_target(self, tx, question_id: str) -> Dict[str, Any]:
+        """
+        Get target field or concept type for a question.
+
+        For multiselect questions (target_concept_type), also loads the valid
+        concept options so the QA prompt can show them.
+
+        Returns:
+            {
+                "type": "field" | "concept",
+                "name": field_name or concept_type,
+                "concept_type": concept_type (if multiselect),
+                "options": [{"id": "...", "name": "..."}, ...] (if multiselect)
+            }
+        """
         try:
             # Try field target first
             query = f"""
@@ -353,9 +370,12 @@ IMPORTANT:
             """
             result = list(tx.query(query).resolve().as_concept_rows())
             if result:
-                return result[0].get("fn").as_attribute().get_value()
+                return {
+                    "type": "field",
+                    "name": result[0].get("fn").as_attribute().get_value()
+                }
 
-            # Try concept target
+            # Try concept target (multiselect)
             query = f"""
                 match
                     $q isa ontology_question, has question_id "{question_id}";
@@ -364,11 +384,48 @@ IMPORTANT:
             """
             result = list(tx.query(query).resolve().as_concept_rows())
             if result:
-                return result[0].get("ct").as_attribute().get_value()
+                concept_type = result[0].get("ct").as_attribute().get_value()
 
-        except Exception:
-            pass
-        return ""
+                # Load the concept options for this type
+                options = self._load_concept_options(tx, concept_type)
+
+                return {
+                    "type": "concept",
+                    "name": concept_type,
+                    "concept_type": concept_type,
+                    "options": options
+                }
+
+        except Exception as e:
+            logger.debug(f"Error getting target for {question_id}: {e}")
+
+        return {"type": "unknown", "name": ""}
+
+    def _load_concept_options(self, tx, concept_type: str) -> List[Dict[str, str]]:
+        """
+        Load all concept instances for a given concept type.
+
+        Returns list of {"id": concept_id, "name": display_name}
+        """
+        options = []
+        try:
+            query = f"""
+                match
+                    $c isa {concept_type},
+                        has concept_id $cid,
+                        has name $name;
+                select $cid, $name;
+            """
+            result = tx.query(query).resolve()
+            for row in result.as_concept_rows():
+                options.append({
+                    "id": row.get("cid").as_attribute().get_value(),
+                    "name": row.get("name").as_attribute().get_value()
+                })
+            logger.debug(f"Loaded {len(options)} options for {concept_type}")
+        except Exception as e:
+            logger.warning(f"Error loading concept options for {concept_type}: {e}")
+        return options
 
     # =========================================================================
     # STEP 4: Answer Questions Using Extracted Content
@@ -433,11 +490,13 @@ IMPORTANT:
         return "\n".join(parts)
 
     def _format_questions_for_prompt(self, questions: List[Dict]) -> str:
-        """Format questions for the QA prompt."""
+        """Format questions for the QA prompt, including multiselect options."""
         lines = []
         for i, q in enumerate(questions, 1):
             answer_type = q.get("answer_type", "boolean")
             target = q.get("target_field_name", "")
+            target_type = q.get("target_type", "field")
+            concept_options = q.get("concept_options", [])
 
             type_hint = {
                 "boolean": "(yes/no)",
@@ -445,12 +504,18 @@ IMPORTANT:
                 "double": "(decimal)",
                 "percentage": "(decimal)",
                 "currency": "(dollar amount)",
-                "multiselect": "(list applicable items)"
+                "multiselect": "(select from options below)"
             }.get(answer_type, "")
 
             lines.append(f"{i}. [{q['question_id']}] {q['question_text']} {type_hint}")
-            if target:
-                lines.append(f"   → Target: {target}")
+
+            if target_type == "concept" and concept_options:
+                # Show valid options for multiselect
+                lines.append(f"   → Concept: {target}")
+                option_strs = [f"{opt['id']} ({opt['name']})" for opt in concept_options]
+                lines.append(f"   → Valid options: {', '.join(option_strs)}")
+            elif target:
+                lines.append(f"   → Field: {target}")
 
         return "\n".join(lines)
 
@@ -490,7 +555,7 @@ Return JSON array:
 Return ONLY the JSON array."""
 
     def _parse_qa_response(self, response_text: str, questions: List[Dict]) -> List[AnsweredQuestion]:
-        """Parse QA response."""
+        """Parse QA response, handling both scalar and multiselect answers."""
         try:
             start = response_text.find('[')
             end = response_text.rfind(']') + 1
@@ -512,11 +577,31 @@ Return ONLY the JSON array."""
                     continue
 
                 q = q_lookup[qid]
+                target_type = q.get("target_type", "field")
+
+                # For multiselect (concept), use concept_type as attribute_name
+                # For scalar (field), use target_field_name
+                if target_type == "concept":
+                    attr_name = q.get("target_concept_type", q.get("target_field_name", ""))
+                else:
+                    attr_name = q.get("target_field_name", "")
+
+                # Validate multiselect values against known options
+                value = item.get("value")
+                if target_type == "concept" and isinstance(value, list):
+                    valid_ids = {opt["id"] for opt in q.get("concept_options", [])}
+                    if valid_ids:
+                        validated = [v for v in value if v in valid_ids]
+                        invalid = [v for v in value if v not in valid_ids]
+                        if invalid:
+                            logger.warning(f"Invalid concept_ids for {qid}: {invalid}")
+                        value = validated
+
                 answers.append(AnsweredQuestion(
                     question_id=qid,
-                    attribute_name=q.get("target_field_name", ""),
+                    attribute_name=attr_name,
                     answer_type=q.get("answer_type", "string"),
-                    value=item.get("value"),
+                    value=value,
                     source_text=item.get("source_text", ""),
                     source_pages=item.get("source_pages", []),
                     confidence=item.get("confidence", "medium"),
