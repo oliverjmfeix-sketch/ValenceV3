@@ -9,9 +9,9 @@ define
 
 # ═══════════════════════════════════════════════════════════════════════════
 # NEW CONCEPT TYPES (for multiselect questions)
+# Note: builder_source already exists in schema.tql
 # ═══════════════════════════════════════════════════════════════════════════
 
-builder_source sub concept;
 reallocatable_basket sub concept;
 exempt_sale_type sub concept;
 unsub_distribution_condition sub concept;

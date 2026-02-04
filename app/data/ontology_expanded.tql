@@ -148,20 +148,20 @@ insert $q_g7 isa ontology_question,
 # BASKET REALLOCATION (Category I, Questions I1-I6)
 # ═══════════════════════════════════════════════════════════════════════════
 
-insert $q_i1 isa ontology_question,
-    has question_id "rp_i1",
+insert $q_i7 isa ontology_question,
+    has question_id "rp_i7",
     has covenant_type "RP",
     has question_text "Can amounts from other baskets be reallocated to make Restricted Payments?",
     has answer_type "boolean",
-    has display_order 1,
+    has display_order 7,
     has extraction_prompt "Determine if the RP covenant permits using capacity from other baskets (Investment basket, RDP basket, prepayment basket) to make Restricted Payments. Look for cross-references like 'amounts available under Section 6.03(y)' or 'amounts available under Section 6.09(a)'.";
 
-insert $q_i2 isa ontology_question,
-    has question_id "rp_i2",
+insert $q_i8 isa ontology_question,
+    has question_id "rp_i8",
     has covenant_type "RP",
     has question_text "Which baskets can be reallocated to Restricted Payments?",
     has answer_type "multiselect",
-    has display_order 2,
+    has display_order 8,
     has extraction_prompt "Identify ALL baskets whose capacity can be used for Restricted Payments. Common sources: Investment basket (6.03), Restricted Debt Payment basket (6.09), prepayment basket, intercompany debt basket.";
 
 insert $q_i3 isa ontology_question,
@@ -472,10 +472,10 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g7";
 insert (category: $cat, question: $q) isa category_has_question;
 
-# Category I (Reallocation) for I1-I6
-match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i1";
+# Category I (Reallocation) for I7-I8 (renamed from I1-I2 to avoid conflicts)
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i7";
 insert (category: $cat, question: $q) isa category_has_question;
-match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i2";
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i8";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i3";
 insert (category: $cat, question: $q) isa category_has_question;
@@ -565,7 +565,7 @@ insert (question: $q, field: $f) isa question_targets_field;
 match $q isa ontology_question, has question_id "rp_g7"; $f isa target_field, has target_field_name "ratio_multiple_tiers_exist";
 insert (question: $q, field: $f) isa question_targets_field;
 
-match $q isa ontology_question, has question_id "rp_i1"; $f isa target_field, has target_field_name "reallocation_to_rp_permitted";
+match $q isa ontology_question, has question_id "rp_i7"; $f isa target_field, has target_field_name "reallocation_to_rp_permitted";
 insert (question: $q, field: $f) isa question_targets_field;
 
 match $q isa ontology_question, has question_id "rp_i3"; $f isa target_field, has target_field_name "reallocation_section_ref";
@@ -629,7 +629,7 @@ insert (question: $q, field: $f) isa question_targets_field;
 match $q isa ontology_question, has question_id "rp_f9"; $ct isa target_concept_type, has target_concept_type "builder_source";
 insert (question: $q, concept_type: $ct) isa question_targets_concept;
 
-match $q isa ontology_question, has question_id "rp_i2"; $ct isa target_concept_type, has target_concept_type "reallocatable_basket";
+match $q isa ontology_question, has question_id "rp_i8"; $ct isa target_concept_type, has target_concept_type "reallocatable_basket";
 insert (question: $q, concept_type: $ct) isa question_targets_concept;
 
 match $q isa ontology_question, has question_id "rp_l7"; $ct isa target_concept_type, has target_concept_type "exempt_sale_type";

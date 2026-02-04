@@ -613,8 +613,8 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 "rp_g5": "ratio_no_worse_test_exists",
                 "rp_g6": "ratio_no_worse_threshold",
                 "rp_g7": "ratio_multiple_tiers_exist",
-                # Category I - Reallocation (expanded I1, I3-I6)
-                "rp_i1": "reallocation_to_rp_permitted",
+                # Category I - Reallocation (expanded I3-I8)
+                "rp_i7": "reallocation_to_rp_permitted",
                 "rp_i3": "reallocation_section_ref",
                 "rp_i4": "rdp_basket_reallocation_amount_usd",
                 "rp_i5": "investment_basket_reallocation_amount_usd",
@@ -668,7 +668,7 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 "rp_f9": "builder_source",  # Expanded - all builder sources
                 "rp_h1": "holdco_overhead_cost",
                 "rp_h2": "holdco_transaction_cost",
-                "rp_i2": "reallocatable_basket",  # Expanded - which baskets can reallocate
+                "rp_i8": "reallocatable_basket",  # Expanded - which baskets can reallocate
                 "rp_k4": "blocker_binding_entity",  # Actual TypeDB type
                 "rp_k5": "jcrew_trigger_condition",
                 "rp_k6": "jcrew_ip_type",
