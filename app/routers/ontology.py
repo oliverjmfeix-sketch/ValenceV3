@@ -42,6 +42,7 @@ async def get_categories() -> List[Dict[str, Any]]:
         finally:
             tx.close()
     except Exception as e:
+        logger.error(f"Error fetching categories: {e}")
         return []
 
 
@@ -75,6 +76,7 @@ async def get_questions() -> List[Dict[str, Any]]:
         finally:
             tx.close()
     except Exception as e:
+        logger.error(f"Error fetching questions: {e}")
         return []
 
 
@@ -187,4 +189,5 @@ async def get_concepts() -> Dict[str, List[Dict[str, Any]]]:
         finally:
             tx.close()
     except Exception as e:
+        logger.error(f"Error fetching concepts: {e}")
         return {}

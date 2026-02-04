@@ -13,6 +13,80 @@
 insert
 
 ################################################################################
+# RP ONTOLOGY CATEGORIES
+################################################################################
+
+$cat_a isa ontology_category,
+    has category_id "A",
+    has name "Dividend Restrictions - General Structure",
+    has display_order 1;
+
+$cat_b isa ontology_category,
+    has category_id "B",
+    has name "Intercompany Dividends",
+    has display_order 2;
+
+$cat_c isa ontology_category,
+    has category_id "C",
+    has name "Management Equity Basket",
+    has display_order 3;
+
+$cat_d isa ontology_category,
+    has category_id "D",
+    has name "Tax Distribution Basket",
+    has display_order 4;
+
+$cat_e isa ontology_category,
+    has category_id "E",
+    has name "Equity Awards",
+    has display_order 5;
+
+$cat_f isa ontology_category,
+    has category_id "F",
+    has name "Builder Basket / Cumulative Amount",
+    has display_order 6;
+
+$cat_g isa ontology_category,
+    has category_id "G",
+    has name "Ratio-Based Dividend Basket",
+    has display_order 7;
+
+$cat_h isa ontology_category,
+    has category_id "H",
+    has name "Holding Company Overhead",
+    has display_order 8;
+
+$cat_i isa ontology_category,
+    has category_id "I",
+    has name "Basket Reallocation",
+    has display_order 9;
+
+$cat_j isa ontology_category,
+    has category_id "J",
+    has name "Unrestricted Subsidiaries",
+    has display_order 10;
+
+$cat_k isa ontology_category,
+    has category_id "K",
+    has name "J.Crew Blocker",
+    has display_order 11;
+
+$cat_s isa ontology_category,
+    has category_id "S",
+    has name "Restricted Debt Payments - General",
+    has display_order 12;
+
+$cat_t isa ontology_category,
+    has category_id "T",
+    has name "RDP Baskets",
+    has display_order 13;
+
+$cat_z isa ontology_category,
+    has category_id "Z",
+    has name "Pattern Detection",
+    has display_order 14;
+
+################################################################################
 # CATEGORY A: DIVIDEND RESTRICTIONS - GENERAL STRUCTURE
 ################################################################################
 
@@ -31,6 +105,7 @@ $rp_a1 isa ontology_question,
 (question: $rp_a1) isa question_targets_field,
     has target_field_name "general_dividend_prohibition_exists",
     has target_entity_type "rp_provision";
+(category: $cat_a, question: $rp_a1) isa category_has_question;
 
 # A2: Who does the covenant apply to? (multiselect)
 $rp_a2 isa ontology_question,

@@ -189,7 +189,7 @@ class UploadResponse(BaseModel):
 class HealthCheck(BaseModel):
     """Health check response."""
     status: str
-    version: str = "2.0.0"
+    version: str = "3.0.0"
 
 
 class TypeDBHealth(BaseModel):

@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # App Info
     app_name: str = "Valence Backend"
-    app_version: str = "2.0.0"
+    app_version: str = "3.0.0"
     debug: bool = False
     
     @property

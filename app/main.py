@@ -99,7 +99,7 @@ def _load_categories_with_relations(driver, db_name: str, filepath: Path):
         insert_tql = '\n'.join(insert_lines)
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
-            tx.query(insert_tql)
+            tx.query(insert_tql).resolve()
             tx.commit()
             logger.info(f"✓ Category entities loaded")
         except Exception as e:
@@ -119,7 +119,7 @@ def _load_categories_with_relations(driver, db_name: str, filepath: Path):
             continue
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
-            tx.query(stmt)
+            tx.query(stmt).resolve()
             tx.commit()
             relations_created += 1
         except Exception as e:
@@ -271,7 +271,7 @@ async def _ensure_schema_loaded():
         if concepts_tql:
             tx = driver.transaction(db_name, TransactionType.WRITE)
             try:
-                tx.query(concepts_tql)
+                tx.query(concepts_tql).resolve()
                 tx.commit()
                 logger.info("✓ Concepts loaded")
             except Exception as e:
@@ -290,7 +290,7 @@ async def _ensure_schema_loaded():
         if questions_tql:
             tx = driver.transaction(db_name, TransactionType.WRITE)
             try:
-                tx.query(questions_tql)
+                tx.query(questions_tql).resolve()
                 tx.commit()
                 logger.info("✓ Questions loaded")
             except Exception as e:
