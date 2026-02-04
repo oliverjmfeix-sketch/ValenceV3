@@ -592,17 +592,23 @@ If no annual de minimis exists (only individual), answer: 0""",
 
     for qid, new_prompt in prompt_updates.items():
         try:
-            # First, delete existing extraction_prompt if any
-            tx = driver.transaction(db_name, TransactionType.WRITE)
-            try:
-                delete_query = f'''
-                    match $q isa ontology_question, has question_id "{qid}", has extraction_prompt $ep;
-                    delete $q has $ep;
-                '''
-                tx.query(delete_query).resolve()
-                tx.commit()
-            except Exception:
-                tx.close()  # No existing prompt to delete, that's fine
+            # Delete ALL existing extraction_prompts (may be multiple from duplicate loads)
+            # Keep deleting until none remain
+            deleted_count = 0
+            for _ in range(5):  # Max 5 iterations to avoid infinite loop
+                tx = driver.transaction(db_name, TransactionType.WRITE)
+                try:
+                    delete_query = f'''
+                        match $q isa ontology_question, has question_id "{qid}", has extraction_prompt $ep;
+                        delete $ep;
+                    '''
+                    tx.query(delete_query).resolve()
+                    tx.commit()
+                    deleted_count += 1
+                except Exception as del_err:
+                    tx.close()
+                    # No more prompts to delete or other error
+                    break
 
             # Now insert the new prompt
             tx = driver.transaction(db_name, TransactionType.WRITE)
@@ -614,7 +620,7 @@ If no annual de minimis exists (only individual), answer: 0""",
             '''
             tx.query(insert_query).resolve()
             tx.commit()
-            results["updated"].append(qid)
+            results["updated"].append({"qid": qid, "deleted_old": deleted_count})
         except Exception as e:
             results["failed"].append({"qid": qid, "error": str(e)[:150]})
 
