@@ -150,19 +150,29 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
 
     # Remove comment lines
     lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
-    clean_content = '\n'.join(lines)
 
-    # Split by semicolons to get individual statements
-    raw_statements = [s.strip() for s in clean_content.split(';') if s.strip()]
-
+    # Parse line by line to handle match-insert pairs correctly
+    # Format: "match ... ; ... ;" on one line, followed by "insert ... ;" on next line
     insert_statements = []
     match_insert_statements = []
+    current_match = None
 
-    for stmt in raw_statements:
-        if stmt.startswith('match ') or stmt.startswith('match\n'):
-            match_insert_statements.append(stmt + ';')
-        elif stmt.startswith('insert ') or stmt.startswith('insert\n'):
-            insert_statements.append(stmt + ';')
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if stripped.startswith('match '):
+            # Start of a new match clause - save the whole line (which may contain multiple patterns)
+            current_match = stripped
+        elif stripped.startswith('insert ') and current_match:
+            # This is the insert part of a match-insert
+            full_stmt = current_match + '\n' + stripped
+            match_insert_statements.append(full_stmt)
+            current_match = None
+        elif stripped.startswith('insert '):
+            # Standalone insert statement
+            insert_statements.append(stripped)
 
     logger.info(f"Parsed {len(insert_statements)} inserts, {len(match_insert_statements)} match-inserts from ontology_expanded.tql")
 
