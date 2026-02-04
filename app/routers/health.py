@@ -344,3 +344,148 @@ async def debug_reload_ontology_expanded() -> Dict[str, Any]:
     results["relation_errors"] = relation_errors
 
     return results
+
+
+@router.post("/api/debug/fix-target-fields")
+async def debug_fix_target_fields() -> Dict[str, Any]:
+    """Create missing target_field entities and question_targets_field relations."""
+    from app.config import settings
+
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
+    results = {}
+
+    if not driver:
+        return {"error": "No TypeDB driver"}
+
+    # Define all target fields for new questions
+    target_fields = {
+        # F10-F17
+        "rp_f10": "builder_ecf_source_exists",
+        "rp_f11": "builder_ecf_formula",
+        "rp_f12": "builder_ebitda_fc_exists",
+        "rp_f13": "builder_fc_multiplier_pct",
+        "rp_f14": "builder_uses_greatest_of",
+        "rp_f15": "builder_start_date_language",
+        "rp_f16": "builder_asset_proceeds_source",
+        "rp_f17": "builder_investment_returns_source",
+        # G5-G7
+        "rp_g5": "ratio_no_worse_test_exists",
+        "rp_g6": "ratio_no_worse_threshold",
+        "rp_g7": "ratio_multiple_tiers_exist",
+        # I3-I8 (I7, I8 are the renamed ones)
+        "rp_i3": "reallocation_section_ref",
+        "rp_i4": "rdp_basket_reallocation_amount_usd",
+        "rp_i5": "investment_basket_reallocation_amount_usd",
+        "rp_i6": "reallocation_bidirectional",
+        "rp_i7": "reallocation_to_rp_permitted",
+        # L1-L6, L8-L9 (L7 is multiselect)
+        "rp_l1": "asset_proceeds_can_fund_dividends",
+        "rp_l2": "leverage_tiered_sweep_exists",
+        "rp_l3": "sweep_tier_1",
+        "rp_l4": "sweep_tier_2",
+        "rp_l5": "de_minimis_individual_usd",
+        "rp_l6": "de_minimis_annual_usd",
+        "rp_l8": "ratio_basket_avoids_sweep",
+        "rp_l9": "sweep_exempt_ratio_threshold",
+        # M1-M3 (M4 is multiselect)
+        "rp_m1": "unsub_equity_dividend_permitted",
+        "rp_m2": "unsub_asset_dividend_permitted",
+        "rp_m3": "unsub_distribution_section_ref",
+        # N1-N3 (N4, N5 are multiselect)
+        "rp_n1": "general_rp_basket_amount_usd",
+        "rp_n2": "general_rp_basket_grower_pct",
+        "rp_n3": "all_baskets_summary",
+    }
+
+    # Step 1: Check existing target_field count
+    try:
+        tx = driver.transaction(db_name, TransactionType.READ)
+        query = "match $f isa target_field; select $f;"
+        result = list(tx.query(query).resolve().as_concept_rows())
+        results["existing_target_field_count"] = len(result)
+        tx.close()
+    except Exception as e:
+        results["target_field_check_error"] = str(e)[:100]
+
+    # Step 2: Create target_field entities
+    fields_created = 0
+    fields_skipped = 0
+    field_errors = []
+
+    for field_name in set(target_fields.values()):
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            query = f'insert $f isa target_field, has target_field_name "{field_name}";'
+            tx.query(query).resolve()
+            tx.commit()
+            fields_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                fields_skipped += 1
+            else:
+                if len(field_errors) < 5:
+                    field_errors.append({"field": field_name, "error": str(e)[:80]})
+
+    results["target_fields_created"] = fields_created
+    results["target_fields_skipped"] = fields_skipped
+    results["target_field_errors"] = field_errors
+
+    # Step 3: Create question_targets_field relations
+    relations_created = 0
+    relations_skipped = 0
+    relation_errors = []
+
+    for question_id, field_name in target_fields.items():
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            query = f'''
+                match
+                    $q isa ontology_question, has question_id "{question_id}";
+                    $f isa target_field, has target_field_name "{field_name}";
+                insert (question: $q, field: $f) isa question_targets_field;
+            '''
+            tx.query(query).resolve()
+            tx.commit()
+            relations_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                relations_skipped += 1
+            else:
+                if len(relation_errors) < 5:
+                    relation_errors.append({"question": question_id, "error": str(e)[:80]})
+
+    results["relations_created"] = relations_created
+    results["relations_skipped"] = relations_skipped
+    results["relation_errors"] = relation_errors
+
+    # Step 4: Verify final count
+    try:
+        tx = driver.transaction(db_name, TransactionType.READ)
+        query = """
+            match
+                $q isa ontology_question, has question_id $qid;
+                (question: $q, field: $f) isa question_targets_field;
+                $f has target_field_name $fn;
+            select $qid, $fn;
+        """
+        result = list(tx.query(query).resolve().as_concept_rows())
+        results["total_question_targets_field_relations"] = len(result)
+
+        # Count new question relations specifically
+        new_questions = [qid for qid in target_fields.keys()]
+        new_count = 0
+        for row in result:
+            qid = _safe_get_value(row, "qid")
+            if qid in new_questions:
+                new_count += 1
+        results["new_question_relations_count"] = new_count
+        tx.close()
+    except Exception as e:
+        results["verification_error"] = str(e)[:100]
+
+    return results
