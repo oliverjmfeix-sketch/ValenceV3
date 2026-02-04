@@ -86,6 +86,13 @@ attribute is_primary_test, value boolean;
 
 attribute leakage_risk, value string;
 
+# Unsub designation attributes
+attribute designation_id, value string;
+attribute requires_board_approval, value boolean;
+attribute permits_equity_dividend, value boolean;
+attribute permits_asset_dividend, value boolean;
+attribute dollar_amount, value double;
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CORE ENTITIES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -110,7 +117,8 @@ entity provision,
     plays provision_has_blocker:provision,
     plays provision_has_sweep_tier:provision,
     plays provision_has_de_minimis:provision,
-    plays provision_has_sweep_exemption:provision;
+    plays provision_has_sweep_exemption:provision,
+    plays provision_has_unsub_designation:provision;
 
 entity rp_provision sub provision;
 entity mfn_provision sub provision;
@@ -169,7 +177,9 @@ entity builder_source,
     owns source_name,
     owns percentage,
     owns floor_amount,
+    owns section_reference,
     owns verbatim_text,
+    owns source_page,
     plays builder_has_source:source;
 
 entity cni_source sub builder_source;
@@ -214,7 +224,9 @@ entity blocker_exception,
     owns exception_id @key,
     owns exception_name,
     owns scope_limitation,
+    owns section_reference,
     owns verbatim_text,
+    owns source_page,
     plays blocker_has_exception:exception;
 
 entity nonexclusive_license_exception sub blocker_exception;
@@ -245,15 +257,21 @@ entity sweep_tier,
     owns leverage_threshold,
     owns sweep_percentage,
     owns is_highest_tier,
+    owns section_reference,
+    owns verbatim_text,
+    owns source_page,
     plays provision_has_sweep_tier:tier;
 
 entity de_minimis_threshold,
     owns threshold_id @key,
     owns threshold_type,
-    owns dollar_cap,
+    owns dollar_amount,
     owns ebitda_percentage,
     owns uses_greater_of,
     owns permits_carryforward,
+    owns section_reference,
+    owns verbatim_text,
+    owns source_page,
     plays provision_has_de_minimis:threshold;
 
 entity sweep_exemption,
@@ -267,6 +285,26 @@ entity casualty_exemption sub sweep_exemption;
 entity below_threshold_exemption sub sweep_exemption;
 entity ratio_basket_exemption sub sweep_exemption,
     owns exempt_ratio_threshold;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UNRESTRICTED SUBSIDIARY DESIGNATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity unsub_designation,
+    owns designation_id @key,
+    owns dollar_cap,
+    owns ebitda_percentage,
+    owns uses_greater_of,
+    owns requires_no_default,
+    owns requires_board_approval,
+    owns requires_ratio_test,
+    owns ratio_threshold,
+    owns permits_equity_dividend,
+    owns permits_asset_dividend,
+    owns section_reference,
+    owns verbatim_text,
+    owns source_page,
+    plays provision_has_unsub_designation:designation;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # REALLOCATION ENTITIES
@@ -339,3 +377,8 @@ relation provision_has_de_minimis,
 relation provision_has_sweep_exemption,
     relates provision,
     relates exemption;
+
+# Unsub designation rules
+relation provision_has_unsub_designation,
+    relates provision,
+    relates designation;
