@@ -398,42 +398,19 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
         "rp_n3": "all_baskets_summary",
     }
 
-    # Step 1: Check existing target_field count
+    # Step 1: Check existing question_targets_field relations
     try:
         tx = driver.transaction(db_name, TransactionType.READ)
-        query = "match $f isa target_field; select $f;"
+        query = "match (question: $q) isa question_targets_field; select $q;"
         result = list(tx.query(query).resolve().as_concept_rows())
-        results["existing_target_field_count"] = len(result)
+        results["existing_question_targets_field_count"] = len(result)
         tx.close()
     except Exception as e:
-        results["target_field_check_error"] = str(e)[:100]
+        results["initial_check_error"] = str(e)[:100]
 
-    # Step 2: Create target_field entities
-    fields_created = 0
-    fields_skipped = 0
-    field_errors = []
-
-    for field_name in set(target_fields.values()):
-        tx = driver.transaction(db_name, TransactionType.WRITE)
-        try:
-            query = f'insert $f isa target_field, has target_field_name "{field_name}";'
-            tx.query(query).resolve()
-            tx.commit()
-            fields_created += 1
-        except Exception as e:
-            tx.close()
-            error_msg = str(e).lower()
-            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
-                fields_skipped += 1
-            else:
-                if len(field_errors) < 5:
-                    field_errors.append({"field": field_name, "error": str(e)[:80]})
-
-    results["target_fields_created"] = fields_created
-    results["target_fields_skipped"] = fields_skipped
-    results["target_field_errors"] = field_errors
-
-    # Step 3: Create question_targets_field relations
+    # Step 2: Create question_targets_field relations
+    # Note: question_targets_field is a RELATION with only a 'question' role
+    # The target_field_name is an ATTRIBUTE on the relation, not a separate entity
     relations_created = 0
     relations_skipped = 0
     relation_errors = []
@@ -442,10 +419,10 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
             query = f'''
-                match
-                    $q isa ontology_question, has question_id "{question_id}";
-                    $f isa target_field, has target_field_name "{field_name}";
-                insert (question: $q, field: $f) isa question_targets_field;
+                match $q isa ontology_question, has question_id "{question_id}";
+                insert (question: $q) isa question_targets_field,
+                    has target_field_name "{field_name}",
+                    has target_entity_type "rp_provision";
             '''
             tx.query(query).resolve()
             tx.commit()
@@ -463,21 +440,20 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
     results["relations_skipped"] = relations_skipped
     results["relation_errors"] = relation_errors
 
-    # Step 4: Verify final count
+    # Step 3: Verify final count
     try:
         tx = driver.transaction(db_name, TransactionType.READ)
         query = """
             match
                 $q isa ontology_question, has question_id $qid;
-                (question: $q, field: $f) isa question_targets_field;
-                $f has target_field_name $fn;
+                (question: $q) isa question_targets_field, has target_field_name $fn;
             select $qid, $fn;
         """
         result = list(tx.query(query).resolve().as_concept_rows())
         results["total_question_targets_field_relations"] = len(result)
 
         # Count new question relations specifically
-        new_questions = [qid for qid in target_fields.keys()]
+        new_questions = list(target_fields.keys())
         new_count = 0
         for row in result:
             qid = _safe_get_value(row, "qid")
