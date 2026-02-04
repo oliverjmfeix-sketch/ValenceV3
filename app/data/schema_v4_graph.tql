@@ -93,6 +93,16 @@ attribute permits_equity_dividend, value boolean;
 attribute permits_asset_dividend, value boolean;
 attribute dollar_amount, value double;
 
+# Extraction metadata attributes (SSoT for Claude prompts)
+attribute metadata_id, value string;
+attribute target_entity_type, value string;
+attribute target_attribute, value string;
+attribute extraction_prompt, value string;
+attribute extraction_section_hint, value string;
+attribute extraction_priority, value long;
+attribute requires_context, value boolean;
+attribute context_entities, value string;
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CORE ENTITIES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -382,3 +392,17 @@ relation provision_has_sweep_exemption,
 relation provision_has_unsub_designation,
     relates provision,
     relates designation;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXTRACTION METADATA - SSoT for Claude Prompts
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity extraction_metadata,
+    owns metadata_id @key,
+    owns target_entity_type,
+    owns target_attribute,
+    owns extraction_prompt,
+    owns extraction_section_hint,
+    owns extraction_priority,
+    owns requires_context,
+    owns context_entities;

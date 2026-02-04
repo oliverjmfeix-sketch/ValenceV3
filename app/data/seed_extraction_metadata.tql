@@ -1,0 +1,355 @@
+################################################################################
+# VALENCE V4 - EXTRACTION METADATA SEED DATA
+#
+# SSoT for Claude extraction prompts - all prompts stored in TypeDB
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RATIO BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rb1 isa extraction_metadata,
+    has metadata_id "ratio_basket.core",
+    has target_entity_type "ratio_basket",
+    has extraction_prompt "Extract the ratio-based dividend basket. Look for unlimited dividends permitted if leverage ratio is below a threshold. Common patterns: 'unlimited Restricted Payments if First Lien Leverage Ratio <= X:1.00'. Extract: threshold ratio, section reference.",
+    has extraction_section_hint "Section 6.06",
+    has extraction_priority 1;
+
+insert $em_rb2 isa extraction_metadata,
+    has metadata_id "ratio_basket.no_worse_test",
+    has target_entity_type "ratio_basket",
+    has target_attribute "has_no_worse_test",
+    has extraction_prompt "CRITICAL: Look for TWO separate ratio tests:
+1. UNLIMITED THRESHOLD: Dividends unlimited if ratio <= X
+2. 'NO WORSE' TEST: Permitted if ratio NOT WORSE pro forma, even above threshold
+
+Look for EXACT phrases:
+- 'would not be greater on a pro forma basis'
+- 'is equal to or less than immediately prior'
+- 'no worse after giving effect'
+
+The 'no worse' test is often in SEPARATE subsection from unlimited basket.
+Answer TRUE if 'no worse' test exists.",
+    has extraction_section_hint "Section 6.06(n), 6.06(o)",
+    has extraction_priority 2,
+    has requires_context true,
+    has context_entities "ratio_basket";
+
+insert $em_rb3 isa extraction_metadata,
+    has metadata_id "ratio_basket.no_worse_threshold",
+    has target_entity_type "ratio_basket",
+    has target_attribute "no_worse_threshold",
+    has extraction_prompt "If a 'no worse' ratio test exists, extract the specific ratio threshold.
+
+The 'no worse' test often applies at a HIGHER leverage level than the unlimited basket.
+
+Examples:
+- Unlimited dividends at <= 3.50x
+- 'No worse' dividends permitted up to 6.25x (or even unlimited)
+
+If 'no worse' has NO leverage cap (applies at any level), answer: 99.0
+If 'no worse' has a specific cap (e.g., 6.25x), answer: 6.25
+If no 'no worse' test exists, answer: 0",
+    has extraction_section_hint "Section 6.06(o)",
+    has extraction_priority 3,
+    has requires_context true,
+    has context_entities "ratio_basket";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_bb1 isa extraction_metadata,
+    has metadata_id "builder_basket.core",
+    has target_entity_type "builder_basket",
+    has extraction_prompt "Extract the builder basket (also called Available Amount, Cumulative Amount, or Growth Basket). This basket starts with a fixed amount and grows over time from various sources.
+
+Extract:
+- Starter amount (usually 'greater of $X and Y% of EBITDA')
+- Section reference
+- Start date language (when does accumulation begin?)",
+    has extraction_section_hint "Section 6.06(f)",
+    has extraction_priority 10;
+
+insert $em_bb2 isa extraction_metadata,
+    has metadata_id "builder_basket.sources",
+    has target_entity_type "builder_source",
+    has extraction_prompt "Identify ALL sources that feed the builder basket. For EACH source extract:
+
+1. CNI (Consolidated Net Income): What percentage? (usually 50%)
+2. ECF (Excess Cash Flow): Retained amounts not applied to prepayment
+3. EBITDA minus Fixed Charges: What FC multiplier? (e.g., 140%)
+4. Equity proceeds: What percentage? (usually 100%)
+5. Asset sale proceeds: Retained amounts
+6. Investment returns: Returns/dividends from investments
+7. Declined proceeds: Proceeds borrower chose not to use
+
+Look for 'greatest of' language indicating multiple tests.
+Extract each source as SEPARATE entity.",
+    has extraction_section_hint "Section 6.06(f)",
+    has extraction_priority 11,
+    has requires_context true,
+    has context_entities "builder_basket";
+
+insert $em_bb3 isa extraction_metadata,
+    has metadata_id "builder_basket.start_date",
+    has target_entity_type "builder_basket",
+    has target_attribute "start_date_language",
+    has extraction_prompt "Extract the EXACT language describing when the builder basket starts accruing.
+
+Common patterns:
+- 'first day of the fiscal quarter in which the Closing Date occurs'
+- 'commencing with the fiscal quarter ending [date]'
+- 'beginning on the Closing Date'
+
+Quote verbatim - this affects capacity calculations.",
+    has extraction_section_hint "Section 6.06(f)",
+    has extraction_priority 12;
+
+insert $em_bb4 isa extraction_metadata,
+    has metadata_id "builder_basket.greatest_of",
+    has target_entity_type "builder_basket",
+    has target_attribute "uses_greatest_of_tests",
+    has extraction_prompt "Determine if the builder basket uses 'greatest of' multiple alternative tests.
+
+Look for: 'the GREATEST OF (x) [CNI formula], (y) [ECF formula], and (z) [EBITDA-FC formula]'
+
+This is MORE borrower-friendly than cumulative sources.
+Answer TRUE if 'greatest of' structure exists.",
+    has extraction_section_hint "Section 6.06(f)",
+    has extraction_priority 13;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# J.CREW BLOCKER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_jc1 isa extraction_metadata,
+    has metadata_id "jcrew_blocker.core",
+    has target_entity_type "jcrew_blocker",
+    has extraction_prompt "Extract the J.Crew / IP blocker provision. This restricts transfer of intellectual property to Unrestricted Subsidiaries.
+
+Look for language prohibiting:
+- Sale, transfer, license of Material IP to Unrestricted Subs
+- Exclusive licenses of Material IP outside restricted group
+
+Extract:
+- Section reference
+- Whether it covers TRANSFER (moving ownership)
+- Whether it covers DESIGNATION (making IP-holding sub Unrestricted)",
+    has extraction_section_hint "Section 6.06",
+    has extraction_priority 20;
+
+insert $em_jc2 isa extraction_metadata,
+    has metadata_id "jcrew_blocker.exceptions",
+    has target_entity_type "blocker_exception",
+    has extraction_prompt "Identify ALL exceptions to the J.Crew blocker. Common exceptions:
+
+- Non-exclusive licenses (often 'in ordinary course')
+- Intercompany transfers within restricted group
+- Fair market value consideration
+- Immaterial IP
+- Licenses back to Credit Parties
+- Required by law
+
+Each exception is a potential loophole. Extract as SEPARATE entity with scope limitation.",
+    has extraction_section_hint "Section 6.06",
+    has extraction_priority 21,
+    has requires_context true,
+    has context_entities "jcrew_blocker";
+
+insert $em_jc3 isa extraction_metadata,
+    has metadata_id "jcrew_blocker.binding",
+    has target_entity_type "jcrew_blocker",
+    has extraction_prompt "Identify which entities are BOUND by the J.Crew blocker.
+
+Options:
+- Borrower only (narrow - leaves gaps)
+- Borrower and Guarantors
+- All Loan Parties
+- All Restricted Subsidiaries (comprehensive)
+- Holdings
+
+Narrow scope = higher risk. Extract as relation to party entities.",
+    has extraction_section_hint "Section 6.06",
+    has extraction_priority 22;
+
+insert $em_jc4 isa extraction_metadata,
+    has metadata_id "jcrew_blocker.ip_types",
+    has target_entity_type "ip_type",
+    has extraction_prompt "Identify which types of intellectual property the J.Crew blocker covers.
+
+Look for definitions of 'Material Intellectual Property' or 'Material IP':
+- Patents
+- Trademarks / trade names
+- Copyrights
+- Trade secrets
+- Software licenses
+- Domain names
+
+Narrow IP coverage = higher risk (valuable IP might not be covered).",
+    has extraction_section_hint "Section 1.01 definitions, Section 6.06",
+    has extraction_priority 23,
+    has requires_context true,
+    has context_entities "jcrew_blocker";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP TIERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_st1 isa extraction_metadata,
+    has metadata_id "sweep_tier.all",
+    has target_entity_type "sweep_tier",
+    has extraction_prompt "Extract ALL leverage-based sweep tiers for asset sale proceeds.
+
+Look in mandatory prepayment section for tiered percentages:
+- 'If First Lien Leverage Ratio > X, 100% of Net Cash Proceeds'
+- 'If First Lien Leverage Ratio <= Y, 50% of Net Cash Proceeds'
+- 'If First Lien Leverage Ratio <= Z, 0% (100% retained)'
+
+Create SEPARATE entity for each tier with:
+- leverage_threshold (the ratio)
+- sweep_percentage (what % is swept to prepay debt)
+- is_highest_tier (true for the first/strictest tier)",
+    has extraction_section_hint "Section 2.10, 2.11",
+    has extraction_priority 30;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DE MINIMIS THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_dm1 isa extraction_metadata,
+    has metadata_id "de_minimis_threshold.individual",
+    has target_entity_type "de_minimis_threshold",
+    has extraction_prompt "Extract the de minimis threshold for INDIVIDUAL asset sales.
+
+Look for: 'Net Cash Proceeds in excess of $X individually' or 'excluding Asset Sales with proceeds less than $X'.
+
+Often structured as 'greater of $X and Y% of EBITDA'.
+
+Extract:
+- threshold_type: 'individual'
+- dollar_amount: the fixed dollar floor
+- ebitda_percentage: the EBITDA percentage (if 'greater of')
+- uses_greater_of: true/false",
+    has extraction_section_hint "Section 2.10",
+    has extraction_priority 31;
+
+insert $em_dm2 isa extraction_metadata,
+    has metadata_id "de_minimis_threshold.annual",
+    has target_entity_type "de_minimis_threshold",
+    has extraction_prompt "Extract the de minimis threshold for ANNUAL AGGREGATE asset sales.
+
+Look for: 'in the aggregate in any fiscal year' or 'aggregate Net Cash Proceeds exceeding $X during any fiscal year'.
+
+Usually ~2x the individual threshold.
+
+Also check for CARRYFORWARD: 'unused amounts may be carried forward'.
+
+Extract:
+- threshold_type: 'annual'
+- dollar_amount: the fixed dollar floor
+- ebitda_percentage: if 'greater of'
+- permits_carryforward: true/false",
+    has extraction_section_hint "Section 2.10",
+    has extraction_priority 32;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UNSUB DESIGNATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_ud1 isa extraction_metadata,
+    has metadata_id "unsub_designation.core",
+    has target_entity_type "unsub_designation",
+    has extraction_prompt "Extract the Unrestricted Subsidiary designation rules.
+
+Key elements:
+- Dollar cap on designation (total value that can become Unrestricted)
+- EBITDA percentage if 'greater of' formulation
+- Conditions: no default required? Board approval required? Ratio test?
+- Can equity in Unsubs be dividended to shareholders?
+- Can assets be dividended from Unsubs to shareholders?
+
+This is CRITICAL for J.Crew pathway analysis.",
+    has extraction_section_hint "Section 5.15, 6.06(p)",
+    has extraction_priority 25;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REALLOCATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_ra1 isa extraction_metadata,
+    has metadata_id "basket_reallocates_to.all",
+    has target_entity_type "basket_reallocates_to",
+    has extraction_prompt "Identify baskets that can be REALLOCATED to fund Restricted Payments.
+
+Look in RP covenant (usually 6.06) for cross-references like:
+- 'amounts available under Section 6.03(y)' (Investment basket)
+- 'amounts available under Section 6.09(a)' (RDP basket)
+- 'plus any amounts not used under...'
+
+For EACH reallocation path extract:
+- Source basket (what's being reallocated FROM)
+- Target basket (what it reallocates TO - usually general RP)
+- Section reference
+- Dollar cap (if different from source basket cap)
+- Is bidirectional? (can capacity flow both ways?)
+
+This is critical for total dividend capacity calculation.",
+    has extraction_section_hint "Section 6.06(j)",
+    has extraction_priority 40;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MANAGEMENT EQUITY BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_me1 isa extraction_metadata,
+    has metadata_id "management_equity_basket.core",
+    has target_entity_type "management_equity_basket",
+    has extraction_prompt "Extract the management equity repurchase basket.
+
+Key elements:
+- Annual dollar cap (usually 'greater of $X and Y% of EBITDA')
+- Who is covered (employees, directors, consultants, their estates)
+- Triggering events (death, disability, termination)
+- Does unused capacity carry forward?
+
+Look for: 'repurchases of Equity Interests held by employees...'",
+    has extraction_section_hint "Section 6.06(c)",
+    has extraction_priority 50;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAX DISTRIBUTION BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_td1 isa extraction_metadata,
+    has metadata_id "tax_distribution_basket.core",
+    has target_entity_type "tax_distribution_basket",
+    has extraction_prompt "Extract the tax distribution basket.
+
+Key elements:
+- Is it capped at standalone corporate taxpayer amount?
+- Which tax groups are covered (consolidated, combined, unitary)?
+- Any conditions or limitations?
+
+Look for: 'distributions to pay taxes... as if such entity were a standalone corporate taxpayer'",
+    has extraction_section_hint "Section 6.06(b)",
+    has extraction_priority 51;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERAL RP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_gp1 isa extraction_metadata,
+    has metadata_id "general_rp_basket.core",
+    has target_entity_type "general_rp_basket",
+    has extraction_prompt "Extract the general/catch-all Restricted Payment basket.
+
+This is often the 'greater of $X and Y% of EBITDA' basket that can be used for any RP.
+
+Extract:
+- Dollar cap
+- EBITDA percentage
+- uses_greater_of: true/false
+- Any conditions (no default, ratio test)?",
+    has extraction_section_hint "Section 6.06(h)",
+    has extraction_priority 52;

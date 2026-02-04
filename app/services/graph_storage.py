@@ -23,6 +23,142 @@ class GraphStorage:
         self.driver = typedb_client.driver
         self.db_name = settings.typedb_database
 
+    @classmethod
+    def load_extraction_metadata(cls) -> List[Dict[str, Any]]:
+        """
+        Load extraction instructions from TypeDB (SSoT).
+
+        Returns:
+            List of extraction metadata dicts sorted by priority
+        """
+        driver = typedb_client.driver
+        db_name = settings.typedb_database
+
+        if not driver:
+            logger.warning("No TypeDB driver available for loading extraction metadata")
+            return []
+
+        query = """
+            match
+                $em isa extraction_metadata,
+                    has metadata_id $id,
+                    has target_entity_type $type,
+                    has extraction_prompt $prompt;
+            select $id, $type, $prompt, $em;
+        """
+
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            result = tx.query(query).resolve()
+            rows = list(result.as_concept_rows())
+            tx.close()
+
+            metadata = []
+            for row in rows:
+                item = {
+                    "metadata_id": cls._get_attr(row, "id"),
+                    "target_entity_type": cls._get_attr(row, "type"),
+                    "extraction_prompt": cls._get_attr(row, "prompt"),
+                }
+
+                # Fetch optional attributes with separate queries
+                meta_id = item["metadata_id"]
+                item.update(cls._get_optional_metadata_attrs(meta_id))
+                metadata.append(item)
+
+            # Sort by priority (lower = higher priority)
+            metadata.sort(key=lambda x: x.get("extraction_priority", 99))
+            return metadata
+
+        except Exception as e:
+            tx.close()
+            logger.error(f"Error loading extraction metadata: {e}")
+            return []
+
+    @classmethod
+    def _get_optional_metadata_attrs(cls, metadata_id: str) -> Dict[str, Any]:
+        """Fetch optional attributes for extraction metadata."""
+        driver = typedb_client.driver
+        db_name = settings.typedb_database
+
+        attrs = {}
+        optional_attrs = [
+            ("target_attribute", "attr"),
+            ("extraction_section_hint", "section"),
+            ("extraction_priority", "priority"),
+            ("requires_context", "req_ctx"),
+            ("context_entities", "ctx"),
+        ]
+
+        for attr_name, var_name in optional_attrs:
+            try:
+                tx = driver.transaction(db_name, TransactionType.READ)
+                query = f'''
+                    match $em isa extraction_metadata,
+                        has metadata_id "{metadata_id}",
+                        has {attr_name} ${var_name};
+                    select ${var_name};
+                '''
+                result = tx.query(query).resolve()
+                rows = list(result.as_concept_rows())
+                tx.close()
+
+                if rows:
+                    attrs[attr_name] = cls._get_attr(rows[0], var_name)
+            except Exception:
+                pass
+
+        return attrs
+
+    @staticmethod
+    def _get_attr(row, key: str, default=None):
+        """Safely get attribute value from TypeDB row."""
+        try:
+            concept = row.get(key)
+            if concept is None:
+                return default
+            return concept.as_attribute().get_value()
+        except Exception:
+            return default
+
+    @classmethod
+    def build_claude_prompt(cls, metadata: List[Dict], document_text: str) -> str:
+        """
+        Build Claude extraction prompt from TypeDB metadata.
+
+        Args:
+            metadata: List of extraction metadata from load_extraction_metadata()
+            document_text: The covenant document text to analyze
+
+        Returns:
+            Formatted prompt string for Claude
+        """
+        prompt = """You are a legal analyst extracting structured data from credit agreements.
+
+Extract the following elements from this credit agreement. For each element:
+1. Extract the requested information
+2. Include the section reference where you found it
+3. Quote relevant verbatim text (truncated if very long)
+
+"""
+
+        for m in metadata:
+            prompt += f"## {m['target_entity_type']}"
+            if m.get('target_attribute'):
+                prompt += f".{m['target_attribute']}"
+            prompt += f"\n{m['extraction_prompt']}\n"
+            if m.get('extraction_section_hint'):
+                prompt += f"(Look in: {m['extraction_section_hint']})\n"
+            prompt += "\n"
+
+        prompt += """
+---
+DOCUMENT TEXT:
+"""
+        prompt += document_text
+
+        return prompt
+
     def store_extraction(self, extraction: Dict[str, Any]) -> Dict[str, Any]:
         """
         Store extracted covenant data as graph entities and relations.
