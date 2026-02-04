@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     
     # Anthropic API
     anthropic_api_key: str = ""
-    claude_model: str = "claude-sonnet-4-20250514"  # Default for extraction & simple QA
-    claude_model_opus: str = "claude-opus-4-20250514"  # For complex QA
+    claude_model: str = "claude-opus-4-20250514"  # Default for extraction
+    claude_model_fast: str = "claude-sonnet-4-20250514"  # For simple QA
     
     # CORS - stored as string, parsed via property
     cors_origins_str: str = "http://localhost:5173"
