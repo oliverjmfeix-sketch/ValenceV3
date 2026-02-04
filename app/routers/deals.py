@@ -963,8 +963,7 @@ Answer the user's question following all rules above. Be specific and cite sourc
     try:
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-        # Always use Opus for Q&A (best quality)
-        model_used = settings.claude_model_opus
+        model_used = settings.claude_model
 
         response = client.messages.create(
             model=model_used,
