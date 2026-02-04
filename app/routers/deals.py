@@ -839,16 +839,91 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _is_complex_question(question: str) -> bool:
+    """
+    Detect if a question requires complex reasoning (Opus).
+
+    Complex questions include:
+    - Risk analysis / assessment
+    - Multi-part comparisons
+    - Strategic recommendations
+    - Cross-covenant analysis
+    - Pattern interpretation
+    """
+    question_lower = question.lower()
+
+    # Complex keywords that benefit from Opus
+    complex_patterns = [
+        "risk", "assess", "analyze", "evaluate", "compare",
+        "strategy", "recommend", "should i", "what if",
+        "implications", "impact", "consequences",
+        "across", "between", "relationship",
+        "comprehensive", "detailed analysis",
+        "j.crew", "serta", "liability management",
+        "pattern", "loophole", "exploit",
+        "negotiate", "amendment", "waiver",
+    ]
+
+    # Multi-part question indicators
+    multi_part_indicators = [
+        " and ", " or ", "both", "all of",
+        "first", "second", "third",
+        "?.*?",  # Multiple question marks
+    ]
+
+    # Check for complex patterns
+    for pattern in complex_patterns:
+        if pattern in question_lower:
+            return True
+
+    # Check for multi-part questions
+    if question_lower.count("?") > 1:
+        return True
+
+    # Long questions are often complex
+    if len(question.split()) > 25:
+        return True
+
+    return False
+
+
+def _response_needs_upgrade(answer: str) -> bool:
+    """
+    Check if Sonnet's response indicates uncertainty that warrants Opus retry.
+    """
+    uncertainty_phrases = [
+        "not found in extracted data",
+        "insufficient information",
+        "cannot determine",
+        "unclear from the data",
+        "would need more context",
+        "unable to assess",
+    ]
+
+    answer_lower = answer.lower()
+    for phrase in uncertainty_phrases:
+        if phrase in answer_lower:
+            return True
+
+    return False
+
+
 @router.post("/{deal_id}/ask")
 async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     """
     Answer a natural language question about a deal using extracted data.
 
+    Model Selection:
+    - Simple questions: Sonnet (fast, cost-effective)
+    - Complex questions: Opus (deeper reasoning)
+    - Uncertain Sonnet responses: Automatic Opus fallback
+
     Flow:
     1. Fetch all answers for the deal (scalar + multiselect)
     2. Format as structured context
-    3. Send to Claude with strict citation rules
-    4. Return synthesized answer with citations
+    3. Detect question complexity
+    4. Call appropriate model (with fallback)
+    5. Return synthesized answer with citations
     """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
@@ -876,7 +951,10 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     # Step 2: Format answers as structured context for Claude
     context = _format_rp_provision_as_context(rp_response)
 
-    # Step 3: Build prompt with strict rules
+    # Step 3: Detect question complexity
+    is_complex = _is_complex_question(request.question)
+
+    # Step 4: Build prompt with strict rules
     prompt = f"""You are a legal analyst answering questions about a credit agreement.
 
 ## STRICT RULES (YOU MUST FOLLOW)
@@ -910,25 +988,44 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
 Answer the user's question following all rules above. Be specific and cite sources where available."""
 
-    # Step 4: Call Claude
+    # Step 5: Call Claude with appropriate model
     try:
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
+        # Select model based on complexity
+        model_used = settings.claude_model_opus if is_complex else settings.claude_model
+        upgraded_to_opus = False
+
         response = client.messages.create(
-            model=settings.claude_model,
+            model=model_used,
             max_tokens=4000,
             messages=[{"role": "user", "content": prompt}]
         )
 
         answer_text = response.content[0].text
 
-        # Step 5: Extract citations from the answer
+        # Step 6: Check if Sonnet response needs Opus upgrade
+        if not is_complex and _response_needs_upgrade(answer_text):
+            logger.info(f"Upgrading to Opus due to uncertain Sonnet response for: {request.question[:50]}...")
+            response = client.messages.create(
+                model=settings.claude_model_opus,
+                max_tokens=4000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            answer_text = response.content[0].text
+            model_used = settings.claude_model_opus
+            upgraded_to_opus = True
+
+        # Step 7: Extract citations from the answer
         citations = _extract_citations_from_answer(answer_text)
 
         return {
             "question": request.question,
             "answer": answer_text,
             "citations": citations,
+            "model_used": model_used,
+            "complexity": "complex" if is_complex else "simple",
+            "upgraded_to_opus": upgraded_to_opus,
             "data_source": {
                 "deal_id": deal_id,
                 "scalar_answers": scalar_count,
