@@ -4,6 +4,7 @@ Graph Storage Service - V4 Graph-Native Schema
 Handles inserting extracted covenant data as entities and relations
 instead of flat attributes.
 """
+import json
 import logging
 import uuid
 from typing import Dict, Any, List, Optional
@@ -11,6 +12,7 @@ from typedb.driver import TransactionType
 
 from app.services.typedb_client import typedb_client
 from app.config import settings
+from app.schemas.extraction_output_v4 import RPExtractionV4
 
 logger = logging.getLogger(__name__)
 
@@ -133,31 +135,69 @@ class GraphStorage:
         Returns:
             Formatted prompt string for Claude
         """
-        prompt = """You are extracting Restricted Payment covenant data from a credit agreement.
+        prompt = '''You are extracting Restricted Payment covenant data from a credit agreement.
 
-Return a JSON object matching this EXACT structure (omit null/empty fields):
+## OUTPUT FORMAT
 
+Return a JSON object. Include ONLY fields where you found data. Example structure:
 ```json
 {
   "builder_basket": {
     "exists": true,
-    "start_date_language": "first day of fiscal quarter...",
+    "basket_name": "Available Amount",
+    "start_date_language": "the first day of the fiscal quarter in which the Closing Date occurs",
     "uses_greatest_of_tests": true,
     "sources": [
-      {"source_type": "starter_amount", "dollar_amount": 130000000, "ebitda_percentage": 1.0, "uses_greater_of": true},
-      {"source_type": "cni", "percentage": 0.5},
-      {"source_type": "ecf"},
-      {"source_type": "ebitda_fc", "fc_multiplier": 1.4}
+      {
+        "source_type": "starter_amount",
+        "dollar_amount": 130000000,
+        "ebitda_percentage": 1.0,
+        "uses_greater_of": true,
+        "provenance": {"section_reference": "6.06(f)", "source_page": 145}
+      },
+      {
+        "source_type": "cni",
+        "percentage": 0.5,
+        "is_primary_test": true
+      },
+      {
+        "source_type": "ecf",
+        "floor_amount": 0
+      },
+      {
+        "source_type": "ebitda_fc",
+        "fc_multiplier": 1.4,
+        "is_primary_test": true
+      }
     ],
     "provenance": {"section_reference": "6.06(f)", "source_page": 145}
   },
   "ratio_basket": {
     "exists": true,
     "ratio_threshold": 5.75,
+    "ratio_type": "first_lien",
     "is_unlimited_if_met": true,
     "has_no_worse_test": true,
     "no_worse_threshold": 99.0,
-    "provenance": {"section_reference": "6.06(n)", "verbatim_text": "...", "source_page": 147}
+    "provenance": {"section_reference": "6.06(n)", "source_page": 147}
+  },
+  "general_rp_basket": {
+    "exists": true,
+    "dollar_cap": 130000000,
+    "ebitda_percentage": 1.0,
+    "uses_greater_of": true,
+    "provenance": {"section_reference": "6.06(j)"}
+  },
+  "management_equity_basket": {
+    "exists": true,
+    "annual_cap": 25000000,
+    "permits_carryforward": true,
+    "post_ipo_increase": 50000000
+  },
+  "tax_distribution_basket": {
+    "exists": true,
+    "is_unlimited": false,
+    "standalone_taxpayer_limit": true
   },
   "jcrew_blocker": {
     "exists": true,
@@ -166,57 +206,118 @@ Return a JSON object matching this EXACT structure (omit null/empty fields):
     "covered_ip_types": ["patents", "trademarks", "copyrights", "trade_secrets"],
     "bound_parties": ["restricted_subs"],
     "exceptions": [
-      {"exception_type": "nonexclusive_license", "scope_limitation": "ordinary course of business"}
+      {
+        "exception_type": "nonexclusive_license",
+        "scope_limitation": "in the ordinary course of business"
+      }
     ],
     "provenance": {"section_reference": "6.06(k)"}
   },
   "unsub_designation": {
-    "exists": true,
-    "dollar_cap": 500000000,
+    "permitted": true,
+    "dollar_cap": 40000000,
     "requires_no_default": true,
+    "requires_board_approval": false,
     "permits_equity_dividend": true,
-    "provenance": {"section_reference": "5.15"}
-  },
-  "general_rp_basket": {
-    "exists": true,
-    "dollar_cap": 200000000,
-    "ebitda_percentage": 1.0,
-    "uses_greater_of": true
-  },
-  "management_equity_basket": {
-    "exists": true,
-    "annual_cap": 25000000,
-    "permits_carryforward": true
-  },
-  "tax_distribution_basket": {
-    "exists": true,
-    "standalone_taxpayer_limit": true
+    "permits_asset_dividend": true,
+    "provenance": {"section_reference": "5.15, 6.06(p)"}
   },
   "sweep_tiers": [
-    {"leverage_threshold": 5.75, "sweep_percentage": 0.5, "is_highest_tier": true},
-    {"leverage_threshold": 5.5, "sweep_percentage": 0.0}
+    {
+      "leverage_threshold": 5.75,
+      "sweep_percentage": 0.5,
+      "is_highest_tier": true,
+      "applies_to": "asset_sales",
+      "provenance": {"section_reference": "2.10(f)"}
+    },
+    {
+      "leverage_threshold": 5.5,
+      "sweep_percentage": 0.0,
+      "is_highest_tier": false
+    }
   ],
   "de_minimis_thresholds": [
-    {"threshold_type": "individual", "dollar_amount": 20000000, "ebitda_percentage": 0.15, "uses_greater_of": true},
-    {"threshold_type": "annual", "dollar_amount": 40000000, "permits_carryforward": true}
+    {
+      "threshold_type": "individual",
+      "dollar_amount": 20000000,
+      "ebitda_percentage": 0.15,
+      "uses_greater_of": true
+    },
+    {
+      "threshold_type": "annual",
+      "dollar_amount": 40000000,
+      "ebitda_percentage": 0.30,
+      "uses_greater_of": true,
+      "permits_carryforward": true
+    }
   ],
   "reallocations": [
-    {"source_basket": "investment", "target_basket": "general_rp", "is_bidirectional": true}
+    {
+      "source_basket": "investment",
+      "target_basket": "general_rp",
+      "reallocation_cap": 130000000,
+      "is_bidirectional": true,
+      "provenance": {"section_reference": "6.06(j)"}
+    },
+    {
+      "source_basket": "rdp",
+      "target_basket": "general_rp",
+      "reallocation_cap": 130000000,
+      "is_bidirectional": true
+    }
   ]
 }
 ```
 
-## FIELD TYPES
-- source_type: "starter_amount" | "cni" | "ecf" | "ebitda_fc" | "equity_proceeds" | "asset_sale_proceeds" | "investment_returns" | "declined_proceeds"
-- exception_type: "nonexclusive_license" | "ordinary_course" | "intercompany" | "fair_value" | "license_back" | "immaterial_ip"
-- covered_ip_types: "patents" | "trademarks" | "copyrights" | "trade_secrets" | "licenses" | "domain_names"
-- bound_parties: "borrower" | "guarantors" | "restricted_subs" | "loan_parties" | "holdings"
-- threshold_type: "individual" | "annual"
-- source_basket/target_basket: "investment" | "rdp" | "builder" | "general_rp"
+## FIELD DEFINITIONS
+
+### source_type values for builder_basket.sources:
+- "starter_amount": Base/starting amount (usually "greater of $X and Y% EBITDA")
+- "cni": Consolidated Net Income (usually 50%)
+- "ecf": Excess Cash Flow not applied to mandatory prepayment
+- "ebitda_fc": EBITDA minus Fixed Charges (note the fc_multiplier, e.g., 1.4 = 140%)
+- "equity_proceeds": Proceeds from equity issuances (usually 100%)
+- "asset_sale_proceeds": Retained asset sale proceeds
+- "investment_returns": Returns/dividends received from investments
+- "declined_proceeds": Proceeds borrower elected not to accept
+- "debt_conversion": Debt converted to equity
+
+### ratio_type values:
+- "first_lien" | "secured" | "total" | "senior_secured" | "net"
+
+### exception_type values for jcrew_blocker.exceptions:
+- "nonexclusive_license": Non-exclusive licenses (often "in ordinary course")
+- "ordinary_course": Ordinary course of business transfers
+- "intercompany": Transfers within restricted group
+- "fair_value": Transfers for fair market value
+- "license_back": Licenses back to Credit Parties (LOOPHOLE)
+- "immaterial_ip": Immaterial IP excluded
+- "required_by_law": Legally mandated transfers
+
+### covered_ip_types values:
+- "patents" | "trademarks" | "copyrights" | "trade_secrets" | "licenses" | "domain_names"
+
+### bound_parties values:
+- "borrower" | "guarantors" | "restricted_subs" | "loan_parties" | "holdings"
+
+### threshold_type values:
+- "individual": Per-transaction threshold
+- "annual": Annual aggregate threshold
+
+### applies_to values for sweep_tiers:
+- "asset_sales" | "ecf" | "debt_issuance" | "all"
+
+### source_basket / target_basket values:
+- "investment": Investment covenant basket (Section 6.03)
+- "rdp": Restricted Debt Payment basket (Section 6.09)
+- "general_rp": General RP basket (Section 6.06)
+- "builder": Builder/Available Amount basket
+- "prepayment": Debt prepayment basket
+- "intercompany": Intercompany loan basket
 
 ## EXTRACTION INSTRUCTIONS
 
-"""
+'''
 
         # Append extraction_metadata prompts sorted by priority
         for m in sorted(metadata, key=lambda x: x.get('extraction_priority', 99)):
@@ -238,6 +339,60 @@ Return a JSON object matching this EXACT structure (omit null/empty fields):
 Return ONLY the JSON object. No markdown, no explanation."""
 
         return prompt
+
+    @classmethod
+    def parse_claude_response(cls, response_text: str) -> RPExtractionV4:
+        """
+        Parse Claude's JSON response into typed Pydantic model.
+
+        Args:
+            response_text: Raw text response from Claude
+
+        Returns:
+            Validated RPExtractionV4 model
+
+        Raises:
+            ValueError: If response cannot be parsed or validated
+        """
+        # Extract JSON from response (handle markdown code blocks)
+        json_text = response_text.strip()
+
+        if "```json" in response_text:
+            json_text = response_text.split("```json")[1].split("```")[0]
+        elif "```" in response_text:
+            # Try to extract from generic code block
+            parts = response_text.split("```")
+            if len(parts) >= 2:
+                json_text = parts[1]
+                # Remove language identifier if present
+                if json_text.startswith("JSON") or json_text.startswith("json"):
+                    json_text = json_text[4:]
+
+        json_text = json_text.strip()
+
+        # Find JSON object boundaries
+        start_idx = json_text.find("{")
+        end_idx = json_text.rfind("}") + 1
+
+        if start_idx == -1 or end_idx == 0:
+            logger.error(f"No JSON object found in response: {response_text[:500]}")
+            raise ValueError("No JSON object found in Claude response")
+
+        json_text = json_text[start_idx:end_idx]
+
+        try:
+            data = json.loads(json_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error: {e}")
+            logger.error(f"Response text: {json_text[:500]}")
+            raise ValueError(f"Failed to parse Claude response as JSON: {e}")
+
+        try:
+            return RPExtractionV4.model_validate(data)
+        except Exception as e:
+            logger.error(f"Pydantic validation error: {e}")
+            logger.error(f"Data: {json.dumps(data, indent=2)[:1000]}")
+            raise ValueError(f"Failed to validate extraction output: {e}")
 
     def store_extraction(self, extraction: Dict[str, Any]) -> Dict[str, Any]:
         """
