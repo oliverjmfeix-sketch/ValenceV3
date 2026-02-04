@@ -439,9 +439,20 @@ async def get_extraction_status(deal_id: str) -> ExtractionStatus:
 
 @router.get("/{deal_id}/answers")
 async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
-    """Get all extracted answers (provision attributes) for a deal."""
+    """
+    Get all answers for a deal in SSoT format.
+
+    Joins:
+    1. Question metadata from ontology (question_id, question_text, answer_type, category)
+    2. Stored values from provision attributes
+    3. Concept applicabilities for multiselect questions
+
+    Returns array with question metadata + value for frontend display.
+    """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
+
+    provision_id = f"{deal_id}_rp"
 
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
@@ -455,46 +466,216 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             if not list(deal_result.as_concept_rows()):
                 raise HTTPException(status_code=404, detail="Deal not found")
 
-            answers = {}
-
-            # Get RP provision attributes via direct query (TypeDB 3.x compatible)
-            rp_attrs_query = f"""
-                match
-                    $d isa deal, has deal_id "{deal_id}";
-                    (deal: $d, provision: $p) isa deal_has_provision;
-                    $p isa rp_provision, has $attr;
-                select $attr;
+            # Check if extraction is complete (provision exists)
+            provision_query = f"""
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
             """
-            rp_result = tx.query(rp_attrs_query).resolve()
-            for row in rp_result.as_concept_rows():
-                attr_concept = row.get("attr")
-                if attr_concept:
-                    attr = attr_concept.as_attribute()
-                    attr_type = attr.get_type().get_label()
-                    if attr_type != "provision_id":
-                        answers[attr_type] = attr.get_value()
+            provision_result = tx.query(provision_query).resolve()
+            extraction_complete = len(list(provision_result.as_concept_rows())) > 0
 
-            # Get MFN provision attributes
-            mfn_attrs_query = f"""
+            # 1. Load all RP questions from ontology with category info
+            questions_query = """
                 match
-                    $d isa deal, has deal_id "{deal_id}";
-                    (deal: $d, provision: $p) isa deal_has_provision;
-                    $p isa mfn_provision, has $attr;
-                select $attr;
+                    $q isa ontology_question,
+                        has covenant_type "RP",
+                        has question_id $qid,
+                        has question_text $qtext,
+                        has answer_type $atype,
+                        has display_order $order;
+                select $qid, $qtext, $atype, $order;
             """
-            mfn_result = tx.query(mfn_attrs_query).resolve()
-            for row in mfn_result.as_concept_rows():
-                attr_concept = row.get("attr")
-                if attr_concept:
-                    attr = attr_concept.as_attribute()
-                    attr_type = attr.get_type().get_label()
-                    if attr_type != "provision_id":
-                        answers[attr_type] = attr.get_value()
+            questions_result = tx.query(questions_query).resolve()
+
+            # Build questions list with category derived from question_id
+            questions = []
+            for row in questions_result.as_concept_rows():
+                qid = _safe_get_value(row, "qid")
+                if not qid:
+                    continue
+
+                # Derive category from question_id (e.g., rp_a1 -> A)
+                parts = qid.split("_")
+                cat_letter = parts[1][0].upper() if len(parts) >= 2 and len(parts[1]) >= 1 else "Z"
+
+                # Category name mapping
+                category_names = {
+                    "A": "Dividend Restrictions - General Structure",
+                    "B": "Intercompany Dividends",
+                    "C": "Management Equity Basket",
+                    "D": "Tax Distribution Basket",
+                    "E": "Equity Awards",
+                    "F": "Builder Basket / Cumulative Amount",
+                    "G": "Ratio-Based Dividend Basket",
+                    "H": "Holding Company Overhead",
+                    "I": "Basket Reallocation",
+                    "J": "Unrestricted Subsidiaries",
+                    "K": "J.Crew Blocker",
+                    "S": "Restricted Debt Payments - General",
+                    "T": "RDP Baskets",
+                    "Z": "Pattern Detection",
+                }
+
+                questions.append({
+                    "question_id": qid,
+                    "question_text": _safe_get_value(row, "qtext", ""),
+                    "answer_type": _safe_get_value(row, "atype", "string"),
+                    "display_order": _safe_get_value(row, "order", 0),
+                    "category_id": cat_letter,
+                    "category_name": category_names.get(cat_letter, f"Category {cat_letter}"),
+                })
+
+            # 2. Load stored scalar values from provision
+            stored_values = {}
+            if extraction_complete:
+                attrs_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        $p has $attr;
+                    select $attr;
+                """
+                attrs_result = tx.query(attrs_query).resolve()
+                for row in attrs_result.as_concept_rows():
+                    attr_concept = row.get("attr")
+                    if attr_concept:
+                        try:
+                            attr = attr_concept.as_attribute()
+                            attr_type = attr.get_type().get_label()
+                            if attr_type != "provision_id":
+                                stored_values[attr_type] = attr.get_value()
+                        except Exception:
+                            pass
+
+            # 3. Load concept applicabilities for multiselect questions
+            multiselect_values = {}
+            if extraction_complete:
+                applicability_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        (provision: $p, concept: $c) isa concept_applicability;
+                        $c has concept_id $cid, has name $cname;
+                    select $c, $cid, $cname;
+                """
+                applicability_result = tx.query(applicability_query).resolve()
+                for row in applicability_result.as_concept_rows():
+                    concept_entity = _safe_get_entity(row, "c")
+                    concept_id = _safe_get_value(row, "cid")
+                    concept_name = _safe_get_value(row, "cname")
+
+                    if concept_entity and concept_id:
+                        concept_type = concept_entity.get_type().get_label()
+                        if concept_type not in multiselect_values:
+                            multiselect_values[concept_type] = []
+                        multiselect_values[concept_type].append({
+                            "concept_id": concept_id,
+                            "name": concept_name or ""
+                        })
+
+            # 4. Join questions with stored values
+            # Build field name mapping from question_id
+            field_name_map = {
+                # Category A - General
+                "rp_a1": "general_dividend_prohibition_exists",
+                # Category C - Management Equity
+                "rp_c1": "mgmt_equity_basket_exists",
+                "rp_c4": "mgmt_equity_annual_cap_usd",
+                "rp_c5": "mgmt_equity_annual_cap_pct_ebitda",
+                "rp_c6": "mgmt_equity_uses_greater_of",
+                "rp_c7": "mgmt_equity_carryforward_permitted",
+                # Category D - Tax
+                "rp_d1": "tax_distribution_basket_exists",
+                "rp_d3": "tax_standalone_taxpayer_limit",
+                # Category F - Builder Basket
+                "rp_f1": "builder_basket_exists",
+                "rp_f2": "builder_starter_amount_usd",
+                "rp_f3": "builder_starter_pct_ebitda",
+                "rp_f4": "builder_uses_greater_of",
+                "rp_f5": "builder_cni_addition_pct",
+                "rp_f6": "builder_equity_addition_pct",
+                # Category G - Ratio Basket
+                "rp_g1": "ratio_dividend_basket_exists",
+                "rp_g2": "ratio_leverage_threshold",
+                "rp_g3": "ratio_interest_coverage_threshold",
+                "rp_g4": "ratio_is_unlimited_if_met",
+                # Category J - Unrestricted Subs
+                "rp_j1": "unsub_designation_permitted",
+                "rp_j2": "unsub_requires_no_default",
+                "rp_j3": "unsub_requires_board_approval",
+                "rp_j4": "unsub_dollar_cap_usd",
+                "rp_j5": "unsub_pct_total_assets_cap",
+                # Category K - J.Crew Blocker
+                "rp_k1": "jcrew_blocker_exists",
+                "rp_k2": "blocker_covers_ip",
+                "rp_k3": "blocker_covers_material_assets",
+                "rp_k8": "jcrew_blocker_is_sacred_right",
+                # Category Z - Patterns
+                "rp_z1": "jcrew_pattern_detected",
+                "rp_z2": "serta_pattern_detected",
+                "rp_z3": "collateral_leakage_pattern_detected",
+            }
+
+            # Multiselect field mapping (question_id -> concept_type)
+            multiselect_map = {
+                "rp_a2": "dividend_applies_to_entity",
+                "rp_a3": "dividend_action",
+                "rp_b1": "intercompany_recipient",
+                "rp_c2": "mgmt_equity_covered_person",
+                "rp_c3": "mgmt_equity_trigger_event",
+                "rp_d2": "tax_group_type",
+                "rp_e1": "equity_award_type",
+                "rp_f7": "builder_source",
+                "rp_f8": "builder_use",
+                "rp_h1": "holdco_overhead_cost",
+                "rp_h2": "holdco_transaction_cost",
+                "rp_i1": "reallocation_source_basket",
+                "rp_i2": "reallocation_target_basket",
+                "rp_k4": "jcrew_bound_entity",
+                "rp_k5": "jcrew_trigger_condition",
+                "rp_k6": "jcrew_ip_type",
+                "rp_k7": "jcrew_transfer_type",
+                "rp_s1": "rdp_payment_type",
+                "rp_t1": "rdp_basket",
+            }
+
+            # Build answer array
+            answers = []
+            answer_count = 0
+
+            for q in sorted(questions, key=lambda x: (x["category_id"], x["display_order"])):
+                qid = q["question_id"]
+                answer_type = q["answer_type"]
+
+                # Get value based on answer type
+                value = None
+                if answer_type == "multiselect":
+                    concept_type = multiselect_map.get(qid)
+                    if concept_type and concept_type in multiselect_values:
+                        value = multiselect_values[concept_type]
+                else:
+                    field_name = field_name_map.get(qid)
+                    if field_name and field_name in stored_values:
+                        value = stored_values[field_name]
+
+                if value is not None:
+                    answer_count += 1
+
+                answers.append({
+                    "question_id": qid,
+                    "question_text": q["question_text"],
+                    "answer_type": answer_type,
+                    "category_id": q["category_id"],
+                    "category_name": q["category_name"],
+                    "value": value,
+                    "source_text": None,  # TODO: Add provenance when stored
+                    "source_page": None,
+                })
 
             return {
                 "deal_id": deal_id,
-                "answers": answers,
-                "count": len(answers)
+                "extraction_complete": extraction_complete,
+                "answer_count": answer_count,
+                "total_questions": len(questions),
+                "answers": answers
             }
 
         finally:
