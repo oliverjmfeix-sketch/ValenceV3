@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
+from pydantic import BaseModel
+import anthropic
+import re
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
@@ -18,6 +21,17 @@ from typedb.driver import TransactionType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/deals", tags=["Deals"])
+
+
+# Request/Response models for Q&A
+class AskRequest(BaseModel):
+    question: str
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    citations: List[Dict[str, Any]]
 
 # In-memory extraction status tracking (for MVP; use Redis in production)
 extraction_status: Dict[str, ExtractionStatus] = {}
@@ -609,3 +623,180 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Q&A error for deal {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{deal_id}/ask")
+async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
+    """
+    Answer a natural language question about a deal using extracted data.
+
+    Flow:
+    1. Fetch all answers for the deal (scalar + multiselect)
+    2. Format as structured context
+    3. Send to Claude with strict citation rules
+    4. Return synthesized answer with citations
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Step 1: Get RP provision data (scalar + multiselect)
+    try:
+        rp_response = await get_rp_provision(deal_id)
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(
+                status_code=400,
+                detail="Extraction not complete. Please wait for extraction to finish."
+            )
+        raise
+
+    scalar_count = rp_response.get("scalar_count", 0)
+    multiselect_count = rp_response.get("multiselect_count", 0)
+
+    if scalar_count == 0 and multiselect_count == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No extracted data found. Please upload and extract a document first."
+        )
+
+    # Step 2: Format answers as structured context for Claude
+    context = _format_rp_provision_as_context(rp_response)
+
+    # Step 3: Build prompt with strict rules
+    prompt = f"""You are a legal analyst answering questions about a credit agreement.
+
+## STRICT RULES (YOU MUST FOLLOW)
+
+1. **CITATION REQUIRED**: Every factual claim must include [p.XX] citation if page numbers are available
+2. **ONLY USE PROVIDED DATA**: Never invent facts not in EXTRACTED DATA below
+3. **QUALIFICATIONS REQUIRED**: If a qualification/exception exists, you MUST mention it
+4. **MISSING DATA**: If information is not found, say "Not found in extracted data"
+5. **INTERPRETATION MARKING**:
+   - "The document states X" [p.XX] → factual, cite page
+   - "This suggests Y" → interpretation, mark clearly
+   - "Consider Z" → recommendation, mark clearly
+
+## FORMATTING
+
+- Use **bold** for key terms and risk levels
+- Use bullet points for lists
+- Use ✓ for protections/positives
+- Use ⚠ for risks/concerns/gaps
+- Keep response concise but complete
+
+## USER QUESTION
+
+{request.question}
+
+## EXTRACTED DATA FOR THIS DEAL
+
+{context}
+
+## YOUR RESPONSE
+
+Answer the user's question following all rules above. Be specific and cite sources where available."""
+
+    # Step 4: Call Claude
+    try:
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        response = client.messages.create(
+            model=settings.claude_model,
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        answer_text = response.content[0].text
+
+        # Step 5: Extract citations from the answer
+        citations = _extract_citations_from_answer(answer_text)
+
+        return {
+            "question": request.question,
+            "answer": answer_text,
+            "citations": citations,
+            "data_source": {
+                "deal_id": deal_id,
+                "scalar_answers": scalar_count,
+                "multiselect_answers": multiselect_count
+            }
+        }
+
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error in Q&A: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in Q&A: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _format_rp_provision_as_context(rp_response: Dict) -> str:
+    """Format RP provision data as structured context for Claude."""
+
+    lines = []
+    lines.append(f"Deal ID: {rp_response['deal_id']}")
+    lines.append(f"Provision: {rp_response['provision_type']}")
+    lines.append(f"Scalar answers: {rp_response['scalar_count']}")
+    lines.append(f"Multiselect answers: {rp_response['multiselect_count']}")
+    lines.append("")
+
+    # Scalar answers grouped by category (inferred from attribute name)
+    lines.append("### SCALAR ANSWERS (Boolean/Numeric/Text)")
+    lines.append("")
+
+    scalar_answers = rp_response.get("scalar_answers", {})
+
+    # Group by prefix
+    groups = {}
+    for attr_name, value in scalar_answers.items():
+        # Extract category from attribute name (e.g., builder_basket_exists -> builder)
+        parts = attr_name.split("_")
+        prefix = parts[0] if parts else "other"
+        if prefix not in groups:
+            groups[prefix] = []
+        groups[prefix].append((attr_name, value))
+
+    for prefix, attrs in sorted(groups.items()):
+        lines.append(f"**{prefix.upper()}**")
+        for attr_name, value in attrs:
+            # Format value
+            if isinstance(value, bool):
+                value_str = "Yes" if value else "No"
+            elif isinstance(value, float) and value == int(value):
+                value_str = str(int(value))
+            else:
+                value_str = str(value)
+            lines.append(f"  - {attr_name}: {value_str}")
+        lines.append("")
+
+    # Multiselect answers
+    lines.append("### MULTISELECT ANSWERS (Concept Applicabilities)")
+    lines.append("")
+
+    multiselect_answers = rp_response.get("multiselect_answers", {})
+
+    for concept_type, concepts in sorted(multiselect_answers.items()):
+        concept_names = [c["name"] for c in concepts]
+        lines.append(f"**{concept_type}**: {', '.join(concept_names)}")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def _extract_citations_from_answer(answer_text: str) -> List[Dict[str, Any]]:
+    """Extract page citations from the answer."""
+
+    # Find all [p.XX] patterns
+    page_refs = re.findall(r'\[p\.(\d+)\]', answer_text)
+    pages = list(set(int(p) for p in page_refs))
+    pages.sort()
+
+    # Build citation list
+    citations = []
+    for page in pages:
+        citations.append({
+            "page": page,
+            "text": None  # Would need source_text from provenance to populate
+        })
+
+    return citations
