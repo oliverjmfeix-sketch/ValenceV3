@@ -615,12 +615,13 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             }
 
             # Multiselect field mapping (question_id -> concept_type)
+            # NOTE: concept_type must match what's stored in TypeDB (from extraction)
             multiselect_map = {
                 "rp_a2": "dividend_applies_to_entity",
                 "rp_a3": "dividend_action",
                 "rp_b1": "intercompany_recipient",
-                "rp_c2": "mgmt_equity_covered_person",
-                "rp_c3": "mgmt_equity_trigger_event",
+                "rp_c2": "covered_person",  # Actual TypeDB type
+                "rp_c3": "repurchase_trigger",  # Actual TypeDB type
                 "rp_d2": "tax_group_type",
                 "rp_e1": "equity_award_type",
                 "rp_f7": "builder_source",
@@ -629,10 +630,10 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 "rp_h2": "holdco_transaction_cost",
                 "rp_i1": "reallocation_source_basket",
                 "rp_i2": "reallocation_target_basket",
-                "rp_k4": "jcrew_bound_entity",
+                "rp_k4": "blocker_binding_entity",  # Actual TypeDB type
                 "rp_k5": "jcrew_trigger_condition",
                 "rp_k6": "jcrew_ip_type",
-                "rp_k7": "jcrew_transfer_type",
+                "rp_k7": "transfer_type",  # Actual TypeDB type
                 "rp_s1": "rdp_payment_type",
                 "rp_t1": "rdp_basket",
             }
