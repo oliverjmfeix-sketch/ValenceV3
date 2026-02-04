@@ -32,6 +32,17 @@ from app.services.typedb_client import typedb_client
 logger = logging.getLogger(__name__)
 
 
+def _safe_get_value(row, key: str, default=None):
+    """Safely get attribute value from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return default
+        return concept.as_attribute().get_value()
+    except Exception:
+        return default
+
+
 # =============================================================================
 # DATA MODELS
 # =============================================================================
@@ -576,7 +587,9 @@ If your output is less than 30,000 characters, you are likely summarizing instea
                 questions_by_cat: Dict[str, List[Dict]] = {}
 
                 for row in result.as_concept_rows():
-                    qid = row.get("qid").as_attribute().get_value()
+                    qid = _safe_get_value(row, "qid")
+                    if not qid:
+                        continue
                     parts = qid.split("_")
                     if len(parts) >= 2 and len(parts[1]) >= 1:
                         cat_letter = parts[1][0].upper()
@@ -588,9 +601,9 @@ If your output is less than 30,000 characters, you are likely summarizing instea
 
                     questions_by_cat[cat_letter].append({
                         "question_id": qid,
-                        "question_text": row.get("qt").as_attribute().get_value(),
-                        "answer_type": row.get("at").as_attribute().get_value(),
-                        "display_order": row.get("order").as_attribute().get_value(),
+                        "question_text": _safe_get_value(row, "qt", ""),
+                        "answer_type": _safe_get_value(row, "at", "string"),
+                        "display_order": _safe_get_value(row, "order", 0),
                         "category_id": cat_letter,
                         "category_name": category_names.get(cat_letter, f"Category {cat_letter}")
                     })
@@ -614,7 +627,10 @@ If your output is less than 30,000 characters, you are likely summarizing instea
             return {}
 
     def _get_question_target(self, tx, question_id: str) -> Dict[str, Any]:
-        """Get target field or concept type for a question."""
+        """Get target field or concept type for a question.
+
+        Gracefully handles questions without question_targets_field relations.
+        """
         try:
             # Try field target first
             query = f"""
@@ -625,10 +641,12 @@ If your output is less than 30,000 characters, you are likely summarizing instea
             """
             result = list(tx.query(query).resolve().as_concept_rows())
             if result:
-                return {
-                    "type": "field",
-                    "name": result[0].get("fn").as_attribute().get_value()
-                }
+                field_name = _safe_get_value(result[0], "fn")
+                if field_name:
+                    return {
+                        "type": "field",
+                        "name": field_name
+                    }
 
             # Try concept target (multiselect)
             query = f"""
@@ -639,19 +657,22 @@ If your output is less than 30,000 characters, you are likely summarizing instea
             """
             result = list(tx.query(query).resolve().as_concept_rows())
             if result:
-                concept_type = result[0].get("ct").as_attribute().get_value()
-                options = self._load_concept_options(tx, concept_type)
-                return {
-                    "type": "concept",
-                    "name": concept_type,
-                    "concept_type": concept_type,
-                    "options": options
-                }
+                concept_type = _safe_get_value(result[0], "ct")
+                if concept_type:
+                    options = self._load_concept_options(tx, concept_type)
+                    return {
+                        "type": "concept",
+                        "name": concept_type,
+                        "concept_type": concept_type,
+                        "options": options
+                    }
 
         except Exception as e:
-            logger.debug(f"Error getting target for {question_id}: {e}")
+            logger.debug(f"No target relation found for {question_id}: {e}")
 
-        return {"type": "unknown", "name": ""}
+        # Default: derive field name from question_id (e.g., rp_a1 -> a1_answer)
+        # This allows extraction to work even without explicit target relations
+        return {"type": "field", "name": f"{question_id}_answer"}
 
     def _load_concept_options(self, tx, concept_type: str) -> List[Dict[str, str]]:
         """Load all concept instances for a given concept type."""
@@ -666,10 +687,13 @@ If your output is less than 30,000 characters, you are likely summarizing instea
             """
             result = tx.query(query).resolve()
             for row in result.as_concept_rows():
-                options.append({
-                    "id": row.get("cid").as_attribute().get_value(),
-                    "name": row.get("name").as_attribute().get_value()
-                })
+                cid = _safe_get_value(row, "cid")
+                name = _safe_get_value(row, "name")
+                if cid:  # Skip rows with missing required fields
+                    options.append({
+                        "id": cid,
+                        "name": name or ""
+                    })
         except Exception as e:
             logger.warning(f"Error loading concept options for {concept_type}: {e}")
         return options

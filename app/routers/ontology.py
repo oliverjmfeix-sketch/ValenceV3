@@ -14,6 +14,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ontology", tags=["Ontology"])
 
 
+def _safe_get_value(row, key: str, default=None):
+    """Safely get attribute value from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return default
+        return concept.as_attribute().get_value()
+    except Exception:
+        return default
+
+
+def _safe_get_entity(row, key: str):
+    """Safely get entity from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return None
+        return concept.as_entity()
+    except Exception:
+        return None
+
+
 @router.get("/categories")
 async def get_categories() -> List[Dict[str, Any]]:
     """Get all ontology categories."""
@@ -34,10 +56,13 @@ async def get_categories() -> List[Dict[str, Any]]:
 
             categories = []
             for row in result.as_concept_rows():
-                categories.append({
-                    "category_id": row.get("id").as_attribute().get_value(),
-                    "name": row.get("name").as_attribute().get_value()
-                })
+                cat_id = _safe_get_value(row, "id")
+                name = _safe_get_value(row, "name")
+                if cat_id:  # Skip rows with missing required fields
+                    categories.append({
+                        "category_id": cat_id,
+                        "name": name or ""
+                    })
             return categories
         finally:
             tx.close()
@@ -67,11 +92,15 @@ async def get_questions() -> List[Dict[str, Any]]:
 
             questions = []
             for row in result.as_concept_rows():
-                questions.append({
-                    "question_id": row.get("id").as_attribute().get_value(),
-                    "question_text": row.get("text").as_attribute().get_value(),
-                    "answer_type": row.get("type").as_attribute().get_value()
-                })
+                qid = _safe_get_value(row, "id")
+                qtext = _safe_get_value(row, "text")
+                atype = _safe_get_value(row, "type")
+                if qid:  # Skip rows with missing required fields
+                    questions.append({
+                        "question_id": qid,
+                        "question_text": qtext or "",
+                        "answer_type": atype or "string"
+                    })
             return questions
         finally:
             tx.close()
@@ -109,13 +138,19 @@ async def get_questions_by_type(covenant_type: str) -> Dict[str, Any]:
 
             questions = []
             for row in result.as_concept_rows():
-                questions.append({
-                    "question_id": row.get("qid").as_attribute().get_value(),
-                    "question_text": row.get("qtext").as_attribute().get_value(),
-                    "answer_type": row.get("atype").as_attribute().get_value(),
-                    "category_id": row.get("cid").as_attribute().get_value(),
-                    "category_name": row.get("cname").as_attribute().get_value()
-                })
+                qid = _safe_get_value(row, "qid")
+                qtext = _safe_get_value(row, "qtext")
+                atype = _safe_get_value(row, "atype")
+                cid = _safe_get_value(row, "cid")
+                cname = _safe_get_value(row, "cname")
+                if qid:  # Skip rows with missing required fields
+                    questions.append({
+                        "question_id": qid,
+                        "question_text": qtext or "",
+                        "answer_type": atype or "string",
+                        "category_id": cid or "",
+                        "category_name": cname or ""
+                    })
 
             # If no results from join, fall back to questions without categories
             if not questions:
@@ -131,14 +166,16 @@ async def get_questions_by_type(covenant_type: str) -> Dict[str, Any]:
                 """
                 result = tx.query(fallback_query).resolve()
                 for row in result.as_concept_rows():
-                    qid = row.get("qid").as_attribute().get_value()
+                    qid = _safe_get_value(row, "qid")
+                    if not qid:
+                        continue
                     # Derive category from question_id as last resort
                     parts = qid.split("_")
                     cat_letter = parts[1][0].upper() if len(parts) >= 2 and len(parts[1]) >= 1 else "Z"
                     questions.append({
                         "question_id": qid,
-                        "question_text": row.get("qtext").as_attribute().get_value(),
-                        "answer_type": row.get("atype").as_attribute().get_value(),
+                        "question_text": _safe_get_value(row, "qtext", ""),
+                        "answer_type": _safe_get_value(row, "atype", "string"),
                         "category_id": cat_letter,
                         "category_name": f"Category {cat_letter}"  # Fallback name
                     })
@@ -178,12 +215,19 @@ async def get_concepts() -> Dict[str, List[Dict[str, Any]]]:
 
             concepts = {}
             for row in result.as_concept_rows():
-                concept_type = row.get("c").as_entity().get_type().get_label()
+                entity = _safe_get_entity(row, "c")
+                if not entity:
+                    continue
+                concept_type = entity.get_type().get_label()
+                concept_id = _safe_get_value(row, "id")
+                name = _safe_get_value(row, "name")
+                if not concept_id:
+                    continue
                 if concept_type not in concepts:
                     concepts[concept_type] = []
                 concepts[concept_type].append({
-                    "concept_id": row.get("id").as_attribute().get_value(),
-                    "name": row.get("name").as_attribute().get_value()
+                    "concept_id": concept_id,
+                    "name": name or ""
                 })
             return concepts
         finally:

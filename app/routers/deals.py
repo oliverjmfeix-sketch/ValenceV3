@@ -23,6 +23,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/deals", tags=["Deals"])
 
 
+def _safe_get_value(row, key: str, default=None):
+    """Safely get attribute value from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return default
+        return concept.as_attribute().get_value()
+    except Exception:
+        return default
+
+
+def _safe_get_entity(row, key: str):
+    """Safely get entity from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return None
+        return concept.as_entity()
+    except Exception:
+        return None
+
+
 # Request/Response models for Q&A
 class AskRequest(BaseModel):
     question: str
@@ -61,10 +83,13 @@ async def list_deals() -> List[Dict[str, Any]]:
             
             deals = []
             for row in result.as_concept_rows():
-                deals.append({
-                    "deal_id": row.get("id").as_attribute().get_value(),
-                    "deal_name": row.get("name").as_attribute().get_value()
-                })
+                deal_id = _safe_get_value(row, "id")
+                deal_name = _safe_get_value(row, "name")
+                if deal_id:  # Only add if we have a valid ID
+                    deals.append({
+                        "deal_id": deal_id,
+                        "deal_name": deal_name or "Unknown"
+                    })
             return deals
         finally:
             tx.close()
@@ -97,7 +122,7 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
             
             return {
                 "deal_id": deal_id,
-                "deal_name": rows[0].get("name").as_attribute().get_value(),
+                "deal_name": _safe_get_value(rows[0], "name", "Unknown"),
                 "answers": {},
                 "applicabilities": {}
             }
@@ -442,10 +467,12 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             """
             rp_result = tx.query(rp_attrs_query).resolve()
             for row in rp_result.as_concept_rows():
-                attr = row.get("attr").as_attribute()
-                attr_type = attr.get_type().get_label()
-                if attr_type != "provision_id":
-                    answers[attr_type] = attr.get_value()
+                attr_concept = row.get("attr")
+                if attr_concept:
+                    attr = attr_concept.as_attribute()
+                    attr_type = attr.get_type().get_label()
+                    if attr_type != "provision_id":
+                        answers[attr_type] = attr.get_value()
 
             # Get MFN provision attributes
             mfn_attrs_query = f"""
@@ -457,10 +484,12 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             """
             mfn_result = tx.query(mfn_attrs_query).resolve()
             for row in mfn_result.as_concept_rows():
-                attr = row.get("attr").as_attribute()
-                attr_type = attr.get_type().get_label()
-                if attr_type != "provision_id":
-                    answers[attr_type] = attr.get_value()
+                attr_concept = row.get("attr")
+                if attr_concept:
+                    attr = attr_concept.as_attribute()
+                    attr_type = attr.get_type().get_label()
+                    if attr_type != "provision_id":
+                        answers[attr_type] = attr.get_value()
 
             return {
                 "deal_id": deal_id,
@@ -515,10 +544,12 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
             """
             attrs_result = tx.query(attrs_query).resolve()
             for row in attrs_result.as_concept_rows():
-                attr = row.get("attr").as_attribute()
-                attr_type = attr.get_type().get_label()
-                if attr_type != "provision_id":
-                    scalar_answers[attr_type] = attr.get_value()
+                attr_concept = row.get("attr")
+                if attr_concept:
+                    attr = attr_concept.as_attribute()
+                    attr_type = attr.get_type().get_label()
+                    if attr_type != "provision_id":
+                        scalar_answers[attr_type] = attr.get_value()
 
             # Get all concept applicabilities (multiselect answers)
             multiselect_answers = {}
@@ -531,17 +562,18 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
             """
             applicability_result = tx.query(applicability_query).resolve()
             for row in applicability_result.as_concept_rows():
-                concept = row.get("c").as_entity()
-                concept_type = concept.get_type().get_label()
-                concept_id = row.get("cid").as_attribute().get_value()
-                concept_name = row.get("cname").as_attribute().get_value()
+                concept_entity = _safe_get_entity(row, "c")
+                concept_id = _safe_get_value(row, "cid")
+                concept_name = _safe_get_value(row, "cname")
 
-                if concept_type not in multiselect_answers:
-                    multiselect_answers[concept_type] = []
-                multiselect_answers[concept_type].append({
-                    "concept_id": concept_id,
-                    "name": concept_name
-                })
+                if concept_entity and concept_id:
+                    concept_type = concept_entity.get_type().get_label()
+                    if concept_type not in multiselect_answers:
+                        multiselect_answers[concept_type] = []
+                    multiselect_answers[concept_type].append({
+                        "concept_id": concept_id,
+                        "name": concept_name or "Unknown"
+                    })
 
             return {
                 "deal_id": deal_id,
