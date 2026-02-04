@@ -243,7 +243,26 @@ async def _ensure_schema_loaded():
     else:
         logger.error(f"Schema file not found: {schema_file}")
         return
-    
+
+    # 1b. Load schema updates (v2 - qualifications, cross-references, citations)
+    schema_v2_file = DATA_DIR / "schema_v2.tql"
+    if schema_v2_file.exists():
+        logger.info("Loading schema_v2.tql...")
+        schema_v2_tql = _load_tql_file(schema_v2_file)
+        if schema_v2_tql:
+            tx = driver.transaction(db_name, TransactionType.SCHEMA)
+            try:
+                tx.query(schema_v2_tql).resolve()
+                tx.commit()
+                logger.info("✓ Schema v2 loaded")
+            except Exception as e:
+                tx.close()
+                error_msg = str(e).lower()
+                if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
+                    logger.info("✓ Schema v2 already exists (skipping)")
+                else:
+                    logger.warning(f"Schema v2 load: {e}")
+
     # 2. Load concepts (insert statements) - skip if already loaded
     concepts_file = DATA_DIR / "concepts.tql"
     if concepts_file.exists():

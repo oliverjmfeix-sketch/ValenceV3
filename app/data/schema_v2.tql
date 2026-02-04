@@ -1,0 +1,97 @@
+################################################################################
+# VALENCE V3 - SCHEMA UPDATES FOR Q&A INTERFACE
+#
+# Adds:
+# 1. Qualifications (exceptions, conditions, limitations on answers)
+# 2. Cross-references (relationships between provisions)
+# 3. Source citation improvements
+################################################################################
+
+define
+
+################################################################################
+# QUALIFICATION TYPES
+################################################################################
+
+# Type of qualification
+attribute qualification_type, value string;
+# Values: "exception", "condition", "threshold", "scope_limitation",
+#         "temporal_limitation", "entity_limitation", "amount_limitation"
+
+# Qualification ID
+attribute qualification_id, value string;
+
+# The qualification entity
+entity qualification,
+    owns qualification_id @key,
+    owns qualification_type,
+    owns description,
+    owns source_text,
+    owns source_page,
+    plays answer_has_qualification:qualification;
+
+# Links answer to its qualifications
+relation answer_has_qualification,
+    relates qualified_answer,
+    relates qualification;
+
+################################################################################
+# CROSS-REFERENCES
+################################################################################
+
+# Type of cross-reference relationship
+attribute cross_reference_type, value string;
+# Values: "limited_by", "enhanced_by", "depends_on", "conflicts_with",
+#         "shares_capacity_with", "alternative_to"
+
+# Explanation of why the cross-reference matters
+attribute cross_reference_explanation, value string;
+
+# Cross-reference between provisions/answers
+relation provision_cross_reference,
+    relates source_provision,
+    relates target_provision,
+    owns cross_reference_type,
+    owns cross_reference_explanation,
+    owns source_text,
+    owns source_page;
+
+################################################################################
+# ENHANCED SOURCE CITATIONS
+################################################################################
+
+# Citation ID
+attribute citation_id, value string;
+
+# Context for citation
+attribute citation_context, value string;  # "definition", "covenant", "exception"
+
+# For storing multiple source citations per answer
+entity source_citation,
+    owns citation_id @key,
+    owns source_text,
+    owns source_page,
+    owns citation_context,
+    plays answer_has_citation:citation;
+
+relation answer_has_citation,
+    relates cited_answer,
+    relates citation;
+
+################################################################################
+# EXTEND EXISTING ENTITIES TO PLAY NEW ROLES
+################################################################################
+
+# rp_provision plays qualification and cross-reference roles
+entity rp_provision,
+    plays answer_has_qualification:qualified_answer,
+    plays provision_cross_reference:source_provision,
+    plays provision_cross_reference:target_provision,
+    plays answer_has_citation:cited_answer;
+
+# mfn_provision plays the same roles
+entity mfn_provision,
+    plays answer_has_qualification:qualified_answer,
+    plays provision_cross_reference:source_provision,
+    plays provision_cross_reference:target_provision,
+    plays answer_has_citation:cited_answer;
