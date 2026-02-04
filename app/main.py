@@ -164,7 +164,11 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
         elif stmt.startswith('insert ') or stmt.startswith('insert\n'):
             insert_statements.append(stmt + ';')
 
-    logger.info(f"Parsed {len(insert_statements)} inserts, {len(match_insert_statements)} match-inserts")
+    logger.info(f"Parsed {len(insert_statements)} inserts, {len(match_insert_statements)} match-inserts from ontology_expanded.tql")
+
+    # Log first insert statement for debugging
+    if insert_statements:
+        logger.info(f"First insert statement: {insert_statements[0][:150]}...")
 
     # 1. Execute insert statements (categories, questions, concepts, target fields)
     inserts_created = 0
@@ -184,10 +188,10 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
                 inserts_skipped += 1
             else:
                 inserts_failed += 1
-                # Log first few failures for debugging
-                if inserts_failed <= 3:
-                    logger.warning(f"Insert failed: {e}")
-                    logger.warning(f"Statement: {stmt[:200]}...")
+                # Log more failures for debugging
+                if inserts_failed <= 10:
+                    logger.warning(f"Insert failed ({inserts_failed}): {e}")
+                    logger.warning(f"Statement: {stmt[:300]}...")
 
     logger.info(f"✓ Ontology expanded inserts: {inserts_created} created, {inserts_skipped} skipped, {inserts_failed} failed")
 
@@ -359,9 +363,13 @@ async def _ensure_schema_loaded():
                 tx.close()
                 error_msg = str(e).lower()
                 if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
-                    logger.info("✓ Schema expanded already exists (skipping)")
+                    logger.info("Schema expanded partially exists, trying incremental update...")
+                    _try_incremental_schema_update(driver, db_name, schema_expanded_tql)
                 else:
-                    logger.warning(f"Schema expanded load: {e}")
+                    logger.warning(f"Schema expanded load error: {e}")
+                    # Try incremental update even on other errors
+                    logger.info("Attempting incremental schema update...")
+                    _try_incremental_schema_update(driver, db_name, schema_expanded_tql)
 
     # 2. Load concepts (insert statements) - skip if already loaded
     concepts_file = DATA_DIR / "concepts.tql"
