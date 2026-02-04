@@ -1200,6 +1200,123 @@ Return ONLY the JSON array."""
             rp_universe_chars=universe_chars
         )
 
+    # =========================================================================
+    # V4 GRAPH-NATIVE EXTRACTION
+    # =========================================================================
+
+    async def extract_rp_v4(
+        self,
+        pdf_path: str,
+        deal_id: str,
+        model: Optional[str] = None
+    ) -> 'ExtractionResultV4':
+        """
+        V4 Graph-Native RP extraction pipeline.
+
+        1. Parse PDF
+        2. Extract RP Universe (same as V3)
+        3. Load extraction metadata from TypeDB (SSoT)
+        4. Build Claude prompt with metadata + JSON schema
+        5. Call Claude, parse into RPExtractionV4 Pydantic model
+        6. Store as graph entities and relations
+
+        Returns:
+            ExtractionResultV4 with typed extraction and storage results
+        """
+        from app.services.graph_storage import GraphStorage
+        from app.schemas.extraction_output_v4 import RPExtractionV4
+
+        start_time = time.time()
+        model = model or settings.claude_model
+
+        # Step 1: Parse PDF
+        logger.info(f"V4 Extraction starting for deal {deal_id}")
+        document_text = self.parse_document(pdf_path)
+
+        # Step 2: Extract RP Universe (reuse existing logic)
+        logger.info("Step 2: Extracting RP Universe...")
+        rp_universe = self.extract_rp_universe(document_text)
+        universe_chars = len(rp_universe.raw_text)
+        logger.info(f"RP Universe extracted: {universe_chars} chars")
+
+        if universe_chars < 1000:
+            logger.warning("RP Universe extraction yielded minimal content")
+
+        # Step 3: Load extraction metadata from TypeDB (SSoT)
+        logger.info("Step 3: Loading extraction metadata from TypeDB...")
+        metadata = GraphStorage.load_extraction_metadata()
+        logger.info(f"Loaded {len(metadata)} extraction instructions")
+
+        # Step 4: Build Claude prompt
+        logger.info("Step 4: Building V4 Claude prompt...")
+        prompt = GraphStorage.build_claude_prompt(metadata, rp_universe.raw_text)
+        logger.info(f"Prompt built: {len(prompt)} chars")
+
+        # Step 5: Call Claude
+        logger.info(f"Step 5: Calling Claude ({model})...")
+        response_text = self._call_claude_v4(prompt, model)
+        logger.info(f"Response received: {len(response_text)} chars")
+
+        # Step 6: Parse response into Pydantic model
+        logger.info("Step 6: Parsing response...")
+        extraction = GraphStorage.parse_claude_response(response_text)
+
+        # Create storage instance and summarize
+        storage = GraphStorage(deal_id)
+        summary = storage.summarize_extraction(extraction)
+        logger.info(f"Parsed extraction: {summary}")
+
+        # Step 7: Store in TypeDB
+        logger.info("Step 7: Storing V4 extraction to TypeDB...")
+        storage_result = storage.store_rp_extraction_v4(extraction)
+        logger.info(f"Storage complete: {storage_result}")
+
+        extraction_time = time.time() - start_time
+        logger.info(f"V4 Extraction complete in {extraction_time:.1f}s")
+
+        return ExtractionResultV4(
+            deal_id=deal_id,
+            extraction=extraction,
+            storage_result=storage_result,
+            extraction_time_seconds=extraction_time,
+            rp_universe_chars=universe_chars,
+            model_used=model
+        )
+
+    def _call_claude_v4(self, prompt: str, model: str) -> str:
+        """Call Claude API for V4 structured extraction."""
+        system_prompt = """You are a legal analyst extracting covenant data from credit agreements.
+
+RULES:
+1. Return ONLY valid JSON - no markdown code blocks, no explanation before/after
+2. Include provenance (section_reference, source_page) for every major finding
+3. Quote verbatim_text exactly as it appears (max 500 chars)
+4. If a field is not found, omit it entirely (don't include null)
+5. For percentages, use decimals (50% = 0.5, 140% = 1.4)
+6. For dollar amounts, use raw numbers (130000000 not "130M")
+7. Be precise about "no worse" test - this is CRITICAL for risk analysis
+8. For ratio thresholds, use the decimal number (5.75x = 5.75)"""
+
+        response = self.client.messages.create(
+            model=model,
+            max_tokens=8192,
+            system=system_prompt,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return response.content[0].text
+
+
+@dataclass
+class ExtractionResultV4:
+    """Result of V4 graph-native extraction."""
+    deal_id: str
+    extraction: Any  # RPExtractionV4
+    storage_result: Dict[str, Any]
+    extraction_time_seconds: float
+    rp_universe_chars: int
+    model_used: str
+
 
 # =============================================================================
 # GLOBAL INSTANCE

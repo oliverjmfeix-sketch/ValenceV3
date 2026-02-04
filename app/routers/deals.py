@@ -1177,3 +1177,329 @@ async def debug_multiselect(deal_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Debug error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# V4 GRAPH-NATIVE EXTRACTION ENDPOINTS
+# =============================================================================
+
+@router.post("/{deal_id}/extract-v4")
+async def extract_rp_v4(
+    deal_id: str,
+    background_tasks: BackgroundTasks
+) -> Dict[str, Any]:
+    """
+    Trigger V4 graph-native RP extraction.
+
+    This uses the new V4 pipeline:
+    1. Extract RP universe from document
+    2. Load extraction metadata from TypeDB (SSoT)
+    3. Build structured prompt with JSON schema
+    4. Parse Claude response into typed Pydantic model
+    5. Store as graph entities and relations
+
+    Creates in TypeDB:
+    - Basket entities (builder, ratio, general, mgmt, tax)
+    - Blocker entities with exceptions
+    - Unsub designation
+    - Sweep tiers and de minimis thresholds
+    - Reallocation relations
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Check PDF exists
+    pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"PDF not found for deal {deal_id}")
+
+    # Check deal exists
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                select $d;
+            """
+            result = tx.query(query).resolve()
+            if not list(result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="Deal not found")
+        finally:
+            tx.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Update status
+    extraction_status[deal_id] = ExtractionStatus(
+        deal_id=deal_id,
+        status="extracting",
+        progress=10,
+        current_step="Starting V4 graph extraction..."
+    )
+
+    # Run extraction in background
+    background_tasks.add_task(run_extraction_v4, deal_id, pdf_path)
+
+    return {
+        "status": "processing",
+        "deal_id": deal_id,
+        "message": "V4 extraction started. Use GET /api/deals/{deal_id}/status to check progress."
+    }
+
+
+async def run_extraction_v4(deal_id: str, pdf_path: str):
+    """Background task for V4 extraction."""
+    extraction_svc = get_extraction_service()
+
+    try:
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="extracting",
+            progress=20,
+            current_step="Parsing PDF and extracting RP universe..."
+        )
+
+        result = await extraction_svc.extract_rp_v4(
+            pdf_path=pdf_path,
+            deal_id=deal_id
+        )
+
+        # Build summary
+        storage = result.storage_result
+        summary_parts = [
+            f"{storage.get('baskets_created', 0)} baskets",
+            f"{storage.get('sources_created', 0)} sources",
+            f"{storage.get('blockers_created', 0)} blockers",
+            f"{storage.get('sweep_tiers_created', 0)} sweep tiers"
+        ]
+
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="complete",
+            progress=100,
+            current_step=f"V4 extraction complete: {', '.join(summary_parts)} in {result.extraction_time_seconds:.1f}s"
+        )
+
+        logger.info(f"V4 extraction complete for deal {deal_id}: {storage}")
+
+    except Exception as e:
+        logger.error(f"V4 extraction failed for deal {deal_id}: {e}")
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="error",
+            progress=0,
+            current_step=None,
+            error=str(e)
+        )
+
+
+@router.get("/{deal_id}/rp-graph")
+async def get_rp_graph(deal_id: str) -> Dict[str, Any]:
+    """
+    Get RP extraction as graph structure.
+
+    Returns all V4 entities and relations for visualization/analysis:
+    - Baskets (builder, ratio, general_rp, etc.)
+    - Builder sources
+    - Blockers and exceptions
+    - Sweep tiers
+    - De minimis thresholds
+    - Reallocations
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        from app.services.graph_queries import GraphQueries
+        queries = GraphQueries()
+
+        # Find the provision for this deal
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Get provision ID
+            prov_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa rp_provision, has provision_id $pid;
+                select $pid;
+            """
+            result = tx.query(prov_query).resolve()
+            rows = list(result.as_concept_rows())
+
+            if not rows:
+                raise HTTPException(status_code=404, detail="No RP provision found for this deal")
+
+            provision_id = _safe_get_value(rows[0], "pid")
+
+            # Get baskets
+            baskets = queries.get_provision_baskets(provision_id)
+
+            # Get blockers
+            blockers = queries.get_provision_blockers(provision_id)
+
+            # Get sweep config
+            sweep_config = queries.get_provision_sweep_config(provision_id)
+
+            return {
+                "deal_id": deal_id,
+                "provision_id": provision_id,
+                "baskets": baskets,
+                "blockers": blockers,
+                "sweep_config": sweep_config
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting RP graph for {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{deal_id}/v4-summary")
+async def get_v4_extraction_summary(deal_id: str) -> Dict[str, Any]:
+    """
+    Get a summary of V4 extraction results.
+
+    Returns key metrics extracted from the credit agreement:
+    - Builder basket configuration
+    - Ratio basket thresholds
+    - J.Crew blocker coverage
+    - Unsub designation rules
+    - Sweep tiers
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            summary = {
+                "deal_id": deal_id,
+                "builder_basket": None,
+                "ratio_basket": None,
+                "jcrew_blocker": None,
+                "unsub_designation": None,
+                "sweep_tiers": [],
+                "de_minimis": []
+            }
+
+            # Find provision
+            prov_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa rp_provision, has provision_id $pid;
+                select $pid;
+            """
+            result = tx.query(prov_query).resolve()
+            rows = list(result.as_concept_rows())
+
+            if not rows:
+                return {"deal_id": deal_id, "error": "No V4 extraction found"}
+
+            provision_id = _safe_get_value(rows[0], "pid")
+            summary["provision_id"] = provision_id
+
+            # Get builder basket
+            try:
+                builder_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_basket;
+                        $b isa builder_basket, has basket_id $bid;
+                    select $b, $bid;
+                """
+                builder_result = tx.query(builder_query).resolve()
+                builder_rows = list(builder_result.as_concept_rows())
+                if builder_rows:
+                    summary["builder_basket"] = {
+                        "exists": True,
+                        "basket_id": _safe_get_value(builder_rows[0], "bid")
+                    }
+
+                    # Count sources
+                    sources_query = f"""
+                        match
+                            $bb isa builder_basket, has basket_id "{summary['builder_basket']['basket_id']}";
+                            ($bb, $s) isa builder_has_source;
+                        select $s;
+                    """
+                    sources_result = tx.query(sources_query).resolve()
+                    summary["builder_basket"]["source_count"] = len(list(sources_result.as_concept_rows()))
+            except Exception:
+                pass
+
+            # Get ratio basket
+            try:
+                ratio_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_basket;
+                        $b isa ratio_basket;
+                    select $b;
+                """
+                ratio_result = tx.query(ratio_query).resolve()
+                for row in ratio_result.as_concept_rows():
+                    basket = row.get("b")
+                    if basket:
+                        # Get attributes
+                        summary["ratio_basket"] = {"exists": True}
+                        # Note: Would need additional queries to get specific attributes
+                        break
+            except Exception:
+                pass
+
+            # Get J.Crew blocker
+            try:
+                jcrew_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_blocker;
+                        $b isa jcrew_blocker, has blocker_id $bid;
+                    select $b, $bid;
+                """
+                jcrew_result = tx.query(jcrew_query).resolve()
+                jcrew_rows = list(jcrew_result.as_concept_rows())
+                if jcrew_rows:
+                    summary["jcrew_blocker"] = {
+                        "exists": True,
+                        "blocker_id": _safe_get_value(jcrew_rows[0], "bid")
+                    }
+            except Exception:
+                pass
+
+            # Get sweep tiers
+            try:
+                sweep_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $t) isa provision_has_sweep_tier;
+                        $t has tier_id $tid, has leverage_threshold $lev, has sweep_percentage $pct;
+                    select $tid, $lev, $pct;
+                """
+                sweep_result = tx.query(sweep_query).resolve()
+                for row in sweep_result.as_concept_rows():
+                    summary["sweep_tiers"].append({
+                        "tier_id": _safe_get_value(row, "tid"),
+                        "leverage_threshold": _safe_get_value(row, "lev"),
+                        "sweep_percentage": _safe_get_value(row, "pct")
+                    })
+            except Exception:
+                pass
+
+            return summary
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting V4 summary for {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

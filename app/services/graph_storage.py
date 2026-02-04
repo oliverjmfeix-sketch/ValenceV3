@@ -394,6 +394,608 @@ Return ONLY the JSON object. No markdown, no explanation."""
             logger.error(f"Data: {json.dumps(data, indent=2)[:1000]}")
             raise ValueError(f"Failed to validate extraction output: {e}")
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # V4 TYPED STORAGE - Works with RPExtractionV4 Pydantic model
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def store_rp_extraction_v4(self, extraction: RPExtractionV4) -> Dict[str, Any]:
+        """
+        Store V4 extraction as TypeDB graph entities and relations.
+
+        Args:
+            extraction: Validated RPExtractionV4 Pydantic model
+
+        Returns:
+            Dict with provision_id and counts of created entities
+        """
+        results = {
+            "provision_id": None,
+            "baskets_created": 0,
+            "sources_created": 0,
+            "blockers_created": 0,
+            "exceptions_created": 0,
+            "sweep_tiers_created": 0,
+            "de_minimis_created": 0,
+            "reallocations_created": 0,
+            "errors": []
+        }
+
+        try:
+            # Create provision and link to deal
+            provision_id = self._gen_id("rp_prov")
+            self._create_rp_provision_v4(provision_id)
+            results["provision_id"] = provision_id
+
+            # Store builder basket
+            if extraction.builder_basket and extraction.builder_basket.exists:
+                try:
+                    basket_id = self._store_builder_basket_v4(provision_id, extraction.builder_basket)
+                    results["baskets_created"] += 1
+                    results["sources_created"] += len(extraction.builder_basket.sources)
+                except Exception as e:
+                    results["errors"].append(f"Builder basket: {str(e)[:100]}")
+
+            # Store ratio basket
+            if extraction.ratio_basket and extraction.ratio_basket.exists:
+                try:
+                    self._store_ratio_basket_v4(provision_id, extraction.ratio_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Ratio basket: {str(e)[:100]}")
+
+            # Store general RP basket
+            if extraction.general_rp_basket and extraction.general_rp_basket.exists:
+                try:
+                    self._store_general_rp_basket_v4(provision_id, extraction.general_rp_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"General RP basket: {str(e)[:100]}")
+
+            # Store management equity basket
+            if extraction.management_equity_basket and extraction.management_equity_basket.exists:
+                try:
+                    self._store_management_basket_v4(provision_id, extraction.management_equity_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Management basket: {str(e)[:100]}")
+
+            # Store tax distribution basket
+            if extraction.tax_distribution_basket and extraction.tax_distribution_basket.exists:
+                try:
+                    self._store_tax_basket_v4(provision_id, extraction.tax_distribution_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Tax basket: {str(e)[:100]}")
+
+            # Store J.Crew blocker
+            if extraction.jcrew_blocker and extraction.jcrew_blocker.exists:
+                try:
+                    self._store_jcrew_blocker_v4(provision_id, extraction.jcrew_blocker)
+                    results["blockers_created"] += 1
+                    results["exceptions_created"] += len(extraction.jcrew_blocker.exceptions)
+                except Exception as e:
+                    results["errors"].append(f"J.Crew blocker: {str(e)[:100]}")
+
+            # Store unsub designation
+            if extraction.unsub_designation and extraction.unsub_designation.permitted:
+                try:
+                    self._store_unsub_designation_v4(provision_id, extraction.unsub_designation)
+                except Exception as e:
+                    results["errors"].append(f"Unsub designation: {str(e)[:100]}")
+
+            # Store sweep tiers
+            for tier in extraction.sweep_tiers:
+                try:
+                    self._store_sweep_tier_v4(provision_id, tier)
+                    results["sweep_tiers_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Sweep tier: {str(e)[:100]}")
+
+            # Store de minimis thresholds
+            for threshold in extraction.de_minimis_thresholds:
+                try:
+                    self._store_de_minimis_v4(provision_id, threshold)
+                    results["de_minimis_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"De minimis: {str(e)[:100]}")
+
+            # Store reallocations (note: need basket IDs, may fail if baskets don't exist)
+            for realloc in extraction.reallocations:
+                try:
+                    self._store_reallocation_v4(provision_id, realloc)
+                    results["reallocations_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Reallocation: {str(e)[:100]}")
+
+            logger.info(
+                f"V4 extraction stored for {self.deal_id}: "
+                f"{results['baskets_created']} baskets, {results['sources_created']} sources, "
+                f"{results['blockers_created']} blockers, {results['sweep_tiers_created']} tiers"
+            )
+
+        except Exception as e:
+            results["errors"].append(f"Top-level error: {str(e)[:200]}")
+            logger.exception(f"Error storing V4 extraction for deal {self.deal_id}")
+
+        return results
+
+    def _create_rp_provision_v4(self, provision_id: str):
+        """Create RP provision and link to deal."""
+        query = f'''
+            match
+                $deal isa deal, has deal_id "{self.deal_id}";
+            insert
+                $prov isa rp_provision,
+                    has provision_id "{provision_id}";
+                (deal: $deal, provision: $prov) isa deal_has_provision;
+        '''
+        self._execute_query(query)
+        logger.debug(f"Created rp_provision {provision_id}")
+
+    def _store_builder_basket_v4(self, provision_id: str, basket) -> str:
+        """Store builder basket with all sources."""
+        from app.schemas.extraction_output_v4 import BuilderBasket, BuilderSource
+
+        basket_id = f"builder_{provision_id}"
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.basket_name:
+            attrs.append(f'has basket_name "{self._escape(basket.basket_name)}"')
+        if basket.start_date_language:
+            attrs.append(f'has start_date_language "{self._escape(basket.start_date_language)}"')
+        if basket.uses_greatest_of_tests:
+            attrs.append('has uses_greatest_of_tests true')
+
+        # Add provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+            if basket.provenance.verbatim_text:
+                attrs.append(f'has verbatim_text "{self._escape(basket.provenance.verbatim_text[:500])}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa builder_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+        # Store each source
+        for i, source in enumerate(basket.sources):
+            self._store_builder_source_v4(basket_id, source, i)
+
+        return basket_id
+
+    def _store_builder_source_v4(self, basket_id: str, source, index: int):
+        """Store a builder source entity."""
+        from app.schemas.extraction_output_v4 import BuilderSource
+
+        source_id = f"{basket_id}_src_{index}"
+
+        # Map source_type to TypeDB entity
+        type_map = {
+            "starter_amount": "starter_amount_source",
+            "cni": "cni_source",
+            "ecf": "ecf_source",
+            "ebitda_fc": "ebitda_fc_source",
+            "equity_proceeds": "equity_proceeds_source",
+            "asset_sale_proceeds": "asset_sale_proceeds_source",
+            "investment_returns": "investment_returns_source",
+            "declined_proceeds": "declined_proceeds_source",
+            "debt_conversion": "builder_source"  # Fallback for new type
+        }
+        entity_type = type_map.get(source.source_type, "builder_source")
+
+        attrs = [
+            f'has source_id "{source_id}"',
+            f'has source_name "{source.source_type}"'
+        ]
+
+        if source.percentage is not None:
+            attrs.append(f'has percentage {source.percentage}')
+        if source.dollar_amount is not None:
+            attrs.append(f'has floor_amount {source.dollar_amount}')  # Use floor_amount for dollar amount
+        if source.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {source.ebitda_percentage}')
+        if source.fc_multiplier is not None:
+            attrs.append(f'has fc_multiplier {source.fc_multiplier}')
+        if source.floor_amount is not None:
+            attrs.append(f'has floor_amount {source.floor_amount}')
+        if source.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+
+        # Provenance
+        if source.provenance:
+            if source.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(source.provenance.section_reference)}"')
+            if source.provenance.source_page is not None:
+                attrs.append(f'has source_page {source.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+
+        # Relation attribute for is_primary_test
+        rel_attrs = ""
+        if source.is_primary_test:
+            rel_attrs = ", has is_primary_test true"
+
+        query = f'''
+            match
+                $basket isa builder_basket, has basket_id "{basket_id}";
+            insert
+                $src isa {entity_type},
+                {attrs_str};
+                (builder: $basket, source: $src) isa builder_has_source{rel_attrs};
+        '''
+        self._execute_query(query)
+
+    def _store_ratio_basket_v4(self, provision_id: str, basket):
+        """Store ratio basket entity."""
+        basket_id = f"ratio_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.ratio_threshold is not None:
+            attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
+        if basket.is_unlimited_if_met:
+            attrs.append('has is_unlimited_if_met true')
+        if basket.has_no_worse_test:
+            attrs.append('has has_no_worse_test true')
+        if basket.no_worse_threshold is not None:
+            attrs.append(f'has no_worse_threshold {basket.no_worse_threshold}')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa ratio_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_general_rp_basket_v4(self, provision_id: str, basket):
+        """Store general RP basket entity."""
+        basket_id = f"general_rp_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.dollar_cap is not None:
+            attrs.append(f'has dollar_cap {basket.dollar_cap}')
+        if basket.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {basket.ebitda_percentage}')
+        if basket.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+        if basket.requires_no_default:
+            attrs.append('has requires_no_default true')
+        if basket.requires_ratio_test:
+            attrs.append('has requires_ratio_test true')
+        if basket.ratio_threshold is not None:
+            attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa general_rp_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_management_basket_v4(self, provision_id: str, basket):
+        """Store management equity basket."""
+        basket_id = f"mgmt_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.annual_cap is not None:
+            attrs.append(f'has annual_cap {basket.annual_cap}')
+        if basket.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {basket.ebitda_percentage}')
+        if basket.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+        if basket.permits_carryforward:
+            attrs.append('has permits_carryforward true')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa management_equity_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_tax_basket_v4(self, provision_id: str, basket):
+        """Store tax distribution basket."""
+        basket_id = f"tax_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.standalone_taxpayer_limit:
+            attrs.append('has standalone_taxpayer_limit true')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa tax_distribution_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_jcrew_blocker_v4(self, provision_id: str, blocker):
+        """Store J.Crew blocker with exceptions."""
+        blocker_id = f"jcrew_{provision_id}"
+
+        attrs = [f'has blocker_id "{blocker_id}"']
+
+        if blocker.covers_transfer:
+            attrs.append('has covers_transfer true')
+        if blocker.covers_designation:
+            attrs.append('has covers_designation true')
+
+        # Provenance
+        if blocker.provenance:
+            if blocker.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(blocker.provenance.section_reference)}"')
+            if blocker.provenance.source_page is not None:
+                attrs.append(f'has source_page {blocker.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $blocker isa jcrew_blocker,
+                {attrs_str};
+                (provision: $prov, blocker: $blocker) isa provision_has_blocker;
+        '''
+        self._execute_query(query)
+
+        # Store exceptions
+        for i, exc in enumerate(blocker.exceptions):
+            self._store_blocker_exception_v4(blocker_id, exc, i)
+
+        # Note: IP types and bound parties would need seed data to link
+        # For now, we store the data on the blocker itself
+
+    def _store_blocker_exception_v4(self, blocker_id: str, exc, index: int):
+        """Store blocker exception."""
+        exc_id = f"{blocker_id}_exc_{index}"
+
+        type_map = {
+            "nonexclusive_license": "nonexclusive_license_exception",
+            "ordinary_course": "ordinary_course_exception",
+            "intercompany": "intercompany_exception",
+            "fair_value": "fair_value_exception",
+            "license_back": "license_back_exception",
+            "immaterial_ip": "immaterial_ip_exception",
+            "required_by_law": "blocker_exception"  # Fallback
+        }
+        entity_type = type_map.get(exc.exception_type, "blocker_exception")
+
+        attrs = [
+            f'has exception_id "{exc_id}"',
+            f'has exception_name "{exc.exception_type}"'
+        ]
+
+        if exc.scope_limitation:
+            attrs.append(f'has scope_limitation "{self._escape(exc.scope_limitation)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $blocker isa jcrew_blocker, has blocker_id "{blocker_id}";
+            insert
+                $exc isa {entity_type},
+                {attrs_str};
+                (blocker: $blocker, exception: $exc) isa blocker_has_exception;
+        '''
+        self._execute_query(query)
+
+    def _store_unsub_designation_v4(self, provision_id: str, unsub):
+        """Store unrestricted subsidiary designation rules."""
+        designation_id = f"unsub_{provision_id}"
+
+        attrs = [f'has designation_id "{designation_id}"']
+
+        if unsub.dollar_cap is not None:
+            attrs.append(f'has dollar_cap {unsub.dollar_cap}')
+        if unsub.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {unsub.ebitda_percentage}')
+        if unsub.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+        if unsub.requires_no_default:
+            attrs.append('has requires_no_default true')
+        if unsub.requires_board_approval:
+            attrs.append('has requires_board_approval true')
+        if unsub.requires_ratio_test:
+            attrs.append('has requires_ratio_test true')
+        if unsub.ratio_threshold is not None:
+            attrs.append(f'has ratio_threshold {unsub.ratio_threshold}')
+        if unsub.permits_equity_dividend:
+            attrs.append('has permits_equity_dividend true')
+        if unsub.permits_asset_dividend:
+            attrs.append('has permits_asset_dividend true')
+
+        # Provenance
+        if unsub.provenance:
+            if unsub.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(unsub.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $unsub isa unsub_designation,
+                {attrs_str};
+                (provision: $prov, designation: $unsub) isa provision_has_unsub_designation;
+        '''
+        self._execute_query(query)
+
+    def _store_sweep_tier_v4(self, provision_id: str, tier):
+        """Store sweep tier entity."""
+        tier_id = f"sweep_{provision_id}_{tier.leverage_threshold}"
+
+        attrs = [
+            f'has tier_id "{tier_id}"',
+            f'has leverage_threshold {tier.leverage_threshold}',
+            f'has sweep_percentage {tier.sweep_percentage}'
+        ]
+
+        if tier.is_highest_tier:
+            attrs.append('has is_highest_tier true')
+
+        # Provenance
+        if tier.provenance:
+            if tier.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(tier.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $tier isa sweep_tier,
+                {attrs_str};
+                (provision: $prov, tier: $tier) isa provision_has_sweep_tier;
+        '''
+        self._execute_query(query)
+
+    def _store_de_minimis_v4(self, provision_id: str, threshold):
+        """Store de minimis threshold entity."""
+        threshold_id = f"deminimis_{provision_id}_{threshold.threshold_type}"
+
+        attrs = [
+            f'has threshold_id "{threshold_id}"',
+            f'has threshold_type "{threshold.threshold_type}"',
+            f'has dollar_amount {threshold.dollar_amount}'
+        ]
+
+        if threshold.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {threshold.ebitda_percentage}')
+        if threshold.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+        if threshold.permits_carryforward:
+            attrs.append('has permits_carryforward true')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $dm isa de_minimis_threshold,
+                {attrs_str};
+                (provision: $prov, threshold: $dm) isa provision_has_de_minimis;
+        '''
+        self._execute_query(query)
+
+    def _store_reallocation_v4(self, provision_id: str, realloc):
+        """Store basket reallocation relation."""
+        # Map basket names to expected IDs
+        basket_map = {
+            "investment": f"investment_{provision_id}",
+            "rdp": f"rdp_{provision_id}",
+            "builder": f"builder_{provision_id}",
+            "general_rp": f"general_rp_{provision_id}",
+            "prepayment": f"prepayment_{provision_id}",
+            "intercompany": f"intercompany_{provision_id}"
+        }
+
+        source_id = basket_map.get(realloc.source_basket)
+        target_id = basket_map.get(realloc.target_basket)
+
+        if not source_id or not target_id:
+            logger.warning(f"Unknown basket in reallocation: {realloc.source_basket} -> {realloc.target_basket}")
+            return
+
+        rel_attrs = []
+        if realloc.reallocation_cap is not None:
+            rel_attrs.append(f'has reallocation_cap {realloc.reallocation_cap}')
+        if realloc.is_bidirectional:
+            rel_attrs.append('has is_bidirectional true')
+        if realloc.provenance and realloc.provenance.section_reference:
+            rel_attrs.append(f'has reallocation_section "{self._escape(realloc.provenance.section_reference)}"')
+
+        rel_attrs_str = ""
+        if rel_attrs:
+            rel_attrs_str = ",\n                " + ",\n                ".join(rel_attrs)
+
+        # Note: This may fail if baskets don't exist (e.g., investment basket wasn't extracted)
+        # We handle this gracefully with try/except in the caller
+        query = f'''
+            match
+                $src isa basket, has basket_id "{source_id}";
+                $tgt isa basket, has basket_id "{target_id}";
+            insert
+                (source_basket: $src, target_basket: $tgt) isa basket_reallocates_to{rel_attrs_str};
+        '''
+        self._execute_query(query)
+
+    def summarize_extraction(self, extraction: RPExtractionV4) -> str:
+        """Create summary string of what was extracted."""
+        parts = []
+
+        if extraction.builder_basket and extraction.builder_basket.exists:
+            parts.append(f"builder({len(extraction.builder_basket.sources)} sources)")
+
+        if extraction.ratio_basket and extraction.ratio_basket.exists:
+            no_worse = "✓no-worse" if extraction.ratio_basket.has_no_worse_test else ""
+            parts.append(f"ratio({extraction.ratio_basket.ratio_threshold}x {no_worse})")
+
+        if extraction.jcrew_blocker and extraction.jcrew_blocker.exists:
+            designation = "✓desig" if extraction.jcrew_blocker.covers_designation else "✗desig"
+            parts.append(f"jcrew({designation}, {len(extraction.jcrew_blocker.exceptions)} exc)")
+
+        if extraction.unsub_designation and extraction.unsub_designation.permitted:
+            cap = extraction.unsub_designation.dollar_cap
+            cap_str = f"${cap/1e6:.0f}M" if cap else "uncapped"
+            parts.append(f"unsub({cap_str})")
+
+        if extraction.sweep_tiers:
+            parts.append(f"sweeps({len(extraction.sweep_tiers)} tiers)")
+
+        if extraction.reallocations:
+            parts.append(f"realloc({len(extraction.reallocations)})")
+
+        return ", ".join(parts) or "empty"
+
     def store_extraction(self, extraction: Dict[str, Any]) -> Dict[str, Any]:
         """
         Store extracted covenant data as graph entities and relations.
