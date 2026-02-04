@@ -401,44 +401,9 @@ insert $nd3 isa no_default_basket, has concept_id "nd_general", has name "Genera
 insert $nd4 isa no_default_basket, has concept_id "nd_mgmt_equity", has name "Management Equity Basket";
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TARGET FIELD INSTANCES (for scalar question mapping)
+# NOTE: target_field entities are NOT needed - the question_targets_field
+# relation uses attributes directly (target_field_name, target_entity_type)
 # ═══════════════════════════════════════════════════════════════════════════
-
-insert $tf_f10 isa target_field, has target_field_name "builder_ecf_source_exists";
-insert $tf_f11 isa target_field, has target_field_name "builder_ecf_formula";
-insert $tf_f12 isa target_field, has target_field_name "builder_ebitda_fc_exists";
-insert $tf_f13 isa target_field, has target_field_name "builder_fc_multiplier_pct";
-insert $tf_f14 isa target_field, has target_field_name "builder_uses_greatest_of";
-insert $tf_f15 isa target_field, has target_field_name "builder_start_date_language";
-insert $tf_f16 isa target_field, has target_field_name "builder_asset_proceeds_source";
-insert $tf_f17 isa target_field, has target_field_name "builder_investment_returns_source";
-
-insert $tf_g5 isa target_field, has target_field_name "ratio_no_worse_test_exists";
-insert $tf_g6 isa target_field, has target_field_name "ratio_no_worse_threshold";
-insert $tf_g7 isa target_field, has target_field_name "ratio_multiple_tiers_exist";
-
-insert $tf_i1 isa target_field, has target_field_name "reallocation_to_rp_permitted";
-insert $tf_i3 isa target_field, has target_field_name "reallocation_section_ref";
-insert $tf_i4 isa target_field, has target_field_name "rdp_basket_reallocation_amount_usd";
-insert $tf_i5 isa target_field, has target_field_name "investment_basket_reallocation_amount_usd";
-insert $tf_i6 isa target_field, has target_field_name "reallocation_bidirectional";
-
-insert $tf_m1 isa target_field, has target_field_name "unsub_equity_dividend_permitted";
-insert $tf_m2 isa target_field, has target_field_name "unsub_asset_dividend_permitted";
-insert $tf_m3 isa target_field, has target_field_name "unsub_distribution_section_ref";
-
-insert $tf_l1 isa target_field, has target_field_name "asset_proceeds_can_fund_dividends";
-insert $tf_l2 isa target_field, has target_field_name "leverage_tiered_sweep_exists";
-insert $tf_l3 isa target_field, has target_field_name "sweep_tier_1";
-insert $tf_l4 isa target_field, has target_field_name "sweep_tier_2";
-insert $tf_l5 isa target_field, has target_field_name "de_minimis_individual_usd";
-insert $tf_l6 isa target_field, has target_field_name "de_minimis_annual_usd";
-insert $tf_l8 isa target_field, has target_field_name "ratio_basket_avoids_sweep";
-insert $tf_l9 isa target_field, has target_field_name "sweep_exempt_ratio_threshold";
-
-insert $tf_n1 isa target_field, has target_field_name "general_rp_basket_amount_usd";
-insert $tf_n2 isa target_field, has target_field_name "general_rp_basket_grower_pct";
-insert $tf_n3 isa target_field, has target_field_name "all_baskets_summary";
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION RELATIONS
@@ -530,97 +495,98 @@ insert (category: $cat, question: $q) isa category_has_question;
 
 # ═══════════════════════════════════════════════════════════════════════════
 # QUESTION → TARGET FIELD RELATIONS (scalar questions)
+# Uses correct pattern: relation with attributes, not separate entity
 # ═══════════════════════════════════════════════════════════════════════════
 
-match $q isa ontology_question, has question_id "rp_f10"; $f isa target_field, has target_field_name "builder_ecf_source_exists";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f10";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_ecf_source_exists", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f11"; $f isa target_field, has target_field_name "builder_ecf_formula";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f11";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_ecf_formula", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f12"; $f isa target_field, has target_field_name "builder_ebitda_fc_exists";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f12";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_ebitda_fc_exists", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f13"; $f isa target_field, has target_field_name "builder_fc_multiplier_pct";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f13";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_fc_multiplier_pct", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f14"; $f isa target_field, has target_field_name "builder_uses_greatest_of";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f14";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_uses_greatest_of", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f15"; $f isa target_field, has target_field_name "builder_start_date_language";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f15";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_start_date_language", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f16"; $f isa target_field, has target_field_name "builder_asset_proceeds_source";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f16";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_asset_proceeds_source", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_f17"; $f isa target_field, has target_field_name "builder_investment_returns_source";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_f17";
+insert (question: $q) isa question_targets_field, has target_field_name "builder_investment_returns_source", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_g5"; $f isa target_field, has target_field_name "ratio_no_worse_test_exists";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_g5";
+insert (question: $q) isa question_targets_field, has target_field_name "ratio_no_worse_test_exists", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_g6"; $f isa target_field, has target_field_name "ratio_no_worse_threshold";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_g6";
+insert (question: $q) isa question_targets_field, has target_field_name "ratio_no_worse_threshold", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_g7"; $f isa target_field, has target_field_name "ratio_multiple_tiers_exist";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_g7";
+insert (question: $q) isa question_targets_field, has target_field_name "ratio_multiple_tiers_exist", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_i7"; $f isa target_field, has target_field_name "reallocation_to_rp_permitted";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_i7";
+insert (question: $q) isa question_targets_field, has target_field_name "reallocation_to_rp_permitted", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_i3"; $f isa target_field, has target_field_name "reallocation_section_ref";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_i3";
+insert (question: $q) isa question_targets_field, has target_field_name "reallocation_section_ref", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_i4"; $f isa target_field, has target_field_name "rdp_basket_reallocation_amount_usd";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_i4";
+insert (question: $q) isa question_targets_field, has target_field_name "rdp_basket_reallocation_amount_usd", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_i5"; $f isa target_field, has target_field_name "investment_basket_reallocation_amount_usd";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_i5";
+insert (question: $q) isa question_targets_field, has target_field_name "investment_basket_reallocation_amount_usd", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_i6"; $f isa target_field, has target_field_name "reallocation_bidirectional";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_i6";
+insert (question: $q) isa question_targets_field, has target_field_name "reallocation_bidirectional", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_m1"; $f isa target_field, has target_field_name "unsub_equity_dividend_permitted";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_m1";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_equity_dividend_permitted", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_m2"; $f isa target_field, has target_field_name "unsub_asset_dividend_permitted";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_m2";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_asset_dividend_permitted", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_m3"; $f isa target_field, has target_field_name "unsub_distribution_section_ref";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_m3";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distribution_section_ref", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l1"; $f isa target_field, has target_field_name "asset_proceeds_can_fund_dividends";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l1";
+insert (question: $q) isa question_targets_field, has target_field_name "asset_proceeds_can_fund_dividends", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l2"; $f isa target_field, has target_field_name "leverage_tiered_sweep_exists";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l2";
+insert (question: $q) isa question_targets_field, has target_field_name "leverage_tiered_sweep_exists", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l3"; $f isa target_field, has target_field_name "sweep_tier_1";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l3";
+insert (question: $q) isa question_targets_field, has target_field_name "sweep_tier_1", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l4"; $f isa target_field, has target_field_name "sweep_tier_2";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l4";
+insert (question: $q) isa question_targets_field, has target_field_name "sweep_tier_2", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l5"; $f isa target_field, has target_field_name "de_minimis_individual_usd";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l5";
+insert (question: $q) isa question_targets_field, has target_field_name "de_minimis_individual_usd", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l6"; $f isa target_field, has target_field_name "de_minimis_annual_usd";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l6";
+insert (question: $q) isa question_targets_field, has target_field_name "de_minimis_annual_usd", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l8"; $f isa target_field, has target_field_name "ratio_basket_avoids_sweep";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l8";
+insert (question: $q) isa question_targets_field, has target_field_name "ratio_basket_avoids_sweep", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_l9"; $f isa target_field, has target_field_name "sweep_exempt_ratio_threshold";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_l9";
+insert (question: $q) isa question_targets_field, has target_field_name "sweep_exempt_ratio_threshold", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_n1"; $f isa target_field, has target_field_name "general_rp_basket_amount_usd";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_n1";
+insert (question: $q) isa question_targets_field, has target_field_name "general_rp_basket_amount_usd", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_n2"; $f isa target_field, has target_field_name "general_rp_basket_grower_pct";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_n2";
+insert (question: $q) isa question_targets_field, has target_field_name "general_rp_basket_grower_pct", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_n3"; $f isa target_field, has target_field_name "all_baskets_summary";
-insert (question: $q, field: $f) isa question_targets_field;
+match $q isa ontology_question, has question_id "rp_n3";
+insert (question: $q) isa question_targets_field, has target_field_name "all_baskets_summary", has target_entity_type "rp_provision";
 
 # ═══════════════════════════════════════════════════════════════════════════
 # QUESTION → TARGET CONCEPT RELATIONS (multiselect questions)
