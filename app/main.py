@@ -147,73 +147,31 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
         return
 
     content = filepath.read_text()
-    lines = content.split('\n')
+
+    # Remove comment lines
+    lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
+    clean_content = '\n'.join(lines)
+
+    # Split by semicolons to get individual statements
+    raw_statements = [s.strip() for s in clean_content.split(';') if s.strip()]
 
     insert_statements = []
     match_insert_statements = []
-    current_statement = []
-    in_match_block = False
 
-    for line in lines:
-        stripped = line.strip()
+    for stmt in raw_statements:
+        if stmt.startswith('match ') or stmt.startswith('match\n'):
+            match_insert_statements.append(stmt + ';')
+        elif stmt.startswith('insert ') or stmt.startswith('insert\n'):
+            insert_statements.append(stmt + ';')
 
-        # Skip comments and empty lines
-        if not stripped or stripped.startswith('#'):
-            continue
-
-        # Detect start of match-insert statement
-        if stripped.startswith('match '):
-            in_match_block = True
-            if current_statement:
-                # Save previous insert statement
-                stmt = '\n'.join(current_statement).strip()
-                if stmt:
-                    insert_statements.append(stmt)
-            current_statement = [stripped]
-            continue
-
-        # Detect start of plain insert statement
-        if stripped.startswith('insert ') and not in_match_block:
-            if current_statement:
-                stmt = '\n'.join(current_statement).strip()
-                if stmt:
-                    if any(s.startswith('match ') for s in current_statement):
-                        match_insert_statements.append(stmt)
-                    else:
-                        insert_statements.append(stmt)
-            current_statement = [stripped]
-            continue
-
-        # Add to current statement
-        current_statement.append(stripped)
-
-        # Check if statement ends
-        if stripped.endswith(';'):
-            stmt = '\n'.join(current_statement).strip()
-            if stmt:
-                if in_match_block or any('match ' in s for s in current_statement):
-                    match_insert_statements.append(stmt)
-                else:
-                    insert_statements.append(stmt)
-            current_statement = []
-            in_match_block = False
-
-    # Don't forget the last statement
-    if current_statement:
-        stmt = '\n'.join(current_statement).strip()
-        if stmt:
-            if in_match_block:
-                match_insert_statements.append(stmt)
-            else:
-                insert_statements.append(stmt)
+    logger.info(f"Parsed {len(insert_statements)} inserts, {len(match_insert_statements)} match-inserts")
 
     # 1. Execute insert statements (categories, questions, concepts, target fields)
     inserts_created = 0
     inserts_skipped = 0
+    inserts_failed = 0
 
     for stmt in insert_statements:
-        if not stmt.strip():
-            continue
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
             tx.query(stmt).resolve()
@@ -225,18 +183,20 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
             if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
                 inserts_skipped += 1
             else:
-                logger.debug(f"Insert error: {e}")
-                inserts_skipped += 1
+                inserts_failed += 1
+                # Log first few failures for debugging
+                if inserts_failed <= 3:
+                    logger.warning(f"Insert failed: {e}")
+                    logger.warning(f"Statement: {stmt[:200]}...")
 
-    logger.info(f"✓ Ontology expanded inserts: {inserts_created} created, {inserts_skipped} skipped")
+    logger.info(f"✓ Ontology expanded inserts: {inserts_created} created, {inserts_skipped} skipped, {inserts_failed} failed")
 
     # 2. Execute match-insert statements (relations)
     relations_created = 0
     relations_skipped = 0
+    relations_failed = 0
 
     for stmt in match_insert_statements:
-        if not stmt.strip():
-            continue
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
             tx.query(stmt).resolve()
@@ -248,10 +208,11 @@ def _load_ontology_expanded(driver, db_name: str, filepath: Path):
             if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
                 relations_skipped += 1
             else:
-                logger.debug(f"Relation insert error: {e}")
-                relations_skipped += 1
+                relations_failed += 1
+                if relations_failed <= 3:
+                    logger.warning(f"Relation insert failed: {e}")
 
-    logger.info(f"✓ Ontology expanded relations: {relations_created} created, {relations_skipped} skipped")
+    logger.info(f"✓ Ontology expanded relations: {relations_created} created, {relations_skipped} skipped, {relations_failed} failed")
 
 
 def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
