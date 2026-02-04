@@ -476,3 +476,165 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
         results["verification_error"] = str(e)[:100]
 
     return results
+
+
+@router.post("/api/debug/fix-extraction-prompts")
+async def debug_fix_extraction_prompts() -> Dict[str, Any]:
+    """Update extraction prompts for questions with known gaps."""
+    from app.config import settings
+
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
+    results = {"updated": [], "failed": []}
+
+    if not driver:
+        return {"error": "No TypeDB driver"}
+
+    # Define improved extraction prompts
+    prompt_updates = {
+        "rp_g5": """CRITICAL: Look for TWO separate ratio tests in the RP covenant:
+
+1. UNLIMITED THRESHOLD: Dividends unlimited if ratio <= X (e.g., 'if First Lien Leverage Ratio is less than 3.50:1.00')
+
+2. 'NO WORSE' TEST: Dividends permitted if ratio is NOT WORSE after giving pro forma effect, even if ABOVE the unlimited threshold.
+
+Look for these EXACT phrases:
+- 'would not be greater on a pro forma basis'
+- 'is equal to or less than the ratio immediately prior'
+- 'no worse after giving effect'
+- 'would not increase'
+- 'pro forma compliance' at a DIFFERENT (higher) ratio than unlimited
+
+The 'no worse' test is often in a SEPARATE subsection (e.g., 6.06(o)) from the unlimited ratio basket (e.g., 6.06(n)).
+
+Answer TRUE if EITHER test exists. This is the most borrower-friendly provision - it allows dividends at ANY leverage as long as the transaction doesn't make leverage worse.""",
+
+        "rp_g6": """If a 'no worse' ratio test exists (rp_g5 = true), extract the specific ratio threshold.
+
+The 'no worse' test often applies at a HIGHER leverage level than the unlimited basket.
+
+Examples:
+- Unlimited dividends at <= 3.50x
+- 'No worse' dividends permitted up to 6.25x (or even unlimited)
+
+Look for:
+- A ratio threshold in the 'no worse' provision that differs from the unlimited threshold
+- Sometimes there's NO cap on 'no worse' (effectively unlimited leverage if not making it worse)
+
+If 'no worse' has NO leverage cap (applies at any level), answer: 99.0 (to indicate unlimited)
+If 'no worse' has a specific cap (e.g., 6.25x), answer: 6.25
+If no 'no worse' test exists, answer: 0""",
+
+        "rp_l3": """Extract the FIRST/HIGHEST leverage tier for asset sale sweep reduction.
+
+Look in the mandatory prepayment section (usually Section 2.10 or 2.11) for TIERED sweep percentages based on leverage.
+
+Common patterns:
+- '50% of Net Cash Proceeds if First Lien Leverage Ratio is greater than 5.25:1.00 but less than or equal to 5.75:1.00'
+- 'if the Consolidated First Lien Net Leverage Ratio is less than or equal to [X]:1.00, [Y]% of such Net Cash Proceeds'
+
+FORMAT YOUR ANSWER AS: '[ratio]x = [percentage]% sweep'
+Example: '5.75x = 50% sweep'
+
+If there's only ONE threshold (not tiered), still extract it in this format.
+If NO leverage-based sweep reduction exists, answer 'N/A - 100% sweep at all leverage levels'.""",
+
+        "rp_l4": """Extract the SECOND leverage tier for asset sale sweep reduction (if it exists).
+
+This is typically the LOWER leverage threshold where even LESS (or 0%) is swept.
+
+Common patterns:
+- '0% of Net Cash Proceeds if First Lien Leverage Ratio is less than or equal to 5.50:1.00'
+- '100% of such proceeds shall be retained by the Borrower if the ratio is at or below [X]:1.00'
+
+FORMAT YOUR ANSWER AS: '[ratio]x = [percentage]% sweep'
+Example: '5.50x = 0% sweep' (meaning 100% retained by borrower)
+
+If only ONE tier exists (captured in rp_l3), answer 'N/A - single tier only'.
+If sweep goes to 0% at certain leverage, that means borrower keeps 100% of proceeds.""",
+
+        "rp_l5": """Extract the de minimis threshold for INDIVIDUAL asset sales below which NO mandatory prepayment is required.
+
+Look in mandatory prepayment section for language like:
+- 'Net Cash Proceeds... in excess of $[X] individually'
+- 'to the extent the aggregate amount exceeds $[X] for any single transaction'
+- 'excluding any Asset Sale with Net Cash Proceeds of less than $[X]'
+
+IMPORTANT: This is usually structured as 'GREATER OF':
+- '$20,000,000 and 15% of Consolidated EBITDA' (common)
+- '$25,000,000 and 20% of LTM EBITDA'
+
+EXTRACT THE DOLLAR AMOUNT ONLY (the fixed floor).
+Example: If 'greater of $20,000,000 and 15% of EBITDA', answer: 20000000
+
+If no individual de minimis exists, answer: 0""",
+
+        "rp_l6": """Extract the de minimis threshold for ANNUAL AGGREGATE asset sales below which NO mandatory prepayment is required.
+
+This is DIFFERENT from the individual threshold - it's the yearly total.
+
+Look for language like:
+- 'in excess of $[X] in the aggregate in any fiscal year'
+- 'aggregate Net Cash Proceeds... exceeding $[X] during any fiscal year'
+- 'annual threshold of $[X]'
+
+IMPORTANT: Often structured as 'GREATER OF':
+- '$40,000,000 and 30% of Consolidated EBITDA' (common - usually ~2x the individual threshold)
+
+Also check for CARRYFORWARD provisions:
+- 'unused amounts may be carried forward to subsequent fiscal years'
+
+EXTRACT THE DOLLAR AMOUNT ONLY (the fixed floor).
+Example: If 'greater of $40,000,000 and 30% of EBITDA', answer: 40000000
+
+If no annual de minimis exists (only individual), answer: 0""",
+    }
+
+    for qid, new_prompt in prompt_updates.items():
+        try:
+            # First, delete existing extraction_prompt if any
+            tx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                delete_query = f'''
+                    match $q isa ontology_question, has question_id "{qid}", has extraction_prompt $ep;
+                    delete $q has $ep;
+                '''
+                tx.query(delete_query).resolve()
+                tx.commit()
+            except Exception:
+                tx.close()  # No existing prompt to delete, that's fine
+
+            # Now insert the new prompt
+            tx = driver.transaction(db_name, TransactionType.WRITE)
+            # Escape the prompt for TypeQL
+            escaped_prompt = new_prompt.replace('\\', '\\\\').replace('"', '\\"')
+            insert_query = f'''
+                match $q isa ontology_question, has question_id "{qid}";
+                insert $q has extraction_prompt "{escaped_prompt}";
+            '''
+            tx.query(insert_query).resolve()
+            tx.commit()
+            results["updated"].append(qid)
+        except Exception as e:
+            results["failed"].append({"qid": qid, "error": str(e)[:150]})
+
+    # Verify the updates
+    results["verification"] = {}
+    for qid in prompt_updates.keys():
+        try:
+            tx = driver.transaction(db_name, TransactionType.READ)
+            query = f'''
+                match $q isa ontology_question, has question_id "{qid}", has extraction_prompt $ep;
+                select $ep;
+            '''
+            rows = list(tx.query(query).resolve().as_concept_rows())
+            if rows:
+                prompt_value = _safe_get_value(rows[0], "ep", "")
+                results["verification"][qid] = f"OK ({len(prompt_value)} chars)"
+            else:
+                results["verification"][qid] = "NOT FOUND"
+            tx.close()
+        except Exception as e:
+            results["verification"][qid] = f"Error: {str(e)[:50]}"
+
+    return results
