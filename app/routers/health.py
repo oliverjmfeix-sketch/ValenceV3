@@ -204,3 +204,92 @@ async def debug_reload_schema_expanded() -> Dict[str, Any]:
     results["failed_count"] = len(failed)
 
     return results
+
+
+@router.post("/api/debug/reload-ontology-expanded")
+async def debug_reload_ontology_expanded() -> Dict[str, Any]:
+    """Manually reload the expanded ontology data (questions, concepts, relations)."""
+    from pathlib import Path
+    from app.config import settings
+
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
+    results = {"steps": []}
+
+    if not driver:
+        return {"error": "No TypeDB driver"}
+
+    # Load ontology_expanded.tql
+    DATA_DIR = Path(__file__).parent.parent / "data"
+    ontology_file = DATA_DIR / "ontology_expanded.tql"
+
+    if not ontology_file.exists():
+        return {"error": f"Ontology file not found: {ontology_file}"}
+
+    content = ontology_file.read_text()
+    lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
+    clean_content = '\n'.join(lines)
+
+    # Split by semicolons to get individual statements
+    raw_statements = [s.strip() for s in clean_content.split(';') if s.strip()]
+
+    insert_statements = []
+    match_insert_statements = []
+
+    for stmt in raw_statements:
+        if stmt.startswith('match ') or stmt.startswith('match\n'):
+            match_insert_statements.append(stmt + ';')
+        elif stmt.startswith('insert ') or stmt.startswith('insert\n'):
+            insert_statements.append(stmt + ';')
+
+    results["steps"].append(f"Parsed {len(insert_statements)} inserts, {len(match_insert_statements)} match-inserts")
+
+    # Execute insert statements
+    inserts_created = 0
+    inserts_skipped = 0
+    insert_errors = []
+
+    for stmt in insert_statements:
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            inserts_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                inserts_skipped += 1
+            else:
+                if len(insert_errors) < 5:
+                    insert_errors.append({"stmt": stmt[:80], "error": str(e)[:100]})
+
+    results["inserts_created"] = inserts_created
+    results["inserts_skipped"] = inserts_skipped
+    results["insert_errors"] = insert_errors
+
+    # Execute match-insert statements (relations)
+    relations_created = 0
+    relations_skipped = 0
+    relation_errors = []
+
+    for stmt in match_insert_statements:
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            relations_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                relations_skipped += 1
+            else:
+                if len(relation_errors) < 5:
+                    relation_errors.append({"stmt": stmt[:100], "error": str(e)[:100]})
+
+    results["relations_created"] = relations_created
+    results["relations_skipped"] = relations_skipped
+    results["relation_errors"] = relation_errors
+
+    return results
