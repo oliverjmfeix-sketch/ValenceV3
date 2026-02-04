@@ -561,6 +561,9 @@ If your output is less than 30,000 characters, you are likely summarizing instea
             "I": "Basket Reallocation",
             "J": "Unrestricted Subsidiaries",
             "K": "J.Crew Blocker",
+            "L": "Asset Sale Proceeds & Sweeps",
+            "M": "Unrestricted Subsidiary Distributions",
+            "N": "Dividend Capacity Calculation",
             "S": "Restricted Debt Payments - General",
             "T": "RDP Baskets",
             "Z": "Pattern Detection",
@@ -572,6 +575,7 @@ If your output is less than 30,000 characters, you are likely summarizing instea
                 settings.typedb_database, TransactionType.READ
             )
             try:
+                # Query questions - extraction_prompt is optional
                 query = f"""
                     match
                         $q isa ontology_question,
@@ -605,8 +609,16 @@ If your output is less than 30,000 characters, you are likely summarizing instea
                         "answer_type": _safe_get_value(row, "at", "string"),
                         "display_order": _safe_get_value(row, "order", 0),
                         "category_id": cat_letter,
-                        "category_name": category_names.get(cat_letter, f"Category {cat_letter}")
+                        "category_name": category_names.get(cat_letter, f"Category {cat_letter}"),
+                        "extraction_prompt": None  # Will be loaded separately
                     })
+
+                # Load extraction_prompt for each question (optional attribute)
+                for cat_id, questions in questions_by_cat.items():
+                    for q in questions:
+                        prompt = self._get_extraction_prompt(tx, q["question_id"])
+                        if prompt:
+                            q["extraction_prompt"] = prompt
 
                 # Load target field/concept mappings
                 for cat_id, questions in questions_by_cat.items():
@@ -625,6 +637,23 @@ If your output is less than 30,000 characters, you are likely summarizing instea
         except Exception as e:
             logger.error(f"Error loading questions: {e}")
             return {}
+
+    def _get_extraction_prompt(self, tx, question_id: str) -> Optional[str]:
+        """Get extraction_prompt hint for a question (if exists)."""
+        try:
+            query = f"""
+                match
+                    $q isa ontology_question,
+                        has question_id "{question_id}",
+                        has extraction_prompt $ep;
+                select $ep;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            if result:
+                return _safe_get_value(result[0], "ep")
+        except Exception:
+            pass
+        return None
 
     def _get_question_target(self, tx, question_id: str) -> Dict[str, Any]:
         """Get target field or concept type for a question.
@@ -786,24 +815,31 @@ Return ONLY the JSON array."""
             return []
 
     def _format_questions_for_prompt(self, questions: List[Dict]) -> str:
-        """Format questions for the QA prompt, including multiselect options."""
+        """Format questions for the QA prompt, including multiselect options and extraction hints."""
         lines = []
         for i, q in enumerate(questions, 1):
             answer_type = q.get("answer_type", "boolean")
             target = q.get("target_field_name", "")
             target_type = q.get("target_type", "field")
             concept_options = q.get("concept_options", [])
+            extraction_prompt = q.get("extraction_prompt")
 
             type_hint = {
                 "boolean": "(yes/no)",
                 "integer": "(number)",
                 "double": "(decimal)",
-                "percentage": "(decimal)",
+                "percentage": "(decimal 0-1)",
                 "currency": "(dollar amount)",
+                "string": "(text)",
+                "number": "(numeric)",
                 "multiselect": "(select from options below)"
             }.get(answer_type, "")
 
             lines.append(f"{i}. [{q['question_id']}] {q['question_text']} {type_hint}")
+
+            # Add extraction hint if available
+            if extraction_prompt:
+                lines.append(f"   → Hint: {extraction_prompt}")
 
             if target_type == "concept" and concept_options:
                 lines.append(f"   → Concept: {target}")

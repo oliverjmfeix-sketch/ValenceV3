@@ -1,0 +1,645 @@
+################################################################################
+# VALENCE V3 - EXPANDED ONTOLOGY QUESTIONS
+#
+# 36 new questions addressing gaps from Duck Creek gold standard:
+# - Builder basket: ECF, EBITDA-FC, greatest of, start date
+# - Ratio basket: no-worse test, multiple tiers
+# - Reallocation: cross-basket capacity
+# - Asset sales: tiered sweeps, de minimis
+# - Unrestricted Sub distributions
+# - Capacity calculation
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NEW CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $cat_l isa ontology_category,
+    has category_id "L",
+    has name "Asset Sale Proceeds & Sweeps",
+    has display_order 12;
+
+insert $cat_m isa ontology_category,
+    has category_id "M",
+    has name "Unrestricted Subsidiary Distributions",
+    has display_order 13;
+
+insert $cat_n isa ontology_category,
+    has category_id "N",
+    has name "Dividend Capacity Calculation",
+    has display_order 14;
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TARGET CONCEPT TYPES (for multiselect mapping)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $tct_bs isa target_concept_type, has target_concept_type "builder_source";
+insert $tct_rb isa target_concept_type, has target_concept_type "reallocatable_basket";
+insert $tct_es isa target_concept_type, has target_concept_type "exempt_sale_type";
+insert $tct_uc isa target_concept_type, has target_concept_type "unsub_distribution_condition";
+insert $tct_rr isa target_concept_type, has target_concept_type "ratio_required_basket";
+insert $tct_nd isa target_concept_type, has target_concept_type "no_default_basket";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BUILDER BASKET - ENHANCED (Category F, Questions F9-F17)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_f9 isa ontology_question,
+    has question_id "rp_f9",
+    has covenant_type "RP",
+    has question_text "What are ALL the sources that build the Cumulative Amount? Select all that apply.",
+    has answer_type "multiselect",
+    has display_order 9,
+    has extraction_prompt "Identify every source that adds to the Cumulative Amount or Available Amount basket. Check each: starter amount, CNI percentage, ECF (Excess Cash Flow), EBITDA minus Fixed Charges, equity proceeds, debt conversion proceeds, returns on investments, retained asset sale proceeds, declined proceeds, other.";
+
+insert $q_f10 isa ontology_question,
+    has question_id "rp_f10",
+    has covenant_type "RP",
+    has question_text "Is Excess Cash Flow (ECF) a build source for the Cumulative Amount?",
+    has answer_type "boolean",
+    has display_order 10,
+    has extraction_prompt "Determine if Excess Cash Flow that is not required to prepay debt builds the Cumulative Amount. Look for language like 'Excess Cash Flow not applied to mandatory prepayment' or similar.";
+
+insert $q_f11 isa ontology_question,
+    has question_id "rp_f11",
+    has covenant_type "RP",
+    has question_text "What is the ECF-based builder formula (if applicable)?",
+    has answer_type "string",
+    has display_order 11,
+    has extraction_prompt "If ECF builds the Cumulative Amount, extract the exact formula. Include any floors (e.g., 'cannot be less than $0'), percentage retained, and conditions.";
+
+insert $q_f12 isa ontology_question,
+    has question_id "rp_f12",
+    has covenant_type "RP",
+    has question_text "Is there an EBITDA minus Fixed Charges test as a build source?",
+    has answer_type "boolean",
+    has display_order 12,
+    has extraction_prompt "Determine if cumulative EBITDA minus a multiple of Fixed Charges is a build source. Look for formulas like 'EBITDA minus 140% of Consolidated Fixed Charges' or similar.";
+
+insert $q_f13 isa ontology_question,
+    has question_id "rp_f13",
+    has covenant_type "RP",
+    has question_text "What is the Fixed Charges multiplier in the EBITDA test (e.g., 140%)?",
+    has answer_type "percentage",
+    has display_order 13,
+    has extraction_prompt "If an EBITDA minus Fixed Charges test exists, what multiple of Fixed Charges is subtracted? Common values: 100%, 125%, 140%, 150%.";
+
+insert $q_f14 isa ontology_question,
+    has question_id "rp_f14",
+    has covenant_type "RP",
+    has question_text "Does the Cumulative Amount use 'greatest of' multiple alternative tests?",
+    has answer_type "boolean",
+    has display_order 14,
+    has extraction_prompt "Determine if the Cumulative Amount is calculated as the GREATEST OF multiple alternative formulas (e.g., greatest of CNI test, ECF test, and EBITDA test), rather than a sum of components.";
+
+insert $q_f15 isa ontology_question,
+    has question_id "rp_f15",
+    has covenant_type "RP",
+    has question_text "What is the exact start date for Cumulative Amount accumulation?",
+    has answer_type "string",
+    has display_order 15,
+    has extraction_prompt "Extract the VERBATIM language describing when the Cumulative Amount starts accumulating. Examples: 'the first day of the fiscal quarter in which the Closing Date occurs', 'the Closing Date', 'the first full fiscal quarter after the Closing Date'.";
+
+insert $q_f16 isa ontology_question,
+    has question_id "rp_f16",
+    has covenant_type "RP",
+    has question_text "Do Retained Asset Sale Proceeds build the Cumulative Amount?",
+    has answer_type "boolean",
+    has display_order 16,
+    has extraction_prompt "Determine if asset sale proceeds that are not required to be applied to prepayment (Retained Asset Sale Proceeds, Declined Proceeds) are added to the Cumulative Amount.";
+
+insert $q_f17 isa ontology_question,
+    has question_id "rp_f17",
+    has covenant_type "RP",
+    has question_text "Do returns/distributions from Investments build the Cumulative Amount?",
+    has answer_type "boolean",
+    has display_order 17,
+    has extraction_prompt "Determine if cash returns, profits, distributions received from Investments (including from Unrestricted Subsidiaries) are added to the Cumulative Amount.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RATIO BASKET - ENHANCED (Category G, Questions G5-G7)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_g5 isa ontology_question,
+    has question_id "rp_g5",
+    has covenant_type "RP",
+    has question_text "Is there a 'no worse' ratio test for unlimited dividends?",
+    has answer_type "boolean",
+    has display_order 5,
+    has extraction_prompt "Determine if dividends are permitted when the leverage ratio is 'no worse' than before giving effect to the dividend, even if above the normal threshold. Look for language like 'if the ratio would not be worse on a pro forma basis'.";
+
+insert $q_g6 isa ontology_question,
+    has question_id "rp_g6",
+    has covenant_type "RP",
+    has question_text "What is the 'no worse' ratio threshold (if different from unlimited threshold)?",
+    has answer_type "number",
+    has display_order 6,
+    has extraction_prompt "If a 'no worse' test exists at a different threshold than the unlimited ratio basket, what is that threshold? For example, unlimited at 3.50x but 'no worse' permitted up to 6.25x.";
+
+insert $q_g7 isa ontology_question,
+    has question_id "rp_g7",
+    has covenant_type "RP",
+    has question_text "Are there multiple leverage tiers with different dividend permissions?",
+    has answer_type "boolean",
+    has display_order 7,
+    has extraction_prompt "Determine if there are multiple ratio thresholds that permit different levels of dividends. For example: unlimited below 3.50x, capped amount between 3.50x-4.50x, prohibited above 4.50x.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BASKET REALLOCATION (Category I, Questions I1-I6)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_i1 isa ontology_question,
+    has question_id "rp_i1",
+    has covenant_type "RP",
+    has question_text "Can amounts from other baskets be reallocated to make Restricted Payments?",
+    has answer_type "boolean",
+    has display_order 1,
+    has extraction_prompt "Determine if the RP covenant permits using capacity from other baskets (Investment basket, RDP basket, prepayment basket) to make Restricted Payments. Look for cross-references like 'amounts available under Section 6.03(y)' or 'amounts available under Section 6.09(a)'.";
+
+insert $q_i2 isa ontology_question,
+    has question_id "rp_i2",
+    has covenant_type "RP",
+    has question_text "Which baskets can be reallocated to Restricted Payments?",
+    has answer_type "multiselect",
+    has display_order 2,
+    has extraction_prompt "Identify ALL baskets whose capacity can be used for Restricted Payments. Common sources: Investment basket (6.03), Restricted Debt Payment basket (6.09), prepayment basket, intercompany debt basket.";
+
+insert $q_i3 isa ontology_question,
+    has question_id "rp_i3",
+    has covenant_type "RP",
+    has question_text "What section governs reallocation to Restricted Payments?",
+    has answer_type "string",
+    has display_order 3,
+    has extraction_prompt "Identify the specific section that permits reallocation from other baskets to Restricted Payments. Usually a lettered subsection like 6.06(j) or 6.06(k).";
+
+insert $q_i4 isa ontology_question,
+    has question_id "rp_i4",
+    has covenant_type "RP",
+    has question_text "What is the Restricted Debt Payment basket amount available for reallocation?",
+    has answer_type "currency",
+    has display_order 4,
+    has extraction_prompt "If the RDP basket (Section 6.09) can be reallocated to Restricted Payments, what is the dollar amount of that basket? Look for the general RDP basket amount, often structured as 'greater of $X and Y% of EBITDA'.";
+
+insert $q_i5 isa ontology_question,
+    has question_id "rp_i5",
+    has covenant_type "RP",
+    has question_text "What is the Investment basket amount available for reallocation?",
+    has answer_type "currency",
+    has display_order 5,
+    has extraction_prompt "If the Investment basket (Section 6.03) can be reallocated to Restricted Payments, what is the dollar amount? Look for the general Investment basket, often structured as 'greater of $X and Y% of EBITDA' or 'greater of $X and Y% of Total Assets'.";
+
+insert $q_i6 isa ontology_question,
+    has question_id "rp_i6",
+    has covenant_type "RP",
+    has question_text "Is basket reallocation bidirectional (RP basket can also be used for Investments/RDP)?",
+    has answer_type "boolean",
+    has display_order 6,
+    has extraction_prompt "Determine if the Restricted Payment basket capacity can also be used for Investments or Restricted Debt Payments, not just the reverse.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ASSET SALE PROCEEDS & SWEEPS (Category L, Questions L1-L9)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_l1 isa ontology_question,
+    has question_id "rp_l1",
+    has covenant_type "RP",
+    has question_text "Can asset sale proceeds ultimately be used for dividends?",
+    has answer_type "boolean",
+    has display_order 1,
+    has extraction_prompt "Determine if Net Cash Proceeds from asset sales can build the Cumulative Amount or otherwise be used for Restricted Payments. This can occur through Retained Asset Sale Proceeds, Declined Proceeds, or proceeds not subject to mandatory prepayment.";
+
+insert $q_l2 isa ontology_question,
+    has question_id "rp_l2",
+    has covenant_type "RP",
+    has question_text "Are there leverage-based tiers for asset sale sweep percentages?",
+    has answer_type "boolean",
+    has display_order 2,
+    has extraction_prompt "Determine if the mandatory prepayment of asset sale proceeds varies by leverage ratio. For example: 50% sweep above 5.75x, 0% sweep below 5.50x.";
+
+insert $q_l3 isa ontology_question,
+    has question_id "rp_l3",
+    has covenant_type "RP",
+    has question_text "What is the first leverage tier and sweep percentage for asset sales?",
+    has answer_type "string",
+    has display_order 3,
+    has extraction_prompt "Extract the first/highest leverage tier and its sweep percentage. Format as: '[ratio]x = [percentage]% sweep'. Example: '5.75x = 50% sweep'.";
+
+insert $q_l4 isa ontology_question,
+    has question_id "rp_l4",
+    has covenant_type "RP",
+    has question_text "What is the second leverage tier and sweep percentage for asset sales?",
+    has answer_type "string",
+    has display_order 4,
+    has extraction_prompt "Extract the second leverage tier and its sweep percentage if it exists. Format as: '[ratio]x = [percentage]% sweep'. Example: '5.50x = 0% sweep'.";
+
+insert $q_l5 isa ontology_question,
+    has question_id "rp_l5",
+    has covenant_type "RP",
+    has question_text "What is the de minimis threshold for individual asset sales (below which no sweep)?",
+    has answer_type "currency",
+    has display_order 5,
+    has extraction_prompt "Identify the dollar threshold below which individual asset sales are not subject to mandatory prepayment. Often structured as 'greater of $X and Y% of EBITDA'.";
+
+insert $q_l6 isa ontology_question,
+    has question_id "rp_l6",
+    has covenant_type "RP",
+    has question_text "What is the annual de minimis threshold for asset sale sweeps?",
+    has answer_type "currency",
+    has display_order 6,
+    has extraction_prompt "Identify the annual aggregate threshold below which asset sales are not swept. Often structured as 'greater of $X and Y% of EBITDA per fiscal year'.";
+
+insert $q_l7 isa ontology_question,
+    has question_id "rp_l7",
+    has covenant_type "RP",
+    has question_text "Which types of asset sales are exempt from mandatory prepayment?",
+    has answer_type "multiselect",
+    has display_order 7,
+    has extraction_prompt "Identify ALL categories of asset sales exempt from sweep. Common exemptions: non-Collateral assets, ordinary course sales, Casualty Events, sales under de minimis threshold, intercompany sales, sale-leasebacks.";
+
+insert $q_l8 isa ontology_question,
+    has question_id "rp_l8",
+    has covenant_type "RP",
+    has question_text "Can asset sales under the ratio basket (unlimited basket) avoid sweep?",
+    has answer_type "boolean",
+    has display_order 8,
+    has extraction_prompt "Determine if asset sales made under a ratio-based unlimited basket (often Section 6.05(z)) are exempt from mandatory prepayment. Look for cross-references between asset sale covenant and prepayment provisions.";
+
+insert $q_l9 isa ontology_question,
+    has question_id "rp_l9",
+    has covenant_type "RP",
+    has question_text "What ratio must be met for asset sale proceeds to avoid sweep?",
+    has answer_type "number",
+    has display_order 9,
+    has extraction_prompt "If a ratio test exempts asset sale proceeds from sweep, what is the threshold? For example, 'if First Lien Net Leverage Ratio is 6.25x or less'.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UNRESTRICTED SUBSIDIARY DISTRIBUTIONS (Category M, Questions M1-M4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_m1 isa ontology_question,
+    has question_id "rp_m1",
+    has covenant_type "RP",
+    has question_text "Can the Borrower dividend equity interests it owns in Unrestricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1,
+    has extraction_prompt "Determine if there is a specific basket permitting distribution of Equity Interests in Unrestricted Subsidiaries to shareholders. Look for language like 'dividends of shares of Equity Interests of any Unrestricted Subsidiary'.";
+
+insert $q_m2 isa ontology_question,
+    has question_id "rp_m2",
+    has covenant_type "RP",
+    has question_text "Can the Borrower dividend assets of Unrestricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 2,
+    has extraction_prompt "Determine if assets held by Unrestricted Subsidiaries can be distributed to shareholders. Look for language like 'dividends of any assets of an Unrestricted Subsidiary'.";
+
+insert $q_m3 isa ontology_question,
+    has question_id "rp_m3",
+    has covenant_type "RP",
+    has question_text "What section permits Unrestricted Subsidiary distributions?",
+    has answer_type "string",
+    has display_order 3,
+    has extraction_prompt "Identify the specific section reference that permits dividends of Unrestricted Subsidiary equity or assets. Usually a lettered subsection like 6.06(p).";
+
+insert $q_m4 isa ontology_question,
+    has question_id "rp_m4",
+    has covenant_type "RP",
+    has question_text "What conditions apply to Unrestricted Subsidiary distributions?",
+    has answer_type "multiselect",
+    has display_order 4,
+    has extraction_prompt "Identify any conditions on distributing Unrestricted Subsidiary equity or assets. Common conditions: no default, pro forma ratio compliance, value caps.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DIVIDEND CAPACITY CALCULATION (Category N, Questions N1-N5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_n1 isa ontology_question,
+    has question_id "rp_n1",
+    has covenant_type "RP",
+    has question_text "What is the general/catch-all Restricted Payment basket amount?",
+    has answer_type "currency",
+    has display_order 1,
+    has extraction_prompt "Identify the general RP basket that can be used for any Restricted Payment. Often structured as 'greater of $X and Y% of EBITDA' or 'greater of $X and Y% of Total Assets'.";
+
+insert $q_n2 isa ontology_question,
+    has question_id "rp_n2",
+    has covenant_type "RP",
+    has question_text "What is the grower percentage for the general RP basket?",
+    has answer_type "percentage",
+    has display_order 2,
+    has extraction_prompt "If the general RP basket uses a 'greater of' formula, what is the EBITDA or Total Assets percentage? For example, '100% of EBITDA' or '1.5% of Total Assets'.";
+
+insert $q_n3 isa ontology_question,
+    has question_id "rp_n3",
+    has covenant_type "RP",
+    has question_text "List ALL quantifiable RP baskets with their dollar amounts.",
+    has answer_type "string",
+    has display_order 3,
+    has extraction_prompt "Create a comprehensive list of every Restricted Payment basket that has a quantifiable dollar amount. Format each as: 'Basket name: $X (or greater of $X / Y% EBITDA)'. Include: starter amount, general basket, management equity, tax distributions, specific purpose baskets.";
+
+insert $q_n4 isa ontology_question,
+    has question_id "rp_n4",
+    has covenant_type "RP",
+    has question_text "Which RP baskets require a ratio test to be met?",
+    has answer_type "multiselect",
+    has display_order 4,
+    has extraction_prompt "Identify which Restricted Payment baskets require leverage ratio compliance. Common: ratio unlimited basket, builder basket usage, certain specific baskets.";
+
+insert $q_n5 isa ontology_question,
+    has question_id "rp_n5",
+    has covenant_type "RP",
+    has question_text "Which RP baskets require no Event of Default?",
+    has answer_type "multiselect",
+    has display_order 5,
+    has extraction_prompt "Identify which Restricted Payment baskets require that no Event of Default exists. Some baskets may be available even during a default.";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONCEPT INSTANCES (for multiselect options)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Builder sources (for rp_f9)
+insert $bs1 isa builder_source, has concept_id "bs_starter", has name "Starter Amount";
+insert $bs2 isa builder_source, has concept_id "bs_cni", has name "CNI Percentage";
+insert $bs3 isa builder_source, has concept_id "bs_ecf", has name "Excess Cash Flow";
+insert $bs4 isa builder_source, has concept_id "bs_ebitda_fc", has name "EBITDA minus Fixed Charges";
+insert $bs5 isa builder_source, has concept_id "bs_equity", has name "Equity Proceeds";
+insert $bs6 isa builder_source, has concept_id "bs_debt_conversion", has name "Debt Conversion to Equity";
+insert $bs7 isa builder_source, has concept_id "bs_investment_returns", has name "Returns on Investments";
+insert $bs8 isa builder_source, has concept_id "bs_asset_proceeds", has name "Retained Asset Sale Proceeds";
+insert $bs9 isa builder_source, has concept_id "bs_declined_proceeds", has name "Declined Proceeds";
+
+# Reallocatable baskets (for rp_i2)
+insert $rb1 isa reallocatable_basket, has concept_id "rb_investment", has name "Investment Basket (6.03)";
+insert $rb2 isa reallocatable_basket, has concept_id "rb_rdp", has name "Restricted Debt Payment Basket (6.09)";
+insert $rb3 isa reallocatable_basket, has concept_id "rb_prepayment", has name "Prepayment Basket";
+insert $rb4 isa reallocatable_basket, has concept_id "rb_intercompany", has name "Intercompany Debt Basket";
+
+# Exempt asset sale types (for rp_l7)
+insert $es1 isa exempt_sale_type, has concept_id "es_non_collateral", has name "Non-Collateral Assets";
+insert $es2 isa exempt_sale_type, has concept_id "es_ordinary_course", has name "Ordinary Course Sales";
+insert $es3 isa exempt_sale_type, has concept_id "es_casualty", has name "Casualty Events";
+insert $es4 isa exempt_sale_type, has concept_id "es_de_minimis", has name "Below De Minimis Threshold";
+insert $es5 isa exempt_sale_type, has concept_id "es_intercompany", has name "Intercompany Sales";
+insert $es6 isa exempt_sale_type, has concept_id "es_sale_leaseback", has name "Sale-Leasebacks";
+insert $es7 isa exempt_sale_type, has concept_id "es_ratio_basket", has name "Ratio Basket Sales";
+
+# Unsub distribution conditions (for rp_m4)
+insert $uc1 isa unsub_distribution_condition, has concept_id "uc_no_default", has name "No Event of Default";
+insert $uc2 isa unsub_distribution_condition, has concept_id "uc_ratio", has name "Pro Forma Ratio Compliance";
+insert $uc3 isa unsub_distribution_condition, has concept_id "uc_value_cap", has name "Value Cap";
+insert $uc4 isa unsub_distribution_condition, has concept_id "uc_none", has name "No Conditions";
+
+# Baskets requiring ratio test (for rp_n4)
+insert $rt1 isa ratio_required_basket, has concept_id "rt_unlimited", has name "Ratio Unlimited Basket";
+insert $rt2 isa ratio_required_basket, has concept_id "rt_builder", has name "Builder Basket";
+insert $rt3 isa ratio_required_basket, has concept_id "rt_asset_sale", has name "Asset Sale Basket";
+insert $rt4 isa ratio_required_basket, has concept_id "rt_acquisition", has name "Acquisition Basket";
+
+# Baskets requiring no default (for rp_n5)
+insert $nd1 isa no_default_basket, has concept_id "nd_builder", has name "Builder Basket";
+insert $nd2 isa no_default_basket, has concept_id "nd_ratio", has name "Ratio Basket";
+insert $nd3 isa no_default_basket, has concept_id "nd_general", has name "General Basket";
+insert $nd4 isa no_default_basket, has concept_id "nd_mgmt_equity", has name "Management Equity Basket";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TARGET FIELD INSTANCES (for scalar question mapping)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $tf_f10 isa target_field, has target_field_name "builder_ecf_source_exists";
+insert $tf_f11 isa target_field, has target_field_name "builder_ecf_formula";
+insert $tf_f12 isa target_field, has target_field_name "builder_ebitda_fc_exists";
+insert $tf_f13 isa target_field, has target_field_name "builder_fc_multiplier_pct";
+insert $tf_f14 isa target_field, has target_field_name "builder_uses_greatest_of";
+insert $tf_f15 isa target_field, has target_field_name "builder_start_date_language";
+insert $tf_f16 isa target_field, has target_field_name "builder_asset_proceeds_source";
+insert $tf_f17 isa target_field, has target_field_name "builder_investment_returns_source";
+
+insert $tf_g5 isa target_field, has target_field_name "ratio_no_worse_test_exists";
+insert $tf_g6 isa target_field, has target_field_name "ratio_no_worse_threshold";
+insert $tf_g7 isa target_field, has target_field_name "ratio_multiple_tiers_exist";
+
+insert $tf_i1 isa target_field, has target_field_name "reallocation_to_rp_permitted";
+insert $tf_i3 isa target_field, has target_field_name "reallocation_section_ref";
+insert $tf_i4 isa target_field, has target_field_name "rdp_basket_reallocation_amount_usd";
+insert $tf_i5 isa target_field, has target_field_name "investment_basket_reallocation_amount_usd";
+insert $tf_i6 isa target_field, has target_field_name "reallocation_bidirectional";
+
+insert $tf_m1 isa target_field, has target_field_name "unsub_equity_dividend_permitted";
+insert $tf_m2 isa target_field, has target_field_name "unsub_asset_dividend_permitted";
+insert $tf_m3 isa target_field, has target_field_name "unsub_distribution_section_ref";
+
+insert $tf_l1 isa target_field, has target_field_name "asset_proceeds_can_fund_dividends";
+insert $tf_l2 isa target_field, has target_field_name "leverage_tiered_sweep_exists";
+insert $tf_l3 isa target_field, has target_field_name "sweep_tier_1";
+insert $tf_l4 isa target_field, has target_field_name "sweep_tier_2";
+insert $tf_l5 isa target_field, has target_field_name "de_minimis_individual_usd";
+insert $tf_l6 isa target_field, has target_field_name "de_minimis_annual_usd";
+insert $tf_l8 isa target_field, has target_field_name "ratio_basket_avoids_sweep";
+insert $tf_l9 isa target_field, has target_field_name "sweep_exempt_ratio_threshold";
+
+insert $tf_n1 isa target_field, has target_field_name "general_rp_basket_amount_usd";
+insert $tf_n2 isa target_field, has target_field_name "general_rp_basket_grower_pct";
+insert $tf_n3 isa target_field, has target_field_name "all_baskets_summary";
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION RELATIONS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Category F (Builder) for F9-F17
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f15";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f16";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category G (Ratio) for G5-G7
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category I (Reallocation) for I1-I6
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category L (Asset Sales) for L1-L9
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category M (Unsub Distributions) for M1-M4
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category N (Capacity) for N1-N5
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ═══════════════════════════════════════════════════════════════════════════
+# QUESTION → TARGET FIELD RELATIONS (scalar questions)
+# ═══════════════════════════════════════════════════════════════════════════
+
+match $q isa ontology_question, has question_id "rp_f10"; $f isa target_field, has target_field_name "builder_ecf_source_exists";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f11"; $f isa target_field, has target_field_name "builder_ecf_formula";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f12"; $f isa target_field, has target_field_name "builder_ebitda_fc_exists";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f13"; $f isa target_field, has target_field_name "builder_fc_multiplier_pct";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f14"; $f isa target_field, has target_field_name "builder_uses_greatest_of";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f15"; $f isa target_field, has target_field_name "builder_start_date_language";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f16"; $f isa target_field, has target_field_name "builder_asset_proceeds_source";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_f17"; $f isa target_field, has target_field_name "builder_investment_returns_source";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_g5"; $f isa target_field, has target_field_name "ratio_no_worse_test_exists";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_g6"; $f isa target_field, has target_field_name "ratio_no_worse_threshold";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_g7"; $f isa target_field, has target_field_name "ratio_multiple_tiers_exist";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_i1"; $f isa target_field, has target_field_name "reallocation_to_rp_permitted";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_i3"; $f isa target_field, has target_field_name "reallocation_section_ref";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_i4"; $f isa target_field, has target_field_name "rdp_basket_reallocation_amount_usd";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_i5"; $f isa target_field, has target_field_name "investment_basket_reallocation_amount_usd";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_i6"; $f isa target_field, has target_field_name "reallocation_bidirectional";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_m1"; $f isa target_field, has target_field_name "unsub_equity_dividend_permitted";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_m2"; $f isa target_field, has target_field_name "unsub_asset_dividend_permitted";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_m3"; $f isa target_field, has target_field_name "unsub_distribution_section_ref";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l1"; $f isa target_field, has target_field_name "asset_proceeds_can_fund_dividends";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l2"; $f isa target_field, has target_field_name "leverage_tiered_sweep_exists";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l3"; $f isa target_field, has target_field_name "sweep_tier_1";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l4"; $f isa target_field, has target_field_name "sweep_tier_2";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l5"; $f isa target_field, has target_field_name "de_minimis_individual_usd";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l6"; $f isa target_field, has target_field_name "de_minimis_annual_usd";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l8"; $f isa target_field, has target_field_name "ratio_basket_avoids_sweep";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_l9"; $f isa target_field, has target_field_name "sweep_exempt_ratio_threshold";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_n1"; $f isa target_field, has target_field_name "general_rp_basket_amount_usd";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_n2"; $f isa target_field, has target_field_name "general_rp_basket_grower_pct";
+insert (question: $q, field: $f) isa question_targets_field;
+
+match $q isa ontology_question, has question_id "rp_n3"; $f isa target_field, has target_field_name "all_baskets_summary";
+insert (question: $q, field: $f) isa question_targets_field;
+
+# ═══════════════════════════════════════════════════════════════════════════
+# QUESTION → TARGET CONCEPT RELATIONS (multiselect questions)
+# ═══════════════════════════════════════════════════════════════════════════
+
+match $q isa ontology_question, has question_id "rp_f9"; $ct isa target_concept_type, has target_concept_type "builder_source";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;
+
+match $q isa ontology_question, has question_id "rp_i2"; $ct isa target_concept_type, has target_concept_type "reallocatable_basket";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;
+
+match $q isa ontology_question, has question_id "rp_l7"; $ct isa target_concept_type, has target_concept_type "exempt_sale_type";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;
+
+match $q isa ontology_question, has question_id "rp_m4"; $ct isa target_concept_type, has target_concept_type "unsub_distribution_condition";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;
+
+match $q isa ontology_question, has question_id "rp_n4"; $ct isa target_concept_type, has target_concept_type "ratio_required_basket";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;
+
+match $q isa ontology_question, has question_id "rp_n5"; $ct isa target_concept_type, has target_concept_type "no_default_basket";
+insert (question: $q, concept_type: $ct) isa question_targets_concept;

@@ -134,6 +134,126 @@ def _load_categories_with_relations(driver, db_name: str, filepath: Path):
     logger.info(f"✓ Category relations: {relations_created} created, {relations_skipped} skipped")
 
 
+def _load_ontology_expanded(driver, db_name: str, filepath: Path):
+    """
+    Load ontology_expanded.tql which contains:
+    1. Insert statements for categories, questions, concepts, target fields
+    2. Match-insert statements for category_has_question and question_targets_* relations
+
+    These must be executed separately because TypeQL can't mix them in one query.
+    """
+    if not filepath.exists():
+        logger.warning(f"Ontology expanded file not found: {filepath}")
+        return
+
+    content = filepath.read_text()
+    lines = content.split('\n')
+
+    insert_statements = []
+    match_insert_statements = []
+    current_statement = []
+    in_match_block = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip comments and empty lines
+        if not stripped or stripped.startswith('#'):
+            continue
+
+        # Detect start of match-insert statement
+        if stripped.startswith('match '):
+            in_match_block = True
+            if current_statement:
+                # Save previous insert statement
+                stmt = '\n'.join(current_statement).strip()
+                if stmt:
+                    insert_statements.append(stmt)
+            current_statement = [stripped]
+            continue
+
+        # Detect start of plain insert statement
+        if stripped.startswith('insert ') and not in_match_block:
+            if current_statement:
+                stmt = '\n'.join(current_statement).strip()
+                if stmt:
+                    if any(s.startswith('match ') for s in current_statement):
+                        match_insert_statements.append(stmt)
+                    else:
+                        insert_statements.append(stmt)
+            current_statement = [stripped]
+            continue
+
+        # Add to current statement
+        current_statement.append(stripped)
+
+        # Check if statement ends
+        if stripped.endswith(';'):
+            stmt = '\n'.join(current_statement).strip()
+            if stmt:
+                if in_match_block or any('match ' in s for s in current_statement):
+                    match_insert_statements.append(stmt)
+                else:
+                    insert_statements.append(stmt)
+            current_statement = []
+            in_match_block = False
+
+    # Don't forget the last statement
+    if current_statement:
+        stmt = '\n'.join(current_statement).strip()
+        if stmt:
+            if in_match_block:
+                match_insert_statements.append(stmt)
+            else:
+                insert_statements.append(stmt)
+
+    # 1. Execute insert statements (categories, questions, concepts, target fields)
+    inserts_created = 0
+    inserts_skipped = 0
+
+    for stmt in insert_statements:
+        if not stmt.strip():
+            continue
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            inserts_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                inserts_skipped += 1
+            else:
+                logger.debug(f"Insert error: {e}")
+                inserts_skipped += 1
+
+    logger.info(f"✓ Ontology expanded inserts: {inserts_created} created, {inserts_skipped} skipped")
+
+    # 2. Execute match-insert statements (relations)
+    relations_created = 0
+    relations_skipped = 0
+
+    for stmt in match_insert_statements:
+        if not stmt.strip():
+            continue
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            relations_created += 1
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "unique" in error_msg or "already" in error_msg or "duplicate" in error_msg:
+                relations_skipped += 1
+            else:
+                logger.debug(f"Relation insert error: {e}")
+                relations_skipped += 1
+
+    logger.info(f"✓ Ontology expanded relations: {relations_created} created, {relations_skipped} skipped")
+
+
 def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
     """
     Try to add new schema elements incrementally.
@@ -263,6 +383,25 @@ async def _ensure_schema_loaded():
                 else:
                     logger.warning(f"Schema v2 load: {e}")
 
+    # 1c. Load expanded schema (new concept types, new rp_provision attributes)
+    schema_expanded_file = DATA_DIR / "schema_expanded.tql"
+    if schema_expanded_file.exists():
+        logger.info("Loading schema_expanded.tql...")
+        schema_expanded_tql = _load_tql_file(schema_expanded_file)
+        if schema_expanded_tql:
+            tx = driver.transaction(db_name, TransactionType.SCHEMA)
+            try:
+                tx.query(schema_expanded_tql).resolve()
+                tx.commit()
+                logger.info("✓ Schema expanded loaded")
+            except Exception as e:
+                tx.close()
+                error_msg = str(e).lower()
+                if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
+                    logger.info("✓ Schema expanded already exists (skipping)")
+                else:
+                    logger.warning(f"Schema expanded load: {e}")
+
     # 2. Load concepts (insert statements) - skip if already loaded
     concepts_file = DATA_DIR / "concepts.tql"
     if concepts_file.exists():
@@ -306,6 +445,12 @@ async def _ensure_schema_loaded():
     if categories_file.exists():
         logger.info("Loading categories.tql...")
         _load_categories_with_relations(driver, db_name, categories_file)
+
+    # 5. Load expanded ontology (36 new questions + concepts + relations)
+    ontology_expanded_file = DATA_DIR / "ontology_expanded.tql"
+    if ontology_expanded_file.exists():
+        logger.info("Loading ontology_expanded.tql...")
+        _load_ontology_expanded(driver, db_name, ontology_expanded_file)
 
     logger.info("✓ Schema initialization complete!")
 

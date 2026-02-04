@@ -511,6 +511,9 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                     "I": "Basket Reallocation",
                     "J": "Unrestricted Subsidiaries",
                     "K": "J.Crew Blocker",
+                    "L": "Asset Sale Proceeds & Sweeps",
+                    "M": "Unrestricted Subsidiary Distributions",
+                    "N": "Dividend Capacity Calculation",
                     "S": "Restricted Debt Payments - General",
                     "T": "RDP Baskets",
                     "Z": "Pattern Detection",
@@ -585,18 +588,37 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 # Category D - Tax
                 "rp_d1": "tax_distribution_basket_exists",
                 "rp_d3": "tax_standalone_taxpayer_limit",
-                # Category F - Builder Basket
+                # Category F - Builder Basket (original)
                 "rp_f1": "builder_basket_exists",
                 "rp_f2": "builder_starter_amount_usd",
                 "rp_f3": "builder_starter_pct_ebitda",
                 "rp_f4": "builder_uses_greater_of",
                 "rp_f5": "builder_cni_addition_pct",
                 "rp_f6": "builder_equity_addition_pct",
-                # Category G - Ratio Basket
+                # Category F - Builder Basket (expanded F10-F17)
+                "rp_f10": "builder_ecf_source_exists",
+                "rp_f11": "builder_ecf_formula",
+                "rp_f12": "builder_ebitda_fc_exists",
+                "rp_f13": "builder_fc_multiplier_pct",
+                "rp_f14": "builder_uses_greatest_of",
+                "rp_f15": "builder_start_date_language",
+                "rp_f16": "builder_asset_proceeds_source",
+                "rp_f17": "builder_investment_returns_source",
+                # Category G - Ratio Basket (original)
                 "rp_g1": "ratio_dividend_basket_exists",
                 "rp_g2": "ratio_leverage_threshold",
                 "rp_g3": "ratio_interest_coverage_threshold",
                 "rp_g4": "ratio_is_unlimited_if_met",
+                # Category G - Ratio Basket (expanded G5-G7)
+                "rp_g5": "ratio_no_worse_test_exists",
+                "rp_g6": "ratio_no_worse_threshold",
+                "rp_g7": "ratio_multiple_tiers_exist",
+                # Category I - Reallocation (expanded I1, I3-I6)
+                "rp_i1": "reallocation_to_rp_permitted",
+                "rp_i3": "reallocation_section_ref",
+                "rp_i4": "rdp_basket_reallocation_amount_usd",
+                "rp_i5": "investment_basket_reallocation_amount_usd",
+                "rp_i6": "reallocation_bidirectional",
                 # Category J - Unrestricted Subs
                 "rp_j1": "unsub_designation_permitted",
                 "rp_j2": "unsub_requires_no_default",
@@ -608,6 +630,23 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 "rp_k2": "blocker_covers_ip",
                 "rp_k3": "blocker_covers_material_assets",
                 "rp_k8": "jcrew_blocker_is_sacred_right",
+                # Category L - Asset Sale Proceeds (expanded L1-L9)
+                "rp_l1": "asset_proceeds_can_fund_dividends",
+                "rp_l2": "leverage_tiered_sweep_exists",
+                "rp_l3": "sweep_tier_1",
+                "rp_l4": "sweep_tier_2",
+                "rp_l5": "de_minimis_individual_usd",
+                "rp_l6": "de_minimis_annual_usd",
+                "rp_l8": "ratio_basket_avoids_sweep",
+                "rp_l9": "sweep_exempt_ratio_threshold",
+                # Category M - Unrestricted Sub Distributions (expanded M1-M3)
+                "rp_m1": "unsub_equity_dividend_permitted",
+                "rp_m2": "unsub_asset_dividend_permitted",
+                "rp_m3": "unsub_distribution_section_ref",
+                # Category N - Capacity Calculation (expanded N1-N3)
+                "rp_n1": "general_rp_basket_amount_usd",
+                "rp_n2": "general_rp_basket_grower_pct",
+                "rp_n3": "all_baskets_summary",
                 # Category Z - Patterns
                 "rp_z1": "jcrew_pattern_detected",
                 "rp_z2": "serta_pattern_detected",
@@ -626,14 +665,18 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 "rp_e1": "equity_award_type",
                 "rp_f7": "builder_source",
                 "rp_f8": "builder_use",
+                "rp_f9": "builder_source",  # Expanded - all builder sources
                 "rp_h1": "holdco_overhead_cost",
                 "rp_h2": "holdco_transaction_cost",
-                "rp_i1": "reallocation_source_basket",
-                "rp_i2": "reallocation_target_basket",
+                "rp_i2": "reallocatable_basket",  # Expanded - which baskets can reallocate
                 "rp_k4": "blocker_binding_entity",  # Actual TypeDB type
                 "rp_k5": "jcrew_trigger_condition",
                 "rp_k6": "jcrew_ip_type",
                 "rp_k7": "transfer_type",  # Actual TypeDB type
+                "rp_l7": "exempt_sale_type",  # Expanded - exempt asset sale types
+                "rp_m4": "unsub_distribution_condition",  # Expanded - conditions on unsub distributions
+                "rp_n4": "ratio_required_basket",  # Expanded - baskets requiring ratio test
+                "rp_n5": "no_default_basket",  # Expanded - baskets requiring no default
                 "rp_s1": "rdp_payment_type",
                 "rp_t1": "rdp_basket",
             }
