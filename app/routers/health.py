@@ -11,6 +11,17 @@ from app.services.typedb_client import typedb_client
 router = APIRouter(tags=["Health"])
 
 
+def _safe_get_value(row, key: str, default=None):
+    """Safely get attribute value from a TypeDB row with null check."""
+    try:
+        concept = row.get(key)
+        if concept is None:
+            return default
+        return concept.as_attribute().get_value()
+    except Exception:
+        return default
+
+
 @router.get("/health")
 async def health_check() -> Dict[str, Any]:
     """Basic health check."""
