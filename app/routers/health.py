@@ -127,3 +127,80 @@ async def debug_schema_check() -> Dict[str, Any]:
             results[f"question_{qid}_error"] = str(e)
 
     return results
+
+
+@router.post("/api/debug/reload-schema-expanded")
+async def debug_reload_schema_expanded() -> Dict[str, Any]:
+    """Manually reload the expanded schema."""
+    from pathlib import Path
+    from app.config import settings
+
+    driver = typedb_client.driver
+    db_name = settings.typedb_database
+    results = {"steps": []}
+
+    if not driver:
+        return {"error": "No TypeDB driver"}
+
+    # Load schema_expanded.tql
+    DATA_DIR = Path(__file__).parent.parent / "data"
+    schema_file = DATA_DIR / "schema_expanded.tql"
+
+    if not schema_file.exists():
+        return {"error": f"Schema file not found: {schema_file}"}
+
+    content = schema_file.read_text()
+    lines = [l for l in content.split('\n') if l.strip() and not l.strip().startswith('#')]
+    schema_tql = '\n'.join(lines)
+
+    results["steps"].append(f"Loaded schema file: {len(lines)} lines")
+
+    # Parse into individual definitions
+    current_def = []
+    definitions = []
+    in_define = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped == 'define':
+            in_define = True
+            continue
+        if not in_define or not stripped:
+            continue
+        current_def.append(line)
+        if stripped.endswith(';'):
+            definitions.append('\n'.join(current_def))
+            current_def = []
+
+    results["steps"].append(f"Parsed {len(definitions)} definitions")
+    results["definitions_preview"] = [d[:60] + "..." for d in definitions[:5]]
+
+    # Try each definition
+    added = []
+    skipped = []
+    failed = []
+
+    for defn in definitions:
+        if defn.strip().startswith('fun '):
+            continue
+
+        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        try:
+            tx.query(f"define\n{defn}").resolve()
+            tx.commit()
+            added.append(defn[:40])
+        except Exception as e:
+            tx.close()
+            error_msg = str(e).lower()
+            if "already" in error_msg or "exists" in error_msg or "duplicate" in error_msg:
+                skipped.append(defn[:40])
+            else:
+                failed.append({"definition": defn[:60], "error": str(e)[:150]})
+
+    results["added"] = added
+    results["added_count"] = len(added)
+    results["skipped_count"] = len(skipped)
+    results["failed"] = failed
+    results["failed_count"] = len(failed)
+
+    return results

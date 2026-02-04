@@ -253,9 +253,12 @@ def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
             definitions.append('\n'.join(current_def))
             current_def = []
 
+    logger.info(f"Attempting incremental schema update with {len(definitions)} definitions")
+
     # Try each definition
     added = 0
     skipped = 0
+    failed = 0
 
     for defn in definitions:
         # Skip function definitions (fun keyword) - they need special handling
@@ -267,17 +270,18 @@ def _try_incremental_schema_update(driver, db_name: str, schema_tql: str):
             tx.query(f"define\n{defn}")
             tx.commit()
             added += 1
+            logger.info(f"Added schema: {defn[:50]}...")
         except Exception as e:
             tx.close()
             error_msg = str(e).lower()
             if "already" in error_msg or "exists" in error_msg or "duplicate" in error_msg:
                 skipped += 1
             else:
-                # Log non-duplicate errors for debugging
-                logger.debug(f"Schema element skipped: {e}")
-                skipped += 1
+                failed += 1
+                # Log all errors for debugging
+                logger.warning(f"Schema element failed: {defn[:80]}... - Error: {str(e)[:100]}")
 
-    logger.info(f"✓ Schema update: {added} added, {skipped} already existed")
+    logger.info(f"✓ Schema update: {added} added, {skipped} already existed, {failed} failed")
 
 
 async def _ensure_schema_loaded():
