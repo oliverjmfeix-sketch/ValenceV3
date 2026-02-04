@@ -133,17 +133,94 @@ class GraphStorage:
         Returns:
             Formatted prompt string for Claude
         """
-        prompt = """You are a legal analyst extracting structured data from credit agreements.
+        prompt = """You are extracting Restricted Payment covenant data from a credit agreement.
 
-Extract the following elements from this credit agreement. For each element:
-1. Extract the requested information
-2. Include the section reference where you found it
-3. Quote relevant verbatim text (truncated if very long)
+Return a JSON object matching this EXACT structure (omit null/empty fields):
+
+```json
+{
+  "builder_basket": {
+    "exists": true,
+    "start_date_language": "first day of fiscal quarter...",
+    "uses_greatest_of_tests": true,
+    "sources": [
+      {"source_type": "starter_amount", "dollar_amount": 130000000, "ebitda_percentage": 1.0, "uses_greater_of": true},
+      {"source_type": "cni", "percentage": 0.5},
+      {"source_type": "ecf"},
+      {"source_type": "ebitda_fc", "fc_multiplier": 1.4}
+    ],
+    "provenance": {"section_reference": "6.06(f)", "source_page": 145}
+  },
+  "ratio_basket": {
+    "exists": true,
+    "ratio_threshold": 5.75,
+    "is_unlimited_if_met": true,
+    "has_no_worse_test": true,
+    "no_worse_threshold": 99.0,
+    "provenance": {"section_reference": "6.06(n)", "verbatim_text": "...", "source_page": 147}
+  },
+  "jcrew_blocker": {
+    "exists": true,
+    "covers_transfer": true,
+    "covers_designation": false,
+    "covered_ip_types": ["patents", "trademarks", "copyrights", "trade_secrets"],
+    "bound_parties": ["restricted_subs"],
+    "exceptions": [
+      {"exception_type": "nonexclusive_license", "scope_limitation": "ordinary course of business"}
+    ],
+    "provenance": {"section_reference": "6.06(k)"}
+  },
+  "unsub_designation": {
+    "exists": true,
+    "dollar_cap": 500000000,
+    "requires_no_default": true,
+    "permits_equity_dividend": true,
+    "provenance": {"section_reference": "5.15"}
+  },
+  "general_rp_basket": {
+    "exists": true,
+    "dollar_cap": 200000000,
+    "ebitda_percentage": 1.0,
+    "uses_greater_of": true
+  },
+  "management_equity_basket": {
+    "exists": true,
+    "annual_cap": 25000000,
+    "permits_carryforward": true
+  },
+  "tax_distribution_basket": {
+    "exists": true,
+    "standalone_taxpayer_limit": true
+  },
+  "sweep_tiers": [
+    {"leverage_threshold": 5.75, "sweep_percentage": 0.5, "is_highest_tier": true},
+    {"leverage_threshold": 5.5, "sweep_percentage": 0.0}
+  ],
+  "de_minimis_thresholds": [
+    {"threshold_type": "individual", "dollar_amount": 20000000, "ebitda_percentage": 0.15, "uses_greater_of": true},
+    {"threshold_type": "annual", "dollar_amount": 40000000, "permits_carryforward": true}
+  ],
+  "reallocations": [
+    {"source_basket": "investment", "target_basket": "general_rp", "is_bidirectional": true}
+  ]
+}
+```
+
+## FIELD TYPES
+- source_type: "starter_amount" | "cni" | "ecf" | "ebitda_fc" | "equity_proceeds" | "asset_sale_proceeds" | "investment_returns" | "declined_proceeds"
+- exception_type: "nonexclusive_license" | "ordinary_course" | "intercompany" | "fair_value" | "license_back" | "immaterial_ip"
+- covered_ip_types: "patents" | "trademarks" | "copyrights" | "trade_secrets" | "licenses" | "domain_names"
+- bound_parties: "borrower" | "guarantors" | "restricted_subs" | "loan_parties" | "holdings"
+- threshold_type: "individual" | "annual"
+- source_basket/target_basket: "investment" | "rdp" | "builder" | "general_rp"
+
+## EXTRACTION INSTRUCTIONS
 
 """
 
-        for m in metadata:
-            prompt += f"## {m['target_entity_type']}"
+        # Append extraction_metadata prompts sorted by priority
+        for m in sorted(metadata, key=lambda x: x.get('extraction_priority', 99)):
+            prompt += f"### {m['target_entity_type']}"
             if m.get('target_attribute'):
                 prompt += f".{m['target_attribute']}"
             prompt += f"\n{m['extraction_prompt']}\n"
@@ -151,11 +228,14 @@ Extract the following elements from this credit agreement. For each element:
                 prompt += f"(Look in: {m['extraction_section_hint']})\n"
             prompt += "\n"
 
-        prompt += """
----
-DOCUMENT TEXT:
-"""
-        prompt += document_text
+        prompt += f"""
+## DOCUMENT TEXT
+
+{document_text}
+
+## RESPONSE
+
+Return ONLY the JSON object. No markdown, no explanation."""
 
         return prompt
 
