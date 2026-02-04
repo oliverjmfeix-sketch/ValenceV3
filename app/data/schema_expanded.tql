@@ -3,6 +3,10 @@
 #
 # Adds new concept types and rp_provision attributes for expanded ontology.
 # Must be loaded AFTER schema.tql, BEFORE ontology_expanded.tql
+#
+# NOTE: Uses TypeDB 3.x syntax:
+#   - Attributes: attribute name, value type;
+#   - Entity subtypes: entity name sub parent;
 ################################################################################
 
 define
@@ -12,17 +16,17 @@ define
 # Note: builder_source already exists in schema.tql
 # ═══════════════════════════════════════════════════════════════════════════
 
-reallocatable_basket sub concept;
-exempt_sale_type sub concept;
-unsub_distribution_condition sub concept;
-ratio_required_basket sub concept;
-no_default_basket sub concept;
+entity reallocatable_basket sub concept;
+entity exempt_sale_type sub concept;
+entity unsub_distribution_condition sub concept;
+entity ratio_required_basket sub concept;
+entity no_default_basket sub concept;
 
 # ═══════════════════════════════════════════════════════════════════════════
 # EXTRACTION PROMPT ATTRIBUTE (if not already defined)
 # ═══════════════════════════════════════════════════════════════════════════
 
-extraction_prompt sub attribute, value string;
+attribute extraction_prompt, value string;
 ontology_question owns extraction_prompt;
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -30,46 +34,46 @@ ontology_question owns extraction_prompt;
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Builder basket - enhanced (F9-F17)
-builder_ecf_source_exists sub attribute, value boolean;
-builder_ecf_formula sub attribute, value string;
-builder_ebitda_fc_exists sub attribute, value boolean;
-builder_fc_multiplier_pct sub attribute, value double;
-builder_uses_greatest_of sub attribute, value boolean;
-builder_start_date_language sub attribute, value string;
-builder_asset_proceeds_source sub attribute, value boolean;
-builder_investment_returns_source sub attribute, value boolean;
+attribute builder_ecf_source_exists, value boolean;
+attribute builder_ecf_formula, value string;
+attribute builder_ebitda_fc_exists, value boolean;
+attribute builder_fc_multiplier_pct, value double;
+attribute builder_uses_greatest_of, value boolean;
+attribute builder_start_date_language, value string;
+attribute builder_asset_proceeds_source, value boolean;
+attribute builder_investment_returns_source, value boolean;
 
 # Ratio basket - enhanced (G5-G7)
-ratio_no_worse_test_exists sub attribute, value boolean;
-ratio_no_worse_threshold sub attribute, value double;
-ratio_multiple_tiers_exist sub attribute, value boolean;
+attribute ratio_no_worse_test_exists, value boolean;
+attribute ratio_no_worse_threshold, value double;
+attribute ratio_multiple_tiers_exist, value boolean;
 
 # Reallocation (I1-I6)
-reallocation_to_rp_permitted sub attribute, value boolean;
-reallocation_section_ref sub attribute, value string;
-rdp_basket_reallocation_amount_usd sub attribute, value double;
-investment_basket_reallocation_amount_usd sub attribute, value double;
-reallocation_bidirectional sub attribute, value boolean;
+attribute reallocation_to_rp_permitted, value boolean;
+attribute reallocation_section_ref, value string;
+attribute rdp_basket_reallocation_amount_usd, value double;
+attribute investment_basket_reallocation_amount_usd, value double;
+attribute reallocation_bidirectional, value boolean;
 
 # Unrestricted Sub distributions (M1-M4)
-unsub_equity_dividend_permitted sub attribute, value boolean;
-unsub_asset_dividend_permitted sub attribute, value boolean;
-unsub_distribution_section_ref sub attribute, value string;
+attribute unsub_equity_dividend_permitted, value boolean;
+attribute unsub_asset_dividend_permitted, value boolean;
+attribute unsub_distribution_section_ref, value string;
 
 # Asset sale proceeds (L1-L9)
-asset_proceeds_can_fund_dividends sub attribute, value boolean;
-leverage_tiered_sweep_exists sub attribute, value boolean;
-sweep_tier_1 sub attribute, value string;
-sweep_tier_2 sub attribute, value string;
-de_minimis_individual_usd sub attribute, value double;
-de_minimis_annual_usd sub attribute, value double;
-ratio_basket_avoids_sweep sub attribute, value boolean;
-sweep_exempt_ratio_threshold sub attribute, value double;
+attribute asset_proceeds_can_fund_dividends, value boolean;
+attribute leverage_tiered_sweep_exists, value boolean;
+attribute sweep_tier_1, value string;
+attribute sweep_tier_2, value string;
+attribute de_minimis_individual_usd, value double;
+attribute de_minimis_annual_usd, value double;
+attribute ratio_basket_avoids_sweep, value boolean;
+attribute sweep_exempt_ratio_threshold, value double;
 
 # Capacity calculation (N1-N5)
-general_rp_basket_amount_usd sub attribute, value double;
-general_rp_basket_grower_pct sub attribute, value double;
-all_baskets_summary sub attribute, value string;
+attribute general_rp_basket_amount_usd, value double;
+attribute general_rp_basket_grower_pct, value double;
+attribute all_baskets_summary, value string;
 
 # ═══════════════════════════════════════════════════════════════════════════
 # rp_provision OWNS new attributes
