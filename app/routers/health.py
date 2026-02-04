@@ -41,34 +41,62 @@ async def debug_schema_check() -> Dict[str, Any]:
     if not driver:
         return {"error": "No TypeDB driver"}
 
-    # Check for extraction_prompt attribute
+    # Check if we can insert a question with extraction_prompt
+    # This tests if the attribute exists in the schema
     try:
-        tx = driver.transaction(db_name, TransactionType.READ)
-        query = """
-            match $t type extraction_prompt;
-            select $t;
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        test_query = """
+            insert $q isa ontology_question,
+                has question_id "test_extraction_prompt_check",
+                has question_text "Test",
+                has answer_type "boolean",
+                has covenant_type "TEST",
+                has display_order 999,
+                has extraction_prompt "test prompt";
         """
-        result = list(tx.query(query).resolve().as_concept_rows())
-        results["extraction_prompt_exists"] = len(result) > 0
+        tx.query(test_query).resolve()
+        # If we get here, extraction_prompt exists - roll back
         tx.close()
-    except Exception as e:
-        results["extraction_prompt_exists"] = False
-        results["extraction_prompt_error"] = str(e)
+        results["extraction_prompt_exists"] = True
 
-    # Check for new concept types
-    for concept_type in ["reallocatable_basket", "exempt_sale_type", "unsub_distribution_condition"]:
+        # Delete the test question
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        delete_query = """
+            match $q isa ontology_question, has question_id "test_extraction_prompt_check";
+            delete $q;
+        """
+        tx.query(delete_query).resolve()
+        tx.commit()
+    except Exception as e:
+        try:
+            tx.close()
+        except:
+            pass
+        error_lower = str(e).lower()
+        if "extraction_prompt" in error_lower and ("unknown" in error_lower or "does not" in error_lower or "cannot" in error_lower):
+            results["extraction_prompt_exists"] = False
+            results["extraction_prompt_error"] = "Attribute does not exist in schema"
+        else:
+            results["extraction_prompt_exists"] = "unknown"
+            results["extraction_prompt_error"] = str(e)[:200]
+
+    # Check for new concept types by trying to query instances
+    for concept_type in ["reallocatable_basket", "exempt_sale_type"]:
         try:
             tx = driver.transaction(db_name, TransactionType.READ)
             query = f"""
-                match $t type {concept_type};
-                select $t;
+                match $c isa {concept_type};
+                select $c;
             """
             result = list(tx.query(query).resolve().as_concept_rows())
-            results[f"{concept_type}_exists"] = len(result) > 0
+            results[f"{concept_type}_count"] = len(result)
             tx.close()
         except Exception as e:
-            results[f"{concept_type}_exists"] = False
-            results[f"{concept_type}_error"] = str(e)
+            error_lower = str(e).lower()
+            if "unknown" in error_lower or "does not exist" in error_lower:
+                results[f"{concept_type}_exists"] = False
+            else:
+                results[f"{concept_type}_error"] = str(e)[:100]
 
     # Count questions
     try:
