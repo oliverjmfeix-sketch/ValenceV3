@@ -1013,3 +1013,114 @@ def _extract_citations_from_answer(answer_text: str) -> List[Dict[str, Any]]:
         })
 
     return citations
+
+
+@router.get("/{deal_id}/debug-multiselect")
+async def debug_multiselect(deal_id: str) -> Dict[str, Any]:
+    """
+    Debug endpoint to check what concept_applicabilities are stored in TypeDB.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    provision_id = f"{deal_id}_rp"
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # 1. Get all concept types with applicabilities
+            types_query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    (provision: $p, concept: $c) isa concept_applicability;
+                select $c;
+            """
+            types_result = tx.query(types_query).resolve()
+            concept_types = set()
+            for row in types_result.as_concept_rows():
+                c = row.get("c")
+                if c:
+                    try:
+                        concept_types.add(c.as_entity().get_type().get_label())
+                    except Exception:
+                        pass
+
+            # 2. Get actual applicability records
+            records_query = f"""
+                match
+                    $p isa rp_provision, has provision_id "{provision_id}";
+                    (provision: $p, concept: $c) isa concept_applicability;
+                    $c has concept_id $cid, has name $cname;
+                select $c, $cid, $cname;
+            """
+            records_result = tx.query(records_query).resolve()
+            records = []
+            for row in records_result.as_concept_rows():
+                c = row.get("c")
+                cid = _safe_get_value(row, "cid")
+                cname = _safe_get_value(row, "cname")
+                ctype = None
+                if c:
+                    try:
+                        ctype = c.as_entity().get_type().get_label()
+                    except Exception:
+                        pass
+                if cid:
+                    records.append({
+                        "concept_type": ctype,
+                        "concept_id": cid,
+                        "name": cname
+                    })
+
+            # 3. Check what multiselect questions expect
+            questions_query = """
+                match
+                    $q isa ontology_question,
+                        has question_id $qid,
+                        has answer_type "multiselect";
+                select $qid;
+            """
+            questions_result = tx.query(questions_query).resolve()
+            multiselect_questions = []
+            for row in questions_result.as_concept_rows():
+                qid = _safe_get_value(row, "qid")
+                if qid:
+                    multiselect_questions.append(qid)
+
+            return {
+                "provision_id": provision_id,
+                "stored_concept_types": sorted(list(concept_types)),
+                "total_applicabilities": len(records),
+                "sample_records": records[:20],
+                "multiselect_questions": sorted(multiselect_questions),
+                "expected_mapping": {
+                    "rp_a2": "dividend_applies_to_entity",
+                    "rp_a3": "dividend_action",
+                    "rp_b1": "intercompany_recipient",
+                    "rp_c2": "mgmt_equity_covered_person",
+                    "rp_c3": "mgmt_equity_trigger_event",
+                    "rp_d2": "tax_group_type",
+                    "rp_e1": "equity_award_type",
+                    "rp_f7": "builder_source",
+                    "rp_f8": "builder_use",
+                    "rp_h1": "holdco_overhead_cost",
+                    "rp_h2": "holdco_transaction_cost",
+                    "rp_i1": "reallocation_source_basket",
+                    "rp_i2": "reallocation_target_basket",
+                    "rp_k4": "jcrew_bound_entity",
+                    "rp_k5": "jcrew_trigger_condition",
+                    "rp_k6": "jcrew_ip_type",
+                    "rp_k7": "jcrew_transfer_type",
+                    "rp_s1": "rdp_payment_type",
+                    "rp_t1": "rdp_basket",
+                }
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Debug error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
