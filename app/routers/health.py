@@ -126,6 +126,47 @@ async def debug_schema_check() -> Dict[str, Any]:
         except Exception as e:
             results[f"question_{qid}_error"] = str(e)
 
+    # Check for new categories and their question counts
+    for cat_id in ["L", "M", "N"]:
+        try:
+            tx = driver.transaction(db_name, TransactionType.READ)
+            query = f"""
+                match $cat isa ontology_category, has category_id "{cat_id}";
+                select $cat;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            results[f"category_{cat_id}_exists"] = len(result) > 0
+            tx.close()
+
+            # Check category_has_question relations
+            tx = driver.transaction(db_name, TransactionType.READ)
+            query = f"""
+                match
+                    $cat isa ontology_category, has category_id "{cat_id}";
+                    (category: $cat, question: $q) isa category_has_question;
+                select $q;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            results[f"category_{cat_id}_question_count"] = len(result)
+            tx.close()
+        except Exception as e:
+            results[f"category_{cat_id}_error"] = str(e)[:100]
+
+    # Count total questions with category relations
+    try:
+        tx = driver.transaction(db_name, TransactionType.READ)
+        query = """
+            match
+                $q isa ontology_question, has covenant_type "RP";
+                (category: $cat, question: $q) isa category_has_question;
+            select $q;
+        """
+        result = list(tx.query(query).resolve().as_concept_rows())
+        results["questions_with_category_count"] = len(result)
+        tx.close()
+    except Exception as e:
+        results["questions_with_category_error"] = str(e)[:100]
+
     return results
 
 
