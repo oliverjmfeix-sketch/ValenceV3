@@ -278,7 +278,7 @@ entity sunset_type sub concept;
 entity covered_person sub concept;
 entity repurchase_trigger sub concept;
 entity dividend_definition_element sub concept;
-entity builder_source sub concept;
+# builder_source moved to V4 graph entities section
 entity ip_type sub concept;
 entity transfer_type sub concept;
 entity blocker_binding_entity sub concept;
@@ -352,6 +352,187 @@ entity benchmark,
     owns as_of_date;
 
 ################################################################################
+# V4 GRAPH ENTITIES - Baskets, Blockers, Sources
+################################################################################
+
+# Basket abstract type
+entity basket @abstract,
+    owns basket_id @key,
+    owns section_reference,
+    owns source_page,
+    owns verbatim_text,
+    owns confidence;
+
+entity builder_basket sub basket,
+    owns basket_name,
+    owns start_date_language,
+    owns uses_greatest_of_tests;
+
+entity ratio_basket sub basket,
+    owns ratio_threshold,
+    owns ratio_type,
+    owns is_unlimited_if_met,
+    owns has_no_worse_test,
+    owns no_worse_threshold;
+
+entity general_rp_basket sub basket,
+    owns dollar_cap,
+    owns ebitda_percentage,
+    owns uses_greater_of,
+    owns requires_no_default,
+    owns requires_ratio_test,
+    owns ratio_threshold;
+
+entity management_equity_basket sub basket,
+    owns annual_cap,
+    owns ebitda_percentage,
+    owns uses_greater_of,
+    owns permits_carryforward,
+    owns post_ipo_increase;
+
+entity tax_distribution_basket sub basket,
+    owns is_unlimited,
+    owns standalone_taxpayer_limit;
+
+# Builder Sources (not abstract - allows fallback instances)
+entity builder_source,
+    owns source_id @key,
+    owns source_name,
+    owns percentage,
+    owns dollar_amount,
+    owns ebitda_percentage,
+    owns fc_multiplier,
+    owns floor_amount,
+    owns uses_greater_of,
+    owns is_primary_test,
+    owns section_reference,
+    owns source_page,
+    owns verbatim_text;
+
+entity starter_amount_source sub builder_source;
+entity cni_source sub builder_source;
+entity ecf_source sub builder_source;
+entity ebitda_fc_source sub builder_source;
+entity equity_proceeds_source sub builder_source;
+entity asset_sale_proceeds_source sub builder_source;
+entity investment_returns_source sub builder_source;
+entity declined_proceeds_source sub builder_source;
+entity debt_conversion_source sub builder_source;
+
+# J.Crew Blocker
+entity jcrew_blocker,
+    owns blocker_id @key,
+    owns covers_transfer,
+    owns covers_designation,
+    owns material_ip_definition,
+    owns section_reference,
+    owns source_page,
+    owns verbatim_text,
+    owns confidence;
+
+entity blocker_exception,
+    owns exception_id @key,
+    owns scope_limitation,
+    owns section_reference,
+    owns source_page;
+
+entity nonexclusive_license_exception sub blocker_exception;
+entity ordinary_course_exception sub blocker_exception;
+entity intercompany_exception sub blocker_exception;
+entity fair_value_exception sub blocker_exception;
+entity license_back_exception sub blocker_exception;
+entity immaterial_ip_exception sub blocker_exception;
+entity required_by_law_exception sub blocker_exception;
+
+# Unrestricted Subsidiary Designation
+entity unsub_designation,
+    owns designation_id @key,
+    owns permitted,
+    owns dollar_cap,
+    owns ebitda_percentage,
+    owns uses_greater_of,
+    owns requires_no_default,
+    owns requires_board_approval,
+    owns requires_ratio_test,
+    owns ratio_threshold,
+    owns permits_equity_dividend,
+    owns permits_asset_dividend,
+    owns section_reference,
+    owns source_page,
+    owns verbatim_text;
+
+# Sweep Tiers
+entity sweep_tier,
+    owns tier_id @key,
+    owns leverage_threshold,
+    owns sweep_percentage,
+    owns is_highest_tier,
+    owns applies_to,
+    owns section_reference,
+    owns source_page;
+
+# De Minimis Thresholds
+entity de_minimis_threshold,
+    owns threshold_id @key,
+    owns threshold_type,
+    owns dollar_amount,
+    owns ebitda_percentage,
+    owns uses_greater_of,
+    owns permits_carryforward,
+    owns section_reference,
+    owns source_page;
+
+# V4 Attributes
+attribute section_reference, value string;
+attribute basket_id, value string;
+attribute source_id, value string;
+attribute blocker_id, value string;
+attribute exception_id, value string;
+attribute designation_id, value string;
+attribute tier_id, value string;
+attribute threshold_id, value string;
+attribute basket_name, value string;
+attribute start_date_language, value string;
+attribute uses_greatest_of_tests, value boolean;
+attribute ratio_threshold, value double;
+attribute ratio_type, value string;
+attribute is_unlimited_if_met, value boolean;
+attribute has_no_worse_test, value boolean;
+attribute no_worse_threshold, value double;
+attribute dollar_cap, value double;
+attribute ebitda_percentage, value double;
+attribute uses_greater_of, value boolean;
+attribute requires_no_default, value boolean;
+attribute requires_ratio_test, value boolean;
+attribute annual_cap, value double;
+attribute permits_carryforward, value boolean;
+attribute post_ipo_increase, value double;
+attribute is_unlimited, value boolean;
+attribute standalone_taxpayer_limit, value boolean;
+attribute source_name, value string;
+attribute percentage, value double;
+attribute dollar_amount, value double;
+attribute fc_multiplier, value double;
+attribute floor_amount, value double;
+attribute is_primary_test, value boolean;
+attribute covers_transfer, value boolean;
+attribute covers_designation, value boolean;
+attribute material_ip_definition, value string;
+attribute scope_limitation, value string;
+attribute permitted, value boolean;
+attribute requires_board_approval, value boolean;
+attribute permits_equity_dividend, value boolean;
+attribute permits_asset_dividend, value boolean;
+attribute leverage_threshold, value double;
+attribute sweep_percentage, value double;
+attribute is_highest_tier, value boolean;
+attribute applies_to, value string;
+attribute threshold_type, value string;
+attribute verbatim_text, value string;
+attribute reallocation_cap, value double;
+attribute is_bidirectional, value boolean;
+
+################################################################################
 # RELATIONS
 ################################################################################
 
@@ -415,6 +596,48 @@ relation has_provenance,
 relation comparison_includes_deal,
     relates comparison,
     relates deal;
+
+################################################################################
+# V4 GRAPH RELATIONS
+################################################################################
+
+relation provision_has_basket,
+    relates provision,
+    relates basket;
+
+relation basket_has_source,
+    relates basket,
+    relates source;
+
+relation provision_has_blocker,
+    relates provision,
+    relates blocker;
+
+relation blocker_has_exception,
+    relates blocker,
+    relates exception;
+
+relation provision_has_unsub,
+    relates provision,
+    relates unsub;
+
+relation provision_has_sweep_tier,
+    relates provision,
+    relates tier;
+
+relation provision_has_de_minimis,
+    relates provision,
+    relates threshold;
+
+relation basket_reallocates_to,
+    relates source_basket,
+    relates target_basket,
+    owns reallocation_cap,
+    owns is_bidirectional,
+    owns reallocation_section;
+
+# V4 Relation Attributes
+attribute reallocation_section, value string;
 
 ################################################################################
 # FUNCTIONS FOR PATTERN DETECTION (TypeDB 3.x)

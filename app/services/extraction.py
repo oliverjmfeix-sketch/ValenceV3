@@ -219,6 +219,7 @@ class ExtractionService:
         """Call Claude with streaming to handle long operations."""
         try:
             collected_text = []
+            chunk_count = 0
             with self.client.messages.stream(
                 model=self.model,
                 max_tokens=max_tokens,
@@ -226,7 +227,11 @@ class ExtractionService:
             ) as stream:
                 for text in stream.text_stream:
                     collected_text.append(text)
-            return "".join(collected_text)
+                    chunk_count += 1
+            logger.info(f"Streaming complete: {chunk_count} chunks received")
+            result = "".join(collected_text)
+            logger.info(f"Response assembled: {len(result)} chars")
+            return result
         except Exception as e:
             logger.error(f"Claude streaming error: {e}")
             return ""
@@ -261,29 +266,40 @@ class ExtractionService:
         prompt2 = self._build_universe_extraction_prompt(second_half, part=2, focus="covenants")
         logger.info("Extracting Part 2 (covenants)...")
         response2 = self._call_claude_streaming(prompt2, max_tokens=32000)
+        logger.info(f"Part 2 response received: {len(response2) if response2 else 0} chars")
         if response2:
-            universe2 = self._parse_universe_extraction(response2)
-            logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
+            try:
+                universe2 = self._parse_universe_extraction(response2)
+                logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
+            except Exception as e:
+                logger.exception(f"Part 2 parse error: {e}")
+                universe2 = RPUniverse()
         else:
             logger.error("Part 2 extraction returned empty")
             universe2 = RPUniverse()
 
         # Merge: definitions from part 1, covenants from part 2 (or whichever has them)
-        merged = RPUniverse(
-            definitions=universe1.definitions or universe2.definitions,
-            dividend_covenant=universe2.dividend_covenant or universe1.dividend_covenant,
-            investment_covenant=universe2.investment_covenant or universe1.investment_covenant,
-            asset_sale_covenant=universe2.asset_sale_covenant or universe1.asset_sale_covenant,
-            rdp_covenant=universe2.rdp_covenant or universe1.rdp_covenant,
-            unsub_mechanics=universe2.unsub_mechanics or universe1.unsub_mechanics,
-            pro_forma_mechanics=universe1.pro_forma_mechanics or universe2.pro_forma_mechanics,
-        )
+        logger.info("Merging Part 1 and Part 2 universes...")
+        try:
+            merged = RPUniverse(
+                definitions=universe1.definitions or universe2.definitions,
+                dividend_covenant=universe2.dividend_covenant or universe1.dividend_covenant,
+                investment_covenant=universe2.investment_covenant or universe1.investment_covenant,
+                asset_sale_covenant=universe2.asset_sale_covenant or universe1.asset_sale_covenant,
+                rdp_covenant=universe2.rdp_covenant or universe1.rdp_covenant,
+                unsub_mechanics=universe2.unsub_mechanics or universe1.unsub_mechanics,
+                pro_forma_mechanics=universe1.pro_forma_mechanics or universe2.pro_forma_mechanics,
+            )
 
-        # Build combined raw text
-        merged.raw_text = self._build_combined_context(merged)
-        logger.info(f"Merged RP universe: {len(merged.raw_text)} chars")
+            # Build combined raw text
+            logger.info("Building combined context...")
+            merged.raw_text = self._build_combined_context(merged)
+            logger.info(f"Merged RP universe: {len(merged.raw_text)} chars")
 
-        return merged
+            return merged
+        except Exception as e:
+            logger.exception(f"Error merging RP universe: {e}")
+            return RPUniverse()
 
     def _build_universe_extraction_prompt(
         self,
@@ -449,6 +465,7 @@ If your output is less than 30,000 characters, you are likely summarizing instea
 
     def _parse_universe_extraction(self, response_text: str) -> RPUniverse:
         """Parse the RP universe extraction response."""
+        logger.info(f"Parsing universe extraction response: {len(response_text)} chars")
         universe = RPUniverse()
 
         # Parse each section using markers
@@ -1295,16 +1312,21 @@ RULES:
 5. For percentages, use decimals (50% = 0.5, 140% = 1.4)
 6. For dollar amounts, use raw numbers (130000000 not "130M")
 7. Be precise about "no worse" test - this is CRITICAL for risk analysis
-8. For ratio thresholds, use the decimal number (5.75x = 5.75)"""
+8. For ratio thresholds, use the decimal number (5.75x = 5.75)
+9. For reallocation_cap: use null (not "unlimited") if there is no cap"""
 
-        response = self.client.messages.create(
-            model=model,
-            max_tokens=8192,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        return response.content[0].text
+        try:
+            response = self.client.messages.create(
+                model=model,
+                max_tokens=8192,
+                system=system_prompt,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=300.0  # 5 minute timeout for extraction
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            raise
 
 
 @dataclass

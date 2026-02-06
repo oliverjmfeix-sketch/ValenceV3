@@ -5,8 +5,8 @@ Maps Claude's JSON output directly to TypeDB graph entities.
 Every model corresponds to a TypeDB entity or relation.
 """
 
-from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from typing import List, Optional, Literal, Any
+from pydantic import BaseModel, Field, field_validator
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -329,7 +329,11 @@ class BasketReallocation(BaseModel):
     ]
     reallocation_cap: Optional[float] = Field(
         None,
-        description="Max amount that can be reallocated"
+        description="Max amount that can be reallocated (null if unlimited)"
+    )
+    is_unlimited: bool = Field(
+        False,
+        description="True if no cap on reallocation"
     )
     ebitda_percentage: Optional[float] = None
     uses_greater_of: bool = False
@@ -338,6 +342,20 @@ class BasketReallocation(BaseModel):
         description="Can capacity flow both ways"
     )
     provenance: Optional[Provenance] = None
+
+    @field_validator('reallocation_cap', mode='before')
+    @classmethod
+    def handle_unlimited(cls, v: Any) -> Optional[float]:
+        """Convert 'unlimited' or similar strings to None."""
+        if isinstance(v, str):
+            if v.lower() in ('unlimited', 'none', 'n/a', 'na', 'null'):
+                return None
+            # Try to parse as number
+            try:
+                return float(v.replace(',', ''))
+            except ValueError:
+                return None
+        return v
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
