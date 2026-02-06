@@ -319,7 +319,25 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
     "requires_cash_common_equity": false,
     "not_otherwise_applied": true,
     "provenance": {"section_reference": "6.09(d)"}
-  }
+  },
+  "investment_pathways": [
+    {
+      "pathway_source_type": "loan_party",
+      "pathway_target_type": "non_guarantor_rs",
+      "cap_dollar_usd": 200000000,
+      "cap_pct_total_assets": 0.15,
+      "cap_uses_greater_of": true,
+      "is_uncapped": false,
+      "provenance": {"section_reference": "6.03(e)"}
+    },
+    {
+      "pathway_source_type": "non_guarantor_rs",
+      "pathway_target_type": "unrestricted_sub",
+      "is_uncapped": true,
+      "can_stack_with_other_baskets": true,
+      "provenance": {"section_reference": "6.03(j)"}
+    }
+  ]
 }
 ```
 
@@ -472,6 +490,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
             "sweep_tiers_created": 0,
             "de_minimis_created": 0,
             "reallocations_created": 0,
+            "pathways_created": 0,
             "errors": []
         }
 
@@ -614,10 +633,18 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 except Exception as e:
                     results["errors"].append(f"Reallocation: {str(e)[:100]}")
 
+            # Store investment pathways
+            for i, pathway in enumerate(extraction.investment_pathways):
+                try:
+                    self._store_investment_pathway_v4(provision_id, pathway, i)
+                    results["pathways_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Investment pathway: {str(e)[:100]}")
+
             logger.info(
                 f"V4 extraction stored for {self.deal_id}: "
                 f"{results['baskets_created']} baskets, {results['rdp_baskets_created']} rdp_baskets, "
-                f"{results['sources_created']} sources, "
+                f"{results['sources_created']} sources, {results['pathways_created']} pathways, "
                 f"{results['blockers_created']} blockers, {results['sweep_tiers_created']} tiers"
             )
 
@@ -1214,6 +1241,53 @@ Return ONLY the JSON object. No markdown, no explanation."""
         '''
         self._execute_query(query)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # INVESTMENT PATHWAYS - J.Crew chain analysis
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _store_investment_pathway_v4(self, provision_id: str, pathway, index: int):
+        """Store a single investment pathway entity."""
+        pathway_id = f"pathway_{provision_id}_{index}"
+
+        attrs = [
+            f'has pathway_id "{pathway_id}"',
+            f'has pathway_source_type "{self._escape(pathway.pathway_source_type)}"',
+            f'has pathway_target_type "{self._escape(pathway.pathway_target_type)}"',
+        ]
+
+        if pathway.cap_dollar_usd is not None:
+            attrs.append(f'has cap_dollar_usd {pathway.cap_dollar_usd}')
+        if pathway.cap_pct_total_assets is not None:
+            attrs.append(f'has cap_pct_total_assets {pathway.cap_pct_total_assets}')
+        if pathway.cap_uses_greater_of is not None:
+            attrs.append(f'has cap_uses_greater_of {str(pathway.cap_uses_greater_of).lower()}')
+        if pathway.is_uncapped is not None:
+            attrs.append(f'has is_uncapped {str(pathway.is_uncapped).lower()}')
+        if pathway.can_stack_with_other_baskets is not None:
+            attrs.append(f'has can_stack_with_other_baskets {str(pathway.can_stack_with_other_baskets).lower()}')
+
+        # Provenance
+        if pathway.provenance:
+            if pathway.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(pathway.provenance.section_reference)}"')
+            if pathway.provenance.source_page is not None:
+                attrs.append(f'has source_page {pathway.provenance.source_page}')
+            if pathway.provenance.verbatim_text:
+                attrs.append(f'has source_text "{self._escape(pathway.provenance.verbatim_text[:500])}"')
+            if pathway.provenance.confidence:
+                attrs.append(f'has confidence "{pathway.provenance.confidence}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $pathway isa investment_pathway,
+                {attrs_str};
+                (provision: $prov, pathway: $pathway) isa provision_has_pathway;
+        '''
+        self._execute_query(query)
+
     def _store_jcrew_blocker_v4(self, provision_id: str, blocker):
         """Store J.Crew blocker with exceptions."""
         blocker_id = f"jcrew_{provision_id}"
@@ -1469,6 +1543,9 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
         if extraction.reallocations:
             parts.append(f"realloc({len(extraction.reallocations)})")
+
+        if extraction.investment_pathways:
+            parts.append(f"pathways({len(extraction.investment_pathways)})")
 
         # RDP baskets
         rdp_count = sum(1 for b in [

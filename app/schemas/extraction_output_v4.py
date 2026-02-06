@@ -638,6 +638,42 @@ class EquityFundedRDPBasket(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# INVESTMENT PATHWAY (J.Crew chain analysis)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class InvestmentPathway(BaseModel):
+    """
+    Maps to TypeDB: investment_pathway entity
+    Models a single hop in the J.Crew asset-stripping chain.
+    Multiple pathways chain together: loan_party -> non_guarantor_rs -> unrestricted_sub
+    """
+    pathway_source_type: str = Field(
+        ...,
+        description="loan_party | non_guarantor_rs | unrestricted_sub | holdco | foreign_sub"
+    )
+    pathway_target_type: str = Field(
+        ...,
+        description="loan_party | non_guarantor_rs | unrestricted_sub | holdco | foreign_sub"
+    )
+    cap_dollar_usd: Optional[float] = Field(
+        None, description="Dollar cap on investments through this pathway"
+    )
+    cap_pct_total_assets: Optional[float] = Field(
+        None, description="Cap as percentage of total assets (e.g., 0.15 = 15%)"
+    )
+    cap_uses_greater_of: Optional[bool] = Field(
+        None, description="Cap uses 'greater of' dollar and percentage"
+    )
+    is_uncapped: Optional[bool] = Field(
+        None, description="No cap on investments through this pathway"
+    )
+    can_stack_with_other_baskets: Optional[bool] = Field(
+        None, description="Can be combined with other investment baskets"
+    )
+    provenance: Optional[Provenance] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TOP-LEVEL EXTRACTION OUTPUT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -687,6 +723,11 @@ class RPExtractionV4(BaseModel):
     ratio_rdp_basket: Optional[RatioRDPBasket] = None
     builder_rdp_basket: Optional[BuilderRDPBasket] = None
     equity_funded_rdp_basket: Optional[EquityFundedRDPBasket] = None
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INVESTMENT PATHWAYS (J.Crew chain analysis)
+    # ─────────────────────────────────────────────────────────────────────────
+    investment_pathways: List[InvestmentPathway] = Field(default_factory=list)
 
     # ─────────────────────────────────────────────────────────────────────────
     # METADATA
