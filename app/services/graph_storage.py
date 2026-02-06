@@ -199,6 +199,24 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
     "is_unlimited": false,
     "standalone_taxpayer_limit": true
   },
+  "holdco_overhead_basket": {
+    "exists": true,
+    "annual_cap_usd": 5000000,
+    "covers_management_fees": true,
+    "covers_admin_expenses": true,
+    "covers_franchise_taxes": true,
+    "management_fee_recipient_scope": "permitted_holders_only",
+    "requires_arms_length": true,
+    "provenance": {"section_reference": "6.06(b)(ii)"}
+  },
+  "equity_award_basket": {
+    "exists": true,
+    "annual_cap_usd": 10000000,
+    "covers_cashless_exercise": true,
+    "covers_tax_withholding": true,
+    "carryforward_permitted": false,
+    "provenance": {"section_reference": "6.06(c)(ii)"}
+  },
   "jcrew_blocker": {
     "exists": true,
     "covers_transfer": true,
@@ -466,6 +484,22 @@ Return ONLY the JSON object. No markdown, no explanation."""
                     results["baskets_created"] += 1
                 except Exception as e:
                     results["errors"].append(f"Tax basket: {str(e)[:100]}")
+
+            # Store holdco overhead basket
+            if extraction.holdco_overhead_basket and extraction.holdco_overhead_basket.exists:
+                try:
+                    self._store_holdco_overhead_basket_v4(provision_id, extraction.holdco_overhead_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Holdco overhead basket: {str(e)[:100]}")
+
+            # Store equity award basket
+            if extraction.equity_award_basket and extraction.equity_award_basket.exists:
+                try:
+                    self._store_equity_award_basket_v4(provision_id, extraction.equity_award_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Equity award basket: {str(e)[:100]}")
 
             # Store J.Crew blocker
             if extraction.jcrew_blocker and extraction.jcrew_blocker.exists:
@@ -824,11 +858,21 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
         if basket.standalone_taxpayer_limit:
             attrs.append('has standalone_taxpayer_limit true')
+        if basket.hypothetical_tax_rate is not None:
+            attrs.append(f'has hypothetical_tax_rate {basket.hypothetical_tax_rate}')
+        if basket.tax_sharing_permitted is not None:
+            attrs.append(f'has tax_sharing_permitted {str(basket.tax_sharing_permitted).lower()}')
+        if basket.estimated_taxes_permitted is not None:
+            attrs.append(f'has estimated_taxes_permitted {str(basket.estimated_taxes_permitted).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
 
         # Provenance
         if basket.provenance:
             if basket.provenance.section_reference:
                 attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
 
         attrs_str = ",\n                ".join(attrs)
         query = f'''
@@ -836,6 +880,82 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 $prov isa rp_provision, has provision_id "{provision_id}";
             insert
                 $basket isa tax_distribution_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_holdco_overhead_basket_v4(self, provision_id: str, basket):
+        """Store holdco overhead basket."""
+        basket_id = f"holdco_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.annual_cap_usd is not None:
+            attrs.append(f'has annual_cap_usd {basket.annual_cap_usd}')
+        if basket.covers_management_fees is not None:
+            attrs.append(f'has covers_management_fees {str(basket.covers_management_fees).lower()}')
+        if basket.covers_admin_expenses is not None:
+            attrs.append(f'has covers_admin_expenses {str(basket.covers_admin_expenses).lower()}')
+        if basket.covers_franchise_taxes is not None:
+            attrs.append(f'has covers_franchise_taxes {str(basket.covers_franchise_taxes).lower()}')
+        if basket.management_fee_recipient_scope:
+            attrs.append(f'has management_fee_recipient_scope "{self._escape(basket.management_fee_recipient_scope)}"')
+        if basket.requires_arms_length is not None:
+            attrs.append(f'has requires_arms_length {str(basket.requires_arms_length).lower()}')
+        if basket.requires_board_approval is not None:
+            attrs.append(f'has requires_board_approval {str(basket.requires_board_approval).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa holdco_overhead_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_equity_award_basket_v4(self, provision_id: str, basket):
+        """Store equity award basket."""
+        basket_id = f"eqaward_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.annual_cap_usd is not None:
+            attrs.append(f'has annual_cap_usd {basket.annual_cap_usd}')
+        if basket.covers_cashless_exercise is not None:
+            attrs.append(f'has covers_cashless_exercise {str(basket.covers_cashless_exercise).lower()}')
+        if basket.covers_tax_withholding is not None:
+            attrs.append(f'has covers_tax_withholding {str(basket.covers_tax_withholding).lower()}')
+        if basket.carryforward_permitted is not None:
+            attrs.append(f'has carryforward_permitted {str(basket.carryforward_permitted).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa equity_award_basket,
                 {attrs_str};
                 (provision: $prov, basket: $basket) isa provision_has_basket;
         '''
@@ -1087,6 +1207,12 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
         if extraction.sweep_tiers:
             parts.append(f"sweeps({len(extraction.sweep_tiers)} tiers)")
+
+        if extraction.holdco_overhead_basket and extraction.holdco_overhead_basket.exists:
+            parts.append("holdco")
+
+        if extraction.equity_award_basket and extraction.equity_award_basket.exists:
+            parts.append("equity_award")
 
         if extraction.reallocations:
             parts.append(f"realloc({len(extraction.reallocations)})")

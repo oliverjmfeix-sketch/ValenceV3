@@ -203,6 +203,100 @@ class TaxDistributionBasket(BaseModel):
         default_factory=list,
         description="['consolidated', 'combined', 'unitary']"
     )
+    hypothetical_tax_rate: Optional[float] = Field(
+        None,
+        description="Hypothetical tax rate used for calculation"
+    )
+    tax_sharing_permitted: Optional[bool] = Field(
+        None,
+        description="Whether tax sharing agreements are permitted"
+    )
+    estimated_taxes_permitted: Optional[bool] = Field(
+        None,
+        description="Whether estimated tax payments are permitted"
+    )
+    default_condition: Optional[str] = Field(
+        None,
+        description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HOLDCO OVERHEAD BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class HoldcoOverheadBasket(BaseModel):
+    """
+    Maps to TypeDB: holdco_overhead_basket entity
+    Permits distributions to holding company for overhead expenses.
+    """
+    exists: bool = False
+    annual_cap_usd: Optional[float] = Field(
+        None,
+        description="Annual cap on holdco overhead distributions"
+    )
+    covers_management_fees: Optional[bool] = Field(
+        None,
+        description="Covers management/advisory fees to sponsors"
+    )
+    covers_admin_expenses: Optional[bool] = Field(
+        None,
+        description="Covers administrative and operating expenses"
+    )
+    covers_franchise_taxes: Optional[bool] = Field(
+        None,
+        description="Covers franchise taxes and similar"
+    )
+    management_fee_recipient_scope: Optional[str] = Field(
+        None,
+        description="any_affiliate | permitted_holders_only | board_approved_only"
+    )
+    requires_arms_length: Optional[bool] = Field(
+        None,
+        description="Requires arm's length terms"
+    )
+    requires_board_approval: Optional[bool] = Field(
+        None,
+        description="Requires board approval for distributions"
+    )
+    default_condition: Optional[str] = Field(
+        None,
+        description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EQUITY AWARD BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class EquityAwardBasket(BaseModel):
+    """
+    Maps to TypeDB: equity_award_basket entity
+    Permits payments for equity award settlements (cashless exercise, tax withholding).
+    """
+    exists: bool = False
+    annual_cap_usd: Optional[float] = Field(
+        None,
+        description="Annual cap on equity award payments"
+    )
+    covers_cashless_exercise: Optional[bool] = Field(
+        None,
+        description="Covers cashless exercise of options/warrants"
+    )
+    covers_tax_withholding: Optional[bool] = Field(
+        None,
+        description="Covers tax withholding obligations on equity awards"
+    )
+    carryforward_permitted: Optional[bool] = Field(
+        None,
+        description="Unused amounts carry forward to next year"
+    )
+    default_condition: Optional[str] = Field(
+        None,
+        description="any_default | payment_default_only | specified_defaults | none"
+    )
     provenance: Optional[Provenance] = None
 
 
@@ -436,6 +530,8 @@ class RPExtractionV4(BaseModel):
     general_rp_basket: Optional[GeneralRPBasket] = None
     management_equity_basket: Optional[ManagementEquityBasket] = None
     tax_distribution_basket: Optional[TaxDistributionBasket] = None
+    holdco_overhead_basket: Optional[HoldcoOverheadBasket] = None
+    equity_award_basket: Optional[EquityAwardBasket] = None
 
     # ─────────────────────────────────────────────────────────────────────────
     # BLOCKERS

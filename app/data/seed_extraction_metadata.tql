@@ -329,9 +329,14 @@ insert $em_td1 isa extraction_metadata,
 Key elements:
 - Is it capped at standalone corporate taxpayer amount?
 - Which tax groups are covered (consolidated, combined, unitary)?
+- Hypothetical tax rate used for calculation (if specified)
+- Whether tax sharing agreements between group members are permitted
+- Whether estimated/quarterly tax payments are permitted
+- Default condition: which defaults block this basket
 - Any conditions or limitations?
 
-Look for: 'distributions to pay taxes... as if such entity were a standalone corporate taxpayer'",
+Look for: 'distributions to pay taxes... as if such entity were a standalone corporate taxpayer',
+'tax sharing agreement', 'estimated taxes'.",
     has extraction_section_hint "Section 6.06(b)",
     has extraction_priority 51;
 
