@@ -1,5 +1,12 @@
 # CLAUDE.md - Valence Project Instructions
 
+## Project
+
+- **Repo:** `C:\Users\olive\ValenceV3`
+- **Branch:** `feature/graph-native-v4`
+- **Deploy:** push to Railway directly (`git push origin feature/graph-native-v4`)
+- **Schema:** `app/data/schema_unified.tql` (single file, replaces old `schema.tql` + `schema_v2.tql` + `schema_expanded.tql`)
+
 ## Model Selection
 
 DEFAULT: Sonnet for all coding tasks.
@@ -63,7 +70,7 @@ async def _store_X(self, provision_id: str, data: XModel):
 
 | Purpose | File |
 |---------|------|
-| Schema | `app/data/schema.tql` |
+| Schema | `app/data/schema_unified.tql` |
 | Seed data | `app/data/concepts.tql`, `app/data/questions.tql` |
 | V4 models | `app/schemas/extraction_output_v4.py` |
 | Storage | `app/services/graph_storage.py` |
