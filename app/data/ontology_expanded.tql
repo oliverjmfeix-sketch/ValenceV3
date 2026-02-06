@@ -29,7 +29,6 @@ insert $cat_n isa ontology_category,
 # ═══════════════════════════════════════════════════════════════════════════
 
 insert $tct_es isa target_concept_type, has target_concept_type "exempt_sale_type";
-insert $tct_uc isa target_concept_type, has target_concept_type "unsub_distribution_condition";
 insert $tct_rr isa target_concept_type, has target_concept_type "ratio_required_basket";
 insert $tct_nd isa target_concept_type, has target_concept_type "no_default_basket";
 
@@ -321,12 +320,6 @@ insert $es4 isa exempt_sale_type, has concept_id "es_de_minimis", has name "Belo
 insert $es5 isa exempt_sale_type, has concept_id "es_intercompany", has name "Intercompany Sales";
 insert $es6 isa exempt_sale_type, has concept_id "es_sale_leaseback", has name "Sale-Leasebacks";
 insert $es7 isa exempt_sale_type, has concept_id "es_ratio_basket", has name "Ratio Basket Sales";
-
-# Unsub distribution conditions (for rp_m4)
-insert $uc1 isa unsub_distribution_condition, has concept_id "uc_no_default", has name "No Event of Default";
-insert $uc2 isa unsub_distribution_condition, has concept_id "uc_ratio", has name "Pro Forma Ratio Compliance";
-insert $uc3 isa unsub_distribution_condition, has concept_id "uc_value_cap", has name "Value Cap";
-insert $uc4 isa unsub_distribution_condition, has concept_id "uc_none", has name "No Conditions";
 
 # Baskets requiring ratio test (for rp_n4)
 insert $rt1 isa ratio_required_basket, has concept_id "rt_unlimited", has name "Ratio Unlimited Basket";
