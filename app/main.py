@@ -390,6 +390,12 @@ async def _ensure_schema_loaded():
         logger.info("Loading ontology_expanded.tql...")
         _load_ontology_expanded(driver, db_name, ontology_expanded_file)
 
+    # 6. Load Category M ontology (Unrestricted Subsidiary Distributions - 10 questions)
+    category_m_file = DATA_DIR / "ontology_category_m.tql"
+    if category_m_file.exists():
+        logger.info("Loading ontology_category_m.tql...")
+        _load_categories_with_relations(driver, db_name, category_m_file)
+
     logger.info("✓ Schema initialization complete!")
 
 
