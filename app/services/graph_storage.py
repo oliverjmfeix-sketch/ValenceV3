@@ -532,6 +532,73 @@ Return ONLY the JSON object. No markdown, no explanation."""
         self._execute_query(query)
         logger.debug(f"Created rp_provision {provision_id}")
 
+    def store_scalar_answer(
+        self,
+        provision_id: str,
+        question_id: str,
+        value: Any,
+        *,
+        source_text: Optional[str] = None,
+        source_page: Optional[int] = None,
+        source_section: Optional[str] = None,
+        confidence: Optional[str] = None,
+    ) -> str:
+        """
+        Store a scalar answer via the provision_has_answer relation.
+
+        Creates a provision_has_answer relation linking a provision to an
+        ontology_question, with the answer value in the appropriate typed field.
+
+        Args:
+            provision_id: The provision to link the answer to
+            question_id: The ontology_question question_id (e.g., "rp_m1")
+            value: The answer value (bool, int, float, str)
+            source_text: Optional verbatim source text
+            source_page: Optional page number
+            source_section: Optional section reference
+            confidence: Optional confidence level (high | medium | low)
+
+        Returns:
+            The generated answer_id
+        """
+        answer_id = self._gen_id("ans")
+
+        attrs = [f'has answer_id "{answer_id}"']
+
+        if isinstance(value, bool):
+            attrs.append(f'has answer_boolean {str(value).lower()}')
+        elif isinstance(value, int):
+            attrs.append(f'has answer_integer {value}')
+        elif isinstance(value, float):
+            attrs.append(f'has answer_double {value}')
+        elif isinstance(value, str):
+            attrs.append(f'has answer_string "{self._escape(value)}"')
+        else:
+            attrs.append(f'has answer_string "{self._escape(str(value))}"')
+
+        if source_text:
+            attrs.append(f'has source_text "{self._escape(source_text[:2000])}"')
+        if source_page is not None:
+            attrs.append(f'has source_page {source_page}')
+        if source_section:
+            attrs.append(f'has source_section "{self._escape(source_section)}"')
+        if confidence:
+            attrs.append(f'has confidence "{confidence}"')
+
+        attrs_str = ",\n                ".join(attrs)
+
+        query = f'''
+            match
+                $prov isa provision, has provision_id "{provision_id}";
+                $q isa ontology_question, has question_id "{question_id}";
+            insert
+                (provision: $prov, question: $q) isa provision_has_answer,
+                {attrs_str};
+        '''
+        self._execute_query(query)
+        logger.debug(f"Stored answer {answer_id}: {question_id} = {value}")
+        return answer_id
+
     def _store_builder_basket_v4(self, provision_id: str, basket) -> str:
         """Store builder basket with all sources."""
         from app.schemas.extraction_output_v4 import BuilderBasket, BuilderSource
@@ -1156,14 +1223,12 @@ Return ONLY the JSON object. No markdown, no explanation."""
         entity_type = f"{prov_type}_provision"
 
         section_ref = data.get("section_reference", "")
-        verbatim = self._escape(data.get("verbatim_text", "")[:5000])
         source_page = data.get("source_page", 0)
 
         query = f'''
             insert $p isa {entity_type},
                 has provision_id "{provision_id}",
                 has section_reference "{section_ref}",
-                has verbatim_text "{verbatim}",
                 has source_page {source_page};
         '''
         self._execute_query(query)
