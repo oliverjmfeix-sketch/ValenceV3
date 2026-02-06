@@ -48,6 +48,18 @@ class BuilderSource(BaseModel):
     floor_amount: Optional[float] = Field(None, description="Minimum floor (e.g., ECF cannot be negative)")
     uses_greater_of: bool = Field(False, description="Uses 'greater of' formulation")
     is_primary_test: bool = Field(False, description="Is this one of the 'greatest of' tests")
+    excludes_cure_contributions: Optional[bool] = Field(
+        None,
+        description="Equity proceeds source excludes equity cure contributions"
+    )
+    excludes_disqualified_stock: Optional[bool] = Field(
+        None,
+        description="Equity proceeds source excludes disqualified stock"
+    )
+    not_otherwise_applied: Optional[bool] = Field(
+        None,
+        description="Source subject to 'not otherwise applied' limitation"
+    )
     provenance: Optional[Provenance] = None
 
 
@@ -65,6 +77,10 @@ class BuilderBasket(BaseModel):
     uses_greatest_of_tests: bool = Field(
         False,
         description="Multiple tests with 'greatest of' logic"
+    )
+    default_condition: Optional[str] = Field(
+        None,
+        description="any_default | payment_default_only | specified_defaults | none"
     )
     sources: List[BuilderSource] = Field(
         default_factory=list,
@@ -101,6 +117,18 @@ class RatioBasket(BaseModel):
     no_worse_threshold: Optional[float] = Field(
         None,
         description="Max ratio for 'no worse' test (99.0 = unlimited)"
+    )
+    test_date_type: Optional[str] = Field(
+        None,
+        description="declaration | payment | most_recent_fq"
+    )
+    lct_treatment_available: Optional[bool] = Field(
+        None,
+        description="Limited Condition Transaction treatment available"
+    )
+    pro_forma_basis: Optional[bool] = Field(
+        None,
+        description="Whether ratio is tested on pro forma basis"
     )
     provenance: Optional[Provenance] = None
 
@@ -144,6 +172,10 @@ class ManagementEquityBasket(BaseModel):
     post_ipo_increase: Optional[float] = Field(
         None,
         description="Increased cap after IPO"
+    )
+    eligible_person_scope: Optional[str] = Field(
+        None,
+        description="officers_directors | employees_officers_directors | includes_consultants | includes_sponsor_employees"
     )
     covered_persons: List[str] = Field(
         default_factory=list,
@@ -222,6 +254,22 @@ class JCrewBlocker(BaseModel):
         "loan_parties", "holdings"
     ]] = Field(default_factory=list, description="Who is bound by blocker")
     exceptions: List[BlockerException] = Field(default_factory=list)
+    covers_exclusive_licensing: Optional[bool] = Field(
+        None,
+        description="Blocks exclusive licensing of IP to unsubs"
+    )
+    covers_nonexclusive_licensing: Optional[bool] = Field(
+        None,
+        description="Blocks non-exclusive licensing of IP to unsubs"
+    )
+    covers_pledge: Optional[bool] = Field(
+        None,
+        description="Blocks pledging IP to unsubs"
+    )
+    covers_abandonment: Optional[bool] = Field(
+        None,
+        description="Blocks abandonment of IP by loan parties"
+    )
     material_ip_definition: Optional[str] = Field(
         None,
         description="How 'Material IP' is defined"
@@ -340,6 +388,18 @@ class BasketReallocation(BaseModel):
     is_bidirectional: bool = Field(
         False,
         description="Can capacity flow both ways"
+    )
+    reduces_source_basket: Optional[bool] = Field(
+        None,
+        description="Whether reallocation reduces source basket capacity"
+    )
+    reduction_is_dollar_for_dollar: Optional[bool] = Field(
+        None,
+        description="Reduction is dollar-for-dollar (vs. some other formula)"
+    )
+    reduction_while_outstanding_only: Optional[bool] = Field(
+        None,
+        description="Reduction applies only while reallocation outstanding"
     )
     provenance: Optional[Provenance] = None
 

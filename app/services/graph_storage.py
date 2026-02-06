@@ -612,6 +612,8 @@ Return ONLY the JSON object. No markdown, no explanation."""
             attrs.append(f'has start_date_language "{self._escape(basket.start_date_language)}"')
         if basket.uses_greatest_of_tests:
             attrs.append('has uses_greatest_of_tests true')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
 
         # Add provenance
         if basket.provenance:
@@ -676,6 +678,12 @@ Return ONLY the JSON object. No markdown, no explanation."""
             attrs.append(f'has floor_amount {source.floor_amount}')
         if source.uses_greater_of:
             attrs.append('has uses_greater_of true')
+        if source.not_otherwise_applied is not None:
+            attrs.append(f'has not_otherwise_applied {str(source.not_otherwise_applied).lower()}')
+        if source.excludes_cure_contributions is not None:
+            attrs.append(f'has excludes_cure_contributions {str(source.excludes_cure_contributions).lower()}')
+        if source.excludes_disqualified_stock is not None:
+            attrs.append(f'has excludes_disqualified_stock {str(source.excludes_disqualified_stock).lower()}')
 
         # Provenance
         if source.provenance:
@@ -715,6 +723,12 @@ Return ONLY the JSON object. No markdown, no explanation."""
             attrs.append('has has_no_worse_test true')
         if basket.no_worse_threshold is not None:
             attrs.append(f'has no_worse_threshold {basket.no_worse_threshold}')
+        if basket.test_date_type:
+            attrs.append(f'has test_date_type "{self._escape(basket.test_date_type)}"')
+        if basket.lct_treatment_available is not None:
+            attrs.append(f'has lct_treatment_available {str(basket.lct_treatment_available).lower()}')
+        if basket.pro_forma_basis is not None:
+            attrs.append(f'has pro_forma_basis {str(basket.pro_forma_basis).lower()}')
 
         # Provenance
         if basket.provenance:
@@ -783,6 +797,8 @@ Return ONLY the JSON object. No markdown, no explanation."""
             attrs.append('has uses_greater_of true')
         if basket.permits_carryforward:
             attrs.append('has permits_carryforward true')
+        if basket.eligible_person_scope:
+            attrs.append(f'has eligible_person_scope "{self._escape(basket.eligible_person_scope)}"')
 
         # Provenance
         if basket.provenance:
@@ -835,6 +851,14 @@ Return ONLY the JSON object. No markdown, no explanation."""
             attrs.append('has covers_transfer true')
         if blocker.covers_designation:
             attrs.append('has covers_designation true')
+        if blocker.covers_exclusive_licensing is not None:
+            attrs.append(f'has covers_exclusive_licensing {str(blocker.covers_exclusive_licensing).lower()}')
+        if blocker.covers_nonexclusive_licensing is not None:
+            attrs.append(f'has covers_nonexclusive_licensing {str(blocker.covers_nonexclusive_licensing).lower()}')
+        if blocker.covers_pledge is not None:
+            attrs.append(f'has covers_pledge {str(blocker.covers_pledge).lower()}')
+        if blocker.covers_abandonment is not None:
+            attrs.append(f'has covers_abandonment {str(blocker.covers_abandonment).lower()}')
 
         # Provenance
         if blocker.provenance:
@@ -1017,6 +1041,12 @@ Return ONLY the JSON object. No markdown, no explanation."""
             rel_attrs.append(f'has reallocation_cap {realloc.reallocation_cap}')
         if realloc.is_bidirectional:
             rel_attrs.append('has is_bidirectional true')
+        if realloc.reduces_source_basket is not None:
+            rel_attrs.append(f'has reduces_source_basket {str(realloc.reduces_source_basket).lower()}')
+        if realloc.reduction_is_dollar_for_dollar is not None:
+            rel_attrs.append(f'has reduction_is_dollar_for_dollar {str(realloc.reduction_is_dollar_for_dollar).lower()}')
+        if realloc.reduction_while_outstanding_only is not None:
+            rel_attrs.append(f'has reduction_while_outstanding_only {str(realloc.reduction_while_outstanding_only).lower()}')
         if realloc.provenance and realloc.provenance.section_reference:
             rel_attrs.append(f'has reallocation_section "{self._escape(realloc.provenance.section_reference)}"')
 
