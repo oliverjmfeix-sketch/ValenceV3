@@ -561,30 +561,10 @@ If your output is less than 30,000 characters, you are likely summarizing instea
     # =========================================================================
 
     def load_questions_by_category(self, covenant_type: str) -> Dict[str, List[Dict]]:
-        """Load questions from TypeDB grouped by category."""
+        """Load questions from TypeDB grouped by category via category_has_question."""
         if not typedb_client.driver:
             logger.warning("TypeDB not connected")
             return {}
-
-        category_names = {
-            "A": "Dividend Restrictions - General Structure",
-            "B": "Intercompany Dividends",
-            "C": "Management Equity Basket",
-            "D": "Tax Distribution Basket",
-            "E": "Equity Awards",
-            "F": "Builder Basket / Cumulative Amount",
-            "G": "Ratio-Based Dividend Basket",
-            "H": "Holding Company Overhead",
-            "I": "Basket Reallocation",
-            "J": "Unrestricted Subsidiaries",
-            "K": "J.Crew Blocker",
-            "L": "Asset Sale Proceeds & Sweeps",
-            "M": "Unrestricted Subsidiary Distributions",
-            "N": "Dividend Capacity Calculation",
-            "S": "Restricted Debt Payments - General",
-            "T": "RDP Baskets",
-            "Z": "Pattern Detection",
-        }
 
         try:
             from typedb.driver import TransactionType
@@ -592,41 +572,35 @@ If your output is less than 30,000 characters, you are likely summarizing instea
                 settings.typedb_database, TransactionType.READ
             )
             try:
-                # Query questions - extraction_prompt is optional
                 query = f"""
                     match
-                        $q isa ontology_question,
-                            has question_id $qid,
-                            has question_text $qt,
-                            has answer_type $at,
-                            has covenant_type "{covenant_type}",
-                            has display_order $order;
-                    select $qid, $qt, $at, $order;
+                        $cat isa ontology_category, has category_id $cid, has name $cname;
+                        (category: $cat, question: $q) isa category_has_question;
+                        $q has question_id $qid, has question_text $qt, has answer_type $at,
+                           has covenant_type "{covenant_type}", has display_order $order;
+                    select $cid, $cname, $qid, $qt, $at, $order;
                 """
 
                 result = tx.query(query).resolve()
                 questions_by_cat: Dict[str, List[Dict]] = {}
 
                 for row in result.as_concept_rows():
+                    cat_id = _safe_get_value(row, "cid")
+                    cat_name = _safe_get_value(row, "cname", "")
                     qid = _safe_get_value(row, "qid")
-                    if not qid:
+                    if not qid or not cat_id:
                         continue
-                    parts = qid.split("_")
-                    if len(parts) >= 2 and len(parts[1]) >= 1:
-                        cat_letter = parts[1][0].upper()
-                    else:
-                        cat_letter = "Z"
 
-                    if cat_letter not in questions_by_cat:
-                        questions_by_cat[cat_letter] = []
+                    if cat_id not in questions_by_cat:
+                        questions_by_cat[cat_id] = []
 
-                    questions_by_cat[cat_letter].append({
+                    questions_by_cat[cat_id].append({
                         "question_id": qid,
                         "question_text": _safe_get_value(row, "qt", ""),
                         "answer_type": _safe_get_value(row, "at", "string"),
                         "display_order": _safe_get_value(row, "order", 0),
-                        "category_id": cat_letter,
-                        "category_name": category_names.get(cat_letter, f"Category {cat_letter}"),
+                        "category_id": cat_id,
+                        "category_name": cat_name,
                         "extraction_prompt": None  # Will be loaded separately
                     })
 
@@ -931,7 +905,7 @@ Return ONLY the JSON array."""
         deal_id: str,
         category_answers: List[CategoryAnswers]
     ) -> bool:
-        """Store extraction results to TypeDB with individual transactions."""
+        """Store extraction results to TypeDB via provision_has_answer."""
         if not typedb_client.driver:
             logger.error("TypeDB not connected, cannot store results")
             return False
@@ -939,9 +913,10 @@ Return ONLY the JSON array."""
         provision_id = f"{deal_id}_rp"
 
         try:
-            from typedb.driver import TransactionType
+            from app.services.graph_storage import GraphStorage
 
             self._ensure_provision_exists(deal_id, provision_id)
+            storage = GraphStorage(deal_id)
 
             scalar_count = 0
             scalar_failed = 0
@@ -967,13 +942,29 @@ Return ONLY the JSON array."""
                             else:
                                 multiselect_failed += 1
                     else:
-                        success = self._store_scalar_attribute_safe(
-                            provision_id, answer.attribute_name,
-                            answer.value, answer.answer_type
-                        )
-                        if success:
-                            scalar_count += 1
-                        else:
+                        try:
+                            coerced = self._coerce_answer_value(
+                                answer.value, answer.answer_type
+                            )
+                            if coerced is not None:
+                                storage.store_scalar_answer(
+                                    provision_id=provision_id,
+                                    question_id=answer.question_id,
+                                    value=coerced,
+                                    source_text=answer.source_text or None,
+                                    source_page=(
+                                        answer.source_pages[0]
+                                        if answer.source_pages else None
+                                    ),
+                                    confidence=answer.confidence,
+                                )
+                                scalar_count += 1
+                            else:
+                                scalar_failed += 1
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not store answer for {answer.question_id}: {e}"
+                            )
                             scalar_failed += 1
 
             logger.info(
@@ -1025,37 +1016,34 @@ Return ONLY the JSON array."""
             logger.error(f"Error creating provision: {e}")
             raise
 
-    def _store_scalar_attribute_safe(
-        self,
-        provision_id: str,
-        attribute_name: str,
-        value: Any,
-        answer_type: str
-    ) -> bool:
-        """Store a scalar answer with its own transaction."""
-        from typedb.driver import TransactionType
+    def _coerce_answer_value(self, value: Any, answer_type: str) -> Any:
+        """Coerce an answer value to the correct Python type for store_scalar_answer."""
+        if value is None:
+            return None
+        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
+            return None
 
-        formatted_value = self._format_typedb_value(value, answer_type)
-        if formatted_value is None:
-            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
-            return False
+        if answer_type == "boolean":
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() in ("true", "yes", "1")
+            return bool(value)
 
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                insert $p has {attribute_name} {formatted_value};
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.debug(f"Stored {attribute_name} = {formatted_value}")
-            return True
-        except Exception as e:
-            tx.close()
-            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
-            return False
+        if answer_type in ("double", "percentage", "currency", "float", "decimal"):
+            try:
+                return float(str(value).strip("'\""))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("integer", "int", "number"):
+            try:
+                return int(float(str(value).strip("'\"")))
+            except (ValueError, TypeError):
+                return None
+
+        # Default to string
+        return str(value)
 
     def _store_concept_applicability_safe(
         self,
@@ -1092,52 +1080,6 @@ Return ONLY the JSON array."""
             tx.close()
             logger.warning(f"Could not store applicability for {concept_id}: {e}")
             return False
-
-    def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
-        """Format a Python value for TypeQL insertion."""
-        if value is None:
-            return None
-
-        # Handle "not_found" or similar non-values
-        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
-            return None
-
-        if answer_type == "boolean":
-            if isinstance(value, bool):
-                return "true" if value else "false"
-            if isinstance(value, str):
-                return "true" if value.lower() in ("true", "yes", "1") else "false"
-            return None
-
-        if answer_type in ("integer", "int", "number"):
-            try:
-                clean_value = str(value).strip('"\'')
-                return str(int(float(clean_value)))
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("double", "decimal", "percentage", "currency", "float"):
-            try:
-                clean_value = str(value).strip('"\'')
-                return str(float(clean_value))
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("string", "text"):
-            escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"'
-
-        # Default: try to detect type from value
-        try:
-            clean_value = str(value).strip('"\'')
-            float_val = float(clean_value)
-            return str(float_val)
-        except (ValueError, TypeError):
-            pass
-
-        # Fall back to string
-        escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-        return f'"{escaped}"'
 
     # =========================================================================
     # MAIN EXTRACTION FLOW
