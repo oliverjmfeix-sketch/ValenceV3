@@ -513,6 +513,131 @@ class BasketReallocation(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# RDP (RESTRICTED DEBT PAYMENT) BASKETS
+# Separate hierarchy from RP baskets — uses provision_has_rdp_basket relation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RefinancingRDPBasket(BaseModel):
+    """
+    Maps to TypeDB: refinancing_rdp_basket entity
+    Prepay junior debt with new debt at same or lower priority.
+    """
+    exists: bool = False
+    requires_same_or_lower_priority: Optional[bool] = Field(
+        None, description="New debt must be same or lower priority"
+    )
+    requires_same_or_later_maturity: Optional[bool] = Field(
+        None, description="New debt must mature same date or later"
+    )
+    requires_no_increase_in_principal: Optional[bool] = Field(
+        None, description="New debt principal cannot exceed existing"
+    )
+    permits_refinancing_with_equity: Optional[bool] = Field(
+        None, description="Can use equity proceeds to refinance"
+    )
+    requires_qualified_stock_only: Optional[bool] = Field(
+        None, description="Only qualified stock permitted"
+    )
+    not_otherwise_applied: Optional[bool] = Field(
+        None, description="Subject to 'not otherwise applied' limitation"
+    )
+    subject_to_intercreditor: Optional[bool] = Field(
+        None, description="Subject to intercreditor agreement"
+    )
+    default_condition: Optional[str] = Field(
+        None, description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+class GeneralRDPBasket(BaseModel):
+    """
+    Maps to TypeDB: general_rdp_basket entity
+    Fixed dollar basket for general RDP capacity.
+    """
+    exists: bool = False
+    basket_amount_usd: Optional[float] = Field(
+        None, description="Fixed dollar amount"
+    )
+    basket_grower_pct: Optional[float] = Field(
+        None, description="EBITDA grower percentage (e.g., 1.0 = 100%)"
+    )
+    default_condition: Optional[str] = Field(
+        None, description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+class RatioRDPBasket(BaseModel):
+    """
+    Maps to TypeDB: ratio_rdp_basket entity
+    Leverage test unlocks unlimited RDP.
+    """
+    exists: bool = False
+    ratio_threshold: Optional[float] = Field(
+        None, description="Leverage threshold (e.g., 5.75)"
+    )
+    ratio_type: Optional[str] = Field(
+        None, description="first_lien | secured | total | senior_secured | net"
+    )
+    is_unlimited_if_met: Optional[bool] = Field(
+        None, description="Unlimited RDP when ratio met"
+    )
+    test_date_type: Optional[str] = Field(
+        None, description="declaration | payment | most_recent_fq"
+    )
+    pro_forma_basis: Optional[bool] = Field(
+        None, description="Ratio tested on pro forma basis"
+    )
+    uses_closing_ratio_alternative: Optional[bool] = Field(
+        None, description="Alternative test using closing date ratio"
+    )
+    default_condition: Optional[str] = Field(
+        None, description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+class BuilderRDPBasket(BaseModel):
+    """
+    Maps to TypeDB: builder_rdp_basket entity
+    Cumulative amount basket for RDP — may share capacity with RP builder.
+    """
+    exists: bool = False
+    shares_with_rp_builder: Optional[bool] = Field(
+        None, description="Shares capacity with RP builder basket"
+    )
+    subject_to_intercreditor: Optional[bool] = Field(
+        None, description="Subject to intercreditor agreement"
+    )
+    default_condition: Optional[str] = Field(
+        None, description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+class EquityFundedRDPBasket(BaseModel):
+    """
+    Maps to TypeDB: equity_funded_rdp_basket entity
+    RDP funded by fresh equity contributions.
+    """
+    exists: bool = False
+    requires_qualified_stock_only: Optional[bool] = Field(
+        None, description="Only qualified stock permitted"
+    )
+    requires_cash_common_equity: Optional[bool] = Field(
+        None, description="Must be cash common equity"
+    )
+    not_otherwise_applied: Optional[bool] = Field(
+        None, description="Subject to 'not otherwise applied' limitation"
+    )
+    default_condition: Optional[str] = Field(
+        None, description="any_default | payment_default_only | specified_defaults | none"
+    )
+    provenance: Optional[Provenance] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TOP-LEVEL EXTRACTION OUTPUT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -553,6 +678,15 @@ class RPExtractionV4(BaseModel):
     # REALLOCATION
     # ─────────────────────────────────────────────────────────────────────────
     reallocations: List[BasketReallocation] = Field(default_factory=list)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # RDP BASKETS (separate hierarchy — uses provision_has_rdp_basket)
+    # ─────────────────────────────────────────────────────────────────────────
+    refinancing_rdp_basket: Optional[RefinancingRDPBasket] = None
+    general_rdp_basket: Optional[GeneralRDPBasket] = None
+    ratio_rdp_basket: Optional[RatioRDPBasket] = None
+    builder_rdp_basket: Optional[BuilderRDPBasket] = None
+    equity_funded_rdp_basket: Optional[EquityFundedRDPBasket] = None
 
     # ─────────────────────────────────────────────────────────────────────────
     # METADATA

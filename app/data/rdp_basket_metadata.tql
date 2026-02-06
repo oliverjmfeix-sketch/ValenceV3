@@ -1,0 +1,124 @@
+################################################################################
+# VALENCE V4 - EXTRACTION METADATA FOR RDP (RESTRICTED DEBT PAYMENT) BASKETS
+#
+# Separate entity hierarchy from RP baskets.
+# Relation: provision_has_rdp_basket (NOT provision_has_basket)
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REFINANCING RDP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rdp_refi isa extraction_metadata,
+    has metadata_id "refinancing_rdp_basket.core",
+    has target_entity_type "refinancing_rdp_basket",
+    has extraction_prompt "Extract the refinancing RDP basket (also called Refinancing Restricted Debt Payment basket).
+
+This basket permits prepayment, redemption, or refinancing of junior/subordinated debt
+with NEW debt at the same or lower priority level.
+
+Key elements to extract:
+- Does new debt require SAME OR LOWER priority? (e.g., junior lien or unsecured)
+- Does new debt require SAME OR LATER maturity date?
+- Does new debt require NO INCREASE in principal amount?
+- Can the borrower refinance with equity proceeds instead of new debt?
+- Is only QUALIFIED STOCK permitted (no disqualified stock)?
+- Is this subject to 'not otherwise applied' limitation?
+- Is this subject to an intercreditor agreement?
+- Default condition: which defaults block this basket?
+
+Look for: 'refinancing... Restricted Debt Payments', 'prepayment of junior debt',
+'permitted refinancing', 'Refinancing Indebtedness'.",
+    has extraction_section_hint "Section 6.09(b), 6.09(c)",
+    has extraction_priority 60;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERAL RDP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rdp_gen isa extraction_metadata,
+    has metadata_id "general_rdp_basket.core",
+    has target_entity_type "general_rdp_basket",
+    has extraction_prompt "Extract the general/catch-all RDP basket (fixed dollar amount for any Restricted Debt Payment).
+
+This is often structured as 'greater of $X and Y% of EBITDA' — similar to the general RP basket
+but for debt prepayment.
+
+Key elements to extract:
+- Dollar amount (basket_amount_usd)
+- EBITDA grower percentage (basket_grower_pct), e.g., 1.0 = 100% of EBITDA
+- Default condition: which defaults block this basket?
+
+Look for: 'Restricted Debt Payments in an aggregate amount not to exceed the greater of $X and Y% of EBITDA'.",
+    has extraction_section_hint "Section 6.09(g), 6.09(h)",
+    has extraction_priority 61;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RATIO RDP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rdp_ratio isa extraction_metadata,
+    has metadata_id "ratio_rdp_basket.core",
+    has target_entity_type "ratio_rdp_basket",
+    has extraction_prompt "Extract the ratio-based RDP basket. This permits unlimited (or increased) Restricted Debt Payments
+if a leverage ratio test is satisfied.
+
+Key elements to extract:
+- Ratio threshold (e.g., 5.75x)
+- Ratio type: first_lien | secured | total | senior_secured | net
+- Is it UNLIMITED if ratio met?
+- Test date type: declaration | payment | most_recent_fq
+- Is ratio tested on PRO FORMA basis?
+- Does it offer a CLOSING RATIO ALTERNATIVE (ratio at closing as floor)?
+- Default condition: which defaults block this basket?
+
+Look for: 'Restricted Debt Payments if First Lien Leverage Ratio <= X:1.00',
+'unlimited prepayment if ratio satisfied'.",
+    has extraction_section_hint "Section 6.09(j), 6.09(k)",
+    has extraction_priority 62;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER RDP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rdp_builder isa extraction_metadata,
+    has metadata_id "builder_rdp_basket.core",
+    has target_entity_type "builder_rdp_basket",
+    has extraction_prompt "Extract the builder/cumulative amount RDP basket.
+
+This basket provides RDP capacity based on the same Available Amount / builder basket
+that feeds the RP covenant. Key question: does it SHARE capacity with the RP builder
+basket (same pool) or is it a separate allocation?
+
+Key elements to extract:
+- Does it SHARE capacity with the RP builder basket? (critical for total capacity calc)
+- Is this subject to an intercreditor agreement?
+- Default condition: which defaults block this basket?
+
+Look for: 'Available Amount', 'Cumulative Amount' in the RDP section (6.09),
+cross-references to Section 6.06(f) builder basket.",
+    has extraction_section_hint "Section 6.09(c), 6.09(f)",
+    has extraction_priority 63;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EQUITY FUNDED RDP BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_rdp_eqfund isa extraction_metadata,
+    has metadata_id "equity_funded_rdp_basket.core",
+    has target_entity_type "equity_funded_rdp_basket",
+    has extraction_prompt "Extract the equity-funded RDP basket.
+
+This basket permits Restricted Debt Payments funded by fresh equity contributions
+(proceeds from equity issuances applied to prepay junior debt).
+
+Key elements to extract:
+- Does it require QUALIFIED STOCK ONLY (no disqualified stock)?
+- Does it require CASH COMMON EQUITY (not preferred or in-kind)?
+- Is it subject to 'not otherwise applied' limitation?
+- Default condition: which defaults block this basket?
+
+Look for: 'Restricted Debt Payments funded with proceeds of equity contributions',
+'Net Cash Proceeds of Equity Issuances... applied to prepay'.",
+    has extraction_section_hint "Section 6.09(d), 6.09(e)",
+    has extraction_priority 64;

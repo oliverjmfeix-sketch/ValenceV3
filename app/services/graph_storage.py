@@ -283,7 +283,43 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
       "reallocation_cap": 130000000,
       "is_bidirectional": true
     }
-  ]
+  ],
+  "refinancing_rdp_basket": {
+    "exists": true,
+    "requires_same_or_lower_priority": true,
+    "requires_same_or_later_maturity": true,
+    "requires_no_increase_in_principal": true,
+    "permits_refinancing_with_equity": false,
+    "subject_to_intercreditor": true,
+    "provenance": {"section_reference": "6.09(b)"}
+  },
+  "general_rdp_basket": {
+    "exists": true,
+    "basket_amount_usd": 130000000,
+    "basket_grower_pct": 1.0,
+    "provenance": {"section_reference": "6.09(g)"}
+  },
+  "ratio_rdp_basket": {
+    "exists": true,
+    "ratio_threshold": 5.75,
+    "ratio_type": "first_lien",
+    "is_unlimited_if_met": true,
+    "pro_forma_basis": true,
+    "provenance": {"section_reference": "6.09(j)"}
+  },
+  "builder_rdp_basket": {
+    "exists": true,
+    "shares_with_rp_builder": true,
+    "subject_to_intercreditor": false,
+    "provenance": {"section_reference": "6.09(c)"}
+  },
+  "equity_funded_rdp_basket": {
+    "exists": true,
+    "requires_qualified_stock_only": true,
+    "requires_cash_common_equity": false,
+    "not_otherwise_applied": true,
+    "provenance": {"section_reference": "6.09(d)"}
+  }
 }
 ```
 
@@ -429,6 +465,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
         results = {
             "provision_id": None,
             "baskets_created": 0,
+            "rdp_baskets_created": 0,
             "sources_created": 0,
             "blockers_created": 0,
             "exceptions_created": 0,
@@ -501,6 +538,42 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 except Exception as e:
                     results["errors"].append(f"Equity award basket: {str(e)[:100]}")
 
+            # Store RDP baskets (separate hierarchy — provision_has_rdp_basket)
+            if extraction.refinancing_rdp_basket and extraction.refinancing_rdp_basket.exists:
+                try:
+                    self._store_refinancing_rdp_basket_v4(provision_id, extraction.refinancing_rdp_basket)
+                    results["rdp_baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Refinancing RDP basket: {str(e)[:100]}")
+
+            if extraction.general_rdp_basket and extraction.general_rdp_basket.exists:
+                try:
+                    self._store_general_rdp_basket_v4(provision_id, extraction.general_rdp_basket)
+                    results["rdp_baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"General RDP basket: {str(e)[:100]}")
+
+            if extraction.ratio_rdp_basket and extraction.ratio_rdp_basket.exists:
+                try:
+                    self._store_ratio_rdp_basket_v4(provision_id, extraction.ratio_rdp_basket)
+                    results["rdp_baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Ratio RDP basket: {str(e)[:100]}")
+
+            if extraction.builder_rdp_basket and extraction.builder_rdp_basket.exists:
+                try:
+                    self._store_builder_rdp_basket_v4(provision_id, extraction.builder_rdp_basket)
+                    results["rdp_baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Builder RDP basket: {str(e)[:100]}")
+
+            if extraction.equity_funded_rdp_basket and extraction.equity_funded_rdp_basket.exists:
+                try:
+                    self._store_equity_funded_rdp_basket_v4(provision_id, extraction.equity_funded_rdp_basket)
+                    results["rdp_baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Equity-funded RDP basket: {str(e)[:100]}")
+
             # Store J.Crew blocker
             if extraction.jcrew_blocker and extraction.jcrew_blocker.exists:
                 try:
@@ -543,7 +616,8 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
             logger.info(
                 f"V4 extraction stored for {self.deal_id}: "
-                f"{results['baskets_created']} baskets, {results['sources_created']} sources, "
+                f"{results['baskets_created']} baskets, {results['rdp_baskets_created']} rdp_baskets, "
+                f"{results['sources_created']} sources, "
                 f"{results['blockers_created']} blockers, {results['sweep_tiers_created']} tiers"
             )
 
@@ -961,6 +1035,185 @@ Return ONLY the JSON object. No markdown, no explanation."""
         '''
         self._execute_query(query)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # RDP BASKETS - Separate hierarchy using provision_has_rdp_basket relation
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _store_refinancing_rdp_basket_v4(self, provision_id: str, basket):
+        """Store refinancing RDP basket."""
+        basket_id = f"rdp_refi_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.requires_same_or_lower_priority is not None:
+            attrs.append(f'has requires_same_or_lower_priority {str(basket.requires_same_or_lower_priority).lower()}')
+        if basket.requires_same_or_later_maturity is not None:
+            attrs.append(f'has requires_same_or_later_maturity {str(basket.requires_same_or_later_maturity).lower()}')
+        if basket.requires_no_increase_in_principal is not None:
+            attrs.append(f'has requires_no_increase_in_principal {str(basket.requires_no_increase_in_principal).lower()}')
+        if basket.permits_refinancing_with_equity is not None:
+            attrs.append(f'has permits_refinancing_with_equity {str(basket.permits_refinancing_with_equity).lower()}')
+        if basket.requires_qualified_stock_only is not None:
+            attrs.append(f'has requires_qualified_stock_only {str(basket.requires_qualified_stock_only).lower()}')
+        if basket.not_otherwise_applied is not None:
+            attrs.append(f'has not_otherwise_applied {str(basket.not_otherwise_applied).lower()}')
+        if basket.subject_to_intercreditor is not None:
+            attrs.append(f'has subject_to_intercreditor {str(basket.subject_to_intercreditor).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa refinancing_rdp_basket,
+                {attrs_str};
+                (provision: $prov, rdp_basket: $basket) isa provision_has_rdp_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_general_rdp_basket_v4(self, provision_id: str, basket):
+        """Store general RDP basket."""
+        basket_id = f"rdp_general_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.basket_amount_usd is not None:
+            attrs.append(f'has basket_amount_usd {basket.basket_amount_usd}')
+        if basket.basket_grower_pct is not None:
+            attrs.append(f'has basket_grower_pct {basket.basket_grower_pct}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa general_rdp_basket,
+                {attrs_str};
+                (provision: $prov, rdp_basket: $basket) isa provision_has_rdp_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_ratio_rdp_basket_v4(self, provision_id: str, basket):
+        """Store ratio RDP basket."""
+        basket_id = f"rdp_ratio_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.ratio_threshold is not None:
+            attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
+        if basket.ratio_type:
+            attrs.append(f'has ratio_type "{self._escape(basket.ratio_type)}"')
+        if basket.is_unlimited_if_met is not None:
+            attrs.append(f'has is_unlimited_if_met {str(basket.is_unlimited_if_met).lower()}')
+        if basket.test_date_type:
+            attrs.append(f'has test_date_type "{self._escape(basket.test_date_type)}"')
+        if basket.pro_forma_basis is not None:
+            attrs.append(f'has pro_forma_basis {str(basket.pro_forma_basis).lower()}')
+        if basket.uses_closing_ratio_alternative is not None:
+            attrs.append(f'has uses_closing_ratio_alternative {str(basket.uses_closing_ratio_alternative).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa ratio_rdp_basket,
+                {attrs_str};
+                (provision: $prov, rdp_basket: $basket) isa provision_has_rdp_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_builder_rdp_basket_v4(self, provision_id: str, basket):
+        """Store builder RDP basket."""
+        basket_id = f"rdp_builder_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.shares_with_rp_builder is not None:
+            attrs.append(f'has shares_with_rp_builder {str(basket.shares_with_rp_builder).lower()}')
+        if basket.subject_to_intercreditor is not None:
+            attrs.append(f'has subject_to_intercreditor {str(basket.subject_to_intercreditor).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa builder_rdp_basket,
+                {attrs_str};
+                (provision: $prov, rdp_basket: $basket) isa provision_has_rdp_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_equity_funded_rdp_basket_v4(self, provision_id: str, basket):
+        """Store equity-funded RDP basket."""
+        basket_id = f"rdp_eqfund_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.requires_qualified_stock_only is not None:
+            attrs.append(f'has requires_qualified_stock_only {str(basket.requires_qualified_stock_only).lower()}')
+        if basket.requires_cash_common_equity is not None:
+            attrs.append(f'has requires_cash_common_equity {str(basket.requires_cash_common_equity).lower()}')
+        if basket.not_otherwise_applied is not None:
+            attrs.append(f'has not_otherwise_applied {str(basket.not_otherwise_applied).lower()}')
+        if basket.default_condition:
+            attrs.append(f'has default_condition "{self._escape(basket.default_condition)}"')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa equity_funded_rdp_basket,
+                {attrs_str};
+                (provision: $prov, rdp_basket: $basket) isa provision_has_rdp_basket;
+        '''
+        self._execute_query(query)
+
     def _store_jcrew_blocker_v4(self, provision_id: str, blocker):
         """Store J.Crew blocker with exceptions."""
         blocker_id = f"jcrew_{provision_id}"
@@ -1216,6 +1469,17 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
         if extraction.reallocations:
             parts.append(f"realloc({len(extraction.reallocations)})")
+
+        # RDP baskets
+        rdp_count = sum(1 for b in [
+            extraction.refinancing_rdp_basket,
+            extraction.general_rdp_basket,
+            extraction.ratio_rdp_basket,
+            extraction.builder_rdp_basket,
+            extraction.equity_funded_rdp_basket,
+        ] if b and b.exists)
+        if rdp_count:
+            parts.append(f"rdp({rdp_count} baskets)")
 
         return ", ".join(parts) or "empty"
 
