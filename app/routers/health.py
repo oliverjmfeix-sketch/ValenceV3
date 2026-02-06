@@ -194,9 +194,9 @@ async def debug_reload_schema_expanded() -> Dict[str, Any]:
     if not driver:
         return {"error": "No TypeDB driver"}
 
-    # Load schema_expanded.tql
+    # Load schema_unified.tql
     DATA_DIR = Path(__file__).parent.parent / "data"
-    schema_file = DATA_DIR / "schema_expanded.tql"
+    schema_file = DATA_DIR / "schema_unified.tql"
 
     if not schema_file.exists():
         return {"error": f"Schema file not found: {schema_file}"}

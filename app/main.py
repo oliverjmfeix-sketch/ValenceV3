@@ -315,12 +315,10 @@ async def _ensure_schema_loaded():
     
     DATA_DIR = Path(__file__).parent / "data"
     
-    # 1. Load schema (define statements)
-    # TypeDB define is idempotent for new types but may error on existing ones
-    # We try the full schema first, then fall back to individual statements if needed
-    schema_file = DATA_DIR / "schema.tql"
+    # 1. Load unified schema (single file containing all definitions)
+    schema_file = DATA_DIR / "schema_unified.tql"
     if schema_file.exists():
-        logger.info("Loading schema.tql...")
+        logger.info("Loading schema_unified.tql...")
         schema_tql = _load_tql_file(schema_file)
         if schema_tql:
             tx = driver.transaction(db_name, TransactionType.SCHEMA)
@@ -334,7 +332,6 @@ async def _ensure_schema_loaded():
                 # Schema partially exists - try to extend it with new types
                 if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
                     logger.info("Schema exists, attempting incremental update...")
-                    # Extract and try each entity/attribute/relation definition separately
                     _try_incremental_schema_update(driver, db_name, schema_tql)
                 else:
                     logger.error(f"Schema load failed: {e}")
@@ -342,48 +339,6 @@ async def _ensure_schema_loaded():
     else:
         logger.error(f"Schema file not found: {schema_file}")
         return
-
-    # 1b. Load schema updates (v2 - qualifications, cross-references, citations)
-    schema_v2_file = DATA_DIR / "schema_v2.tql"
-    if schema_v2_file.exists():
-        logger.info("Loading schema_v2.tql...")
-        schema_v2_tql = _load_tql_file(schema_v2_file)
-        if schema_v2_tql:
-            tx = driver.transaction(db_name, TransactionType.SCHEMA)
-            try:
-                tx.query(schema_v2_tql).resolve()
-                tx.commit()
-                logger.info("✓ Schema v2 loaded")
-            except Exception as e:
-                tx.close()
-                error_msg = str(e).lower()
-                if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
-                    logger.info("✓ Schema v2 already exists (skipping)")
-                else:
-                    logger.warning(f"Schema v2 load: {e}")
-
-    # 1c. Load expanded schema (new concept types, new rp_provision attributes)
-    schema_expanded_file = DATA_DIR / "schema_expanded.tql"
-    if schema_expanded_file.exists():
-        logger.info("Loading schema_expanded.tql...")
-        schema_expanded_tql = _load_tql_file(schema_expanded_file)
-        if schema_expanded_tql:
-            tx = driver.transaction(db_name, TransactionType.SCHEMA)
-            try:
-                tx.query(schema_expanded_tql).resolve()
-                tx.commit()
-                logger.info("✓ Schema expanded loaded")
-            except Exception as e:
-                tx.close()
-                error_msg = str(e).lower()
-                if "already" in error_msg or "duplicate" in error_msg or "exists" in error_msg:
-                    logger.info("Schema expanded partially exists, trying incremental update...")
-                    _try_incremental_schema_update(driver, db_name, schema_expanded_tql)
-                else:
-                    logger.warning(f"Schema expanded load error: {e}")
-                    # Try incremental update even on other errors
-                    logger.info("Attempting incremental schema update...")
-                    _try_incremental_schema_update(driver, db_name, schema_expanded_tql)
 
     # 2. Load concepts (insert statements) - skip if already loaded
     concepts_file = DATA_DIR / "concepts.tql"

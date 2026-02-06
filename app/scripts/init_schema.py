@@ -27,7 +27,7 @@ TYPEDB_PASSWORD = os.getenv("TYPEDB_PASSWORD", "")
 
 # Data files
 DATA_DIR = Path(__file__).parent.parent / "data"
-SCHEMA_FILE = DATA_DIR / "schema.tql"
+SCHEMA_FILE = DATA_DIR / "schema_unified.tql"
 CONCEPTS_FILE = DATA_DIR / "concepts.tql"
 QUESTIONS_FILE = DATA_DIR / "questions.tql"
 
