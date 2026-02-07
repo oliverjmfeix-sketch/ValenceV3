@@ -1,0 +1,60 @@
+################################################################################
+# VALENCE V4 - SEED DATA
+#
+# IP Types and Restricted Party types for graph schema
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IP TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ip1 isa ip_type, has ip_type_id "patents", has name "Patents";
+insert $ip2 isa ip_type, has ip_type_id "trademarks", has name "Trademarks";
+insert $ip3 isa ip_type, has ip_type_id "copyrights", has name "Copyrights";
+insert $ip4 isa ip_type, has ip_type_id "trade_secrets", has name "Trade Secrets";
+insert $ip5 isa ip_type, has ip_type_id "licenses", has name "Licenses";
+insert $ip6 isa ip_type, has ip_type_id "domain_names", has name "Domain Names";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESTRICTED PARTY TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $rp1 isa borrower_party, has party_id "borrower", has party_name "Borrower";
+insert $rp2 isa guarantor_party, has party_id "guarantors", has party_name "Guarantors";
+insert $rp3 isa restricted_sub_party, has party_id "restricted_subs", has party_name "Restricted Subsidiaries";
+insert $rp4 isa loan_party, has party_id "loan_parties", has party_name "Loan Parties";
+insert $rp5 isa holdings_party, has party_id "holdings", has party_name "Holdings";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER SOURCE TYPES (for multiselect reference)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $bs1 isa builder_source, has source_id "cni", has source_name "Consolidated Net Income";
+insert $bs2 isa builder_source, has source_id "ecf", has source_name "Excess Cash Flow";
+insert $bs3 isa builder_source, has source_id "ebitda_fc", has source_name "EBITDA minus Fixed Charges";
+insert $bs4 isa builder_source, has source_id "equity_proceeds", has source_name "Equity Proceeds";
+insert $bs5 isa builder_source, has source_id "asset_sale_proceeds", has source_name "Retained Asset Sale Proceeds";
+insert $bs6 isa builder_source, has source_id "investment_returns", has source_name "Returns on Investments";
+insert $bs7 isa builder_source, has source_id "declined_proceeds", has source_name "Declined Proceeds";
+insert $bs8 isa builder_source, has source_id "starter_amount", has source_name "Starter Amount";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOCKER EXCEPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ex1 isa nonexclusive_license_exception, has exception_id "nonexclusive_license", has exception_name "Non-Exclusive License";
+insert $ex2 isa ordinary_course_exception, has exception_id "ordinary_course", has exception_name "Ordinary Course of Business";
+insert $ex3 isa intercompany_exception, has exception_id "intercompany", has exception_name "Intercompany Transfers";
+insert $ex4 isa fair_value_exception, has exception_id "fair_value", has exception_name "Fair Value Sale";
+insert $ex5 isa license_back_exception, has exception_id "license_back", has exception_name "License-Back Arrangement";
+insert $ex6 isa immaterial_ip_exception, has exception_id "immaterial_ip", has exception_name "Immaterial IP";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP EXEMPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $se1 isa non_collateral_exemption, has exemption_id "non_collateral", has exemption_name "Non-Collateral Assets";
+insert $se2 isa ordinary_course_sale_exemption, has exemption_id "ordinary_course_sale", has exemption_name "Ordinary Course Sales";
+insert $se3 isa casualty_exemption, has exemption_id "casualty", has exemption_name "Casualty Events";
+insert $se4 isa below_threshold_exemption, has exemption_id "below_threshold", has exemption_name "Below De Minimis Threshold";
+insert $se5 isa ratio_basket_exemption, has exemption_id "ratio_basket", has exemption_name "Ratio Basket Sales";

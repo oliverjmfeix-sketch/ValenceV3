@@ -27,9 +27,10 @@ TYPEDB_PASSWORD = os.getenv("TYPEDB_PASSWORD", "")
 
 # Data files
 DATA_DIR = Path(__file__).parent.parent / "data"
-SCHEMA_FILE = DATA_DIR / "schema.tql"
+SCHEMA_FILE = DATA_DIR / "schema_unified.tql"
 CONCEPTS_FILE = DATA_DIR / "concepts.tql"
 QUESTIONS_FILE = DATA_DIR / "questions.tql"
+CATEGORY_M_FILE = DATA_DIR / "ontology_category_m.tql"
 
 
 def get_driver():
@@ -66,6 +67,80 @@ def load_tql_file(filepath: Path) -> str:
         if stripped and not stripped.startswith('#'):
             lines.append(line)
     return '\n'.join(lines)
+
+
+def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
+    """
+    Load a TQL file that contains both insert and match-insert statements.
+    Parses and executes them separately.
+    """
+    content = filepath.read_text()
+    lines = content.split('\n')
+    insert_lines = []
+    match_insert_statements = []
+    current_statement = []
+    in_insert_block = False
+    in_match_block = False
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+
+        if stripped == 'insert' or stripped.startswith('insert '):
+            if in_match_block and current_statement:
+                match_insert_statements.append('\n'.join(current_statement))
+                current_statement = []
+            in_insert_block = True
+            in_match_block = False
+            insert_lines.append(stripped)
+            continue
+
+        if stripped.startswith('match '):
+            in_insert_block = False
+            in_match_block = True
+            if current_statement:
+                match_insert_statements.append('\n'.join(current_statement))
+            current_statement = [stripped]
+            continue
+
+        if in_insert_block:
+            insert_lines.append(stripped)
+        elif in_match_block:
+            current_statement.append(stripped)
+
+    if current_statement:
+        match_insert_statements.append('\n'.join(current_statement))
+
+    # Execute insert block
+    if insert_lines:
+        insert_tql = '\n'.join(insert_lines)
+        with driver.session(db_name, SessionType.DATA) as session:
+            with session.transaction(TransactionType.WRITE) as tx:
+                try:
+                    tx.query(insert_tql)
+                    tx.commit()
+                    logger.info(f"  ✓ Executed insert block ({len(insert_lines)} lines)")
+                except Exception as e:
+                    if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                        logger.info("  ✓ Insert block already exists (skipping)")
+                    else:
+                        logger.warning(f"  Insert block error: {e}")
+
+    # Execute match-insert statements
+    for stmt in match_insert_statements:
+        with driver.session(db_name, SessionType.DATA) as session:
+            with session.transaction(TransactionType.WRITE) as tx:
+                try:
+                    tx.query(stmt)
+                    tx.commit()
+                except Exception as e:
+                    if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                        pass  # Silent skip for duplicates
+                    else:
+                        logger.warning(f"  Match-insert error: {e}")
+
+    logger.info(f"  ✓ Executed {len(match_insert_statements)} match-insert statements")
 
 
 def init_database():
@@ -130,7 +205,15 @@ def init_database():
             logger.info(f"✓ Loaded questions ({len(questions_tql)} chars)")
         else:
             logger.warning(f"⚠ Questions file not found: {QUESTIONS_FILE}")
-        
+
+        # Load Category M ontology (Unrestricted Subsidiary Distributions)
+        logger.info("\nLoading Category M ontology...")
+        if CATEGORY_M_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, CATEGORY_M_FILE)
+            logger.info("✓ Loaded Category M ontology")
+        else:
+            logger.warning(f"⚠ Category M file not found: {CATEGORY_M_FILE}")
+
         # Verify
         logger.info("\n" + "=" * 60)
         logger.info("Verification")

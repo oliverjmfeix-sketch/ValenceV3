@@ -191,6 +191,17 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
+            # 0. Delete provision_has_answer relations for RP provision
+            try:
+                tx.query(f"""
+                    match
+                        $p isa rp_provision, has provision_id "{deal_id}_rp";
+                        $rel (provision: $p, question: $q) isa provision_has_answer;
+                    delete $rel;
+                """).resolve()
+            except Exception:
+                pass  # May not exist
+
             # 1. Delete concept_applicability relations for RP provision
             try:
                 tx.query(f"""
@@ -405,6 +416,62 @@ async def upload_deal(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{deal_id}/upload-pdf")
+async def upload_pdf_for_deal(
+    deal_id: str,
+    file: UploadFile = File(...)
+) -> Dict[str, Any]:
+    """
+    Upload a PDF for an existing deal.
+
+    Use this to attach a PDF to a deal that was created without one.
+    Does NOT trigger extraction - use POST /{deal_id}/extract-v4 after upload.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+
+    # Check deal exists
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                select $d;
+            """
+            result = tx.query(query).resolve()
+            if not list(result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="Deal not found")
+        finally:
+            tx.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Save PDF
+    pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+    try:
+        contents = await file.read()
+        with open(pdf_path, "wb") as f:
+            f.write(contents)
+
+        logger.info(f"Saved PDF for deal {deal_id}: {pdf_path} ({len(contents)} bytes)")
+
+        return {
+            "status": "success",
+            "deal_id": deal_id,
+            "pdf_size": len(contents),
+            "message": "PDF uploaded. Use POST /api/deals/{deal_id}/extract-v4 to run extraction."
+        }
+    except Exception as e:
+        logger.error(f"Failed to save PDF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{deal_id}/status", response_model=ExtractionStatus)
 async def get_extraction_status(deal_id: str) -> ExtractionStatus:
     """Get the extraction status for a deal."""
@@ -474,7 +541,7 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             provision_result = tx.query(provision_query).resolve()
             extraction_complete = len(list(provision_result.as_concept_rows())) > 0
 
-            # 1. Load all RP questions from ontology with category info
+            # 1. Load all RP questions with category via category_has_question (SSoT)
             questions_query = """
                 match
                     $q isa ontology_question,
@@ -483,71 +550,60 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                         has question_text $qtext,
                         has answer_type $atype,
                         has display_order $order;
-                select $qid, $qtext, $atype, $order;
+                    (category: $cat, question: $q) isa category_has_question;
+                    $cat has category_id $cid, has name $cname;
+                select $qid, $qtext, $atype, $order, $cid, $cname;
             """
             questions_result = tx.query(questions_query).resolve()
 
-            # Build questions list with category derived from question_id
             questions = []
             for row in questions_result.as_concept_rows():
                 qid = _safe_get_value(row, "qid")
                 if not qid:
                     continue
 
-                # Derive category from question_id (e.g., rp_a1 -> A)
-                parts = qid.split("_")
-                cat_letter = parts[1][0].upper() if len(parts) >= 2 and len(parts[1]) >= 1 else "Z"
-
-                # Category name mapping
-                category_names = {
-                    "A": "Dividend Restrictions - General Structure",
-                    "B": "Intercompany Dividends",
-                    "C": "Management Equity Basket",
-                    "D": "Tax Distribution Basket",
-                    "E": "Equity Awards",
-                    "F": "Builder Basket / Cumulative Amount",
-                    "G": "Ratio-Based Dividend Basket",
-                    "H": "Holding Company Overhead",
-                    "I": "Basket Reallocation",
-                    "J": "Unrestricted Subsidiaries",
-                    "K": "J.Crew Blocker",
-                    "L": "Asset Sale Proceeds & Sweeps",
-                    "M": "Unrestricted Subsidiary Distributions",
-                    "N": "Dividend Capacity Calculation",
-                    "S": "Restricted Debt Payments - General",
-                    "T": "RDP Baskets",
-                    "Z": "Pattern Detection",
-                }
-
                 questions.append({
                     "question_id": qid,
                     "question_text": _safe_get_value(row, "qtext", ""),
                     "answer_type": _safe_get_value(row, "atype", "string"),
                     "display_order": _safe_get_value(row, "order", 0),
-                    "category_id": cat_letter,
-                    "category_name": category_names.get(cat_letter, f"Category {cat_letter}"),
+                    "category_id": _safe_get_value(row, "cid", ""),
+                    "category_name": _safe_get_value(row, "cname", ""),
                 })
 
-            # 2. Load stored scalar values from provision
-            stored_values = {}
+            # 2. Load stored scalar values via provision_has_answer (SSoT)
+            stored_values = {}  # {question_id: {value, source_text, source_page, confidence}}
             if extraction_complete:
-                attrs_query = f"""
+                answers_query = f"""
                     match
-                        $p isa rp_provision, has provision_id "{provision_id}";
-                        $p has $attr;
-                    select $attr;
+                        $p isa provision, has provision_id "{provision_id}";
+                        $rel (provision: $p, question: $q) isa provision_has_answer;
+                        $q has question_id $qid;
+                        $rel has $attr;
+                    select $qid, $attr;
                 """
-                attrs_result = tx.query(attrs_query).resolve()
-                for row in attrs_result.as_concept_rows():
+                answers_result = tx.query(answers_query).resolve()
+                for row in answers_result.as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
                     attr_concept = row.get("attr")
-                    if attr_concept:
-                        try:
-                            attr = attr_concept.as_attribute()
-                            attr_type = attr.get_type().get_label()
-                            if attr_type != "provision_id":
-                                stored_values[attr_type] = attr.get_value()
-                        except Exception:
-                            pass
+                    if not qid or not attr_concept:
+                        continue
+                    try:
+                        attr = attr_concept.as_attribute()
+                        attr_type = attr.get_type().get_label()
+                        value = attr.get_value()
+                        if qid not in stored_values:
+                            stored_values[qid] = {}
+                        if attr_type in ("answer_boolean", "answer_integer", "answer_double", "answer_string", "answer_date"):
+                            stored_values[qid]["value"] = value
+                        elif attr_type == "source_text":
+                            stored_values[qid]["source_text"] = value
+                        elif attr_type == "source_page":
+                            stored_values[qid]["source_page"] = value
+                        elif attr_type == "confidence":
+                            stored_values[qid]["confidence"] = value
+                    except Exception:
+                        pass
 
             # 3. Load concept applicabilities for multiselect questions
             multiselect_values = {}
@@ -574,114 +630,27 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                             "name": concept_name or ""
                         })
 
-            # 4. Join questions with stored values
-            # Build field name mapping from question_id
-            field_name_map = {
-                # Category A - General
-                "rp_a1": "general_dividend_prohibition_exists",
-                # Category C - Management Equity
-                "rp_c1": "mgmt_equity_basket_exists",
-                "rp_c4": "mgmt_equity_annual_cap_usd",
-                "rp_c5": "mgmt_equity_annual_cap_pct_ebitda",
-                "rp_c6": "mgmt_equity_uses_greater_of",
-                "rp_c7": "mgmt_equity_carryforward_permitted",
-                # Category D - Tax
-                "rp_d1": "tax_distribution_basket_exists",
-                "rp_d3": "tax_standalone_taxpayer_limit",
-                # Category F - Builder Basket (original)
-                "rp_f1": "builder_basket_exists",
-                "rp_f2": "builder_starter_amount_usd",
-                "rp_f3": "builder_starter_pct_ebitda",
-                "rp_f4": "builder_uses_greater_of",
-                "rp_f5": "builder_cni_addition_pct",
-                "rp_f6": "builder_equity_addition_pct",
-                # Category F - Builder Basket (expanded F10-F17)
-                "rp_f10": "builder_ecf_source_exists",
-                "rp_f11": "builder_ecf_formula",
-                "rp_f12": "builder_ebitda_fc_exists",
-                "rp_f13": "builder_fc_multiplier_pct",
-                "rp_f14": "builder_uses_greatest_of",
-                "rp_f15": "builder_start_date_language",
-                "rp_f16": "builder_asset_proceeds_source",
-                "rp_f17": "builder_investment_returns_source",
-                # Category G - Ratio Basket (original)
-                "rp_g1": "ratio_dividend_basket_exists",
-                "rp_g2": "ratio_leverage_threshold",
-                "rp_g3": "ratio_interest_coverage_threshold",
-                "rp_g4": "ratio_is_unlimited_if_met",
-                # Category G - Ratio Basket (expanded G5-G7)
-                "rp_g5": "ratio_no_worse_test_exists",
-                "rp_g6": "ratio_no_worse_threshold",
-                "rp_g7": "ratio_multiple_tiers_exist",
-                # Category I - Reallocation (expanded I3-I8)
-                "rp_i7": "reallocation_to_rp_permitted",
-                "rp_i3": "reallocation_section_ref",
-                "rp_i4": "rdp_basket_reallocation_amount_usd",
-                "rp_i5": "investment_basket_reallocation_amount_usd",
-                "rp_i6": "reallocation_bidirectional",
-                # Category J - Unrestricted Subs
-                "rp_j1": "unsub_designation_permitted",
-                "rp_j2": "unsub_requires_no_default",
-                "rp_j3": "unsub_requires_board_approval",
-                "rp_j4": "unsub_dollar_cap_usd",
-                "rp_j5": "unsub_pct_total_assets_cap",
-                # Category K - J.Crew Blocker
-                "rp_k1": "jcrew_blocker_exists",
-                "rp_k2": "blocker_covers_ip",
-                "rp_k3": "blocker_covers_material_assets",
-                "rp_k8": "jcrew_blocker_is_sacred_right",
-                # Category L - Asset Sale Proceeds (expanded L1-L9)
-                "rp_l1": "asset_proceeds_can_fund_dividends",
-                "rp_l2": "leverage_tiered_sweep_exists",
-                "rp_l3": "sweep_tier_1",
-                "rp_l4": "sweep_tier_2",
-                "rp_l5": "de_minimis_individual_usd",
-                "rp_l6": "de_minimis_annual_usd",
-                "rp_l8": "ratio_basket_avoids_sweep",
-                "rp_l9": "sweep_exempt_ratio_threshold",
-                # Category M - Unrestricted Sub Distributions (expanded M1-M3)
-                "rp_m1": "unsub_equity_dividend_permitted",
-                "rp_m2": "unsub_asset_dividend_permitted",
-                "rp_m3": "unsub_distribution_section_ref",
-                # Category N - Capacity Calculation (expanded N1-N3)
-                "rp_n1": "general_rp_basket_amount_usd",
-                "rp_n2": "general_rp_basket_grower_pct",
-                "rp_n3": "all_baskets_summary",
-                # Category Z - Patterns
-                "rp_z1": "jcrew_pattern_detected",
-                "rp_z2": "serta_pattern_detected",
-                "rp_z3": "collateral_leakage_pattern_detected",
-            }
+            # 4. Load multiselect concept type mapping from ontology (SSoT)
+            multiselect_map = {}  # {question_id: concept_type_name}
+            if extraction_complete:
+                concept_type_query = """
+                    match
+                        $q isa ontology_question,
+                            has covenant_type "RP",
+                            has answer_type "multiselect",
+                            has question_id $qid;
+                        (question: $q) isa question_targets_concept,
+                            has target_concept_type $tct;
+                    select $qid, $tct;
+                """
+                concept_type_result = tx.query(concept_type_query).resolve()
+                for row in concept_type_result.as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
+                    tct = _safe_get_value(row, "tct")
+                    if qid and tct:
+                        multiselect_map[qid] = tct
 
-            # Multiselect field mapping (question_id -> concept_type)
-            # NOTE: concept_type must match what's stored in TypeDB (from extraction)
-            multiselect_map = {
-                "rp_a2": "dividend_applies_to_entity",
-                "rp_a3": "dividend_action",
-                "rp_b1": "intercompany_recipient",
-                "rp_c2": "covered_person",  # Actual TypeDB type
-                "rp_c3": "repurchase_trigger",  # Actual TypeDB type
-                "rp_d2": "tax_group_type",
-                "rp_e1": "equity_award_type",
-                "rp_f7": "builder_source",
-                "rp_f8": "builder_use",
-                "rp_f9": "builder_source",  # Expanded - all builder sources
-                "rp_h1": "holdco_overhead_cost",
-                "rp_h2": "holdco_transaction_cost",
-                "rp_i8": "reallocatable_basket",  # Expanded - which baskets can reallocate
-                "rp_k4": "blocker_binding_entity",  # Actual TypeDB type
-                "rp_k5": "jcrew_trigger_condition",
-                "rp_k6": "jcrew_ip_type",
-                "rp_k7": "transfer_type",  # Actual TypeDB type
-                "rp_l7": "exempt_sale_type",  # Expanded - exempt asset sale types
-                "rp_m4": "unsub_distribution_condition",  # Expanded - conditions on unsub distributions
-                "rp_n4": "ratio_required_basket",  # Expanded - baskets requiring ratio test
-                "rp_n5": "no_default_basket",  # Expanded - baskets requiring no default
-                "rp_s1": "rdp_payment_type",
-                "rp_t1": "rdp_basket",
-            }
-
-            # Build answer array
+            # 5. Build answer array
             answers = []
             answer_count = 0
 
@@ -689,16 +658,16 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 qid = q["question_id"]
                 answer_type = q["answer_type"]
 
-                # Get value based on answer type
                 value = None
+                answer_data = None
                 if answer_type == "multiselect":
                     concept_type = multiselect_map.get(qid)
                     if concept_type and concept_type in multiselect_values:
                         value = multiselect_values[concept_type]
                 else:
-                    field_name = field_name_map.get(qid)
-                    if field_name and field_name in stored_values:
-                        value = stored_values[field_name]
+                    answer_data = stored_values.get(qid)
+                    if answer_data:
+                        value = answer_data.get("value")
 
                 if value is not None:
                     answer_count += 1
@@ -710,8 +679,9 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                     "category_id": q["category_id"],
                     "category_name": q["category_name"],
                     "value": value,
-                    "source_text": None,  # TODO: Add provenance when stored
-                    "source_page": None,
+                    "source_text": answer_data.get("source_text") if answer_data else None,
+                    "source_page": answer_data.get("source_page") if answer_data else None,
+                    "confidence": answer_data.get("confidence") if answer_data else None,
                 })
 
             return {
@@ -735,11 +705,12 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
 @router.get("/{deal_id}/rp-provision")
 async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
     """
-    Get the RP provision for a deal with all scalar attributes and concept applicabilities.
+    Get the RP provision for a deal via provision_has_answer + concept_applicability.
 
     Returns:
         - provision_id
-        - scalar_answers: all boolean/string/number attributes
+        - scalar_answers: keyed by question_id with typed values + provenance
+        - pattern_flags: flat attributes (jcrew/serta/collateral_leakage_pattern_detected)
         - multiselect_answers: concept_applicability relations grouped by concept type
     """
     if not typedb_client.driver:
@@ -759,22 +730,58 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
             if not list(check_result.as_concept_rows()):
                 raise HTTPException(status_code=404, detail="RP provision not found for this deal")
 
-            # Get all scalar attributes
-            scalar_answers = {}
-            attrs_query = f"""
+            # Get scalar answers via provision_has_answer (SSoT)
+            scalar_answers = {}  # {question_id: {value, source_text, source_page, confidence}}
+            answers_query = f"""
+                match
+                    $p isa provision, has provision_id "{provision_id}";
+                    $rel (provision: $p, question: $q) isa provision_has_answer;
+                    $q has question_id $qid;
+                    $rel has $attr;
+                select $qid, $attr;
+            """
+            answers_result = tx.query(answers_query).resolve()
+            for row in answers_result.as_concept_rows():
+                qid = _safe_get_value(row, "qid")
+                attr_concept = row.get("attr")
+                if not qid or not attr_concept:
+                    continue
+                try:
+                    attr = attr_concept.as_attribute()
+                    attr_type = attr.get_type().get_label()
+                    value = attr.get_value()
+                    if qid not in scalar_answers:
+                        scalar_answers[qid] = {}
+                    if attr_type in ("answer_boolean", "answer_integer", "answer_double", "answer_string", "answer_date"):
+                        scalar_answers[qid]["value"] = value
+                    elif attr_type == "source_text":
+                        scalar_answers[qid]["source_text"] = value
+                    elif attr_type == "source_page":
+                        scalar_answers[qid]["source_page"] = value
+                    elif attr_type == "confidence":
+                        scalar_answers[qid]["confidence"] = value
+                except Exception:
+                    pass
+
+            # Get pattern flags (still flat attributes on rp_provision)
+            pattern_flags = {}
+            flags_query = f"""
                 match
                     $p isa rp_provision, has provision_id "{provision_id}";
                     $p has $attr;
                 select $attr;
             """
-            attrs_result = tx.query(attrs_query).resolve()
-            for row in attrs_result.as_concept_rows():
+            flags_result = tx.query(flags_query).resolve()
+            for row in flags_result.as_concept_rows():
                 attr_concept = row.get("attr")
                 if attr_concept:
-                    attr = attr_concept.as_attribute()
-                    attr_type = attr.get_type().get_label()
-                    if attr_type != "provision_id":
-                        scalar_answers[attr_type] = attr.get_value()
+                    try:
+                        attr = attr_concept.as_attribute()
+                        attr_type = attr.get_type().get_label()
+                        if attr_type.endswith("_pattern_detected"):
+                            pattern_flags[attr_type] = attr.get_value()
+                    except Exception:
+                        pass
 
             # Get all concept applicabilities (multiselect answers)
             multiselect_answers = {}
@@ -805,8 +812,10 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                 "provision_id": provision_id,
                 "provision_type": "rp_provision",
                 "scalar_answers": scalar_answers,
+                "pattern_flags": pattern_flags,
                 "multiselect_answers": multiselect_answers,
                 "scalar_count": len(scalar_answers),
+                "pattern_flag_count": len(pattern_flags),
                 "multiselect_count": sum(len(v) for v in multiselect_answers.values())
             }
 
@@ -1006,33 +1015,30 @@ def _format_rp_provision_as_context(rp_response: Dict) -> str:
     lines.append(f"Multiselect answers: {rp_response['multiselect_count']}")
     lines.append("")
 
-    # Scalar answers grouped by category (inferred from attribute name)
+    # Scalar answers keyed by question_id
     lines.append("### SCALAR ANSWERS (Boolean/Numeric/Text)")
     lines.append("")
 
     scalar_answers = rp_response.get("scalar_answers", {})
+    for qid in sorted(scalar_answers.keys()):
+        data = scalar_answers[qid]
+        value = data.get("value")
+        if isinstance(value, bool):
+            value_str = "Yes" if value else "No"
+        elif isinstance(value, float) and value == int(value):
+            value_str = str(int(value))
+        else:
+            value_str = str(value)
+        lines.append(f"  - {qid}: {value_str}")
+    lines.append("")
 
-    # Group by prefix
-    groups = {}
-    for attr_name, value in scalar_answers.items():
-        # Extract category from attribute name (e.g., builder_basket_exists -> builder)
-        parts = attr_name.split("_")
-        prefix = parts[0] if parts else "other"
-        if prefix not in groups:
-            groups[prefix] = []
-        groups[prefix].append((attr_name, value))
-
-    for prefix, attrs in sorted(groups.items()):
-        lines.append(f"**{prefix.upper()}**")
-        for attr_name, value in attrs:
-            # Format value
-            if isinstance(value, bool):
-                value_str = "Yes" if value else "No"
-            elif isinstance(value, float) and value == int(value):
-                value_str = str(int(value))
-            else:
-                value_str = str(value)
-            lines.append(f"  - {attr_name}: {value_str}")
+    # Pattern flags (flat attributes on provision)
+    pattern_flags = rp_response.get("pattern_flags", {})
+    if pattern_flags:
+        lines.append("### PATTERN FLAGS")
+        lines.append("")
+        for flag, value in sorted(pattern_flags.items()):
+            lines.append(f"  - {flag}: {'Yes' if value else 'No'}")
         lines.append("")
 
     # Multiselect answers
@@ -1140,33 +1146,32 @@ async def debug_multiselect(deal_id: str) -> Dict[str, Any]:
                 if qid:
                     multiselect_questions.append(qid)
 
+            # Load expected mapping from ontology (SSoT)
+            expected_mapping = {}
+            mapping_query = """
+                match
+                    $q isa ontology_question,
+                        has covenant_type "RP",
+                        has answer_type "multiselect",
+                        has question_id $qid;
+                    (question: $q) isa question_targets_concept,
+                        has target_concept_type $tct;
+                select $qid, $tct;
+            """
+            mapping_result = tx.query(mapping_query).resolve()
+            for row in mapping_result.as_concept_rows():
+                qid = _safe_get_value(row, "qid")
+                tct = _safe_get_value(row, "tct")
+                if qid and tct:
+                    expected_mapping[qid] = tct
+
             return {
                 "provision_id": provision_id,
                 "stored_concept_types": sorted(list(concept_types)),
                 "total_applicabilities": len(records),
                 "sample_records": records[:20],
                 "multiselect_questions": sorted(multiselect_questions),
-                "expected_mapping": {
-                    "rp_a2": "dividend_applies_to_entity",
-                    "rp_a3": "dividend_action",
-                    "rp_b1": "intercompany_recipient",
-                    "rp_c2": "mgmt_equity_covered_person",
-                    "rp_c3": "mgmt_equity_trigger_event",
-                    "rp_d2": "tax_group_type",
-                    "rp_e1": "equity_award_type",
-                    "rp_f7": "builder_source",
-                    "rp_f8": "builder_use",
-                    "rp_h1": "holdco_overhead_cost",
-                    "rp_h2": "holdco_transaction_cost",
-                    "rp_i1": "reallocation_source_basket",
-                    "rp_i2": "reallocation_target_basket",
-                    "rp_k4": "jcrew_bound_entity",
-                    "rp_k5": "jcrew_trigger_condition",
-                    "rp_k6": "jcrew_ip_type",
-                    "rp_k7": "jcrew_transfer_type",
-                    "rp_s1": "rdp_payment_type",
-                    "rp_t1": "rdp_basket",
-                }
+                "expected_mapping": expected_mapping,
             }
 
         finally:
@@ -1176,4 +1181,563 @@ async def debug_multiselect(deal_id: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Debug error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# V4 GRAPH-NATIVE EXTRACTION ENDPOINTS
+# =============================================================================
+
+@router.post("/{deal_id}/extract-v4")
+async def extract_rp_v4(
+    deal_id: str,
+    background_tasks: BackgroundTasks
+) -> Dict[str, Any]:
+    """
+    Trigger V4 graph-native RP extraction.
+
+    This uses the new V4 pipeline:
+    1. Extract RP universe from document
+    2. Load extraction metadata from TypeDB (SSoT)
+    3. Build structured prompt with JSON schema
+    4. Parse Claude response into typed Pydantic model
+    5. Store as graph entities and relations
+
+    Creates in TypeDB:
+    - Basket entities (builder, ratio, general, mgmt, tax)
+    - Blocker entities with exceptions
+    - Unsub designation
+    - Sweep tiers and de minimis thresholds
+    - Reallocation relations
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Check PDF exists
+    pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"PDF not found for deal {deal_id}")
+
+    # Check deal exists
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                select $d;
+            """
+            result = tx.query(query).resolve()
+            if not list(result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="Deal not found")
+        finally:
+            tx.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Update status
+    extraction_status[deal_id] = ExtractionStatus(
+        deal_id=deal_id,
+        status="extracting",
+        progress=10,
+        current_step="Starting V4 graph extraction..."
+    )
+
+    # Run extraction in background
+    background_tasks.add_task(run_extraction_v4, deal_id, pdf_path)
+
+    return {
+        "status": "processing",
+        "deal_id": deal_id,
+        "message": "V4 extraction started. Use GET /api/deals/{deal_id}/status to check progress."
+    }
+
+
+async def run_extraction_v4(deal_id: str, pdf_path: str):
+    """Background task for V4 extraction."""
+    extraction_svc = get_extraction_service()
+
+    try:
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="extracting",
+            progress=20,
+            current_step="Parsing PDF and extracting RP universe..."
+        )
+
+        result = await extraction_svc.extract_rp_v4(
+            pdf_path=pdf_path,
+            deal_id=deal_id
+        )
+
+        # Build summary
+        storage = result.storage_result
+        summary_parts = [
+            f"{storage.get('baskets_created', 0)} baskets",
+            f"{storage.get('sources_created', 0)} sources",
+            f"{storage.get('blockers_created', 0)} blockers",
+            f"{storage.get('sweep_tiers_created', 0)} sweep tiers"
+        ]
+
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="complete",
+            progress=100,
+            current_step=f"V4 extraction complete: {', '.join(summary_parts)} in {result.extraction_time_seconds:.1f}s"
+        )
+
+        logger.info(f"V4 extraction complete for deal {deal_id}: {storage}")
+
+    except Exception as e:
+        logger.error(f"V4 extraction failed for deal {deal_id}: {e}")
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="error",
+            progress=0,
+            current_step=None,
+            error=str(e)
+        )
+
+
+@router.post("/test-v4-extraction")
+async def test_v4_extraction(store: bool = False, deal_id: str = "test_v4") -> Dict[str, Any]:
+    """
+    Test V4 extraction pipeline with sample RP covenant text.
+
+    Skips PDF parsing and RP Universe extraction.
+    Tests: metadata loading, prompt building, Claude call, Pydantic parsing.
+
+    Args:
+        store: If True, store to TypeDB and verify graph structure
+        deal_id: Deal ID to use for storage (default: test_v4)
+    """
+    import time
+    start = time.time()
+
+    # Sample Duck Creek RP covenant (representative excerpt)
+    sample_rp_text = '''
+=== DEFINITIONS ===
+
+"Available Amount" means, at any date of determination, an amount equal to (without duplication):
+(a) the greater of (x) $130,000,000 and (y) 100% of EBITDA for the Test Period then most recently ended; plus
+(b) 50% of Consolidated Net Income for the period from the first day of the fiscal quarter in which the Closing Date occurs to the end of the most recently ended fiscal quarter (or 100% of any deficit); plus
+(c) the Retained ECF Amount for the most recently ended fiscal year; plus
+(d) the greater of (x) EBITDA minus 1.40 times Fixed Charges for the most recently ended Test Period; plus
+(e) 100% of the Net Cash Proceeds from any Equity Issuance after the Closing Date; plus
+(f) returns on Investments made using the Available Amount.
+
+"Consolidated Net Income" means, for any period, the net income (or loss) of Holdings and its Restricted Subsidiaries...
+
+"First Lien Leverage Ratio" means, as of any date, the ratio of (a) Consolidated First Lien Debt as of such date to (b) EBITDA for the Test Period most recently ended.
+
+=== DIVIDEND/RESTRICTED PAYMENT COVENANT ===
+
+Section 6.06 Restricted Payments.
+
+(a) The Borrower will not, and will not permit any Restricted Subsidiary to, declare or make any Restricted Payment except:
+
+(f) [Builder Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the Available Amount at the time of such payment, so long as (i) no Default exists or would result therefrom and (ii) after giving pro forma effect thereto, the Total Leverage Ratio would not exceed 6.50 to 1.00;
+
+(j) [General RP Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the greater of (x) $130,000,000 and (y) 100% of EBITDA;
+
+(n) [Ratio Basket] the Borrower may make Restricted Payments without limit if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not exceed 5.75 to 1.00;
+
+(o) [No Worse Test] the Borrower may make Restricted Payments if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not be greater than the First Lien Leverage Ratio immediately prior to giving effect to such Restricted Payment (the "No Worse Test");
+
+(p) [Management Equity] the Borrower may repurchase Equity Interests held by directors, officers, employees or consultants in an aggregate amount not to exceed $25,000,000 in any fiscal year, with unused amounts carrying forward to the next fiscal year;
+
+(q) [Tax Distributions] the Borrower may make distributions to Holdings to pay taxes attributable to the income of Holdings and its Subsidiaries;
+
+(k) [J.Crew Blocker] No Loan Party shall transfer any Material Intellectual Property to any Unrestricted Subsidiary or designate any Subsidiary holding Material Intellectual Property as an Unrestricted Subsidiary, except:
+(i) non-exclusive licenses granted in the ordinary course of business;
+(ii) transfers between Loan Parties;
+(iii) transfers for fair market value.
+
+"Material Intellectual Property" means patents, trademarks, copyrights and trade secrets that are material to the business.
+
+=== UNRESTRICTED SUBSIDIARY MECHANICS ===
+
+Section 5.15 Designation of Subsidiaries.
+
+The Borrower may designate any Subsidiary as an Unrestricted Subsidiary if:
+(a) no Default exists or would result therefrom;
+(b) the aggregate Fair Market Value of all Unrestricted Subsidiaries does not exceed the greater of $40,000,000 and 30% of EBITDA;
+(c) such designation is treated as an Investment.
+
+The Borrower may distribute the Equity Interests of any Unrestricted Subsidiary to its shareholders.
+
+=== SWEEP TIERS ===
+
+Mandatory Prepayment from Excess Cash Flow:
+- If First Lien Leverage Ratio > 5.75x: 50% of ECF
+- If First Lien Leverage Ratio > 5.50x but <= 5.75x: 25% of ECF
+- If First Lien Leverage Ratio <= 5.50x: 0% of ECF
+
+De Minimis: No prepayment required if ECF is less than the greater of $20,000,000 and 15% of EBITDA.
+Annual threshold: $40,000,000 with carryforward of unused amounts.
+'''
+
+    try:
+        from app.services.graph_storage import GraphStorage
+        from app.services.extraction import get_extraction_service
+
+        extraction_svc = get_extraction_service()
+
+        # Step 1: Load extraction metadata from TypeDB (SSoT)
+        logger.info("Test V4: Loading extraction metadata...")
+        metadata = GraphStorage.load_extraction_metadata()
+        logger.info(f"Test V4: Loaded {len(metadata)} extraction instructions")
+
+        # Step 2: Build Claude prompt
+        logger.info("Test V4: Building Claude prompt...")
+        prompt = GraphStorage.build_claude_prompt(metadata, sample_rp_text)
+        logger.info(f"Test V4: Prompt built ({len(prompt)} chars)")
+
+        # Step 3: Call Claude (use Sonnet for speed)
+        logger.info("Test V4: Calling Claude (claude-sonnet-4-20250514)...")
+        response_text = extraction_svc._call_claude_v4(prompt, model="claude-sonnet-4-20250514")
+        logger.info(f"Test V4: Response received ({len(response_text)} chars)")
+
+        # Step 4: Parse into Pydantic
+        logger.info("Test V4: Parsing response...")
+        extraction = GraphStorage.parse_claude_response(response_text)
+
+        # Create storage instance and summarize
+        storage = GraphStorage(deal_id)
+        summary = storage.summarize_extraction(extraction)
+        logger.info(f"Test V4: Parsed extraction - {summary}")
+
+        result = {
+            "status": "success",
+            "deal_id": deal_id,
+            "time_seconds": round(time.time() - start, 2),
+            "sample_text_chars": len(sample_rp_text),
+            "prompt_chars": len(prompt),
+            "response_chars": len(response_text),
+            "metadata_count": len(metadata),
+            "summary": summary,
+            "extraction": extraction.model_dump()
+        }
+
+        # Optionally store to TypeDB and verify
+        if store:
+            logger.info(f"Test V4: Storing to TypeDB for deal {deal_id}...")
+            try:
+                storage_result = storage.store_rp_extraction_v4(extraction)
+                result["storage"] = storage_result
+                logger.info(f"Test V4: Storage complete - {storage_result}")
+
+                # Query back to verify
+                provision_id = storage_result.get("provision_id")
+                if provision_id:
+                    verification = _verify_v4_storage(provision_id)
+                    result["verification"] = verification
+                    logger.info(f"Test V4: Verification - {verification}")
+
+            except Exception as e:
+                logger.exception(f"Test V4: Storage failed - {e}")
+                result["storage_error"] = str(e)
+
+        result["time_seconds"] = round(time.time() - start, 2)
+        return result
+
+    except Exception as e:
+        logger.exception(f"Test V4 extraction failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "time_seconds": round(time.time() - start, 2)
+        }
+
+
+def _verify_v4_storage(provision_id: str) -> Dict[str, Any]:
+    """Query TypeDB to verify V4 entities were stored correctly."""
+    verification = {
+        "provision_id": provision_id,
+        "provision_found": False,
+        "baskets": [],
+        "sources": [],
+        "blockers": [],
+        "exceptions": [],
+        "sweep_tiers": 0,
+        "de_minimis": 0
+    }
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Check provision exists
+            prov_query = f'''
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
+            '''
+            result = tx.query(prov_query).resolve()
+            if list(result.as_concept_rows()):
+                verification["provision_found"] = True
+
+            # Count baskets by type
+            basket_query = f'''
+                match
+                    $prov isa rp_provision, has provision_id "{provision_id}";
+                    ($prov, $basket) isa provision_has_basket;
+                    $basket isa $basket_type;
+                select $basket_type;
+            '''
+            result = tx.query(basket_query).resolve()
+            basket_types = []
+            for row in result.as_concept_rows():
+                btype = row.get("basket_type")
+                if btype:
+                    basket_types.append(btype.get_label().name)
+            verification["baskets"] = list(set(basket_types))
+
+            # Count builder sources
+            source_query = f'''
+                match
+                    $prov isa rp_provision, has provision_id "{provision_id}";
+                    ($prov, $bb) isa provision_has_basket;
+                    $bb isa builder_basket;
+                    ($bb, $src) isa basket_has_source;
+                select $src;
+            '''
+            result = tx.query(source_query).resolve()
+            verification["sources"] = len(list(result.as_concept_rows()))
+
+            # Count blockers
+            blocker_query = f'''
+                match
+                    $prov isa rp_provision, has provision_id "{provision_id}";
+                    ($prov, $blocker) isa provision_has_blocker;
+                select $blocker;
+            '''
+            result = tx.query(blocker_query).resolve()
+            verification["blockers"] = len(list(result.as_concept_rows()))
+
+            # Count sweep tiers
+            sweep_query = f'''
+                match
+                    $prov isa rp_provision, has provision_id "{provision_id}";
+                    ($prov, $tier) isa provision_has_sweep_tier;
+                select $tier;
+            '''
+            result = tx.query(sweep_query).resolve()
+            verification["sweep_tiers"] = len(list(result.as_concept_rows()))
+
+        finally:
+            tx.close()
+
+    except Exception as e:
+        verification["error"] = str(e)[:200]
+
+    return verification
+
+
+@router.get("/{deal_id}/rp-graph")
+async def get_rp_graph(deal_id: str) -> Dict[str, Any]:
+    """
+    Get RP extraction as graph structure.
+
+    Returns all V4 entities and relations for visualization/analysis:
+    - Baskets (builder, ratio, general_rp, etc.)
+    - Builder sources
+    - Blockers and exceptions
+    - Sweep tiers
+    - De minimis thresholds
+    - Reallocations
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        from app.services.graph_queries import GraphQueries
+        queries = GraphQueries()
+
+        # Find the provision for this deal
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Get provision ID
+            prov_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa rp_provision, has provision_id $pid;
+                select $pid;
+            """
+            result = tx.query(prov_query).resolve()
+            rows = list(result.as_concept_rows())
+
+            if not rows:
+                raise HTTPException(status_code=404, detail="No RP provision found for this deal")
+
+            provision_id = _safe_get_value(rows[0], "pid")
+
+            # Get baskets
+            baskets = queries.get_provision_baskets(provision_id)
+
+            # Get blockers
+            blockers = queries.get_provision_blockers(provision_id)
+
+            # Get sweep config
+            sweep_config = queries.get_provision_sweep_config(provision_id)
+
+            return {
+                "deal_id": deal_id,
+                "provision_id": provision_id,
+                "baskets": baskets,
+                "blockers": blockers,
+                "sweep_config": sweep_config
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting RP graph for {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{deal_id}/v4-summary")
+async def get_v4_extraction_summary(deal_id: str) -> Dict[str, Any]:
+    """
+    Get a summary of V4 extraction results.
+
+    Returns key metrics extracted from the credit agreement:
+    - Builder basket configuration
+    - Ratio basket thresholds
+    - J.Crew blocker coverage
+    - Unsub designation rules
+    - Sweep tiers
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            summary = {
+                "deal_id": deal_id,
+                "builder_basket": None,
+                "ratio_basket": None,
+                "jcrew_blocker": None,
+                "unsub_designation": None,
+                "sweep_tiers": [],
+                "de_minimis": []
+            }
+
+            # Find provision
+            prov_query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    ($d, $p) isa deal_has_provision;
+                    $p isa rp_provision, has provision_id $pid;
+                select $pid;
+            """
+            result = tx.query(prov_query).resolve()
+            rows = list(result.as_concept_rows())
+
+            if not rows:
+                return {"deal_id": deal_id, "error": "No V4 extraction found"}
+
+            provision_id = _safe_get_value(rows[0], "pid")
+            summary["provision_id"] = provision_id
+
+            # Get builder basket
+            try:
+                builder_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_basket;
+                        $b isa builder_basket, has basket_id $bid;
+                    select $b, $bid;
+                """
+                builder_result = tx.query(builder_query).resolve()
+                builder_rows = list(builder_result.as_concept_rows())
+                if builder_rows:
+                    summary["builder_basket"] = {
+                        "exists": True,
+                        "basket_id": _safe_get_value(builder_rows[0], "bid")
+                    }
+
+                    # Count sources
+                    sources_query = f"""
+                        match
+                            $bb isa builder_basket, has basket_id "{summary['builder_basket']['basket_id']}";
+                            ($bb, $s) isa builder_has_source;
+                        select $s;
+                    """
+                    sources_result = tx.query(sources_query).resolve()
+                    summary["builder_basket"]["source_count"] = len(list(sources_result.as_concept_rows()))
+            except Exception:
+                pass
+
+            # Get ratio basket
+            try:
+                ratio_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_basket;
+                        $b isa ratio_basket;
+                    select $b;
+                """
+                ratio_result = tx.query(ratio_query).resolve()
+                for row in ratio_result.as_concept_rows():
+                    basket = row.get("b")
+                    if basket:
+                        # Get attributes
+                        summary["ratio_basket"] = {"exists": True}
+                        # Note: Would need additional queries to get specific attributes
+                        break
+            except Exception:
+                pass
+
+            # Get J.Crew blocker
+            try:
+                jcrew_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $b) isa provision_has_blocker;
+                        $b isa jcrew_blocker, has blocker_id $bid;
+                    select $b, $bid;
+                """
+                jcrew_result = tx.query(jcrew_query).resolve()
+                jcrew_rows = list(jcrew_result.as_concept_rows())
+                if jcrew_rows:
+                    summary["jcrew_blocker"] = {
+                        "exists": True,
+                        "blocker_id": _safe_get_value(jcrew_rows[0], "bid")
+                    }
+            except Exception:
+                pass
+
+            # Get sweep tiers
+            try:
+                sweep_query = f"""
+                    match
+                        $p isa rp_provision, has provision_id "{provision_id}";
+                        ($p, $t) isa provision_has_sweep_tier;
+                        $t has tier_id $tid, has leverage_threshold $lev, has sweep_percentage $pct;
+                    select $tid, $lev, $pct;
+                """
+                sweep_result = tx.query(sweep_query).resolve()
+                for row in sweep_result.as_concept_rows():
+                    summary["sweep_tiers"].append({
+                        "tier_id": _safe_get_value(row, "tid"),
+                        "leverage_threshold": _safe_get_value(row, "lev"),
+                        "sweep_percentage": _safe_get_value(row, "pct")
+                    })
+            except Exception:
+                pass
+
+            return summary
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting V4 summary for {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

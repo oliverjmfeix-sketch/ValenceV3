@@ -1,0 +1,48 @@
+################################################################################
+# VALENCE V4 - EXTRACTION METADATA FOR INVESTMENT PATHWAYS
+#
+# Models the J.Crew asset-stripping chain: each pathway is a single hop
+# in the investment covenant that permits moving assets between entity types.
+# Multiple pathways chain together for full leakage analysis.
+#
+# Relation: provision_has_pathway
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INVESTMENT PATHWAYS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_ip1 isa extraction_metadata,
+    has metadata_id "investment_pathway.all",
+    has target_entity_type "investment_pathway",
+    has extraction_prompt "Extract ALL investment pathways that could enable a J.Crew-style asset stripping chain.
+
+Each pathway is a SINGLE HOP in the investment covenant — a permitted investment from
+one entity type to another. The full chain is built by linking pathways together.
+
+Common entity types (pathway_source_type / pathway_target_type):
+- loan_party: Borrower or Guarantor (inside the credit group)
+- non_guarantor_rs: Non-Guarantor Restricted Subsidiary (inside restricted group but no guarantee)
+- unrestricted_sub: Unrestricted Subsidiary (outside the credit group entirely)
+- holdco: Parent holding company
+- foreign_sub: Foreign subsidiary
+
+KEY PATHWAYS TO LOOK FOR (in order of J.Crew chain):
+1. loan_party → non_guarantor_rs (Section 6.03 investment basket)
+2. non_guarantor_rs → unrestricted_sub (designation + investment)
+3. loan_party → unrestricted_sub (direct investment, if permitted)
+
+For EACH pathway extract:
+- pathway_source_type and pathway_target_type
+- cap_dollar_usd: Fixed dollar cap (e.g., $200M)
+- cap_pct_total_assets: Percentage cap (e.g., 0.15 = 15% of total assets)
+- cap_uses_greater_of: true if 'greater of $X and Y% of total assets'
+- is_uncapped: true if NO cap on this pathway
+- can_stack_with_other_baskets: true if this basket can be combined with other baskets
+
+Look in Section 6.03 (Investments) and Section 5.15 (Designation of Unrestricted Subsidiaries).
+Cross-reference with J.Crew blocker to assess which pathways are actually blocked.",
+    has extraction_section_hint "Section 6.03, 5.15",
+    has extraction_priority 70,
+    has requires_context true,
+    has context_entities "jcrew_blocker,unsub_designation";

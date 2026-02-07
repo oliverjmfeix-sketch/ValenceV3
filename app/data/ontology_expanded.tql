@@ -19,11 +19,6 @@ insert $cat_l isa ontology_category,
     has name "Asset Sale Proceeds & Sweeps",
     has display_order 12;
 
-insert $cat_m isa ontology_category,
-    has category_id "M",
-    has name "Unrestricted Subsidiary Distributions",
-    has display_order 13;
-
 insert $cat_n isa ontology_category,
     has category_id "N",
     has name "Dividend Capacity Calculation",
@@ -33,10 +28,7 @@ insert $cat_n isa ontology_category,
 # TARGET CONCEPT TYPES (for multiselect mapping)
 # ═══════════════════════════════════════════════════════════════════════════
 
-insert $tct_bs isa target_concept_type, has target_concept_type "builder_source";
-insert $tct_rb isa target_concept_type, has target_concept_type "reallocatable_basket";
 insert $tct_es isa target_concept_type, has target_concept_type "exempt_sale_type";
-insert $tct_uc isa target_concept_type, has target_concept_type "unsub_distribution_condition";
 insert $tct_rr isa target_concept_type, has target_concept_type "ratio_required_basket";
 insert $tct_nd isa target_concept_type, has target_concept_type "no_default_basket";
 
@@ -273,42 +265,6 @@ insert $q_l9 isa ontology_question,
     has extraction_prompt "If a ratio test exempts asset sale proceeds from sweep, what is the threshold? For example, 'if First Lien Net Leverage Ratio is 6.25x or less'.";
 
 # ═══════════════════════════════════════════════════════════════════════════
-# UNRESTRICTED SUBSIDIARY DISTRIBUTIONS (Category M, Questions M1-M4)
-# ═══════════════════════════════════════════════════════════════════════════
-
-insert $q_m1 isa ontology_question,
-    has question_id "rp_m1",
-    has covenant_type "RP",
-    has question_text "Can the Borrower dividend equity interests it owns in Unrestricted Subsidiaries?",
-    has answer_type "boolean",
-    has display_order 1,
-    has extraction_prompt "Determine if there is a specific basket permitting distribution of Equity Interests in Unrestricted Subsidiaries to shareholders. Look for language like 'dividends of shares of Equity Interests of any Unrestricted Subsidiary'.";
-
-insert $q_m2 isa ontology_question,
-    has question_id "rp_m2",
-    has covenant_type "RP",
-    has question_text "Can the Borrower dividend assets of Unrestricted Subsidiaries?",
-    has answer_type "boolean",
-    has display_order 2,
-    has extraction_prompt "Determine if assets held by Unrestricted Subsidiaries can be distributed to shareholders. Look for language like 'dividends of any assets of an Unrestricted Subsidiary'.";
-
-insert $q_m3 isa ontology_question,
-    has question_id "rp_m3",
-    has covenant_type "RP",
-    has question_text "What section permits Unrestricted Subsidiary distributions?",
-    has answer_type "string",
-    has display_order 3,
-    has extraction_prompt "Identify the specific section reference that permits dividends of Unrestricted Subsidiary equity or assets. Usually a lettered subsection like 6.06(p).";
-
-insert $q_m4 isa ontology_question,
-    has question_id "rp_m4",
-    has covenant_type "RP",
-    has question_text "What conditions apply to Unrestricted Subsidiary distributions?",
-    has answer_type "multiselect",
-    has display_order 4,
-    has extraction_prompt "Identify any conditions on distributing Unrestricted Subsidiary equity or assets. Common conditions: no default, pro forma ratio compliance, value caps.";
-
-# ═══════════════════════════════════════════════════════════════════════════
 # DIVIDEND CAPACITY CALCULATION (Category N, Questions N1-N5)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -356,23 +312,6 @@ insert $q_n5 isa ontology_question,
 # CONCEPT INSTANCES (for multiselect options)
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Builder sources (for rp_f9)
-insert $bs1 isa builder_source, has concept_id "bs_starter", has name "Starter Amount";
-insert $bs2 isa builder_source, has concept_id "bs_cni", has name "CNI Percentage";
-insert $bs3 isa builder_source, has concept_id "bs_ecf", has name "Excess Cash Flow";
-insert $bs4 isa builder_source, has concept_id "bs_ebitda_fc", has name "EBITDA minus Fixed Charges";
-insert $bs5 isa builder_source, has concept_id "bs_equity", has name "Equity Proceeds";
-insert $bs6 isa builder_source, has concept_id "bs_debt_conversion", has name "Debt Conversion to Equity";
-insert $bs7 isa builder_source, has concept_id "bs_investment_returns", has name "Returns on Investments";
-insert $bs8 isa builder_source, has concept_id "bs_asset_proceeds", has name "Retained Asset Sale Proceeds";
-insert $bs9 isa builder_source, has concept_id "bs_declined_proceeds", has name "Declined Proceeds";
-
-# Reallocatable baskets (for rp_i2)
-insert $rb1 isa reallocatable_basket, has concept_id "rb_investment", has name "Investment Basket (6.03)";
-insert $rb2 isa reallocatable_basket, has concept_id "rb_rdp", has name "Restricted Debt Payment Basket (6.09)";
-insert $rb3 isa reallocatable_basket, has concept_id "rb_prepayment", has name "Prepayment Basket";
-insert $rb4 isa reallocatable_basket, has concept_id "rb_intercompany", has name "Intercompany Debt Basket";
-
 # Exempt asset sale types (for rp_l7)
 insert $es1 isa exempt_sale_type, has concept_id "es_non_collateral", has name "Non-Collateral Assets";
 insert $es2 isa exempt_sale_type, has concept_id "es_ordinary_course", has name "Ordinary Course Sales";
@@ -381,12 +320,6 @@ insert $es4 isa exempt_sale_type, has concept_id "es_de_minimis", has name "Belo
 insert $es5 isa exempt_sale_type, has concept_id "es_intercompany", has name "Intercompany Sales";
 insert $es6 isa exempt_sale_type, has concept_id "es_sale_leaseback", has name "Sale-Leasebacks";
 insert $es7 isa exempt_sale_type, has concept_id "es_ratio_basket", has name "Ratio Basket Sales";
-
-# Unsub distribution conditions (for rp_m4)
-insert $uc1 isa unsub_distribution_condition, has concept_id "uc_no_default", has name "No Event of Default";
-insert $uc2 isa unsub_distribution_condition, has concept_id "uc_ratio", has name "Pro Forma Ratio Compliance";
-insert $uc3 isa unsub_distribution_condition, has concept_id "uc_value_cap", has name "Value Cap";
-insert $uc4 isa unsub_distribution_condition, has concept_id "uc_none", has name "No Conditions";
 
 # Baskets requiring ratio test (for rp_n4)
 insert $rt1 isa ratio_required_basket, has concept_id "rt_unlimited", has name "Ratio Unlimited Basket";
@@ -471,16 +404,6 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l9";
 insert (category: $cat, question: $q) isa category_has_question;
 
-# Category M (Unsub Distributions) for M1-M4
-match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m1";
-insert (category: $cat, question: $q) isa category_has_question;
-match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m2";
-insert (category: $cat, question: $q) isa category_has_question;
-match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m3";
-insert (category: $cat, question: $q) isa category_has_question;
-match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m4";
-insert (category: $cat, question: $q) isa category_has_question;
-
 # Category N (Capacity) for N1-N5
 match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n1";
 insert (category: $cat, question: $q) isa category_has_question;
@@ -546,15 +469,6 @@ insert (question: $q) isa question_targets_field, has target_field_name "investm
 match $q isa ontology_question, has question_id "rp_i6";
 insert (question: $q) isa question_targets_field, has target_field_name "reallocation_bidirectional", has target_entity_type "rp_provision";
 
-match $q isa ontology_question, has question_id "rp_m1";
-insert (question: $q) isa question_targets_field, has target_field_name "unsub_equity_dividend_permitted", has target_entity_type "rp_provision";
-
-match $q isa ontology_question, has question_id "rp_m2";
-insert (question: $q) isa question_targets_field, has target_field_name "unsub_asset_dividend_permitted", has target_entity_type "rp_provision";
-
-match $q isa ontology_question, has question_id "rp_m3";
-insert (question: $q) isa question_targets_field, has target_field_name "unsub_distribution_section_ref", has target_entity_type "rp_provision";
-
 match $q isa ontology_question, has question_id "rp_l1";
 insert (question: $q) isa question_targets_field, has target_field_name "asset_proceeds_can_fund_dividends", has target_entity_type "rp_provision";
 
@@ -599,9 +513,6 @@ match $q isa ontology_question, has question_id "rp_i8"; $ct isa target_concept_
 insert (question: $q, concept_type: $ct) isa question_targets_concept;
 
 match $q isa ontology_question, has question_id "rp_l7"; $ct isa target_concept_type, has target_concept_type "exempt_sale_type";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
-
-match $q isa ontology_question, has question_id "rp_m4"; $ct isa target_concept_type, has target_concept_type "unsub_distribution_condition";
 insert (question: $q, concept_type: $ct) isa question_targets_concept;
 
 match $q isa ontology_question, has question_id "rp_n4"; $ct isa target_concept_type, has target_concept_type "ratio_required_basket";

@@ -1,0 +1,181 @@
+################################################################################
+# CATEGORY M: UNRESTRICTED SUBSIDIARY DISTRIBUTIONS
+#
+# Covers the REVERSE FLOW: value moving from unrestricted subsidiaries
+# back into the restricted group. This is the other half of J.Crew risk —
+# after value goes OUT to an unsub, can it come BACK in a way that
+# bypasses RP restrictions?
+#
+# These are all Channel 1 (scalar) questions answered via provision_has_answer.
+# No new schema types needed — uses existing ontology infrastructure.
+#
+# Maps to checklist questions: F11 (Q122-128), M (Q207-263 partial),
+# and the "reverse flow" gap identified in stress test Q17.
+#
+# REPLACES the old rp_m1-rp_m4 questions from ontology_expanded.tql
+# with 10 comprehensive questions (rp_m1-rp_m10).
+################################################################################
+
+# ─── Category ─────────────────────────────────────────────────────────────────
+
+insert $cat_m isa ontology_category,
+    has category_id "M",
+    has name "Unrestricted Subsidiary Distributions",
+    has description "How distributions from unrestricted subsidiaries flow back to the restricted group. Covers carve-outs from the RP prohibition, builder basket rebuilding, reinvestment requirements, and investment basket reduction. Critical for assessing whether J.Crew-style transactions can be reversed or whether value exits permanently.",
+    has display_order 13;
+
+# ─── Questions (standalone inserts) ──────────────────────────────────────────
+
+insert $rp_m1 isa ontology_question,
+    has question_id "rp_m1",
+    has question_number 200,
+    has question_text "Are distributions received from Unrestricted Subsidiaries carved out from the Restricted Payment prohibition?",
+    has answer_type "boolean",
+    has display_order 1,
+    has covenant_type "RP",
+    has extraction_prompt "Determine if the RP covenant contains a specific carve-out permitting receipt of dividends, distributions, or other payments from Unrestricted Subsidiaries without counting as a Restricted Payment. This may appear as a separate permitted basket or as an exclusion from the definition of 'Restricted Payment'.";
+
+insert $rp_m2 isa ontology_question,
+    has question_id "rp_m2",
+    has question_number 201,
+    has question_text "Do cash distributions received from Unrestricted Subsidiaries rebuild the Cumulative Amount / builder basket?",
+    has answer_type "boolean",
+    has display_order 2,
+    has covenant_type "RP",
+    has extraction_prompt "Check if the Cumulative Amount / Available Amount definition includes 'cash dividends received from Unrestricted Subsidiaries' or 'cash distributions received from Unrestricted Subsidiaries' as a component that increases the builder basket. This is typically in the builder basket definition alongside JV returns.";
+
+insert $rp_m3 isa ontology_question,
+    has question_id "rp_m3",
+    has question_number 202,
+    has question_text "Are non-cash distributions from Unrestricted Subsidiaries included (at fair market value)?",
+    has answer_type "boolean",
+    has display_order 3,
+    has covenant_type "RP",
+    has extraction_prompt "Determine if the builder basket or carve-out for Unrestricted Subsidiary distributions extends beyond cash to include fair market value of non-cash dividends, property distributions, or in-kind distributions. Some agreements limit to cash only; others include non-cash at FMV.";
+
+insert $rp_m4 isa ontology_question,
+    has question_id "rp_m4",
+    has question_number 203,
+    has question_text "Do distributions received from Unrestricted Subsidiaries reduce the Investment basket that was used to fund the original investment?",
+    has answer_type "boolean",
+    has display_order 4,
+    has covenant_type "RP",
+    has extraction_prompt "Determine if receiving distributions from an Unrestricted Subsidiary causes a dollar-for-dollar (or other) reduction in the Investment basket capacity under Section 6.03. Some agreements treat the return as reducing the original Investment; others do not, effectively allowing double-counting.";
+
+insert $rp_m5 isa ontology_question,
+    has question_id "rp_m5",
+    has question_number 204,
+    has question_text "Is there a cap on the amount of Unrestricted Subsidiary distributions that can re-enter the restricted group or rebuild the builder basket?",
+    has answer_type "boolean",
+    has display_order 5,
+    has covenant_type "RP",
+    has extraction_prompt "Check if there is a dollar cap, percentage cap, or 'not to exceed the original Investment amount' limitation on how much of the distributions received from Unrestricted Subsidiaries can build into the Cumulative Amount or otherwise benefit the restricted group. An uncapped carve-out is more borrower-friendly.";
+
+insert $rp_m6 isa ontology_question,
+    has question_id "rp_m6",
+    has question_number 205,
+    has question_text "If capped, what is the cap on Unrestricted Subsidiary distributions that rebuild the builder basket?",
+    has answer_type "string",
+    has display_order 6,
+    has covenant_type "RP",
+    has extraction_prompt "If there is a limitation, extract the cap formula. Common patterns: 'not to exceed the aggregate amount of Investments made in such Unrestricted Subsidiary', 'limited to the lesser of (x) and (y)', or a fixed dollar amount. Return the verbatim cap language.";
+
+insert $rp_m7 isa ontology_question,
+    has question_id "rp_m7",
+    has question_number 206,
+    has question_text "Is redesignation of an Unrestricted Subsidiary back to restricted status treated as a return of the original Investment (rebuilding capacity)?",
+    has answer_type "boolean",
+    has display_order 7,
+    has covenant_type "RP",
+    has extraction_prompt "Determine if redesignating an Unrestricted Subsidiary back to Restricted Subsidiary status causes the fair market value (or lesser of FMV and original Investment) to be added back to the Cumulative Amount or Investment basket capacity. This is the 'redesignation credit' mechanic.";
+
+insert $rp_m8 isa ontology_question,
+    has question_id "rp_m8",
+    has question_number 207,
+    has question_text "For redesignation credit, is the amount the lesser of fair market value and the original Investment amount, or just FMV?",
+    has answer_type "string",
+    has display_order 8,
+    has covenant_type "RP",
+    has extraction_prompt "When an Unrestricted Subsidiary is redesignated back to restricted, what value is credited: (a) fair market value at time of redesignation, (b) lesser of FMV and original Investment amount, or (c) original Investment amount. Option (a) is most borrower-friendly as the unsub may have appreciated. Extract the specific formula.";
+
+insert $rp_m9 isa ontology_question,
+    has question_id "rp_m9",
+    has question_number 208,
+    has question_text "Can proceeds from Unrestricted Subsidiary distributions be used as the basis for further Restricted Payments (cascading)?",
+    has answer_type "boolean",
+    has display_order 9,
+    has covenant_type "RP",
+    has extraction_prompt "Determine if there is any anti-cascading or anti-duplication language preventing distributions received from Unrestricted Subsidiaries from being used to fund new Restricted Payments. Without such language, the borrower can: (1) invest in unsub, (2) receive distribution back (rebuilding builder), (3) use rebuilt capacity for dividends — effectively laundering restricted payment capacity through an unrestricted subsidiary.";
+
+insert $rp_m10 isa ontology_question,
+    has question_id "rp_m10",
+    has question_number 209,
+    has question_text "Is there anti-duplication language preventing the same Unrestricted Subsidiary distribution from being counted in multiple baskets simultaneously?",
+    has answer_type "boolean",
+    has display_order 10,
+    has covenant_type "RP",
+    has extraction_prompt "Check for 'without duplication' or similar language ensuring that the same distribution from an Unrestricted Subsidiary is not counted both as a builder basket increase AND as a separate permitted RP carve-out. Anti-duplication prevents double-counting of the same cash flow.";
+
+# ─── Category → Question Relations (match-insert) ────────────────────────────
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ─── Question → Target Field Relations (match-insert) ────────────────────────
+
+match $q isa ontology_question, has question_id "rp_m1";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_carved_out", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m2";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_rebuild_builder", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m3";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_noncash_distributions_included", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m4";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_reduce_investment_basket", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m5";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_capped", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m6";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_cap_formula", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m7";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_redesignation_rebuilds_capacity", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m8";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_redesignation_valuation", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m9";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_can_cascade", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_m10";
+insert (question: $q) isa question_targets_field, has target_field_name "unsub_distributions_anti_duplication", has target_entity_type "rp_provision";

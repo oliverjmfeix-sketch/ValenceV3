@@ -1,0 +1,64 @@
+################################################################################
+# VALENCE V4 - EXTRACTION METADATA FOR NEW RP BASKET SUBTYPES
+#
+# Holdco Overhead Basket and Equity Award Basket extraction prompts.
+# Tax Distribution Basket metadata already in seed_extraction_metadata.tql.
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HOLDCO OVERHEAD BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_hob1 isa extraction_metadata,
+    has metadata_id "holdco_overhead_basket.core",
+    has target_entity_type "holdco_overhead_basket",
+    has extraction_prompt "Extract the holding company overhead / administrative expense basket.
+
+This basket permits distributions from the borrower to its parent holding company to cover:
+- Management or advisory fees (often to sponsor/PE firm)
+- Administrative and operating expenses of the holdco
+- Franchise taxes and similar non-income taxes at holdco level
+- Insurance premiums, audit fees, legal costs
+
+Key elements to extract:
+- Annual dollar cap (if any)
+- Whether management/advisory fees are covered
+- Whether admin expenses are covered
+- Whether franchise taxes are covered
+- Recipient scope: any affiliate, permitted holders only, or board-approved only
+- Whether arm's length terms are required
+- Whether board approval is required
+- Default condition: which defaults block this basket
+
+Look for: 'distributions to Holdings to pay... operating expenses', 'management fees payable to Sponsor',
+'customary overhead costs of Holdings'.",
+    has extraction_section_hint "Section 6.06(b), 6.06(c)",
+    has extraction_priority 53;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EQUITY AWARD BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_eab1 isa extraction_metadata,
+    has metadata_id "equity_award_basket.core",
+    has target_entity_type "equity_award_basket",
+    has extraction_prompt "Extract the equity award settlement basket.
+
+This basket permits payments related to equity compensation plans SEPARATE from
+the management equity repurchase basket. It covers:
+- Cashless exercise of stock options (deemed repurchase)
+- Tax withholding obligations on vesting of restricted stock/RSUs
+- Similar net-settlement mechanics
+
+Key elements to extract:
+- Annual dollar cap (if any)
+- Whether cashless exercise is covered
+- Whether tax withholding payments are covered
+- Whether unused capacity carries forward
+- Default condition: which defaults block this basket
+
+Look for: 'deemed repurchases in connection with the exercise of stock options',
+'withholding obligations... upon exercise or vesting',
+'cashless exercise', 'net settlement'.",
+    has extraction_section_hint "Section 6.06(c), 6.06(d)",
+    has extraction_priority 54;
