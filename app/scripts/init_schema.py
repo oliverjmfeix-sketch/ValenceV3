@@ -83,87 +83,101 @@ def load_tql_file(filepath: Path) -> str:
 
 def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
     """
-    Load a TQL file that contains both insert and match-insert statements.
-    Parses and executes them separately.
+    Load a TQL file that contains both standalone insert and match-insert statements.
+
+    Handles files like ontology_expanded.tql where each question is a separate
+    multi-line `insert` statement. Parses into individual statements, executes
+    ALL standalone inserts first (so entities exist), then match-inserts.
     """
     content = filepath.read_text(encoding="utf-8")
     lines = content.split('\n')
-    insert_lines = []
-    match_insert_statements = []
-    current_statement = []
-    in_insert_block = False
-    in_match_block = False
+
+    insert_statements = []   # standalone insert statements
+    match_insert_statements = []  # match ... insert ... pairs
+    current_lines = []
+    current_type = None  # 'insert' or 'match'
+
+    def flush():
+        nonlocal current_lines, current_type
+        if current_lines and current_type:
+            stmt = '\n'.join(current_lines)
+            if current_type == 'insert':
+                insert_statements.append(stmt)
+            elif current_type == 'match':
+                match_insert_statements.append(stmt)
+        current_lines = []
+        current_type = None
 
     for line in lines:
         stripped = line.strip()
         if not stripped or stripped.startswith('#'):
             continue
 
-        if stripped == 'insert' or stripped.startswith('insert '):
-            if in_match_block and current_statement:
-                # This insert is the insert-clause of a match-insert pair
-                current_statement.append(stripped)
-                continue
-            in_insert_block = True
-            in_match_block = False
-            insert_lines.append(stripped)
-            continue
-
         if stripped.startswith('match ') or stripped == 'match':
-            in_insert_block = False
-            in_match_block = True
-            if current_statement:
-                match_insert_statements.append('\n'.join(current_statement))
-            current_statement = [stripped]
-            continue
-
-        if in_insert_block:
-            insert_lines.append(stripped)
-        elif in_match_block:
-            current_statement.append(stripped)
-
-    if current_statement:
-        match_insert_statements.append('\n'.join(current_statement))
-
-    # Execute insert block
-    if insert_lines:
-        insert_tql = '\n'.join(insert_lines)
-        tx = driver.transaction(db_name, TransactionType.WRITE)
-        try:
-            tx.query(insert_tql).resolve()
-            tx.commit()
-            logger.info(f"  Executed insert block ({len(insert_lines)} lines)")
-        except Exception as e:
-            if tx.is_open():
-                tx.close()
-            error_msg = str(e).lower()
-            if "already" in error_msg or "duplicate" in error_msg:
-                logger.info("  Insert block already exists (skipping)")
+            flush()
+            current_type = 'match'
+            current_lines = [stripped]
+        elif stripped == 'insert' or stripped.startswith('insert '):
+            if current_type == 'match':
+                # This insert is the INSERT clause of a match-insert pair
+                current_lines.append(stripped)
             else:
-                logger.warning(f"  Insert block error: {e}")
+                # New standalone insert statement
+                flush()
+                current_type = 'insert'
+                current_lines = [stripped]
+        else:
+            # Continuation line
+            if current_lines:
+                current_lines.append(stripped)
 
-    # Execute match-insert statements one at a time
-    created = 0
-    skipped = 0
-    failed = 0
-    for stmt in match_insert_statements:
+    flush()
+
+    # Phase 1: Execute standalone inserts one at a time
+    ins_ok = 0
+    ins_skip = 0
+    ins_fail = 0
+    for stmt in insert_statements:
         tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
             tx.query(stmt).resolve()
             tx.commit()
-            created += 1
+            ins_ok += 1
         except Exception as e:
             if tx.is_open():
                 tx.close()
             error_msg = str(e).lower()
             if "already" in error_msg or "duplicate" in error_msg or "unique" in error_msg:
-                skipped += 1
+                ins_skip += 1
             else:
-                failed += 1
-                if failed <= 3:
+                ins_fail += 1
+                if ins_fail <= 3:
+                    logger.warning(f"  Insert error: {e}")
+
+    logger.info(f"  Inserts: {ins_ok} created, {ins_skip} existed, {ins_fail} failed ({len(insert_statements)} total)")
+
+    # Phase 2: Execute match-insert statements one at a time
+    mi_ok = 0
+    mi_skip = 0
+    mi_fail = 0
+    for stmt in match_insert_statements:
+        tx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            mi_ok += 1
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            error_msg = str(e).lower()
+            if "already" in error_msg or "duplicate" in error_msg or "unique" in error_msg:
+                mi_skip += 1
+            else:
+                mi_fail += 1
+                if mi_fail <= 3:
                     logger.warning(f"  Match-insert error: {e}")
 
-    logger.info(f"  Match-inserts: {created} created, {skipped} skipped, {failed} failed")
+    logger.info(f"  Match-inserts: {mi_ok} created, {mi_skip} existed, {mi_fail} failed ({len(match_insert_statements)} total)")
 
 
 def _load_multi_insert_file(driver, db_name: str, filepath: Path):
@@ -339,8 +353,8 @@ def init_database():
         try:
             checks = [
                 ("Concepts", "match $c isa concept; select $c;", 20),
-                ("Questions", "match $q isa ontology_question; select $q;", 80),
-                ("Categories", "match $cat isa ontology_category; select $cat;", 15),
+                ("Questions", "match $q isa ontology_question; select $q;", 88),
+                ("Categories", "match $cat isa ontology_category; select $cat;", 17),
                 ("Extraction metadata", "match $em isa extraction_metadata; select $em;", 20),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Party types", "match $p isa restricted_party; select $p;", 3),
@@ -356,6 +370,31 @@ def init_database():
                 except Exception as e:
                     all_ok = False
                     logger.warning(f"  [FAIL] {label}: query failed - {e}")
+        finally:
+            tx.close()
+
+        # Question count per category
+        logger.info("\nQuestions per category:")
+        tx = driver.transaction(TYPEDB_DATABASE, TransactionType.READ)
+        try:
+            cat_query = """
+                match
+                    $q isa ontology_question, has question_id $qid;
+                    (category: $cat, question: $q) isa category_has_question;
+                    $cat has category_id $cid;
+                select $qid, $cid;
+            """
+            cat_result = list(tx.query(cat_query).resolve().as_concept_rows())
+            from collections import Counter
+            cat_counts = Counter()
+            for row in cat_result:
+                cid = row.get("cid").as_attribute().get_value()
+                cat_counts[cid] += 1
+            for cid in sorted(cat_counts):
+                logger.info(f"  {cid}: {cat_counts[cid]}")
+            logger.info(f"  TOTAL with category relation: {sum(cat_counts.values())}")
+        except Exception as e:
+            logger.warning(f"  Category count query failed: {e}")
         finally:
             tx.close()
 
