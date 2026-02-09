@@ -67,6 +67,9 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 async def list_deals() -> List[Dict[str, Any]]:
     """List all deals."""
     if not typedb_client.driver:
+        logger.error(f"503 driver check failed: driver={typedb_client.driver}, "
+                     f"type={type(typedb_client.driver).__name__}, "
+                     f"is_connected={typedb_client.is_connected}, id={id(typedb_client)}")
         raise HTTPException(status_code=503, detail="Database not connected")
     
     try:

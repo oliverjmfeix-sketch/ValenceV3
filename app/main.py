@@ -32,6 +32,9 @@ def _ensure_db_ready():
     driver = typedb_client.driver
     db_name = settings.typedb_database
 
+    logger.info(f"Driver check: driver={driver}, type={type(driver).__name__}, "
+                f"is_connected={typedb_client.is_connected}, id={id(typedb_client)}")
+
     if not driver:
         raise RuntimeError("No TypeDB driver available")
 
@@ -53,8 +56,11 @@ async def lifespan(app: FastAPI):
 
     # Connect to TypeDB and verify database exists
     try:
-        typedb_client.connect()
-        logger.info("TypeDB connected")
+        connected = typedb_client.connect()
+        if not connected:
+            logger.error(f"TypeDB connect() returned False: {typedb_client.connection_error}")
+        else:
+            logger.info("TypeDB connected")
         _ensure_db_ready()
     except Exception as e:
         logger.error(f"Startup error: {e}")
