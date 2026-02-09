@@ -14,7 +14,7 @@
 - **GitHub:** `oliverjmfeix-sketch/ValenceV3`
 - **Branch:** `main`
 - **Backend:** Railway — auto-deploys from GitHub push
-- **Backend URL:** `https://mfnnavigatorbackend-production.up.railway.app`
+- **Backend URL:** `https://valencev3-production.up.railway.app`
 - **Database:** TypeDB Cloud 3.x
 - **Frontend:** Lovable
 
