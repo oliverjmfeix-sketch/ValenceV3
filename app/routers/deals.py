@@ -1063,29 +1063,48 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
             detail="No extracted data found. Please upload and extract a document first."
         )
 
-    # Step 2: Format answers as structured context for Claude
-    context = _format_rp_provision_as_context(rp_response)
+    # Step 2: Load question metadata for human-readable labels
+    question_meta = {}  # {question_id: question_text}
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            meta_query = """
+                match
+                    $q isa ontology_question,
+                        has covenant_type "RP",
+                        has question_id $qid,
+                        has question_text $qtext;
+                select $qid, $qtext;
+            """
+            meta_result = tx.query(meta_query).resolve()
+            for row in meta_result.as_concept_rows():
+                qid = _safe_get_value(row, "qid")
+                qtext = _safe_get_value(row, "qtext")
+                if qid and qtext:
+                    question_meta[qid] = qtext
+        finally:
+            tx.close()
+    except Exception:
+        pass  # Proceed with empty metadata — context will still work
 
-    # Step 3: Build prompt with strict rules
-    prompt = f"""You are a legal analyst answering questions about a credit agreement.
+    # Step 3: Format answers as structured context for Claude
+    context = _format_rp_provision_as_context(rp_response, question_meta)
 
-## STRICT RULES (YOU MUST FOLLOW)
+    # Step 4: Build prompt with strict rules
+    prompt = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant.
 
-1. **CITATION REQUIRED**: Every factual claim must include [p.XX] citation if page numbers are available
-2. **ONLY USE PROVIDED DATA**: Never invent facts not in EXTRACTED DATA below
-3. **QUALIFICATIONS REQUIRED**: If a qualification/exception exists, you MUST mention it
-4. **MISSING DATA**: If information is not found, say "Not found in extracted data"
-5. **INTERPRETATION MARKING**:
-   - "The document states X" [p.XX] → factual, cite page
-   - "This suggests Y" → interpretation, mark clearly
-   - "Consider Z" → recommendation, mark clearly
+## STRICT RULES
+
+1. **CITATION REQUIRED**: Every factual claim must include a [p.XX] page citation where available
+2. **ONLY USE PROVIDED DATA**: Never invent facts not present in EXTRACTED DATA below
+3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
+4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
+5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
 
 ## FORMATTING
 
-- Use **bold** for key terms and risk levels
+- Use **bold** for key terms and defined terms
 - Use bullet points for lists
-- Use ✓ for protections/positives
-- Use ⚠ for risks/concerns/gaps
 - Keep response concise but complete
 
 ## USER QUESTION
@@ -1098,7 +1117,7 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
 ## YOUR RESPONSE
 
-Answer the user's question following all rules above. Be specific and cite sources where available."""
+Answer the user's question following all rules above. State facts with citations. Do not editorialize."""
 
     # Step 5: Call Claude with appropriate model
     try:
@@ -1137,18 +1156,19 @@ Answer the user's question following all rules above. Be specific and cite sourc
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _format_rp_provision_as_context(rp_response: Dict) -> str:
-    """Format RP provision data as structured context for Claude."""
+def _format_rp_provision_as_context(rp_response: Dict, question_meta: Dict[str, str] = None) -> str:
+    """Format RP provision data as structured context for Claude.
+
+    Uses question_text labels instead of internal question_ids.
+    Includes source_page provenance for citation support.
+    """
+    if question_meta is None:
+        question_meta = {}
 
     lines = []
-    lines.append(f"Deal ID: {rp_response['deal_id']}")
-    lines.append(f"Provision: {rp_response['provision_type']}")
-    lines.append(f"Scalar answers: {rp_response['scalar_count']}")
-    lines.append(f"Multiselect answers: {rp_response['multiselect_count']}")
-    lines.append("")
 
-    # Scalar answers keyed by question_id
-    lines.append("### SCALAR ANSWERS (Boolean/Numeric/Text)")
+    # Scalar answers with human-readable labels and provenance
+    lines.append("### EXTRACTED ANSWERS")
     lines.append("")
 
     scalar_answers = rp_response.get("scalar_answers", {})
@@ -1161,28 +1181,47 @@ def _format_rp_provision_as_context(rp_response: Dict) -> str:
             value_str = str(int(value))
         else:
             value_str = str(value)
-        lines.append(f"  - {qid}: {value_str}")
+
+        label = question_meta.get(qid, qid)
+        page = data.get("source_page")
+        page_ref = f" [p.{page}]" if page else ""
+        lines.append(f"  - {label}: {value_str}{page_ref}")
+
+        source_text = data.get("source_text")
+        if source_text:
+            lines.append(f"    Source: \"{source_text}\"")
     lines.append("")
 
-    # Pattern flags (flat attributes on provision)
+    # Pattern flags
     pattern_flags = rp_response.get("pattern_flags", {})
     if pattern_flags:
+        flag_labels = {
+            "jcrew_pattern_detected": "J.Crew blocker pattern detected",
+            "serta_pattern_detected": "Serta pattern detected",
+            "collateral_leakage_pattern_detected": "Collateral leakage pattern detected",
+        }
         lines.append("### PATTERN FLAGS")
         lines.append("")
         for flag, value in sorted(pattern_flags.items()):
-            lines.append(f"  - {flag}: {'Yes' if value else 'No'}")
+            label = flag_labels.get(flag, flag)
+            lines.append(f"  - {label}: {'Yes' if value else 'No'}")
         lines.append("")
 
     # Multiselect answers
-    lines.append("### MULTISELECT ANSWERS (Concept Applicabilities)")
-    lines.append("")
-
     multiselect_answers = rp_response.get("multiselect_answers", {})
-
-    for concept_type, concepts in sorted(multiselect_answers.items()):
-        concept_names = [c["name"] for c in concepts]
-        lines.append(f"**{concept_type}**: {', '.join(concept_names)}")
-    lines.append("")
+    if multiselect_answers:
+        concept_labels = {
+            "facility_prong": "Facility prongs",
+            "ip_type": "IP types covered",
+            "restricted_party": "Restricted parties",
+        }
+        lines.append("### APPLICABLE CONCEPTS")
+        lines.append("")
+        for concept_type, concepts in sorted(multiselect_answers.items()):
+            concept_names = [c["name"] for c in concepts]
+            label = concept_labels.get(concept_type, concept_type)
+            lines.append(f"  - {label}: {', '.join(concept_names)}")
+        lines.append("")
 
     return "\n".join(lines)
 
