@@ -219,6 +219,7 @@ class ExtractionService:
         """Call Claude with streaming to handle long operations."""
         try:
             collected_text = []
+            chunk_count = 0
             with self.client.messages.stream(
                 model=self.model,
                 max_tokens=max_tokens,
@@ -226,7 +227,11 @@ class ExtractionService:
             ) as stream:
                 for text in stream.text_stream:
                     collected_text.append(text)
-            return "".join(collected_text)
+                    chunk_count += 1
+            logger.info(f"Streaming complete: {chunk_count} chunks received")
+            result = "".join(collected_text)
+            logger.info(f"Response assembled: {len(result)} chars")
+            return result
         except Exception as e:
             logger.error(f"Claude streaming error: {e}")
             return ""
@@ -261,29 +266,40 @@ class ExtractionService:
         prompt2 = self._build_universe_extraction_prompt(second_half, part=2, focus="covenants")
         logger.info("Extracting Part 2 (covenants)...")
         response2 = self._call_claude_streaming(prompt2, max_tokens=32000)
+        logger.info(f"Part 2 response received: {len(response2) if response2 else 0} chars")
         if response2:
-            universe2 = self._parse_universe_extraction(response2)
-            logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
+            try:
+                universe2 = self._parse_universe_extraction(response2)
+                logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
+            except Exception as e:
+                logger.exception(f"Part 2 parse error: {e}")
+                universe2 = RPUniverse()
         else:
             logger.error("Part 2 extraction returned empty")
             universe2 = RPUniverse()
 
         # Merge: definitions from part 1, covenants from part 2 (or whichever has them)
-        merged = RPUniverse(
-            definitions=universe1.definitions or universe2.definitions,
-            dividend_covenant=universe2.dividend_covenant or universe1.dividend_covenant,
-            investment_covenant=universe2.investment_covenant or universe1.investment_covenant,
-            asset_sale_covenant=universe2.asset_sale_covenant or universe1.asset_sale_covenant,
-            rdp_covenant=universe2.rdp_covenant or universe1.rdp_covenant,
-            unsub_mechanics=universe2.unsub_mechanics or universe1.unsub_mechanics,
-            pro_forma_mechanics=universe1.pro_forma_mechanics or universe2.pro_forma_mechanics,
-        )
+        logger.info("Merging Part 1 and Part 2 universes...")
+        try:
+            merged = RPUniverse(
+                definitions=universe1.definitions or universe2.definitions,
+                dividend_covenant=universe2.dividend_covenant or universe1.dividend_covenant,
+                investment_covenant=universe2.investment_covenant or universe1.investment_covenant,
+                asset_sale_covenant=universe2.asset_sale_covenant or universe1.asset_sale_covenant,
+                rdp_covenant=universe2.rdp_covenant or universe1.rdp_covenant,
+                unsub_mechanics=universe2.unsub_mechanics or universe1.unsub_mechanics,
+                pro_forma_mechanics=universe1.pro_forma_mechanics or universe2.pro_forma_mechanics,
+            )
 
-        # Build combined raw text
-        merged.raw_text = self._build_combined_context(merged)
-        logger.info(f"Merged RP universe: {len(merged.raw_text)} chars")
+            # Build combined raw text
+            logger.info("Building combined context...")
+            merged.raw_text = self._build_combined_context(merged)
+            logger.info(f"Merged RP universe: {len(merged.raw_text)} chars")
 
-        return merged
+            return merged
+        except Exception as e:
+            logger.exception(f"Error merging RP universe: {e}")
+            return RPUniverse()
 
     def _build_universe_extraction_prompt(
         self,
@@ -449,6 +465,7 @@ If your output is less than 30,000 characters, you are likely summarizing instea
 
     def _parse_universe_extraction(self, response_text: str) -> RPUniverse:
         """Parse the RP universe extraction response."""
+        logger.info(f"Parsing universe extraction response: {len(response_text)} chars")
         universe = RPUniverse()
 
         # Parse each section using markers
@@ -544,30 +561,10 @@ If your output is less than 30,000 characters, you are likely summarizing instea
     # =========================================================================
 
     def load_questions_by_category(self, covenant_type: str) -> Dict[str, List[Dict]]:
-        """Load questions from TypeDB grouped by category."""
+        """Load questions from TypeDB grouped by category via category_has_question."""
         if not typedb_client.driver:
             logger.warning("TypeDB not connected")
             return {}
-
-        category_names = {
-            "A": "Dividend Restrictions - General Structure",
-            "B": "Intercompany Dividends",
-            "C": "Management Equity Basket",
-            "D": "Tax Distribution Basket",
-            "E": "Equity Awards",
-            "F": "Builder Basket / Cumulative Amount",
-            "G": "Ratio-Based Dividend Basket",
-            "H": "Holding Company Overhead",
-            "I": "Basket Reallocation",
-            "J": "Unrestricted Subsidiaries",
-            "K": "J.Crew Blocker",
-            "L": "Asset Sale Proceeds & Sweeps",
-            "M": "Unrestricted Subsidiary Distributions",
-            "N": "Dividend Capacity Calculation",
-            "S": "Restricted Debt Payments - General",
-            "T": "RDP Baskets",
-            "Z": "Pattern Detection",
-        }
 
         try:
             from typedb.driver import TransactionType
@@ -575,41 +572,35 @@ If your output is less than 30,000 characters, you are likely summarizing instea
                 settings.typedb_database, TransactionType.READ
             )
             try:
-                # Query questions - extraction_prompt is optional
                 query = f"""
                     match
-                        $q isa ontology_question,
-                            has question_id $qid,
-                            has question_text $qt,
-                            has answer_type $at,
-                            has covenant_type "{covenant_type}",
-                            has display_order $order;
-                    select $qid, $qt, $at, $order;
+                        $cat isa ontology_category, has category_id $cid, has name $cname;
+                        (category: $cat, question: $q) isa category_has_question;
+                        $q has question_id $qid, has question_text $qt, has answer_type $at,
+                           has covenant_type "{covenant_type}", has display_order $order;
+                    select $cid, $cname, $qid, $qt, $at, $order;
                 """
 
                 result = tx.query(query).resolve()
                 questions_by_cat: Dict[str, List[Dict]] = {}
 
                 for row in result.as_concept_rows():
+                    cat_id = _safe_get_value(row, "cid")
+                    cat_name = _safe_get_value(row, "cname", "")
                     qid = _safe_get_value(row, "qid")
-                    if not qid:
+                    if not qid or not cat_id:
                         continue
-                    parts = qid.split("_")
-                    if len(parts) >= 2 and len(parts[1]) >= 1:
-                        cat_letter = parts[1][0].upper()
-                    else:
-                        cat_letter = "Z"
 
-                    if cat_letter not in questions_by_cat:
-                        questions_by_cat[cat_letter] = []
+                    if cat_id not in questions_by_cat:
+                        questions_by_cat[cat_id] = []
 
-                    questions_by_cat[cat_letter].append({
+                    questions_by_cat[cat_id].append({
                         "question_id": qid,
                         "question_text": _safe_get_value(row, "qt", ""),
                         "answer_type": _safe_get_value(row, "at", "string"),
                         "display_order": _safe_get_value(row, "order", 0),
-                        "category_id": cat_letter,
-                        "category_name": category_names.get(cat_letter, f"Category {cat_letter}"),
+                        "category_id": cat_id,
+                        "category_name": cat_name,
                         "extraction_prompt": None  # Will be loaded separately
                     })
 
@@ -914,7 +905,7 @@ Return ONLY the JSON array."""
         deal_id: str,
         category_answers: List[CategoryAnswers]
     ) -> bool:
-        """Store extraction results to TypeDB with individual transactions."""
+        """Store extraction results to TypeDB via provision_has_answer."""
         if not typedb_client.driver:
             logger.error("TypeDB not connected, cannot store results")
             return False
@@ -922,9 +913,10 @@ Return ONLY the JSON array."""
         provision_id = f"{deal_id}_rp"
 
         try:
-            from typedb.driver import TransactionType
+            from app.services.graph_storage import GraphStorage
 
             self._ensure_provision_exists(deal_id, provision_id)
+            storage = GraphStorage(deal_id)
 
             scalar_count = 0
             scalar_failed = 0
@@ -950,13 +942,29 @@ Return ONLY the JSON array."""
                             else:
                                 multiselect_failed += 1
                     else:
-                        success = self._store_scalar_attribute_safe(
-                            provision_id, answer.attribute_name,
-                            answer.value, answer.answer_type
-                        )
-                        if success:
-                            scalar_count += 1
-                        else:
+                        try:
+                            coerced = self._coerce_answer_value(
+                                answer.value, answer.answer_type
+                            )
+                            if coerced is not None:
+                                storage.store_scalar_answer(
+                                    provision_id=provision_id,
+                                    question_id=answer.question_id,
+                                    value=coerced,
+                                    source_text=answer.source_text or None,
+                                    source_page=(
+                                        answer.source_pages[0]
+                                        if answer.source_pages else None
+                                    ),
+                                    confidence=answer.confidence,
+                                )
+                                scalar_count += 1
+                            else:
+                                scalar_failed += 1
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not store answer for {answer.question_id}: {e}"
+                            )
                             scalar_failed += 1
 
             logger.info(
@@ -1008,37 +1016,34 @@ Return ONLY the JSON array."""
             logger.error(f"Error creating provision: {e}")
             raise
 
-    def _store_scalar_attribute_safe(
-        self,
-        provision_id: str,
-        attribute_name: str,
-        value: Any,
-        answer_type: str
-    ) -> bool:
-        """Store a scalar answer with its own transaction."""
-        from typedb.driver import TransactionType
+    def _coerce_answer_value(self, value: Any, answer_type: str) -> Any:
+        """Coerce an answer value to the correct Python type for store_scalar_answer."""
+        if value is None:
+            return None
+        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
+            return None
 
-        formatted_value = self._format_typedb_value(value, answer_type)
-        if formatted_value is None:
-            logger.warning(f"Skipping {attribute_name}: could not format value {value}")
-            return False
+        if answer_type == "boolean":
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() in ("true", "yes", "1")
+            return bool(value)
 
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                insert $p has {attribute_name} {formatted_value};
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.debug(f"Stored {attribute_name} = {formatted_value}")
-            return True
-        except Exception as e:
-            tx.close()
-            logger.warning(f"Could not store {attribute_name} = {formatted_value}: {e}")
-            return False
+        if answer_type in ("double", "percentage", "currency", "float", "decimal"):
+            try:
+                return float(str(value).strip("'\""))
+            except (ValueError, TypeError):
+                return None
+
+        if answer_type in ("integer", "int", "number"):
+            try:
+                return int(float(str(value).strip("'\"")))
+            except (ValueError, TypeError):
+                return None
+
+        # Default to string
+        return str(value)
 
     def _store_concept_applicability_safe(
         self,
@@ -1075,52 +1080,6 @@ Return ONLY the JSON array."""
             tx.close()
             logger.warning(f"Could not store applicability for {concept_id}: {e}")
             return False
-
-    def _format_typedb_value(self, value: Any, answer_type: str) -> Optional[str]:
-        """Format a Python value for TypeQL insertion."""
-        if value is None:
-            return None
-
-        # Handle "not_found" or similar non-values
-        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
-            return None
-
-        if answer_type == "boolean":
-            if isinstance(value, bool):
-                return "true" if value else "false"
-            if isinstance(value, str):
-                return "true" if value.lower() in ("true", "yes", "1") else "false"
-            return None
-
-        if answer_type in ("integer", "int", "number"):
-            try:
-                clean_value = str(value).strip('"\'')
-                return str(int(float(clean_value)))
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("double", "decimal", "percentage", "currency", "float"):
-            try:
-                clean_value = str(value).strip('"\'')
-                return str(float(clean_value))
-            except (ValueError, TypeError):
-                return None
-
-        if answer_type in ("string", "text"):
-            escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"'
-
-        # Default: try to detect type from value
-        try:
-            clean_value = str(value).strip('"\'')
-            float_val = float(clean_value)
-            return str(float_val)
-        except (ValueError, TypeError):
-            pass
-
-        # Fall back to string
-        escaped = str(value).replace('\\', '\\\\').replace('"', '\\"')
-        return f'"{escaped}"'
 
     # =========================================================================
     # MAIN EXTRACTION FLOW
@@ -1199,6 +1158,128 @@ Return ONLY the JSON array."""
             high_confidence_answers=high_conf_count,
             rp_universe_chars=universe_chars
         )
+
+    # =========================================================================
+    # V4 GRAPH-NATIVE EXTRACTION
+    # =========================================================================
+
+    async def extract_rp_v4(
+        self,
+        pdf_path: str,
+        deal_id: str,
+        model: Optional[str] = None
+    ) -> 'ExtractionResultV4':
+        """
+        V4 Graph-Native RP extraction pipeline.
+
+        1. Parse PDF
+        2. Extract RP Universe (same as V3)
+        3. Load extraction metadata from TypeDB (SSoT)
+        4. Build Claude prompt with metadata + JSON schema
+        5. Call Claude, parse into RPExtractionV4 Pydantic model
+        6. Store as graph entities and relations
+
+        Returns:
+            ExtractionResultV4 with typed extraction and storage results
+        """
+        from app.services.graph_storage import GraphStorage
+        from app.schemas.extraction_output_v4 import RPExtractionV4
+
+        start_time = time.time()
+        model = model or settings.claude_model
+
+        # Step 1: Parse PDF
+        logger.info(f"V4 Extraction starting for deal {deal_id}")
+        document_text = self.parse_document(pdf_path)
+
+        # Step 2: Extract RP Universe (reuse existing logic)
+        logger.info("Step 2: Extracting RP Universe...")
+        rp_universe = self.extract_rp_universe(document_text)
+        universe_chars = len(rp_universe.raw_text)
+        logger.info(f"RP Universe extracted: {universe_chars} chars")
+
+        if universe_chars < 1000:
+            logger.warning("RP Universe extraction yielded minimal content")
+
+        # Step 3: Load extraction metadata from TypeDB (SSoT)
+        logger.info("Step 3: Loading extraction metadata from TypeDB...")
+        metadata = GraphStorage.load_extraction_metadata()
+        logger.info(f"Loaded {len(metadata)} extraction instructions")
+
+        # Step 4: Build Claude prompt
+        logger.info("Step 4: Building V4 Claude prompt...")
+        prompt = GraphStorage.build_claude_prompt(metadata, rp_universe.raw_text)
+        logger.info(f"Prompt built: {len(prompt)} chars")
+
+        # Step 5: Call Claude
+        logger.info(f"Step 5: Calling Claude ({model})...")
+        response_text = self._call_claude_v4(prompt, model)
+        logger.info(f"Response received: {len(response_text)} chars")
+
+        # Step 6: Parse response into Pydantic model
+        logger.info("Step 6: Parsing response...")
+        extraction = GraphStorage.parse_claude_response(response_text)
+
+        # Create storage instance and summarize
+        storage = GraphStorage(deal_id)
+        summary = storage.summarize_extraction(extraction)
+        logger.info(f"Parsed extraction: {summary}")
+
+        # Step 7: Store in TypeDB
+        logger.info("Step 7: Storing V4 extraction to TypeDB...")
+        storage_result = storage.store_rp_extraction_v4(extraction)
+        logger.info(f"Storage complete: {storage_result}")
+
+        extraction_time = time.time() - start_time
+        logger.info(f"V4 Extraction complete in {extraction_time:.1f}s")
+
+        return ExtractionResultV4(
+            deal_id=deal_id,
+            extraction=extraction,
+            storage_result=storage_result,
+            extraction_time_seconds=extraction_time,
+            rp_universe_chars=universe_chars,
+            model_used=model
+        )
+
+    def _call_claude_v4(self, prompt: str, model: str) -> str:
+        """Call Claude API for V4 structured extraction."""
+        system_prompt = """You are a legal analyst extracting covenant data from credit agreements.
+
+RULES:
+1. Return ONLY valid JSON - no markdown code blocks, no explanation before/after
+2. Include provenance (section_reference, source_page) for every major finding
+3. Quote verbatim_text exactly as it appears (max 500 chars)
+4. If a field is not found, omit it entirely (don't include null)
+5. For percentages, use decimals (50% = 0.5, 140% = 1.4)
+6. For dollar amounts, use raw numbers (130000000 not "130M")
+7. Be precise about "no worse" test - this is CRITICAL for risk analysis
+8. For ratio thresholds, use the decimal number (5.75x = 5.75)
+9. For reallocation_cap: use null (not "unlimited") if there is no cap"""
+
+        try:
+            response = self.client.messages.create(
+                model=model,
+                max_tokens=8192,
+                system=system_prompt,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=300.0  # 5 minute timeout for extraction
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Claude API error: {e}")
+            raise
+
+
+@dataclass
+class ExtractionResultV4:
+    """Result of V4 graph-native extraction."""
+    deal_id: str
+    extraction: Any  # RPExtractionV4
+    storage_result: Dict[str, Any]
+    extraction_time_seconds: float
+    rp_universe_chars: int
+    model_used: str
 
 
 # =============================================================================

@@ -1,0 +1,50 @@
+################################################################################
+# VALENCE V4 - SEED DATA
+#
+# IP Types and Restricted Party types for graph schema
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IP TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IP types already seeded in concepts.tql via concept_id — skip here
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESTRICTED PARTY TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $rp1 isa borrower_party, has party_id "borrower", has party_name "Borrower";
+insert $rp2 isa guarantor_party, has party_id "guarantors", has party_name "Guarantors";
+insert $rp3 isa restricted_sub_party, has party_id "restricted_subs", has party_name "Restricted Subsidiaries";
+insert $rp4 isa loan_party, has party_id "loan_parties", has party_name "Loan Parties";
+insert $rp5 isa holdings_party, has party_id "holdings", has party_name "Holdings";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER SOURCE TYPES (for multiselect reference)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Builder source types are defined as subtypes of builder_basket_source (abstract)
+# in schema_unified.tql: starter_amount_source, cni_source, ecf_source, etc.
+# No need for reference instances here — extraction creates typed subtypes directly.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOCKER EXCEPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ex1 isa nonexclusive_license_exception, has exception_id "nonexclusive_license", has exception_name "Non-Exclusive License";
+insert $ex2 isa ordinary_course_exception, has exception_id "ordinary_course", has exception_name "Ordinary Course of Business";
+insert $ex3 isa intercompany_exception, has exception_id "intercompany", has exception_name "Intercompany Transfers";
+insert $ex4 isa fair_value_exception, has exception_id "fair_value", has exception_name "Fair Value Sale";
+insert $ex5 isa license_back_exception, has exception_id "license_back", has exception_name "License-Back Arrangement";
+insert $ex6 isa immaterial_ip_exception, has exception_id "immaterial_ip", has exception_name "Immaterial IP";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP EXEMPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $se1 isa non_collateral_exemption, has exemption_id "non_collateral", has exemption_name "Non-Collateral Assets";
+insert $se2 isa ordinary_course_sale_exemption, has exemption_id "ordinary_course_sale", has exemption_name "Ordinary Course Sales";
+insert $se3 isa casualty_exemption, has exemption_id "casualty", has exemption_name "Casualty Events";
+insert $se4 isa below_threshold_exemption, has exemption_id "below_threshold", has exemption_name "Below De Minimis Threshold";
+insert $se5 isa ratio_basket_exemption, has exemption_id "ratio_basket", has exemption_name "Ratio Basket Sales";

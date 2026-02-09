@@ -1,0 +1,1061 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# TypeDB 3.x Unified Schema
+#
+# SINGLE FILE. Replaces: schema.tql, schema_v2.tql, schema_expanded.tql
+#
+# DESIGN PRINCIPLES:
+#
+#   1. Provision types are PURE ANCHORS — they own no extracted values.
+#      All extracted data lives in exactly one of three channels:
+#
+#        Channel 1: provision_has_answer    → scalar  (boolean, number, string)
+#        Channel 2: concept_applicability   → multiselect (closed set from seed)
+#        Channel 3: typed entities          → structured (variable-length)
+#
+#      No duplication. No flat attributes on provisions. ONE canonical home
+#      for every extracted fact.
+#
+#   2. Schema introspection drives the entire pipeline.
+#      Adding an attribute to an entity here is the ONLY change needed.
+#      Prompt generation, storage, and API adapt automatically.
+#
+#   3. Domain-driven entity modeling.
+#      Entity types map to how lawyers analyze credit agreements:
+#      baskets, sources, tiers, blockers, exceptions, pathways.
+#      Not how programmers model SQL tables.
+#
+# Version: 3.0.0
+# Date: 2026-02-06
+################################################################################
+
+define
+
+################################################################################
+# §1  ATTRIBUTES
+################################################################################
+
+# ─── Identifiers ─────────────────────────────────────────────────────────────
+
+attribute deal_id, value string;
+attribute provision_id, value string;
+attribute question_id, value string;
+attribute concept_id, value string;
+attribute category_id, value string;
+attribute answer_id, value string;
+attribute basket_id, value string;
+attribute source_id, value string;
+attribute tier_id, value string;
+attribute blocker_id, value string;
+attribute exception_id, value string;
+attribute threshold_id, value string;
+attribute designation_id, value string;
+attribute reallocation_id, value string;
+attribute pathway_id, value string;
+attribute qualification_id, value string;
+attribute citation_id, value string;
+
+# ─── Human-readable ──────────────────────────────────────────────────────────
+
+attribute name, value string;
+attribute description, value string;
+attribute display_order, value integer;
+
+# ─── Timestamps ──────────────────────────────────────────────────────────────
+
+attribute created_at, value datetime;
+attribute updated_at, value datetime;
+attribute extracted_at, value datetime;
+
+# ─── Provenance ──────────────────────────────────────────────────────────────
+
+attribute source_text, value string;
+attribute source_page, value integer;
+attribute source_section, value string;
+attribute section_reference, value string;
+attribute confidence, value string;              # high | medium | low
+
+# ─── Question metadata ───────────────────────────────────────────────────────
+
+attribute question_text, value string;
+attribute question_number, value integer;
+attribute answer_type, value string;             # boolean | integer | double | percentage |
+                                                 # currency | string | number | multiselect |
+                                                 # entity
+attribute ui_display_type, value string;
+attribute is_required, value boolean;
+attribute default_value, value string;
+attribute covenant_type, value string;            # MFN | RP
+attribute extraction_prompt, value string;        # domain hints for Claude
+
+# ─── Question targeting (on relations) ────────────────────────────────────────
+
+attribute target_field_name, value string;         # Channel 1: answer attribute name
+attribute target_entity_type, value string;        # Channel 1 & 3: entity type name
+attribute target_concept_type, value string;       # Channel 2: concept subtype name
+attribute target_relation_type, value string;      # Channel 3: relation linking entity → provision
+
+# ─── Deal metadata ───────────────────────────────────────────────────────────
+
+attribute deal_name, value string;
+attribute borrower_name, value string;
+attribute deal_date, value date;
+attribute deal_amount, value double;
+attribute deal_currency, value string;
+attribute deal_type, value string;
+attribute facility_type, value string;
+
+# ─── Document metadata ───────────────────────────────────────────────────────
+
+attribute document_url, value string;
+attribute document_hash, value string;
+attribute page_count, value integer;
+
+# ─── Answer values (on provision_has_answer relation) ─────────────────────────
+
+attribute answer_boolean, value boolean;
+attribute answer_integer, value integer;
+attribute answer_double, value double;
+attribute answer_string, value string;
+attribute answer_date, value date;
+attribute applicability_status, value string;      # INCLUDED | EXCLUDED
+
+# ─── Provenance entity attributes ────────────────────────────────────────────
+
+attribute attributed_field_name, value string;
+
+# ─── Benchmark attributes ────────────────────────────────────────────────────
+
+attribute benchmark_value_double, value double;
+attribute benchmark_value_boolean_pct, value double;
+attribute sample_size, value integer;
+attribute as_of_date, value date;
+
+# ─── Qualification & Citation ─────────────────────────────────────────────────
+
+attribute qualification_type, value string;        # exception | condition | threshold | scope_limitation
+attribute cross_reference_type, value string;      # limited_by | enhanced_by | depends_on | conflicts_with
+attribute cross_reference_explanation, value string;
+attribute citation_context, value string;          # definition | covenant | exception
+
+# ─── Computed pattern flags (on provisions, NOT extracted) ────────────────────
+
+attribute jcrew_pattern_detected, value boolean;
+attribute serta_pattern_detected, value boolean;
+attribute collateral_leakage_pattern_detected, value boolean;
+attribute yield_exclusion_pattern_detected, value boolean;
+
+# ─── Entity attributes ───────────────────────────────────────────────────────
+#
+#   Each attribute is owned by one or more extracted entities in §3.
+#   The extraction pipeline discovers them via schema introspection:
+#
+#     match entity $et type <name>; $et owns $attr; select $attr;
+#
+#   Adding `owns new_attribute` to an entity is the ONLY change needed.
+#   Prompt generation, storage, and API adapt automatically.
+#   ONE change. ONE file. That's SSoT.
+
+# ── Sweep tier ────────────────────────────────────────────────────────────────
+attribute leverage_threshold, value double;
+attribute sweep_percentage, value double;
+attribute is_highest_tier, value boolean;
+
+# ── Builder basket ────────────────────────────────────────────────────────────
+attribute start_date_language, value string;
+attribute uses_greatest_of_tests, value boolean;
+
+# ── Builder basket sources (shared across subtypes) ───────────────────────────
+attribute dollar_amount, value double;
+attribute ebitda_percentage, value double;
+attribute uses_greater_of, value boolean;
+attribute percentage, value double;
+attribute is_primary_test, value boolean;
+attribute retained_ecf_formula, value string;
+attribute lookback_period, value string;            # descriptive: "trailing 4 fiscal quarters"
+attribute lookback_quarters, value integer;          # queryable: 4
+attribute fc_multiplier, value double;
+attribute not_otherwise_applied, value boolean;      # whether source is subject to NOA limitation
+attribute excludes_cure_contributions, value boolean;
+attribute excludes_disqualified_stock, value boolean;
+
+# ── Ratio basket ──────────────────────────────────────────────────────────────
+attribute ratio_threshold, value double;
+attribute ratio_type, value string;                # first_lien | senior_secured | total
+attribute is_unlimited_if_met, value boolean;
+attribute has_no_worse_test, value boolean;
+attribute no_worse_threshold, value double;
+attribute test_date_type, value string;            # declaration | payment | most_recent_fq
+attribute lct_treatment_available, value boolean;
+attribute pro_forma_basis, value boolean;
+
+# ── General RP basket ─────────────────────────────────────────────────────────
+attribute basket_amount_usd, value double;
+attribute basket_grower_pct, value double;
+attribute is_per_annum, value boolean;
+attribute default_condition, value string;           # any_default | payment_default_only |
+                                                     #   specified_defaults | none
+
+# ── Management equity basket ──────────────────────────────────────────────────
+attribute annual_cap_usd, value double;
+attribute annual_cap_pct_ebitda, value double;
+attribute cap_uses_greater_of, value boolean;
+attribute carryforward_permitted, value boolean;
+attribute carryforward_max_years, value integer;
+attribute eligible_person_scope, value string;       # officers_directors | employees_officers_directors |
+                                                     #   includes_consultants | includes_sponsor_employees
+
+# ── Tax distribution basket ──────────────────────────────────────────────────
+attribute standalone_taxpayer_limit, value boolean;
+attribute hypothetical_tax_rate, value double;
+attribute tax_sharing_permitted, value boolean;
+attribute estimated_taxes_permitted, value boolean;
+
+# ── Holdco overhead basket ───────────────────────────────────────────────────
+attribute covers_management_fees, value boolean;
+attribute covers_admin_expenses, value boolean;
+attribute covers_franchise_taxes, value boolean;
+attribute management_fee_recipient_scope, value string;  # any_affiliate | permitted_holders_only | board_approved_only
+attribute requires_arms_length, value boolean;
+
+# ── Equity award basket ──────────────────────────────────────────────────────
+attribute covers_cashless_exercise, value boolean;
+attribute covers_tax_withholding, value boolean;
+
+# ── J.Crew blocker ───────────────────────────────────────────────────────────
+attribute covers_transfer, value boolean;
+attribute covers_designation, value boolean;
+attribute covers_ip, value boolean;
+attribute covers_material_assets, value boolean;
+attribute covers_exclusive_licensing, value boolean;
+attribute covers_nonexclusive_licensing, value boolean;
+attribute covers_pledge, value boolean;
+attribute covers_abandonment, value boolean;
+attribute binds_loan_parties, value boolean;
+attribute binds_restricted_subs, value boolean;
+attribute is_sacred_right, value boolean;
+attribute coverage_scope, value string;
+
+# ── Blocker exception ────────────────────────────────────────────────────────
+attribute scope_limitation, value string;
+
+# ── Unsub designation ─────────────────────────────────────────────────────────
+attribute requires_no_default, value boolean;
+attribute requires_board_approval, value boolean;
+attribute dollar_cap_usd, value double;
+attribute pct_cap_assets, value double;
+attribute redesignation_permitted, value boolean;
+
+# ── De minimis threshold ─────────────────────────────────────────────────────
+attribute threshold_type, value string;            # individual | annual
+attribute threshold_amount_usd, value double;
+
+# ── Basket reallocation ──────────────────────────────────────────────────────
+attribute reallocation_source, value string;       # canonical: investment_basket | rdp_basket |
+                                                    #   prepayment_basket | builder_basket | general_rp_basket
+attribute reallocation_amount_usd, value double;
+attribute is_bidirectional, value boolean;
+attribute reduces_source_basket, value boolean;
+attribute reduction_is_dollar_for_dollar, value boolean;
+attribute reduction_while_outstanding_only, value boolean;
+
+# ── Investment pathway (J.Crew chain analysis) ────────────────────────────────
+attribute pathway_source_type, value string;       # loan_party | restricted_sub | non_guarantor_rs
+attribute pathway_target_type, value string;       # unrestricted_sub | non_guarantor_rs
+attribute cap_dollar_usd, value double;
+attribute cap_pct_total_assets, value double;
+attribute is_uncapped, value boolean;
+attribute can_stack_with_other_baskets, value boolean;
+
+# ── RDP baskets (Section 6.09 — Restricted Debt Payments) ────────────────────
+attribute requires_same_or_lower_priority, value boolean;
+attribute requires_same_or_later_maturity, value boolean;
+attribute requires_no_increase_in_principal, value boolean;
+attribute permits_refinancing_with_equity, value boolean;
+attribute subject_to_intercreditor, value boolean;
+attribute shares_with_rp_builder, value boolean;   # whether RDP draws from same Available Amount as RP
+attribute uses_closing_ratio_alternative, value boolean;  # T12 Q326-327: ratio = greater of fixed and closing
+attribute requires_qualified_stock_only, value boolean;
+attribute requires_cash_common_equity, value boolean;
+
+
+################################################################################
+# §2  CORE ENTITIES
+#
+#   Provision types are PURE ANCHORS.
+#   They own no extracted values — only:
+#     - Identity (provision_id @key, inherited)
+#     - Location (section_reference, source_page, inherited)
+#     - Lifecycle (extracted_at, inherited)
+#     - Computed pattern flags (derived, not extracted)
+#     - Role assignments for entity relations
+#
+#   All extracted data goes through the three channels.
+################################################################################
+
+entity deal,
+    owns deal_id @key,
+    owns deal_name,
+    owns borrower_name,
+    owns deal_date,
+    owns deal_amount,
+    owns deal_currency,
+    owns deal_type,
+    owns facility_type,
+    owns created_at,
+    owns updated_at,
+    plays deal_has_provision:deal,
+    plays deal_has_document:deal,
+    plays comparison_includes_deal:deal;
+
+entity document,
+    owns document_url @key,
+    owns document_hash,
+    owns page_count,
+    owns created_at,
+    plays deal_has_document:document;
+
+entity provision @abstract,
+    owns provision_id @key,
+    owns section_reference,
+    owns source_page,
+    owns extracted_at,
+    plays deal_has_provision:provision,
+    plays provision_has_answer:provision,
+    plays concept_applicability:provision,
+    plays has_provenance:attributed_entity,
+    plays provision_cross_reference:source_provision,
+    plays provision_cross_reference:target_provision,
+    plays answer_has_qualification:qualified_answer,
+    plays answer_has_citation:cited_answer;
+
+entity mfn_provision sub provision,
+    owns yield_exclusion_pattern_detected;
+
+entity rp_provision sub provision,
+    owns jcrew_pattern_detected,
+    owns serta_pattern_detected,
+    owns collateral_leakage_pattern_detected,
+    plays provision_has_basket:provision,
+    plays provision_has_rdp_basket:provision,
+    plays provision_has_blocker:provision,
+    plays provision_has_unsub:provision,
+    plays provision_has_sweep_tier:provision,
+    plays provision_has_de_minimis:provision,
+    plays provision_has_reallocation:provision,
+    plays provision_has_pathway:provision;
+
+
+################################################################################
+# §3  EXTRACTED ENTITIES
+#
+#   Created by answer_type = "entity" questions.
+#   The pipeline introspects each entity's owned attributes at runtime:
+#
+#     match entity $et type <name>; $et owns $attr; select $attr;
+#
+#   to auto-generate Claude's JSON response schema.
+#
+#   Adding `owns new_attribute` here is the ONLY change needed to
+#   capture a new field. Prompt, storage, and API adapt automatically.
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BASKETS
+#
+#   Abstract parent with shared provenance. Each subtype is a distinct basket
+#   that lawyers analyze as a self-contained provision unit.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity rp_basket @abstract,
+    owns basket_id @key,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    owns default_condition,
+    plays provision_has_basket:basket,
+    plays basket_reallocates_to:source_basket,
+    plays basket_reallocates_to:target_basket;
+
+entity builder_basket sub rp_basket,
+    owns start_date_language,
+    owns uses_greatest_of_tests,
+    plays basket_has_source:basket;
+
+entity ratio_basket sub rp_basket,
+    owns ratio_threshold,
+    owns ratio_type,
+    owns is_unlimited_if_met,
+    owns has_no_worse_test,
+    owns no_worse_threshold,
+    owns test_date_type,
+    owns lct_treatment_available,
+    owns pro_forma_basis;
+
+entity general_rp_basket sub rp_basket,
+    owns basket_amount_usd,
+    owns basket_grower_pct,
+    owns is_per_annum;
+
+entity management_equity_basket sub rp_basket,
+    owns annual_cap_usd,
+    owns annual_cap_pct_ebitda,
+    owns cap_uses_greater_of,
+    owns carryforward_permitted,
+    owns carryforward_max_years,
+    owns eligible_person_scope;
+
+entity tax_distribution_basket sub rp_basket,
+    owns standalone_taxpayer_limit,
+    owns hypothetical_tax_rate,
+    owns tax_sharing_permitted,
+    owns estimated_taxes_permitted;
+
+entity holdco_overhead_basket sub rp_basket,
+    owns annual_cap_usd,
+    owns covers_management_fees,
+    owns covers_admin_expenses,
+    owns covers_franchise_taxes,
+    owns management_fee_recipient_scope,
+    owns requires_arms_length,
+    owns requires_board_approval;
+
+entity equity_award_basket sub rp_basket,
+    owns annual_cap_usd,
+    owns covers_cashless_exercise,
+    owns covers_tax_withholding,
+    owns carryforward_permitted;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER BASKET SOURCES (polymorphic)
+#
+#   Each subtype represents a distinct source feeding the builder basket.
+#   Claude uses a source_type discriminator in its JSON to select subtype.
+#   The pipeline introspects each subtype's attributes independently.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute source_name, value string;
+
+entity builder_basket_source @abstract,
+    owns source_id @key,
+    owns source_name,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    owns not_otherwise_applied,
+    plays basket_has_source:source;
+
+entity starter_amount_source sub builder_basket_source,
+    owns dollar_amount,
+    owns ebitda_percentage,
+    owns uses_greater_of;
+
+entity cni_source sub builder_basket_source,
+    owns percentage,
+    owns is_primary_test;
+
+entity ecf_source sub builder_basket_source,
+    owns retained_ecf_formula,
+    owns lookback_period,
+    owns lookback_quarters;
+
+entity ebitda_fc_source sub builder_basket_source,
+    owns fc_multiplier;
+
+entity equity_proceeds_source sub builder_basket_source,
+    owns percentage,
+    owns excludes_cure_contributions,
+    owns excludes_disqualified_stock;
+
+entity investment_returns_source sub builder_basket_source;
+
+entity asset_proceeds_source sub builder_basket_source,
+    owns percentage;
+
+entity debt_conversion_source sub builder_basket_source;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP TIERS
+#
+#   Variable-length: real credit agreements have 2-4 tiers.
+#   Flat schemas can only represent a fixed number. Entities don't.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity sweep_tier,
+    owns tier_id @key,
+    owns leverage_threshold,
+    owns sweep_percentage,
+    owns is_highest_tier,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_sweep_tier:tier;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# J.CREW BLOCKER
+#
+#   The blocker is an entity with scope attributes.
+#   Exceptions are polymorphic subtypes — where loopholes hide.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity jcrew_blocker,
+    owns blocker_id @key,
+    owns covers_transfer,
+    owns covers_designation,
+    owns covers_ip,
+    owns covers_material_assets,
+    owns covers_exclusive_licensing,
+    owns covers_nonexclusive_licensing,
+    owns covers_pledge,
+    owns covers_abandonment,
+    owns binds_loan_parties,
+    owns binds_restricted_subs,
+    owns is_sacred_right,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_blocker:blocker,
+    plays blocker_has_exception:blocker,
+    plays blocker_covers_ip_type:blocker;
+
+attribute exception_name, value string;
+
+entity blocker_exception @abstract,
+    owns exception_id @key,
+    owns exception_name,
+    owns scope_limitation,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays blocker_has_exception:exception;
+
+entity nonexclusive_license_exception sub blocker_exception;
+entity intercompany_exception sub blocker_exception;
+entity immaterial_ip_exception sub blocker_exception;
+entity fair_value_exception sub blocker_exception;
+entity ordinary_course_exception sub blocker_exception;
+entity license_back_exception sub blocker_exception;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UNRESTRICTED SUBSIDIARY DESIGNATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity unsub_designation,
+    owns designation_id @key,
+    owns requires_no_default,
+    owns requires_board_approval,
+    owns dollar_cap_usd,
+    owns pct_cap_assets,
+    owns redesignation_permitted,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_unsub:designation;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DE MINIMIS THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity de_minimis_threshold,
+    owns threshold_id @key,
+    owns threshold_type,
+    owns threshold_amount_usd,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_de_minimis:threshold;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BASKET REALLOCATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity basket_reallocation,
+    owns reallocation_id @key,
+    owns reallocation_source,
+    owns reallocation_amount_usd,
+    owns is_bidirectional,
+    owns reduces_source_basket,
+    owns reduction_is_dollar_for_dollar,
+    owns reduction_while_outstanding_only,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_reallocation:reallocation;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INVESTMENT PATHWAYS (J.Crew chain analysis)
+#
+#   Models how value moves between entity types in the corporate structure.
+#   The J.Crew "chain" is LP → Non-Guarantor RS → Unsub.
+#   Each link is a pathway with its own cap and conditions.
+#   Graph traversal detects open chains that flat booleans cannot:
+#
+#     match
+#       $prov isa rp_provision;
+#       ($prov, $p1) isa provision_has_pathway;
+#       $p1 has pathway_source_type "loan_party",
+#          has pathway_target_type "non_guarantor_rs";
+#       ($prov, $p2) isa provision_has_pathway;
+#       $p2 has pathway_source_type "non_guarantor_rs",
+#          has pathway_target_type "unrestricted_sub",
+#          has is_uncapped true;
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity investment_pathway,
+    owns pathway_id @key,
+    owns pathway_source_type,
+    owns pathway_target_type,
+    owns cap_dollar_usd,
+    owns cap_pct_total_assets,
+    owns cap_uses_greater_of,
+    owns is_uncapped,
+    owns can_stack_with_other_baskets,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_pathway:pathway;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RDP BASKETS (Section 6.09 — Restricted Debt Payments)
+#
+#   Parallel to RP baskets but for prepayment/redemption of junior debt.
+#   Previously modeled as flat multiselect (rdp_basket_type concept) —
+#   that captured WHICH baskets exist but not their CONDITIONS.
+#
+#   Entity treatment captures the structural detail lawyers actually need:
+#   refinancing requires same/lower priority? Same/later maturity?
+#   Ratio basket tested pro forma? Uses closing ratio alternative?
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity rdp_basket @abstract,
+    owns basket_id @key,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    owns default_condition,
+    plays provision_has_rdp_basket:rdp_basket;
+
+# T2/T3: Refinancing — prepay junior debt with new debt at same/lower priority
+entity refinancing_rdp_basket sub rdp_basket,
+    owns requires_same_or_lower_priority,
+    owns requires_same_or_later_maturity,
+    owns requires_no_increase_in_principal,
+    owns permits_refinancing_with_equity,
+    owns requires_qualified_stock_only,
+    owns not_otherwise_applied,
+    owns subject_to_intercreditor;
+
+# T9: Fixed dollar basket — general RDP capacity
+entity general_rdp_basket sub rdp_basket,
+    owns basket_amount_usd,
+    owns basket_grower_pct;
+
+# T12: Ratio-based unlimited — leverage test unlocks unlimited RDP
+entity ratio_rdp_basket sub rdp_basket,
+    owns ratio_threshold,
+    owns ratio_type,
+    owns is_unlimited_if_met,
+    owns test_date_type,
+    owns pro_forma_basis,
+    owns uses_closing_ratio_alternative;
+
+# T1: Builder/Cumulative Amount for RDP — shares capacity with RP builder?
+entity builder_rdp_basket sub rdp_basket,
+    owns shares_with_rp_builder,
+    owns subject_to_intercreditor;
+
+# T6: Equity contribution funded — RDP funded by fresh equity
+entity equity_funded_rdp_basket sub rdp_basket,
+    owns requires_qualified_stock_only,
+    owns requires_cash_common_equity,
+    owns not_otherwise_applied;
+
+
+################################################################################
+# §4  CONCEPT TYPE HIERARCHY (for multiselect questions)
+#
+#   Each subtype of concept represents a closed set of options.
+#   Seed data (concept instances) loaded from ontology data files.
+#   Claude selects from the closed set during extraction.
+#
+#   REMOVED (superseded by entities):
+#     builder_source      → builder_basket_source entity subtypes (§3)
+#     reallocatable_basket → basket_reallocation entity (§3)
+#     rdp_basket_type      → rdp_basket entity subtypes (§3)
+################################################################################
+
+entity concept @abstract,
+    owns concept_id @key,
+    owns name,
+    owns description,
+    owns display_order,
+    plays concept_applicability:concept,
+    plays concept_hierarchy:parent,
+    plays concept_hierarchy:child;
+
+# ── MFN concept types ────────────────────────────────────────────────────────
+
+entity facility_prong sub concept;
+entity yield_component sub concept;
+entity fee_exclusion sub concept;
+entity lien_priority sub concept;
+entity governance_concept sub concept;
+entity sunset_type sub concept;
+entity covered_person sub concept;
+entity repurchase_trigger sub concept;
+entity loophole_type sub concept;
+entity protection_type sub concept;
+
+# ── RP concept types ─────────────────────────────────────────────────────────
+
+entity dividend_definition_element sub concept;
+entity ip_type sub concept,
+    plays blocker_covers_ip_type:ip_type;
+entity transfer_type sub concept;
+entity blocker_binding_entity sub concept;
+entity blocker_timing sub concept;
+entity investment_basket sub concept;
+entity default_type sub concept;
+entity reallocation_target sub concept;
+
+# ── RP expanded concept types ────────────────────────────────────────────────
+
+entity builder_reduction_type sub concept;
+entity intercompany_recipient_type sub concept;
+entity tax_group_type sub concept;
+entity overhead_cost_type sub concept;
+entity transaction_cost_type sub concept;
+entity equity_award_type sub concept;
+entity rdp_payment_type sub concept;
+entity reallocation_reduction_type sub concept;
+entity exempt_sale_type sub concept;
+entity unsub_distribution_condition sub concept;
+entity ratio_required_basket sub concept;
+entity no_default_basket sub concept;
+
+
+################################################################################
+# §5  ONTOLOGY SYSTEM
+################################################################################
+
+entity ontology_category,
+    owns category_id @key,
+    owns name,
+    owns description,
+    owns display_order,
+    plays category_has_question:category,
+    plays category_hierarchy:parent_category,
+    plays category_hierarchy:child_category;
+
+entity ontology_question,
+    owns question_id @key,
+    owns question_number,
+    owns question_text,
+    owns description,
+    owns answer_type,
+    owns ui_display_type,
+    owns is_required,
+    owns default_value,
+    owns display_order,
+    owns covenant_type,
+    owns extraction_prompt,
+    plays category_has_question:question,
+    plays question_targets_field:question,
+    plays question_targets_concept:question,
+    plays question_targets_entity:question,
+    plays provision_has_answer:question;
+
+entity attribute_provenance,
+    owns attributed_field_name,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence,
+    owns extracted_at,
+    plays has_provenance:provenance;
+
+entity comparison_set,
+    owns name,
+    owns description,
+    owns created_at,
+    plays comparison_includes_deal:comparison;
+
+entity benchmark,
+    owns question_id,
+    owns benchmark_value_double,
+    owns benchmark_value_boolean_pct,
+    owns sample_size,
+    owns as_of_date;
+
+
+################################################################################
+# §6  QUALIFICATION & CITATION
+################################################################################
+
+entity qualification,
+    owns qualification_id @key,
+    owns qualification_type,
+    owns description,
+    owns source_text,
+    owns source_page,
+    plays answer_has_qualification:qualification;
+
+entity source_citation,
+    owns citation_id @key,
+    owns source_text,
+    owns source_page,
+    owns citation_context,
+    plays answer_has_citation:citation;
+
+
+################################################################################
+# §7  RELATIONS
+################################################################################
+
+# ─── Core ─────────────────────────────────────────────────────────────────────
+
+relation deal_has_document,
+    relates deal,
+    relates document;
+
+relation deal_has_provision,
+    relates deal,
+    relates provision;
+
+relation comparison_includes_deal,
+    relates comparison,
+    relates deal;
+
+# ─── Concept system ──────────────────────────────────────────────────────────
+
+relation concept_hierarchy,
+    relates parent,
+    relates child;
+
+relation category_hierarchy,
+    relates parent_category,
+    relates child_category;
+
+relation concept_applicability,
+    relates provision,
+    relates concept,
+    owns applicability_status,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence;
+
+# ─── Ontology question targeting ──────────────────────────────────────────────
+#
+#   Three channels — one per answer_type family:
+#
+#   Channel 1 (SCALAR):
+#     question_targets_field → provision_has_answer relation
+#     target_field_name identifies the answer for API consumers.
+#     The typed value lives on provision_has_answer (answer_boolean, etc.).
+#
+#   Channel 2 (MULTISELECT):
+#     question_targets_concept → concept_applicability relation
+#     Claude selects from closed set of seed concept instances.
+#
+#   Channel 3 (ENTITY):
+#     question_targets_entity → typed entity instances + relation
+#     Pipeline introspects entity's owns → builds prompt fields →
+#     Claude returns JSON array → pipeline creates entities + relations.
+
+relation category_has_question,
+    relates category,
+    relates question;
+
+relation question_targets_field,
+    relates question,
+    owns target_field_name,
+    owns target_entity_type;
+
+relation question_targets_concept,
+    relates question,
+    owns target_concept_type;
+
+relation question_targets_entity,
+    relates question,
+    owns target_entity_type,
+    owns target_relation_type;
+
+# ─── Answer storage ──────────────────────────────────────────────────────────
+#
+#   THE canonical store for all scalar extracted values.
+#   One relation instance per (provision, question) pair.
+#   answer_* attributes carry the typed value.
+
+relation provision_has_answer,
+    relates provision,
+    relates question,
+    owns answer_id @key,
+    owns answer_boolean,
+    owns answer_integer,
+    owns answer_double,
+    owns answer_string,
+    owns answer_date,
+    owns source_text,
+    owns source_page,
+    owns source_section,
+    owns confidence,
+    owns extracted_at;
+
+# ─── Provenance ──────────────────────────────────────────────────────────────
+
+relation has_provenance,
+    relates attributed_entity,
+    relates provenance;
+
+# ─── Qualification & Citation ─────────────────────────────────────────────────
+
+relation answer_has_qualification,
+    relates qualified_answer,
+    relates qualification;
+
+relation answer_has_citation,
+    relates cited_answer,
+    relates citation;
+
+relation provision_cross_reference,
+    relates source_provision,
+    relates target_provision,
+    owns cross_reference_type,
+    owns cross_reference_explanation,
+    owns source_text,
+    owns source_page;
+
+# ─── Entity relations ────────────────────────────────────────────────────────
+#
+#   Created by Channel 3 (answer_type = "entity") questions.
+#   question_targets_entity.target_relation_type maps to these:
+#
+#     "provision_has_basket"        → provision_has_basket
+#     "basket_has_source"           → basket_has_source
+#     "provision_has_rdp_basket"    → provision_has_rdp_basket
+#     "provision_has_blocker"       → provision_has_blocker
+#     "blocker_has_exception"       → blocker_has_exception
+#     "provision_has_unsub"         → provision_has_unsub
+#     "provision_has_sweep_tier"    → provision_has_sweep_tier
+#     "provision_has_de_minimis"    → provision_has_de_minimis
+#     "provision_has_reallocation"  → provision_has_reallocation
+#     "provision_has_pathway"       → provision_has_pathway
+
+relation provision_has_basket,
+    relates provision,
+    relates basket;
+
+relation basket_has_source,
+    relates basket,
+    relates source;
+
+relation provision_has_rdp_basket,
+    relates provision,
+    relates rdp_basket;
+
+relation provision_has_blocker,
+    relates provision,
+    relates blocker;
+
+relation blocker_has_exception,
+    relates blocker,
+    relates exception;
+
+relation blocker_covers_ip_type,
+    relates blocker,
+    relates ip_type,
+    owns coverage_scope;
+
+relation provision_has_unsub,
+    relates provision,
+    relates designation;
+
+relation provision_has_sweep_tier,
+    relates provision,
+    relates tier;
+
+relation provision_has_de_minimis,
+    relates provision,
+    relates threshold;
+
+relation provision_has_reallocation,
+    relates provision,
+    relates reallocation;
+
+relation provision_has_pathway,
+    relates provision,
+    relates pathway;
+
+relation basket_reallocates_to,
+    relates source_basket,
+    relates target_basket,
+    owns reallocation_amount_usd;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXTRACTION METADATA (SSoT for Claude prompts)
+#
+#   Each instance describes one extraction task: what entity to extract,
+#   which prompt to use, section hints, and priority ordering.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute metadata_id, value string;
+attribute extraction_section_hint, value string;
+attribute extraction_priority, value integer;
+attribute target_attribute, value string;
+attribute requires_context, value boolean;
+attribute context_entities, value string;
+
+entity extraction_metadata,
+    owns metadata_id @key,
+    owns target_entity_type,
+    owns target_attribute,
+    owns extraction_prompt,
+    owns extraction_section_hint,
+    owns extraction_priority,
+    owns requires_context,
+    owns context_entities;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESTRICTED PARTY TYPES (bound by J.Crew blocker)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute party_id, value string;
+attribute party_name, value string;
+
+entity restricted_party @abstract,
+    owns party_id @key,
+    owns party_name;
+
+entity borrower_party sub restricted_party;
+entity guarantor_party sub restricted_party;
+entity restricted_sub_party sub restricted_party;
+entity loan_party sub restricted_party;
+entity holdings_party sub restricted_party;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP EXEMPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute exemption_id, value string;
+attribute exemption_name, value string;
+
+entity sweep_exemption @abstract,
+    owns exemption_id @key,
+    owns exemption_name;
+
+entity non_collateral_exemption sub sweep_exemption;
+entity ordinary_course_sale_exemption sub sweep_exemption;
+entity casualty_exemption sub sweep_exemption;
+entity below_threshold_exemption sub sweep_exemption;
+entity ratio_basket_exemption sub sweep_exemption;
