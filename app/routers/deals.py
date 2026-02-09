@@ -101,6 +101,240 @@ async def list_deals() -> List[Dict[str, Any]]:
         return []
 
 
+@router.post("/upload", response_model=UploadResponse)
+async def upload_deal(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    deal_name: str = Form(...),
+    borrower: str = Form(...)
+) -> UploadResponse:
+    """
+    Upload a credit agreement PDF and trigger extraction.
+
+    Returns immediately with deal_id; extraction runs in background.
+    Use GET /api/deals/{deal_id}/status to check extraction progress.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Validate file type
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+
+    # Generate deal ID
+    deal_id = str(uuid.uuid4())[:8]
+    pdf_filename = f"{deal_id}.pdf"
+    pdf_path = os.path.join(UPLOADS_DIR, pdf_filename)
+
+    try:
+        # Save PDF to disk
+        contents = await file.read()
+        with open(pdf_path, "wb") as f:
+            f.write(contents)
+
+        logger.info(f"Saved PDF: {pdf_path} ({len(contents)} bytes)")
+
+        # Create deal in TypeDB (using same pattern as create_deal endpoint)
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
+        try:
+            # Escape quotes in strings
+            safe_name = deal_name.replace('"', '\\"')
+            safe_borrower = borrower.replace('"', '\\"')
+
+            query = f"""
+                insert
+                    $d isa deal,
+                    has deal_id "{deal_id}",
+                    has deal_name "{safe_name}",
+                    has borrower_name "{safe_borrower}";
+            """
+            tx.query(query).resolve()
+            tx.commit()
+        except Exception as e:
+            tx.close()
+            raise e
+
+        logger.info(f"Created deal in TypeDB: {deal_id}")
+
+        # Initialize extraction status
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="pending",
+            progress=0,
+            current_step="Queued for extraction"
+        )
+
+        # Kick off background extraction
+        background_tasks.add_task(run_extraction, deal_id, pdf_path)
+
+        return UploadResponse(
+            deal_id=deal_id,
+            deal_name=deal_name,
+            status="processing",
+            message="PDF uploaded. Extraction started in background."
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload failed: {e}")
+        # Clean up on failure
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-v4-extraction")
+async def test_v4_extraction(store: bool = False, deal_id: str = "test_v4") -> Dict[str, Any]:
+    """
+    Test V4 extraction pipeline with sample RP covenant text.
+
+    Skips PDF parsing and RP Universe extraction.
+    Tests: metadata loading, prompt building, Claude call, Pydantic parsing.
+
+    Args:
+        store: If True, store to TypeDB and verify graph structure
+        deal_id: Deal ID to use for storage (default: test_v4)
+    """
+    import time
+    start = time.time()
+
+    # Sample Duck Creek RP covenant (representative excerpt)
+    sample_rp_text = '''
+=== DEFINITIONS ===
+
+"Available Amount" means, at any date of determination, an amount equal to (without duplication):
+(a) the greater of (x) $130,000,000 and (y) 100% of EBITDA for the Test Period then most recently ended; plus
+(b) 50% of Consolidated Net Income for the period from the first day of the fiscal quarter in which the Closing Date occurs to the end of the most recently ended fiscal quarter (or 100% of any deficit); plus
+(c) the Retained ECF Amount for the most recently ended fiscal year; plus
+(d) the greater of (x) EBITDA minus 1.40 times Fixed Charges for the most recently ended Test Period; plus
+(e) 100% of the Net Cash Proceeds from any Equity Issuance after the Closing Date; plus
+(f) returns on Investments made using the Available Amount.
+
+"Consolidated Net Income" means, for any period, the net income (or loss) of Holdings and its Restricted Subsidiaries...
+
+"First Lien Leverage Ratio" means, as of any date, the ratio of (a) Consolidated First Lien Debt as of such date to (b) EBITDA for the Test Period most recently ended.
+
+=== DIVIDEND/RESTRICTED PAYMENT COVENANT ===
+
+Section 6.06 Restricted Payments.
+
+(a) The Borrower will not, and will not permit any Restricted Subsidiary to, declare or make any Restricted Payment except:
+
+(f) [Builder Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the Available Amount at the time of such payment, so long as (i) no Default exists or would result therefrom and (ii) after giving pro forma effect thereto, the Total Leverage Ratio would not exceed 6.50 to 1.00;
+
+(j) [General RP Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the greater of (x) $130,000,000 and (y) 100% of EBITDA;
+
+(n) [Ratio Basket] the Borrower may make Restricted Payments without limit if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not exceed 5.75 to 1.00;
+
+(o) [No Worse Test] the Borrower may make Restricted Payments if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not be greater than the First Lien Leverage Ratio immediately prior to giving effect to such Restricted Payment (the "No Worse Test");
+
+(p) [Management Equity] the Borrower may repurchase Equity Interests held by directors, officers, employees or consultants in an aggregate amount not to exceed $25,000,000 in any fiscal year, with unused amounts carrying forward to the next fiscal year;
+
+(q) [Tax Distributions] the Borrower may make distributions to Holdings to pay taxes attributable to the income of Holdings and its Subsidiaries;
+
+(k) [J.Crew Blocker] No Loan Party shall transfer any Material Intellectual Property to any Unrestricted Subsidiary or designate any Subsidiary holding Material Intellectual Property as an Unrestricted Subsidiary, except:
+(i) non-exclusive licenses granted in the ordinary course of business;
+(ii) transfers between Loan Parties;
+(iii) transfers for fair market value.
+
+"Material Intellectual Property" means patents, trademarks, copyrights and trade secrets that are material to the business.
+
+=== UNRESTRICTED SUBSIDIARY MECHANICS ===
+
+Section 5.15 Designation of Subsidiaries.
+
+The Borrower may designate any Subsidiary as an Unrestricted Subsidiary if:
+(a) no Default exists or would result therefrom;
+(b) the aggregate Fair Market Value of all Unrestricted Subsidiaries does not exceed the greater of $40,000,000 and 30% of EBITDA;
+(c) such designation is treated as an Investment.
+
+The Borrower may distribute the Equity Interests of any Unrestricted Subsidiary to its shareholders.
+
+=== SWEEP TIERS ===
+
+Mandatory Prepayment from Excess Cash Flow:
+- If First Lien Leverage Ratio > 5.75x: 50% of ECF
+- If First Lien Leverage Ratio > 5.50x but <= 5.75x: 25% of ECF
+- If First Lien Leverage Ratio <= 5.50x: 0% of ECF
+
+De Minimis: No prepayment required if ECF is less than the greater of $20,000,000 and 15% of EBITDA.
+Annual threshold: $40,000,000 with carryforward of unused amounts.
+'''
+
+    try:
+        from app.services.graph_storage import GraphStorage
+        from app.services.extraction import get_extraction_service
+
+        extraction_svc = get_extraction_service()
+
+        # Step 1: Load extraction metadata from TypeDB (SSoT)
+        logger.info("Test V4: Loading extraction metadata...")
+        metadata = GraphStorage.load_extraction_metadata()
+        logger.info(f"Test V4: Loaded {len(metadata)} extraction instructions")
+
+        # Step 2: Build Claude prompt
+        logger.info("Test V4: Building Claude prompt...")
+        prompt = GraphStorage.build_claude_prompt(metadata, sample_rp_text)
+        logger.info(f"Test V4: Prompt built ({len(prompt)} chars)")
+
+        # Step 3: Call Claude (use Sonnet for speed)
+        logger.info("Test V4: Calling Claude (claude-sonnet-4-20250514)...")
+        response_text = extraction_svc._call_claude_v4(prompt, model="claude-sonnet-4-20250514")
+        logger.info(f"Test V4: Response received ({len(response_text)} chars)")
+
+        # Step 4: Parse into Pydantic
+        logger.info("Test V4: Parsing response...")
+        extraction = GraphStorage.parse_claude_response(response_text)
+
+        # Create storage instance and summarize
+        storage = GraphStorage(deal_id)
+        summary = storage.summarize_extraction(extraction)
+        logger.info(f"Test V4: Parsed extraction - {summary}")
+
+        result = {
+            "status": "success",
+            "deal_id": deal_id,
+            "time_seconds": round(time.time() - start, 2),
+            "sample_text_chars": len(sample_rp_text),
+            "prompt_chars": len(prompt),
+            "response_chars": len(response_text),
+            "metadata_count": len(metadata),
+            "summary": summary,
+            "extraction": extraction.model_dump()
+        }
+
+        # Optionally store to TypeDB and verify
+        if store:
+            logger.info(f"Test V4: Storing to TypeDB for deal {deal_id}...")
+            try:
+                storage_result = storage.store_rp_extraction_v4(extraction)
+                result["storage"] = storage_result
+                logger.info(f"Test V4: Storage complete - {storage_result}")
+
+                # Query back to verify
+                provision_id = storage_result.get("provision_id")
+                if provision_id:
+                    verification = _verify_v4_storage(provision_id)
+                    result["verification"] = verification
+                    logger.info(f"Test V4: Verification - {verification}")
+
+            except Exception as e:
+                logger.exception(f"Test V4: Storage failed - {e}")
+                result["storage_error"] = str(e)
+
+        result["time_seconds"] = round(time.time() - start, 2)
+        return result
+
+    except Exception as e:
+        logger.exception(f"Test V4 extraction failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "time_seconds": round(time.time() - start, 2)
+        }
+
+
 @router.get("/{deal_id}")
 async def get_deal(deal_id: str) -> Dict[str, Any]:
     """Get a single deal."""
@@ -334,89 +568,6 @@ async def run_extraction(deal_id: str, pdf_path: str):
             current_step=None,
             error=str(e)
         )
-
-
-@router.post("/upload", response_model=UploadResponse)
-async def upload_deal(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    deal_name: str = Form(...),
-    borrower: str = Form(...)
-) -> UploadResponse:
-    """
-    Upload a credit agreement PDF and trigger extraction.
-
-    Returns immediately with deal_id; extraction runs in background.
-    Use GET /api/deals/{deal_id}/status to check extraction progress.
-    """
-    if not typedb_client.driver:
-        raise HTTPException(status_code=503, detail="Database not connected")
-
-    # Validate file type
-    if not file.filename or not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
-
-    # Generate deal ID
-    deal_id = str(uuid.uuid4())[:8]
-    pdf_filename = f"{deal_id}.pdf"
-    pdf_path = os.path.join(UPLOADS_DIR, pdf_filename)
-
-    try:
-        # Save PDF to disk
-        contents = await file.read()
-        with open(pdf_path, "wb") as f:
-            f.write(contents)
-
-        logger.info(f"Saved PDF: {pdf_path} ({len(contents)} bytes)")
-
-        # Create deal in TypeDB (using same pattern as create_deal endpoint)
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
-        try:
-            # Escape quotes in strings
-            safe_name = deal_name.replace('"', '\\"')
-            safe_borrower = borrower.replace('"', '\\"')
-
-            query = f"""
-                insert
-                    $d isa deal,
-                    has deal_id "{deal_id}",
-                    has deal_name "{safe_name}",
-                    has borrower_name "{safe_borrower}";
-            """
-            tx.query(query).resolve()
-            tx.commit()
-        except Exception as e:
-            tx.close()
-            raise e
-
-        logger.info(f"Created deal in TypeDB: {deal_id}")
-
-        # Initialize extraction status
-        extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="pending",
-            progress=0,
-            current_step="Queued for extraction"
-        )
-
-        # Kick off background extraction
-        background_tasks.add_task(run_extraction, deal_id, pdf_path)
-
-        return UploadResponse(
-            deal_id=deal_id,
-            deal_name=deal_name,
-            status="processing",
-            message="PDF uploaded. Extraction started in background."
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        # Clean up on failure
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{deal_id}/upload-pdf")
@@ -1301,157 +1452,6 @@ async def run_extraction_v4(deal_id: str, pdf_path: str):
             current_step=None,
             error=str(e)
         )
-
-
-@router.post("/test-v4-extraction")
-async def test_v4_extraction(store: bool = False, deal_id: str = "test_v4") -> Dict[str, Any]:
-    """
-    Test V4 extraction pipeline with sample RP covenant text.
-
-    Skips PDF parsing and RP Universe extraction.
-    Tests: metadata loading, prompt building, Claude call, Pydantic parsing.
-
-    Args:
-        store: If True, store to TypeDB and verify graph structure
-        deal_id: Deal ID to use for storage (default: test_v4)
-    """
-    import time
-    start = time.time()
-
-    # Sample Duck Creek RP covenant (representative excerpt)
-    sample_rp_text = '''
-=== DEFINITIONS ===
-
-"Available Amount" means, at any date of determination, an amount equal to (without duplication):
-(a) the greater of (x) $130,000,000 and (y) 100% of EBITDA for the Test Period then most recently ended; plus
-(b) 50% of Consolidated Net Income for the period from the first day of the fiscal quarter in which the Closing Date occurs to the end of the most recently ended fiscal quarter (or 100% of any deficit); plus
-(c) the Retained ECF Amount for the most recently ended fiscal year; plus
-(d) the greater of (x) EBITDA minus 1.40 times Fixed Charges for the most recently ended Test Period; plus
-(e) 100% of the Net Cash Proceeds from any Equity Issuance after the Closing Date; plus
-(f) returns on Investments made using the Available Amount.
-
-"Consolidated Net Income" means, for any period, the net income (or loss) of Holdings and its Restricted Subsidiaries...
-
-"First Lien Leverage Ratio" means, as of any date, the ratio of (a) Consolidated First Lien Debt as of such date to (b) EBITDA for the Test Period most recently ended.
-
-=== DIVIDEND/RESTRICTED PAYMENT COVENANT ===
-
-Section 6.06 Restricted Payments.
-
-(a) The Borrower will not, and will not permit any Restricted Subsidiary to, declare or make any Restricted Payment except:
-
-(f) [Builder Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the Available Amount at the time of such payment, so long as (i) no Default exists or would result therefrom and (ii) after giving pro forma effect thereto, the Total Leverage Ratio would not exceed 6.50 to 1.00;
-
-(j) [General RP Basket] the Borrower may make Restricted Payments in an aggregate amount not to exceed the greater of (x) $130,000,000 and (y) 100% of EBITDA;
-
-(n) [Ratio Basket] the Borrower may make Restricted Payments without limit if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not exceed 5.75 to 1.00;
-
-(o) [No Worse Test] the Borrower may make Restricted Payments if, after giving pro forma effect thereto, the First Lien Leverage Ratio would not be greater than the First Lien Leverage Ratio immediately prior to giving effect to such Restricted Payment (the "No Worse Test");
-
-(p) [Management Equity] the Borrower may repurchase Equity Interests held by directors, officers, employees or consultants in an aggregate amount not to exceed $25,000,000 in any fiscal year, with unused amounts carrying forward to the next fiscal year;
-
-(q) [Tax Distributions] the Borrower may make distributions to Holdings to pay taxes attributable to the income of Holdings and its Subsidiaries;
-
-(k) [J.Crew Blocker] No Loan Party shall transfer any Material Intellectual Property to any Unrestricted Subsidiary or designate any Subsidiary holding Material Intellectual Property as an Unrestricted Subsidiary, except:
-(i) non-exclusive licenses granted in the ordinary course of business;
-(ii) transfers between Loan Parties;
-(iii) transfers for fair market value.
-
-"Material Intellectual Property" means patents, trademarks, copyrights and trade secrets that are material to the business.
-
-=== UNRESTRICTED SUBSIDIARY MECHANICS ===
-
-Section 5.15 Designation of Subsidiaries.
-
-The Borrower may designate any Subsidiary as an Unrestricted Subsidiary if:
-(a) no Default exists or would result therefrom;
-(b) the aggregate Fair Market Value of all Unrestricted Subsidiaries does not exceed the greater of $40,000,000 and 30% of EBITDA;
-(c) such designation is treated as an Investment.
-
-The Borrower may distribute the Equity Interests of any Unrestricted Subsidiary to its shareholders.
-
-=== SWEEP TIERS ===
-
-Mandatory Prepayment from Excess Cash Flow:
-- If First Lien Leverage Ratio > 5.75x: 50% of ECF
-- If First Lien Leverage Ratio > 5.50x but <= 5.75x: 25% of ECF
-- If First Lien Leverage Ratio <= 5.50x: 0% of ECF
-
-De Minimis: No prepayment required if ECF is less than the greater of $20,000,000 and 15% of EBITDA.
-Annual threshold: $40,000,000 with carryforward of unused amounts.
-'''
-
-    try:
-        from app.services.graph_storage import GraphStorage
-        from app.services.extraction import get_extraction_service
-
-        extraction_svc = get_extraction_service()
-
-        # Step 1: Load extraction metadata from TypeDB (SSoT)
-        logger.info("Test V4: Loading extraction metadata...")
-        metadata = GraphStorage.load_extraction_metadata()
-        logger.info(f"Test V4: Loaded {len(metadata)} extraction instructions")
-
-        # Step 2: Build Claude prompt
-        logger.info("Test V4: Building Claude prompt...")
-        prompt = GraphStorage.build_claude_prompt(metadata, sample_rp_text)
-        logger.info(f"Test V4: Prompt built ({len(prompt)} chars)")
-
-        # Step 3: Call Claude (use Sonnet for speed)
-        logger.info("Test V4: Calling Claude (claude-sonnet-4-20250514)...")
-        response_text = extraction_svc._call_claude_v4(prompt, model="claude-sonnet-4-20250514")
-        logger.info(f"Test V4: Response received ({len(response_text)} chars)")
-
-        # Step 4: Parse into Pydantic
-        logger.info("Test V4: Parsing response...")
-        extraction = GraphStorage.parse_claude_response(response_text)
-
-        # Create storage instance and summarize
-        storage = GraphStorage(deal_id)
-        summary = storage.summarize_extraction(extraction)
-        logger.info(f"Test V4: Parsed extraction - {summary}")
-
-        result = {
-            "status": "success",
-            "deal_id": deal_id,
-            "time_seconds": round(time.time() - start, 2),
-            "sample_text_chars": len(sample_rp_text),
-            "prompt_chars": len(prompt),
-            "response_chars": len(response_text),
-            "metadata_count": len(metadata),
-            "summary": summary,
-            "extraction": extraction.model_dump()
-        }
-
-        # Optionally store to TypeDB and verify
-        if store:
-            logger.info(f"Test V4: Storing to TypeDB for deal {deal_id}...")
-            try:
-                storage_result = storage.store_rp_extraction_v4(extraction)
-                result["storage"] = storage_result
-                logger.info(f"Test V4: Storage complete - {storage_result}")
-
-                # Query back to verify
-                provision_id = storage_result.get("provision_id")
-                if provision_id:
-                    verification = _verify_v4_storage(provision_id)
-                    result["verification"] = verification
-                    logger.info(f"Test V4: Verification - {verification}")
-
-            except Exception as e:
-                logger.exception(f"Test V4: Storage failed - {e}")
-                result["storage_error"] = str(e)
-
-        result["time_seconds"] = round(time.time() - start, 2)
-        return result
-
-    except Exception as e:
-        logger.exception(f"Test V4 extraction failed: {e}")
-        return {
-            "status": "error",
-            "error": str(e),
-            "time_seconds": round(time.time() - start, 2)
-        }
 
 
 def _verify_v4_storage(provision_id: str) -> Dict[str, Any]:
