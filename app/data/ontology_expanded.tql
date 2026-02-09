@@ -28,9 +28,8 @@ insert $cat_n isa ontology_category,
 # TARGET CONCEPT TYPES (for multiselect mapping)
 # ═══════════════════════════════════════════════════════════════════════════
 
-insert $tct_es isa target_concept_type, has target_concept_type "exempt_sale_type";
-insert $tct_rr isa target_concept_type, has target_concept_type "ratio_required_basket";
-insert $tct_nd isa target_concept_type, has target_concept_type "no_default_basket";
+# target_concept_type is a string attribute (not an entity) on question_targets_concept relation.
+# Concept type names are stored as attribute values, not entity instances.
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET - ENHANCED (Category F, Questions F9-F17)
@@ -506,17 +505,17 @@ insert (question: $q) isa question_targets_field, has target_field_name "all_bas
 # QUESTION → TARGET CONCEPT RELATIONS (multiselect questions)
 # ═══════════════════════════════════════════════════════════════════════════
 
-match $q isa ontology_question, has question_id "rp_f9"; $ct isa target_concept_type, has target_concept_type "builder_source";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
+match $q isa ontology_question, has question_id "rp_f9";
+insert (question: $q) isa question_targets_concept, has target_concept_type "builder_source";
 
-match $q isa ontology_question, has question_id "rp_i8"; $ct isa target_concept_type, has target_concept_type "reallocatable_basket";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
+match $q isa ontology_question, has question_id "rp_i8";
+insert (question: $q) isa question_targets_concept, has target_concept_type "reallocatable_basket";
 
-match $q isa ontology_question, has question_id "rp_l7"; $ct isa target_concept_type, has target_concept_type "exempt_sale_type";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
+match $q isa ontology_question, has question_id "rp_l7";
+insert (question: $q) isa question_targets_concept, has target_concept_type "exempt_sale_type";
 
-match $q isa ontology_question, has question_id "rp_n4"; $ct isa target_concept_type, has target_concept_type "ratio_required_basket";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
+match $q isa ontology_question, has question_id "rp_n4";
+insert (question: $q) isa question_targets_concept, has target_concept_type "ratio_required_basket";
 
-match $q isa ontology_question, has question_id "rp_n5"; $ct isa target_concept_type, has target_concept_type "no_default_basket";
-insert (question: $q, concept_type: $ct) isa question_targets_concept;
+match $q isa ontology_question, has question_id "rp_n5";
+insert (question: $q) isa question_targets_concept, has target_concept_type "no_default_basket";

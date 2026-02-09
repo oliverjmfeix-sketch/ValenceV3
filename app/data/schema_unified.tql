@@ -435,8 +435,11 @@ entity equity_award_basket sub rp_basket,
 #   The pipeline introspects each subtype's attributes independently.
 # ═══════════════════════════════════════════════════════════════════════════════
 
+attribute source_name, value string;
+
 entity builder_basket_source @abstract,
     owns source_id @key,
+    owns source_name,
     owns section_reference,
     owns source_page,
     owns source_text,
@@ -519,8 +522,11 @@ entity jcrew_blocker,
     plays blocker_has_exception:blocker,
     plays blocker_covers_ip_type:blocker;
 
+attribute exception_name, value string;
+
 entity blocker_exception @abstract,
     owns exception_id @key,
+    owns exception_name,
     owns scope_limitation,
     owns section_reference,
     owns source_page,
@@ -533,6 +539,7 @@ entity intercompany_exception sub blocker_exception;
 entity immaterial_ip_exception sub blocker_exception;
 entity fair_value_exception sub blocker_exception;
 entity ordinary_course_exception sub blocker_exception;
+entity license_back_exception sub blocker_exception;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # UNRESTRICTED SUBSIDIARY DESIGNATION
@@ -994,3 +1001,61 @@ relation basket_reallocates_to,
     relates source_basket,
     relates target_basket,
     owns reallocation_amount_usd;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EXTRACTION METADATA (SSoT for Claude prompts)
+#
+#   Each instance describes one extraction task: what entity to extract,
+#   which prompt to use, section hints, and priority ordering.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute metadata_id, value string;
+attribute extraction_section_hint, value string;
+attribute extraction_priority, value integer;
+attribute target_attribute, value string;
+attribute requires_context, value boolean;
+attribute context_entities, value string;
+
+entity extraction_metadata,
+    owns metadata_id @key,
+    owns target_entity_type,
+    owns target_attribute,
+    owns extraction_prompt,
+    owns extraction_section_hint,
+    owns extraction_priority,
+    owns requires_context,
+    owns context_entities;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESTRICTED PARTY TYPES (bound by J.Crew blocker)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute party_id, value string;
+attribute party_name, value string;
+
+entity restricted_party @abstract,
+    owns party_id @key,
+    owns party_name;
+
+entity borrower_party sub restricted_party;
+entity guarantor_party sub restricted_party;
+entity restricted_sub_party sub restricted_party;
+entity loan_party sub restricted_party;
+entity holdings_party sub restricted_party;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP EXEMPTION TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+attribute exemption_id, value string;
+attribute exemption_name, value string;
+
+entity sweep_exemption @abstract,
+    owns exemption_id @key,
+    owns exemption_name;
+
+entity non_collateral_exemption sub sweep_exemption;
+entity ordinary_course_sale_exemption sub sweep_exemption;
+entity casualty_exemption sub sweep_exemption;
+entity below_threshold_exemption sub sweep_exemption;
+entity ratio_basket_exemption sub sweep_exemption;

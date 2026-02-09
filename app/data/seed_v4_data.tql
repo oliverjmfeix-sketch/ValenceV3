@@ -8,12 +8,7 @@
 # IP TYPES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-insert $ip1 isa ip_type, has ip_type_id "patents", has name "Patents";
-insert $ip2 isa ip_type, has ip_type_id "trademarks", has name "Trademarks";
-insert $ip3 isa ip_type, has ip_type_id "copyrights", has name "Copyrights";
-insert $ip4 isa ip_type, has ip_type_id "trade_secrets", has name "Trade Secrets";
-insert $ip5 isa ip_type, has ip_type_id "licenses", has name "Licenses";
-insert $ip6 isa ip_type, has ip_type_id "domain_names", has name "Domain Names";
+# IP types already seeded in concepts.tql via concept_id — skip here
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RESTRICTED PARTY TYPES
@@ -29,14 +24,9 @@ insert $rp5 isa holdings_party, has party_id "holdings", has party_name "Holding
 # BUILDER SOURCE TYPES (for multiselect reference)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-insert $bs1 isa builder_source, has source_id "cni", has source_name "Consolidated Net Income";
-insert $bs2 isa builder_source, has source_id "ecf", has source_name "Excess Cash Flow";
-insert $bs3 isa builder_source, has source_id "ebitda_fc", has source_name "EBITDA minus Fixed Charges";
-insert $bs4 isa builder_source, has source_id "equity_proceeds", has source_name "Equity Proceeds";
-insert $bs5 isa builder_source, has source_id "asset_sale_proceeds", has source_name "Retained Asset Sale Proceeds";
-insert $bs6 isa builder_source, has source_id "investment_returns", has source_name "Returns on Investments";
-insert $bs7 isa builder_source, has source_id "declined_proceeds", has source_name "Declined Proceeds";
-insert $bs8 isa builder_source, has source_id "starter_amount", has source_name "Starter Amount";
+# Builder source types are defined as subtypes of builder_basket_source (abstract)
+# in schema_unified.tql: starter_amount_source, cni_source, ecf_source, etc.
+# No need for reference instances here — extraction creates typed subtypes directly.
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BLOCKER EXCEPTION TYPES
