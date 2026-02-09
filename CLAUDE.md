@@ -38,6 +38,7 @@ Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers v
 - Flat attribute lists duplicating schema definitions
 - Frontend category configs not sourced from TypeDB
 - Any Python dict mapping category IDs to display names
+- Duplicate TQL parsers (DELETED — was in main.py, init_schema.py is the sole parser)
 
 ## Schema: schema_unified.tql
 
@@ -113,8 +114,8 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | Extraction pipeline | `app/services/extraction.py` |
 | Deal API (read) | `app/routers/deals.py` |
 | TypeDB client | `app/services/typedb_client.py` |
-| App startup + schema load | `app/main.py` |
-| Schema init script | `app/scripts/init_schema.py` |
+| App startup (connection only) | `app/main.py` |
+| **DB seeding (SSoT)** | `app/scripts/init_schema.py` |
 | **Frontend types** | `src/types/mfn.generated.ts` |
 
 ### Data Files
@@ -128,6 +129,16 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | `app/data/rp_basket_metadata.tql` | Extraction metadata for new RP baskets |
 | `app/data/rdp_basket_metadata.tql` | Extraction metadata for RDP baskets |
 | `app/data/investment_pathway_metadata.tql` | Extraction metadata for investment pathways |
+
+## DB Seeding
+
+`app/scripts/init_schema.py` is the **single entry point** for all DB seeding.
+`main.py` does NOT load schema or seed data — it only verifies the connection and
+that the database exists.
+
+- **Fresh deploy:** run `python -m app.scripts.init_schema` first, then start server
+- **Server restart:** just starts, no re-seeding, fast startup
+- **Schema changes:** run init_schema.py again (drop/recreate)
 
 ## Extraction Pipeline
 
@@ -201,6 +212,12 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
   27 extraction metadata, 12 IP types, 5 party types)
 - Note: Only 91 of 471 total questions currently seeded in TQL files.
   Remaining questions need to be added to seed data.
+
+### Step 10: Remove Duplicate TQL Parser from main.py ✅
+- Deleted ~430 lines of TQL parsing/seeding from main.py startup
+- main.py now only verifies TypeDB connection + database existence
+- init_schema.py is the sole SSoT for TQL parsing and DB seeding
+- Fixes: 34 of 49 ontology_expanded inserts were silently failing on every startup
 
 ## Cost Awareness
 
