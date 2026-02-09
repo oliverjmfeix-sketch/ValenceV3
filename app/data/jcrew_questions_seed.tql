@@ -323,7 +323,7 @@ $jc_t2_01 isa ontology_question,
     has answer_type "string",
     has covenant_type "RP",
     has display_order 34,
-    has extraction_prompt "Find and extract the COMPLETE definition of 'Intellectual Property' from Section 1.01. If no standalone IP definition, check 'Material Intellectual Property'.";
+    has extraction_prompt "Extract the complete 'Intellectual Property' definition verbatim from Section 1.01. If the definition is a cross-reference (e.g., 'shall have the meaning assigned in the Security Agreement'), extract that cross-reference text verbatim — that IS the definition. If the exact term is not defined but 'Material Intellectual Property' is, extract that definition instead and note which term was found. Never return explanatory text — always return the actual contract language.";
 
 $jc_t2_02 isa ontology_question,
     has question_id "jc_t2_02",
@@ -469,7 +469,7 @@ $jc_t2_18 isa ontology_question,
     has answer_type "boolean",
     has covenant_type "RP",
     has display_order 51,
-    has extraction_prompt "Is 'Intellectual Property' separately defined in Section 1.01?";
+    has extraction_prompt "Is 'Intellectual Property' defined in Section 1.01? Answer true if it appears as a defined term, INCLUDING cross-reference definitions (e.g., 'shall have the meaning assigned in the Security Agreement'). A cross-reference IS a definition. Answer false only if the term does not appear at all in the defined terms section.";
 
 $jc_t2_19 isa ontology_question,
     has question_id "jc_t2_19",
