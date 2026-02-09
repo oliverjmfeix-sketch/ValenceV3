@@ -728,9 +728,9 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 answers_query = f"""
                     match
                         $p isa provision, has provision_id "{provision_id}";
-                        $answer (provision: $p, question: $q) isa provision_has_answer;
+                        $rel (provision: $p, question: $q) isa provision_has_answer;
                         $q has question_id $qid;
-                        $answer has $attr;
+                        $rel has $attr;
                     select $qid, $attr;
                 """
                 answers_result = tx.query(answers_query).resolve()
@@ -886,9 +886,9 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
             answers_query = f"""
                 match
                     $p isa provision, has provision_id "{provision_id}";
-                    $answer (provision: $p, question: $q) isa provision_has_answer;
+                    $rel (provision: $p, question: $q) isa provision_has_answer;
                     $q has question_id $qid;
-                    $answer has $attr;
+                    $rel has $attr;
                 select $qid, $attr;
             """
             answers_result = tx.query(answers_query).resolve()
