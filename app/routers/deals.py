@@ -45,6 +45,48 @@ def _safe_get_entity(row, key: str):
         return None
 
 
+def _query_relation_attr(tx, provision_id: str, attr_name: str) -> Dict[str, Any]:
+    """Query a single attribute from provision_has_answer using anonymous relation pattern.
+
+    TypeDB 3.x can't mix relation variable + attribute access (Object vs ThingType conflict).
+    Anonymous relation with inline `has` avoids the conflict.
+    """
+    query = f"""
+        match
+            $p isa provision, has provision_id "{provision_id}";
+            $q has question_id $qid;
+            (provision: $p, question: $q) isa provision_has_answer,
+                has {attr_name} $val;
+        select $qid, $val;
+    """
+    result = tx.query(query).resolve()
+    answers = {}
+    for row in result.as_concept_rows():
+        qid = _safe_get_value(row, "qid")
+        val = _safe_get_value(row, "val")
+        if qid is not None and val is not None:
+            answers[qid] = val
+    return answers
+
+
+def _load_provision_answers(tx, provision_id: str) -> Dict[str, Dict]:
+    """Load all scalar answers for a provision, returning {qid: {value, source_text, source_page, confidence}}."""
+    stored = {}
+
+    # Get values — each answer has exactly one type
+    for attr in ("answer_boolean", "answer_string", "answer_integer", "answer_double", "answer_date"):
+        for qid, val in _query_relation_attr(tx, provision_id, attr).items():
+            stored.setdefault(qid, {})["value"] = val
+
+    # Get provenance fields
+    for attr, key in [("source_text", "source_text"), ("source_page", "source_page"), ("confidence", "confidence")]:
+        for qid, val in _query_relation_attr(tx, provision_id, attr).items():
+            if qid in stored:
+                stored[qid][key] = val
+
+    return stored
+
+
 # Request/Response models for Q&A
 class AskRequest(BaseModel):
     question: str
@@ -723,43 +765,9 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                 })
 
             # 2. Load stored scalar values via provision_has_answer (SSoT)
-            stored_values = {}  # {question_id: {value, source_text, source_page, confidence}}
+            stored_values = {}
             if extraction_complete:
-                answers_query = f"""
-                    match
-                        $p isa provision, has provision_id "{provision_id}";
-                        $rel (provision: $p, question: $q) isa provision_has_answer;
-                        $q has question_id $qid;
-                        try {{ $rel has answer_boolean $vb; }};
-                        try {{ $rel has answer_string $vs; }};
-                        try {{ $rel has answer_integer $vi; }};
-                        try {{ $rel has answer_double $vd; }};
-                        try {{ $rel has answer_date $vdate; }};
-                        try {{ $rel has source_text $st; }};
-                        try {{ $rel has source_page $sp; }};
-                        try {{ $rel has confidence $conf; }};
-                    select $qid, $vb, $vs, $vi, $vd, $vdate, $st, $sp, $conf;
-                """
-                answers_result = tx.query(answers_query).resolve()
-                for row in answers_result.as_concept_rows():
-                    qid = _safe_get_value(row, "qid")
-                    if not qid:
-                        continue
-                    if qid not in stored_values:
-                        stored_values[qid] = {}
-                    for var in ("vb", "vs", "vi", "vd", "vdate"):
-                        val = _safe_get_value(row, var)
-                        if val is not None:
-                            stored_values[qid]["value"] = val
-                    st = _safe_get_value(row, "st")
-                    if st is not None:
-                        stored_values[qid]["source_text"] = st
-                    sp = _safe_get_value(row, "sp")
-                    if sp is not None:
-                        stored_values[qid]["source_page"] = sp
-                    conf = _safe_get_value(row, "conf")
-                    if conf is not None:
-                        stored_values[qid]["confidence"] = conf
+                stored_values = _load_provision_answers(tx, provision_id)
 
             # 3. Load concept applicabilities for multiselect questions
             multiselect_values = {}
@@ -887,59 +895,25 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                 raise HTTPException(status_code=404, detail="RP provision not found for this deal")
 
             # Get scalar answers via provision_has_answer (SSoT)
-            scalar_answers = {}  # {question_id: {value, source_text, source_page, confidence}}
-            answers_query = f"""
-                match
-                    $p isa provision, has provision_id "{provision_id}";
-                    $rel (provision: $p, question: $q) isa provision_has_answer;
-                    $q has question_id $qid;
-                    try {{ $rel has answer_boolean $vb; }};
-                    try {{ $rel has answer_string $vs; }};
-                    try {{ $rel has answer_integer $vi; }};
-                    try {{ $rel has answer_double $vd; }};
-                    try {{ $rel has answer_date $vdate; }};
-                    try {{ $rel has source_text $st; }};
-                    try {{ $rel has source_page $sp; }};
-                    try {{ $rel has confidence $conf; }};
-                select $qid, $vb, $vs, $vi, $vd, $vdate, $st, $sp, $conf;
-            """
-            answers_result = tx.query(answers_query).resolve()
-            for row in answers_result.as_concept_rows():
-                qid = _safe_get_value(row, "qid")
-                if not qid:
-                    continue
-                if qid not in scalar_answers:
-                    scalar_answers[qid] = {}
-                for var in ("vb", "vs", "vi", "vd", "vdate"):
-                    val = _safe_get_value(row, var)
-                    if val is not None:
-                        scalar_answers[qid]["value"] = val
-                st = _safe_get_value(row, "st")
-                if st is not None:
-                    scalar_answers[qid]["source_text"] = st
-                sp = _safe_get_value(row, "sp")
-                if sp is not None:
-                    scalar_answers[qid]["source_page"] = sp
-                conf = _safe_get_value(row, "conf")
-                if conf is not None:
-                    scalar_answers[qid]["confidence"] = conf
+            scalar_answers = _load_provision_answers(tx, provision_id)
 
             # Get pattern flags (still flat attributes on rp_provision)
             pattern_flags = {}
-            flags_query = f"""
-                match
-                    $p isa rp_provision, has provision_id "{provision_id}";
-                    try {{ $p has jcrew_pattern_detected $jpd; }};
-                    try {{ $p has serta_pattern_detected $spd; }};
-                    try {{ $p has collateral_leakage_pattern_detected $clpd; }};
-                select $jpd, $spd, $clpd;
-            """
-            flags_result = tx.query(flags_query).resolve()
-            for row in flags_result.as_concept_rows():
-                for var, flag_name in [("jpd", "jcrew_pattern_detected"), ("spd", "serta_pattern_detected"), ("clpd", "collateral_leakage_pattern_detected")]:
-                    val = _safe_get_value(row, var)
-                    if val is not None:
-                        pattern_flags[flag_name] = val
+            for flag_name in ("jcrew_pattern_detected", "serta_pattern_detected", "collateral_leakage_pattern_detected"):
+                try:
+                    flag_query = f"""
+                        match
+                            $p isa rp_provision, has provision_id "{provision_id}",
+                                has {flag_name} $val;
+                        select $val;
+                    """
+                    flag_result = tx.query(flag_query).resolve()
+                    for row in flag_result.as_concept_rows():
+                        val = _safe_get_value(row, "val")
+                        if val is not None:
+                            pattern_flags[flag_name] = val
+                except Exception:
+                    pass  # Flag not set on this provision
 
             # Get all concept applicabilities (multiselect answers)
             multiselect_answers = {}
