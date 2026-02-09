@@ -53,9 +53,14 @@ async def lifespan(app: FastAPI):
 
     # Connect to TypeDB and verify database exists
     try:
-        typedb_client.connect()
-        logger.info("TypeDB connected")
-        _ensure_db_ready()
+        connected = typedb_client.connect()
+        if not connected:
+            logger.error(f"TypeDB connect() failed: {typedb_client.connection_error}")
+        else:
+            logger.info("TypeDB connected")
+            _ensure_db_ready()
+        logger.info(f"Driver after startup: {typedb_client.driver}, "
+                    f"is_connected: {typedb_client.is_connected}")
     except Exception as e:
         logger.error(f"Startup error: {e}")
         # Don't fail startup - allow health endpoint to report status
