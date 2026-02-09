@@ -1,0 +1,871 @@
+# J.Crew Deep Analysis — Categories and Questions
+# 3 categories (JC1, JC2, JC3) + 69 questions + match-insert relations
+#
+# Loaded with _load_mixed_tql_file:
+#   Phase 1: standalone inserts (categories, then questions)
+#   Phase 2: match-inserts (category_has_question, question_targets_concept)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES (standalone insert)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$cat_jc1 isa ontology_category,
+    has category_id "JC1",
+    has name "J.Crew Tier 1 - Structural Analysis",
+    has description "Investment pathways, lien mechanics, amendment vulnerability",
+    has display_order 20;
+
+$cat_jc2 isa ontology_category,
+    has category_id "JC2",
+    has name "J.Crew Tier 2 - Definition Quality",
+    has description "IP, Transfer, Material definition analysis",
+    has display_order 21;
+
+$cat_jc3 isa ontology_category,
+    has category_id "JC3",
+    has name "J.Crew Tier 3 - Interaction Patterns",
+    has description "Cross-reference analysis between provisions and definitions",
+    has display_order 22;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIER 1 QUESTIONS — JC1 (33 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ── Unsub Designation (5) ───────────────────────────────────────────────────
+
+$jc_t1_01 isa ontology_question,
+    has question_id "jc_t1_01",
+    has question_text "Can the borrower designate subsidiaries as unrestricted?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 1,
+    has extraction_prompt "Look for language permitting the Borrower to designate any Restricted Subsidiary as an Unrestricted Subsidiary. Usually in Section 5.15 or defined in Section 1.01.";
+
+$jc_t1_02 isa ontology_question,
+    has question_id "jc_t1_02",
+    has question_text "What is the hard dollar cap on unrestricted sub designation?",
+    has answer_type "currency",
+    has covenant_type "RP",
+    has display_order 2,
+    has extraction_prompt "If unrestricted sub designation is permitted, what is the max dollar amount? Look for 'aggregate fair market value... shall not exceed $X'. Report 0 if no dollar cap.";
+
+$jc_t1_03 isa ontology_question,
+    has question_id "jc_t1_03",
+    has question_text "What is the % of total assets cap on unsub designation?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 3,
+    has extraction_prompt "If designation uses a % of Total Assets cap, what is the percentage?";
+
+$jc_t1_04 isa ontology_question,
+    has question_id "jc_t1_04",
+    has question_text "What is the % of EBITDA cap on unsub designation?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 4,
+    has extraction_prompt "If designation uses a % of Consolidated EBITDA cap, what is the percentage?";
+
+$jc_t1_05 isa ontology_question,
+    has question_id "jc_t1_05",
+    has question_text "Is there NO cap at all on unsub designation?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 5,
+    has extraction_prompt "Is designation permitted WITHOUT any dollar, percentage, or ratio cap? If permitted and no quantitative limit stated, answer true.";
+
+# ── Investment Pathways (13) ────────────────────────────────────────────────
+
+$jc_t1_06 isa ontology_question,
+    has question_id "jc_t1_06",
+    has question_text "What is the dollar cap on direct LP investments in Unrestricted Subs?",
+    has answer_type "currency",
+    has covenant_type "RP",
+    has display_order 6,
+    has extraction_prompt "In Section 6.03 (Investments), find the basket for direct Investments by Loan Parties in Unrestricted Subs. What is the dollar cap?";
+
+$jc_t1_07 isa ontology_question,
+    has question_id "jc_t1_07",
+    has question_text "What is the percentage cap on direct LP-to-Unsub investments?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 7,
+    has extraction_prompt "If the LP-to-Unsub basket uses a greater-of formula, what is the EBITDA or Total Assets percentage?";
+
+$jc_t1_08 isa ontology_question,
+    has question_id "jc_t1_08",
+    has question_text "Are direct LP investments in Unrestricted Subs uncapped?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 8,
+    has extraction_prompt "Can Loan Parties make unlimited Investments in Unrestricted Subs? Via ratio basket, Available Amount, or catch-all. Answer true if ANY uncapped pathway exists.";
+
+$jc_t1_09 isa ontology_question,
+    has question_id "jc_t1_09",
+    has question_text "What is the dollar cap on LP investments in non-Guarantor Restricted Subs?",
+    has answer_type "currency",
+    has covenant_type "RP",
+    has display_order 9,
+    has extraction_prompt "In Section 6.03, find the basket for Investments in Subsidiaries that are NOT Loan Parties. This is the FIRST HOP of the Pluralsight chain.";
+
+$jc_t1_10 isa ontology_question,
+    has question_id "jc_t1_10",
+    has question_text "What is the percentage cap on LP-to-non-Guarantor RS investments?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 10,
+    has extraction_prompt "If the non-Guarantor RS basket uses a percentage formula, what is it?";
+
+$jc_t1_11 isa ontology_question,
+    has question_id "jc_t1_11",
+    has question_text "Are LP investments in non-Guarantor Restricted Subs uncapped?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 11,
+    has extraction_prompt "Can Loan Parties make unlimited Investments in Restricted Subs that are not Guarantors? FIRST HOP of Pluralsight chain. Answer true if any uncapped route exists.";
+
+$jc_t1_12 isa ontology_question,
+    has question_id "jc_t1_12",
+    has question_text "What is the dollar cap on RS-to-Unsub investments?",
+    has answer_type "currency",
+    has covenant_type "RP",
+    has display_order 12,
+    has extraction_prompt "Can non-Loan-Party Restricted Subs invest in Unrestricted Subs? What cap? SECOND HOP of chain.";
+
+$jc_t1_13 isa ontology_question,
+    has question_id "jc_t1_13",
+    has question_text "What is the percentage cap on RS-to-Unsub investments?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 13,
+    has extraction_prompt "If the RS-to-Unsub basket uses a percentage formula, what is it?";
+
+$jc_t1_14 isa ontology_question,
+    has question_id "jc_t1_14",
+    has question_text "Are RS-to-Unsub investments uncapped?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 14,
+    has extraction_prompt "Can Restricted Subs make unlimited Investments in Unrestricted Subs? SECOND HOP. Answer true if any uncapped route exists.";
+
+$jc_t1_15 isa ontology_question,
+    has question_id "jc_t1_15",
+    has question_text "Can non-LP Restricted Subs make unlimited investments in Unsubs?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 15,
+    has extraction_prompt "Are Investment baskets available to ALL Restricted Subs or only Loan Parties? Check if baskets are limited to 'the Borrower' or 'any Loan Party' vs 'any Restricted Subsidiary'.";
+
+$jc_t1_16 isa ontology_question,
+    has question_id "jc_t1_16",
+    has question_text "Can the unsub investment basket rebuild after use?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 16,
+    has extraction_prompt "Does the basket replenish when Investments are returned? Look for 'reduced by the amount of any return, profit, distribution received'.";
+
+$jc_t1_17 isa ontology_question,
+    has question_id "jc_t1_17",
+    has question_text "Can multiple investment baskets be stacked for unsub investments?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 17,
+    has extraction_prompt "Can the borrower combine capacity from multiple baskets? Look for 'need not be made solely under one subsection' or anti-stacking 'without duplication'.";
+
+$jc_t1_18 isa ontology_question,
+    has question_id "jc_t1_18",
+    has question_text "Is redesignation from unrestricted back to restricted permitted?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 18,
+    has extraction_prompt "Can an Unrestricted Sub be redesignated back? Check Section 5.15 or the Unrestricted Sub definition.";
+
+# ── Lien Mechanics (4) ─────────────────────────────────────────────────────
+
+$jc_t1_19 isa ontology_question,
+    has question_id "jc_t1_19",
+    has question_text "Do liens automatically release on permitted asset transfers?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 19,
+    has extraction_prompt "In Security Agreement or Collateral sections, do liens auto-release on permitted sale/transfer/designation? Look for 'the Collateral Agent shall release any Lien'.";
+
+$jc_t1_20 isa ontology_question,
+    has question_id "jc_t1_20",
+    has question_text "Does lien release require Administrative Agent consent?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 20,
+    has extraction_prompt "Does release of liens require Admin Agent consent (but not lenders)?";
+
+$jc_t1_21 isa ontology_question,
+    has question_id "jc_t1_21",
+    has question_text "Does lien release require lender consent?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 21,
+    has extraction_prompt "Does release of liens require Required Lenders (majority) consent?";
+
+$jc_t1_22 isa ontology_question,
+    has question_id "jc_t1_22",
+    has question_text "Does release of Material IP liens require all-lender consent?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 22,
+    has extraction_prompt "Is release of Material IP liens a sacred right requiring ALL lender consent? Check amendment section (9.08) for 'all Lenders' consent for release of IP Collateral.";
+
+# ── Amendment / Sacred Rights (4) ──────────────────────────────────────────
+
+$jc_t1_23 isa ontology_question,
+    has question_id "jc_t1_23",
+    has question_text "Does amending the J.Crew blocker require all-lender consent?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 23,
+    has extraction_prompt "In section 9.08, is the blocker listed as requiring 'all Lenders' or 'each Lender directly affected'? If so, it is a sacred right.";
+
+$jc_t1_24 isa ontology_question,
+    has question_id "jc_t1_24",
+    has question_text "Does amending the blocker require supermajority consent?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 24,
+    has extraction_prompt "Does amending the blocker require more than Required Lenders but less than all? Look for 66.7% or 75% thresholds.";
+
+$jc_t1_25 isa ontology_question,
+    has question_id "jc_t1_25",
+    has question_text "What is the supermajority threshold for blocker amendment?",
+    has answer_type "percentage",
+    has covenant_type "RP",
+    has display_order 25,
+    has extraction_prompt "If supermajority required, what percentage? Common: 66.67%, 75%, 80%.";
+
+$jc_t1_26 isa ontology_question,
+    has question_id "jc_t1_26",
+    has question_text "Can the blocker be amended by Required Lenders (simple majority)?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 26,
+    has extraction_prompt "If NOT sacred right and NOT supermajority, Required Lenders can amend. Weakest protection. Answer true if Required Lenders can amend.";
+
+# ── Multiselect Deep Dives (7) ─────────────────────────────────────────────
+
+$jc_t1_27 isa ontology_question,
+    has question_id "jc_t1_27",
+    has question_text "Which actions does the blocker prohibit?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 27,
+    has extraction_prompt "List ALL prohibited actions. Check each: Transfer/Assignment, Sale, Contribution to Capital, Ownership, Exclusive License, Non-Exclusive License, Any License, Pledge/Encumbrance, Abandonment/Non-Renewal, Sublicense Rights.";
+
+$jc_t1_28 isa ontology_question,
+    has question_id "jc_t1_28",
+    has question_text "What carve-outs or exceptions exist in the blocker?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 28,
+    has extraction_prompt "List ALL exceptions. Check each: Ordinary Course, Fair Market Value, Arm's Length, Tax Planning, Intercompany Reorg, Permitted Asset Sales, Permitted Investments, De Minimis, Non-Material Assets, Permitted Liens.";
+
+$jc_t1_29 isa ontology_question,
+    has question_id "jc_t1_29",
+    has question_text "Which entity types are bound by the blocker?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 29,
+    has extraction_prompt "Which entities are subject to the restriction? Check: Loan Parties Only, Borrower Only, Guarantors, All Restricted Subs, All Group Members. CRITICAL: If only Loan Parties, Pluralsight chain is open.";
+
+$jc_t1_30 isa ontology_question,
+    has question_id "jc_t1_30",
+    has question_text "What asset types does the blocker protect?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 30,
+    has extraction_prompt "What assets covered? Check: Registered IP Only, All IP, Material IP Only, Material Assets (broader), Collateral Generally.";
+
+$jc_t1_31 isa ontology_question,
+    has question_id "jc_t1_31",
+    has question_text "Which investment baskets can fund unsub investments?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 31,
+    has extraction_prompt "Which Section 6.03 baskets can fund Unsub investments? Check: Dedicated Unsub Basket, General Investment, Builder/Available Amount, Ratio-Based, Catch-All. If General or Builder can fund, total capacity is much larger.";
+
+$jc_t1_32 isa ontology_question,
+    has question_id "jc_t1_32",
+    has question_text "What conditions are required for unsub designation?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 32,
+    has extraction_prompt "What conditions for designation? Check: No Default, Pro Forma Ratio Test, Dollar Cap, EBITDA % Cap, Board Resolution, Cannot Hold Material IP.";
+
+$jc_t1_33 isa ontology_question,
+    has question_id "jc_t1_33",
+    has question_text "Extract the complete blocker provision text verbatim.",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 33,
+    has extraction_prompt "Extract the COMPLETE blocker provision text including all exceptions. Include section reference.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIER 2 QUESTIONS — JC2 (29 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ── Definition Extraction (4 verbatim) ─────────────────────────────────────
+
+$jc_t2_01 isa ontology_question,
+    has question_id "jc_t2_01",
+    has question_text "Extract the complete 'Intellectual Property' definition verbatim.",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 34,
+    has extraction_prompt "Find and extract the COMPLETE definition of 'Intellectual Property' from Section 1.01. If no standalone IP definition, check 'Material Intellectual Property'.";
+
+$jc_t2_02 isa ontology_question,
+    has question_id "jc_t2_02",
+    has question_text "Extract the 'Transfer' definition verbatim (if defined).",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 35,
+    has extraction_prompt "Find 'Transfer' in Section 1.01. If no standalone definition, extract relevant language from the blocker provision.";
+
+$jc_t2_03 isa ontology_question,
+    has question_id "jc_t2_03",
+    has question_text "Extract the 'Material' or 'Material Intellectual Property' definition.",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 36,
+    has extraction_prompt "Find 'Material' or 'Material Intellectual Property' in Section 1.01. If NOT DEFINED AT ALL, state 'NOT DEFINED'.";
+
+$jc_t2_04 isa ontology_question,
+    has question_id "jc_t2_04",
+    has question_text "Extract the 'Unrestricted Subsidiary' definition and conditions.",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 37,
+    has extraction_prompt "Extract from Section 1.01 including ALL designation and redesignation conditions.";
+
+# ── IP Definition Analysis (1 multiselect) ─────────────────────────────────
+
+$jc_t2_05 isa ontology_question,
+    has question_id "jc_t2_05",
+    has question_text "Which IP types are INCLUDED in the IP definition?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 38,
+    has extraction_prompt "For each type: INCLUDED (explicitly listed), EXCLUDED (definition says 'excluding'), or SILENT (not mentioned = ambiguous). Check: Patents, Trademarks, Copyrights, Trade Secrets, Know-How, Software, Domain Names, Licenses Received, Customer Data, Databases. CRITICAL: Trade secrets are key — J.Crew exploited this gap. If definition says 'other intellectual property' as catch-all, trade secrets are SILENT not INCLUDED.";
+
+# ── Transfer Definition Analysis (1 multiselect) ──────────────────────────
+
+$jc_t2_06 isa ontology_question,
+    has question_id "jc_t2_06",
+    has question_text "Which actions are included in the Transfer definition?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 39,
+    has extraction_prompt "For each: INCLUDED or EXCLUDED. Check: Assignment, Sale, Contribution, Exclusive License, Non-Exclusive License, Pledge, Abandonment. CRITICAL: If exclusive license not included, borrower can grant exclusive license to unsub.";
+
+# ── Material Definition Analysis (8 scalar) ────────────────────────────────
+
+$jc_t2_07 isa ontology_question,
+    has question_id "jc_t2_07",
+    has question_text "Is 'Material' subjectively defined?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 40,
+    has extraction_prompt "Uses 'determined by Borrower in good faith' or similar? Also TRUE if Material is NOT DEFINED AT ALL.";
+
+$jc_t2_08 isa ontology_question,
+    has question_id "jc_t2_08",
+    has question_text "Is there a dollar threshold for Material IP?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 41,
+    has extraction_prompt "Quantitative dollar threshold like 'book value exceeding $X'?";
+
+$jc_t2_09 isa ontology_question,
+    has question_id "jc_t2_09",
+    has question_text "Is there a percentage threshold for Material IP?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 42,
+    has extraction_prompt "Percentage threshold like 'contributing more than X% of revenue'?";
+
+$jc_t2_10 isa ontology_question,
+    has question_id "jc_t2_10",
+    has question_text "Is Material determined by board determination?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 43,
+    has extraction_prompt "Defers to board of directors? 'As determined by the Board'?";
+
+$jc_t2_11 isa ontology_question,
+    has question_id "jc_t2_11",
+    has question_text "Is Material IP enumerated on a specific schedule?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 44,
+    has extraction_prompt "Specific schedule/exhibit listing Material IP? Strongest form.";
+
+$jc_t2_12 isa ontology_question,
+    has question_id "jc_t2_12",
+    has question_text "Is Material defined negatively ('all IP except...')?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 45,
+    has extraction_prompt "Negative form — 'all IP other than [exclusions]'? Generally protective.";
+
+$jc_t2_13 isa ontology_question,
+    has question_id "jc_t2_13",
+    has question_text "What metric is the Material threshold based on?",
+    has answer_type "multiselect",
+    has covenant_type "RP",
+    has display_order 46,
+    has extraction_prompt "Check: Book Value, Fair Market Value, % Total Assets, Revenue, EBITDA Contribution, Replacement Cost, Board Good Faith, Independent Appraisal.";
+
+$jc_t2_14 isa ontology_question,
+    has question_id "jc_t2_14",
+    has question_text "Can the Material threshold metric be manipulated by borrower?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 47,
+    has extraction_prompt "If uses book value, borrower can write down. If board determination, borrower controls. If independent appraisal, cannot manipulate. True if within borrower's control.";
+
+# ── Unsub Definition Quality (3 scalar) ────────────────────────────────────
+
+$jc_t2_15 isa ontology_question,
+    has question_id "jc_t2_15",
+    has question_text "Are unsub conditions tested only at designation time?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 48,
+    has extraction_prompt "Tested ONLY at designation, or ongoing? If only at designation, sub can deteriorate without losing unrestricted status.";
+
+$jc_t2_16 isa ontology_question,
+    has question_id "jc_t2_16",
+    has question_text "Does unsub designation use pro forma EBITDA?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 49,
+    has extraction_prompt "Is EBITDA calculated pro forma (excluding departing sub's EBITDA)?";
+
+$jc_t2_17 isa ontology_question,
+    has question_id "jc_t2_17",
+    has question_text "Is unsub determination at board discretion?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 50,
+    has extraction_prompt "Does designation rely on board discretion for any component?";
+
+# ── Detailed Definition Gap Questions (12 scalar) ──────────────────────────
+
+$jc_t2_18 isa ontology_question,
+    has question_id "jc_t2_18",
+    has question_text "Does the IP definition exist as a standalone defined term?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 51,
+    has extraction_prompt "Is 'Intellectual Property' separately defined in Section 1.01?";
+
+$jc_t2_19 isa ontology_question,
+    has question_id "jc_t2_19",
+    has question_text "Does a Transfer definition exist as a standalone term?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 52,
+    has extraction_prompt "Is 'Transfer' separately defined in Section 1.01?";
+
+$jc_t2_20 isa ontology_question,
+    has question_id "jc_t2_20",
+    has question_text "Does the IP definition exclude trade secrets?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 53,
+    has extraction_prompt "Trade secrets explicitly excluded OR simply absent? True if either. MOST IMPORTANT definition gap.";
+
+$jc_t2_21 isa ontology_question,
+    has question_id "jc_t2_21",
+    has question_text "Does the IP definition exclude know-how?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 54,
+    has extraction_prompt "Know-how, technical information, proprietary knowledge excluded or absent?";
+
+$jc_t2_22 isa ontology_question,
+    has question_id "jc_t2_22",
+    has question_text "Does the IP definition exclude software?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 55,
+    has extraction_prompt "Software, computer programs, code excluded or absent? Critical for tech companies.";
+
+$jc_t2_23 isa ontology_question,
+    has question_id "jc_t2_23",
+    has question_text "Does the Transfer definition exclude exclusive licensing?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 56,
+    has extraction_prompt "Does Transfer fail to include exclusive license? If not covered, borrower can grant exclusive license to unsub.";
+
+$jc_t2_24 isa ontology_question,
+    has question_id "jc_t2_24",
+    has question_text "Does the Transfer definition exclude any form of licensing?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 57,
+    has extraction_prompt "Neither exclusive nor non-exclusive licensing covered?";
+
+$jc_t2_25 isa ontology_question,
+    has question_id "jc_t2_25",
+    has question_text "Does the Transfer definition exclude pledge or encumbrance?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 58,
+    has extraction_prompt "Omits pledge, encumber, or grant security interest?";
+
+$jc_t2_26 isa ontology_question,
+    has question_id "jc_t2_26",
+    has question_text "Does the Transfer definition exclude abandonment?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 59,
+    has extraction_prompt "Omits abandon, allow to lapse, or fail to renew? Strategic IP abandonment is subtle asset stripping.";
+
+$jc_t2_27 isa ontology_question,
+    has question_id "jc_t2_27",
+    has question_text "Does the IP definition exclude inbound licenses?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 60,
+    has extraction_prompt "Excludes 'licenses received from third parties'?";
+
+$jc_t2_28 isa ontology_question,
+    has question_id "jc_t2_28",
+    has question_text "Does the IP definition exclude customer data?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 61,
+    has extraction_prompt "Excludes customer lists, customer data, subscriber info?";
+
+$jc_t2_29 isa ontology_question,
+    has question_id "jc_t2_29",
+    has question_text "Is the Material threshold a 'greater of' formula?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 62,
+    has extraction_prompt "Structured as 'greater of $X and Y% of [metric]'? Standard grower provision.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIER 3 QUESTIONS — JC3 (7 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$jc_t3_01 isa ontology_question,
+    has question_id "jc_t3_01",
+    has question_text "If 'Permitted Investment' carve-out exists, does it have a catch-all basket?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 63,
+    has extraction_prompt "CROSS-REFERENCE: (1) Does blocker have Permitted Investment exception? (2) If yes, does Section 6.03 include a catch-all basket that could swallow the blocker's protection?";
+
+$jc_t3_02 isa ontology_question,
+    has question_id "jc_t3_02",
+    has question_text "If 'ordinary course' carve-out exists, is 'ordinary course' defined?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 64,
+    has extraction_prompt "CROSS-REFERENCE: (1) Blocker has ordinary course exception? (2) Is 'ordinary course' defined in Section 1.01? True if carve-out exists AND ordinary course NOT defined.";
+
+$jc_t3_03 isa ontology_question,
+    has question_id "jc_t3_03",
+    has question_text "If 'fair value' carve-out exists, who determines fair value?",
+    has answer_type "string",
+    has covenant_type "RP",
+    has display_order 65,
+    has extraction_prompt "CROSS-REFERENCE: If blocker permits fair value transfers, who determines? Options: Borrower in good faith, Board, Independent Appraiser, Admin Agent, not specified.";
+
+$jc_t3_04 isa ontology_question,
+    has question_id "jc_t3_04",
+    has question_text "Do any carve-outs effectively swallow the blocker's protection?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 66,
+    has extraction_prompt "HOLISTIC: Could borrower combine exceptions to transfer substantially all Material IP? Consider: ordinary course + fair value + immaterial combined, Permitted Investment cross-ref creating uncapped pathway, exceptions broad enough that restriction is form over substance.";
+
+$jc_t3_05 isa ontology_question,
+    has question_id "jc_t3_05",
+    has question_text "Does blocker reference 'IP' but IP definition excludes trade secrets?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 67,
+    has extraction_prompt "DEFINITION GAP: Compare blocker language (Section 6.06/6.08) referencing 'Intellectual Property' with IP definition (Section 1.01). If blocker protects 'IP' but definition omits trade secrets, TRUE. This is the exact J.Crew gap.";
+
+$jc_t3_06 isa ontology_question,
+    has question_id "jc_t3_06",
+    has question_text "Does blocker prohibit 'transfer' but Transfer excludes licensing?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 68,
+    has extraction_prompt "DEFINITION GAP: Compare blocker prohibition on 'transfer' with Transfer definition. If Transfer doesn't include exclusive licensing, TRUE. Borrower can grant exclusive license without triggering blocker.";
+
+$jc_t3_07 isa ontology_question,
+    has question_id "jc_t3_07",
+    has question_text "Does blocker protect 'Material' IP but Material is subjective?",
+    has answer_type "boolean",
+    has covenant_type "RP",
+    has display_order 69,
+    has extraction_prompt "DEFINITION GAP: Compare blocker's reference to 'Material IP' with Material definition. If Material is subjective or undefined, TRUE. Borrower can argue valuable IP is 'not material'.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY-QUESTION RELATIONS (match-insert)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── JC1 category links (33) ─────────────────────────────────────────────────
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_01";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_02";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_03";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_04";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_05";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_06";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_07";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_08";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_09";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_11";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_13";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_14";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_15";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_16";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_18";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_19";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_20";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_21";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_22";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_23";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_24";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_25";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_26";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_27";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_28";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_29";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_30";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_31";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_32";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_33";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ── JC2 category links (29) ─────────────────────────────────────────────────
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_01";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_02";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_03";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_04";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_05";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_06";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_07";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_08";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_09";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_11";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_13";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_14";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_15";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_16";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_18";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_19";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_20";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_21";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_22";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_23";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_24";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_25";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_26";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_27";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_28";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_29";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ── JC3 category links (7) ──────────────────────────────────────────────────
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_01";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_02";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_03";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_04";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_05";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_06";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "JC3"; $q isa ontology_question, has question_id "jc_t3_07";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MULTISELECT QUESTION-CONCEPT LINKS (match-insert)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $q isa ontology_question, has question_id "jc_t1_27";
+insert (question: $q) isa question_targets_concept, has target_concept_type "blocker_prohibition_type";
+
+match $q isa ontology_question, has question_id "jc_t1_28";
+insert (question: $q) isa question_targets_concept, has target_concept_type "blocker_carveout_type";
+
+match $q isa ontology_question, has question_id "jc_t1_29";
+insert (question: $q) isa question_targets_concept, has target_concept_type "covered_entity_type";
+
+match $q isa ontology_question, has question_id "jc_t1_30";
+insert (question: $q) isa question_targets_concept, has target_concept_type "protected_asset_type";
+
+match $q isa ontology_question, has question_id "jc_t1_31";
+insert (question: $q) isa question_targets_concept, has target_concept_type "investment_basket_type";
+
+match $q isa ontology_question, has question_id "jc_t1_32";
+insert (question: $q) isa question_targets_concept, has target_concept_type "designation_condition_type";
+
+match $q isa ontology_question, has question_id "jc_t2_05";
+insert (question: $q) isa question_targets_concept, has target_concept_type "ip_inclusion_type";
+
+match $q isa ontology_question, has question_id "jc_t2_06";
+insert (question: $q) isa question_targets_concept, has target_concept_type "transfer_inclusion_type";
+
+match $q isa ontology_question, has question_id "jc_t2_13";
+insert (question: $q) isa question_targets_concept, has target_concept_type "material_threshold_basis";

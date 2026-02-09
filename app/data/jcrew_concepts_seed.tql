@@ -1,0 +1,476 @@
+# J.Crew Deep Analysis — Concept Seed Data
+# 72 concept instances across 10 types for multiselect relations
+
+insert
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Blocker Prohibition Types (10)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$bp1 isa blocker_prohibition_type,
+    has concept_id "bp_transfer",
+    has name "Transfer/Assignment",
+    has description "Prohibition on transferring or assigning IP assets to unrestricted subsidiaries or third parties",
+    has display_order 1;
+
+$bp2 isa blocker_prohibition_type,
+    has concept_id "bp_sale",
+    has name "Sale",
+    has description "Prohibition on selling IP assets outside the restricted group",
+    has display_order 2;
+
+$bp3 isa blocker_prohibition_type,
+    has concept_id "bp_contribution",
+    has name "Contribution to Capital",
+    has description "Prohibition on contributing IP as capital to unrestricted subsidiaries",
+    has display_order 3;
+
+$bp4 isa blocker_prohibition_type,
+    has concept_id "bp_ownership",
+    has name "Ownership Transfer",
+    has description "Prohibition on transferring ownership of IP-holding entities",
+    has display_order 4;
+
+$bp5 isa blocker_prohibition_type,
+    has concept_id "bp_exclusive_license",
+    has name "Exclusive License",
+    has description "Prohibition on granting exclusive licenses to unrestricted subsidiaries",
+    has display_order 5;
+
+$bp6 isa blocker_prohibition_type,
+    has concept_id "bp_nonexclusive_license",
+    has name "Non-Exclusive License",
+    has description "Prohibition on granting non-exclusive licenses to unrestricted subsidiaries",
+    has display_order 6;
+
+$bp7 isa blocker_prohibition_type,
+    has concept_id "bp_any_license",
+    has name "Any License",
+    has description "Prohibition on granting any form of license to unrestricted subsidiaries",
+    has display_order 7;
+
+$bp8 isa blocker_prohibition_type,
+    has concept_id "bp_pledge",
+    has name "Pledge/Encumbrance",
+    has description "Prohibition on pledging or encumbering IP assets",
+    has display_order 8;
+
+$bp9 isa blocker_prohibition_type,
+    has concept_id "bp_abandonment",
+    has name "Abandonment/Non-Renewal",
+    has description "Prohibition on abandoning or failing to renew IP registrations",
+    has display_order 9;
+
+$bp10 isa blocker_prohibition_type,
+    has concept_id "bp_sublicense_grant",
+    has name "Sublicense Rights",
+    has description "Prohibition on granting sublicensing rights to unrestricted subsidiaries",
+    has display_order 10;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Blocker Carveout Types (10)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$co1 isa blocker_carveout_type,
+    has concept_id "co_ordinary_course",
+    has name "Ordinary Course",
+    has description "Exception for transfers in the ordinary course of business",
+    has display_order 1;
+
+$co2 isa blocker_carveout_type,
+    has concept_id "co_fair_value",
+    has name "Fair Market Value",
+    has description "Exception for transfers at fair market value",
+    has display_order 2;
+
+$co3 isa blocker_carveout_type,
+    has concept_id "co_arms_length",
+    has name "Arm's Length",
+    has description "Exception for arm's length transactions",
+    has display_order 3;
+
+$co4 isa blocker_carveout_type,
+    has concept_id "co_tax_planning",
+    has name "Tax Planning",
+    has description "Exception for bona fide tax planning transactions",
+    has display_order 4;
+
+$co5 isa blocker_carveout_type,
+    has concept_id "co_intercompany_reorg",
+    has name "Intercompany Reorg",
+    has description "Exception for intercompany reorganizations within the restricted group",
+    has display_order 5;
+
+$co6 isa blocker_carveout_type,
+    has concept_id "co_permitted_asset_sale",
+    has name "Permitted Asset Sales",
+    has description "Exception for transfers that qualify as Permitted Asset Sales",
+    has display_order 6;
+
+$co7 isa blocker_carveout_type,
+    has concept_id "co_permitted_investment",
+    has name "Permitted Investments",
+    has description "Exception for transfers that qualify as Permitted Investments under Section 6.03",
+    has display_order 7;
+
+$co8 isa blocker_carveout_type,
+    has concept_id "co_de_minimis",
+    has name "De Minimis",
+    has description "Exception for transfers below a de minimis dollar threshold",
+    has display_order 8;
+
+$co9 isa blocker_carveout_type,
+    has concept_id "co_non_material_assets",
+    has name "Non-Material Assets",
+    has description "Exception for transfers of assets not deemed Material",
+    has display_order 9;
+
+$co10 isa blocker_carveout_type,
+    has concept_id "co_non_material",
+    has name "Permitted Liens",
+    has description "Exception for transfers permitted under Permitted Liens provisions",
+    has display_order 10;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Covered Entity Types (5)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$ce1 isa covered_entity_type,
+    has concept_id "ce_loan_parties",
+    has name "Loan Parties Only",
+    has description "Blocker binds only Loan Parties (Borrower + Guarantors). Pluralsight chain may be open via non-LP Restricted Subs.",
+    has display_order 1;
+
+$ce2 isa covered_entity_type,
+    has concept_id "ce_borrower_only",
+    has name "Borrower Only",
+    has description "Blocker binds only the Borrower. Weakest coverage — subsidiaries can freely transfer.",
+    has display_order 2;
+
+$ce3 isa covered_entity_type,
+    has concept_id "ce_guarantors",
+    has name "Guarantors",
+    has description "Blocker binds Guarantors in addition to or instead of the Borrower",
+    has display_order 3;
+
+$ce4 isa covered_entity_type,
+    has concept_id "ce_all_restricted_subs",
+    has name "All Restricted Subs",
+    has description "Blocker binds all Restricted Subsidiaries. Closes Pluralsight chain pathway.",
+    has display_order 4;
+
+$ce5 isa covered_entity_type,
+    has concept_id "ce_all_group_members",
+    has name "All Group Members",
+    has description "Blocker binds all members of the corporate group including Holdings",
+    has display_order 5;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Protected Asset Types (5)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$at1 isa protected_asset_type,
+    has concept_id "at_registered_ip",
+    has name "Registered IP Only",
+    has description "Protection limited to registered IP (patents, trademarks, copyrights). Trade secrets may be excluded.",
+    has display_order 1;
+
+$at2 isa protected_asset_type,
+    has concept_id "at_all_ip",
+    has name "All IP",
+    has description "Protection covers all Intellectual Property as defined in the agreement",
+    has display_order 2;
+
+$at3 isa protected_asset_type,
+    has concept_id "at_material_ip",
+    has name "Material IP Only",
+    has description "Protection limited to Material Intellectual Property. Depends on Material definition quality.",
+    has display_order 3;
+
+$at4 isa protected_asset_type,
+    has concept_id "at_material_assets",
+    has name "Material Assets",
+    has description "Protection covers Material Assets broadly (not limited to IP)",
+    has display_order 4;
+
+$at5 isa protected_asset_type,
+    has concept_id "at_collateral",
+    has name "Collateral",
+    has description "Protection covers all Collateral as defined in the Security Agreement",
+    has display_order 5;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Investment Basket Types (5)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$ib1 isa investment_basket_type,
+    has concept_id "ib_dedicated_unsub",
+    has name "Dedicated Unsub Basket",
+    has description "Specific basket for investments in Unrestricted Subsidiaries with its own cap",
+    has display_order 1;
+
+$ib2 isa investment_basket_type,
+    has concept_id "ib_general_investment",
+    has name "General Investment",
+    has description "General investment basket that can be used for Unsub investments among other purposes",
+    has display_order 2;
+
+$ib3 isa investment_basket_type,
+    has concept_id "ib_builder_available",
+    has name "Builder/Available Amount",
+    has description "Builder basket or Available Amount that can fund Unsub investments. Potentially very large.",
+    has display_order 3;
+
+$ib4 isa investment_basket_type,
+    has concept_id "ib_ratio_based",
+    has name "Ratio-Based",
+    has description "Ratio-based basket that permits unlimited investments when leverage test is met",
+    has display_order 4;
+
+$ib5 isa investment_basket_type,
+    has concept_id "ib_catch_all",
+    has name "Catch-All",
+    has description "Catch-all or omnibus basket that can absorb any investment type. Most permissive.",
+    has display_order 5;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Designation Condition Types (6)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$dc1 isa designation_condition_type,
+    has concept_id "dc_no_default",
+    has name "No Default",
+    has description "No Event of Default exists or would result from the designation",
+    has display_order 1;
+
+$dc2 isa designation_condition_type,
+    has concept_id "dc_pro_forma_ratio",
+    has name "Pro Forma Ratio Test",
+    has description "Borrower must satisfy a pro forma leverage or coverage ratio after designation",
+    has display_order 2;
+
+$dc3 isa designation_condition_type,
+    has concept_id "dc_dollar_cap",
+    has name "Dollar Cap",
+    has description "Aggregate fair market value of designated Unrestricted Subs may not exceed a dollar cap",
+    has display_order 3;
+
+$dc4 isa designation_condition_type,
+    has concept_id "dc_ebitda_pct_cap",
+    has name "EBITDA % Cap",
+    has description "Designation limited by a percentage of Consolidated EBITDA",
+    has display_order 4;
+
+$dc5 isa designation_condition_type,
+    has concept_id "dc_board_resolution",
+    has name "Board Resolution",
+    has description "Board of Directors resolution required for the designation",
+    has display_order 5;
+
+$dc6 isa designation_condition_type,
+    has concept_id "dc_no_material_ip",
+    has name "Cannot Hold Material IP",
+    has description "Designated subsidiary cannot own or hold Material Intellectual Property",
+    has display_order 6;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IP Inclusion Types (10)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$ipi1 isa ip_inclusion_type,
+    has concept_id "ipi_patents",
+    has name "Patents",
+    has description "Patents and patent applications",
+    has display_order 1;
+
+$ipi2 isa ip_inclusion_type,
+    has concept_id "ipi_trademarks",
+    has name "Trademarks",
+    has description "Trademarks, service marks, trade names, and trade dress",
+    has display_order 2;
+
+$ipi3 isa ip_inclusion_type,
+    has concept_id "ipi_copyrights",
+    has name "Copyrights",
+    has description "Copyrights and copyrightable works",
+    has display_order 3;
+
+$ipi4 isa ip_inclusion_type,
+    has concept_id "ipi_trade_secrets",
+    has name "Trade Secrets",
+    has description "Trade secrets and confidential business information. KEY GAP: J.Crew exploited omission of trade secrets.",
+    has display_order 4;
+
+$ipi5 isa ip_inclusion_type,
+    has concept_id "ipi_know_how",
+    has name "Know-How",
+    has description "Technical know-how, proprietary knowledge, and processes",
+    has display_order 5;
+
+$ipi6 isa ip_inclusion_type,
+    has concept_id "ipi_software",
+    has name "Software",
+    has description "Software, computer programs, source code, and object code",
+    has display_order 6;
+
+$ipi7 isa ip_inclusion_type,
+    has concept_id "ipi_domain_names",
+    has name "Domain Names",
+    has description "Internet domain names and URLs",
+    has display_order 7;
+
+$ipi8 isa ip_inclusion_type,
+    has concept_id "ipi_licenses_in",
+    has name "Licenses Received",
+    has description "Inbound licenses — licenses received from third parties",
+    has display_order 8;
+
+$ipi9 isa ip_inclusion_type,
+    has concept_id "ipi_customer_data",
+    has name "Customer Data",
+    has description "Customer lists, subscriber information, and customer databases",
+    has display_order 9;
+
+$ipi10 isa ip_inclusion_type,
+    has concept_id "ipi_databases",
+    has name "Databases",
+    has description "Proprietary databases and data compilations",
+    has display_order 10;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Transfer Inclusion Types (7)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$tri1 isa transfer_inclusion_type,
+    has concept_id "tri_assignment",
+    has name "Assignment",
+    has description "Direct assignment or transfer of ownership",
+    has display_order 1;
+
+$tri2 isa transfer_inclusion_type,
+    has concept_id "tri_sale",
+    has name "Sale",
+    has description "Sale of assets for consideration",
+    has display_order 2;
+
+$tri3 isa transfer_inclusion_type,
+    has concept_id "tri_contribution",
+    has name "Contribution",
+    has description "Contribution of assets as capital",
+    has display_order 3;
+
+$tri4 isa transfer_inclusion_type,
+    has concept_id "tri_exclusive_license",
+    has name "Exclusive License",
+    has description "Grant of exclusive license. CRITICAL: If omitted, borrower can grant exclusive license without triggering blocker.",
+    has display_order 4;
+
+$tri5 isa transfer_inclusion_type,
+    has concept_id "tri_nonexclusive_license",
+    has name "Non-Exclusive License",
+    has description "Grant of non-exclusive license",
+    has display_order 5;
+
+$tri6 isa transfer_inclusion_type,
+    has concept_id "tri_pledge",
+    has name "Pledge",
+    has description "Pledge, encumbrance, or grant of security interest",
+    has display_order 6;
+
+$tri7 isa transfer_inclusion_type,
+    has concept_id "tri_abandonment",
+    has name "Abandonment",
+    has description "Abandonment, failure to renew, or allowing to lapse. Subtle form of asset stripping.",
+    has display_order 7;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Material Definition Methods (6)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$mdm1 isa material_definition_method,
+    has concept_id "mdm_dollar_threshold",
+    has name "Dollar Threshold",
+    has description "Material defined by a dollar value threshold (e.g., book value exceeding $X)",
+    has display_order 1;
+
+$mdm2 isa material_definition_method,
+    has concept_id "mdm_pct_revenue",
+    has name "Revenue Percentage",
+    has description "Material defined by contribution to revenue (e.g., more than X% of consolidated revenue)",
+    has display_order 2;
+
+$mdm3 isa material_definition_method,
+    has concept_id "mdm_board_determination",
+    has name "Board Determination",
+    has description "Material determined by board of directors in good faith. Borrower-controlled.",
+    has display_order 3;
+
+$mdm4 isa material_definition_method,
+    has concept_id "mdm_scheduled_list",
+    has name "Scheduled List",
+    has description "Material IP enumerated on a specific schedule or exhibit. Strongest form of definition.",
+    has display_order 4;
+
+$mdm5 isa material_definition_method,
+    has concept_id "mdm_subjective_good_faith",
+    has name "Subjective Good Faith",
+    has description "Material determined by borrower in good faith. Weakest — borrower can argue valuable IP is not material.",
+    has display_order 5;
+
+$mdm6 isa material_definition_method,
+    has concept_id "mdm_negative_definition",
+    has name "Negative Definition",
+    has description "Material defined negatively — all IP other than specified exclusions. Generally protective.",
+    has display_order 6;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Material Threshold Bases (8)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+$tb1 isa material_threshold_basis,
+    has concept_id "tb_book_value",
+    has name "Book Value",
+    has description "Threshold based on book value. Borrower can manipulate through write-downs.",
+    has display_order 1;
+
+$tb2 isa material_threshold_basis,
+    has concept_id "tb_fair_market_value",
+    has name "Fair Market Value",
+    has description "Threshold based on fair market value. More objective but harder to determine.",
+    has display_order 2;
+
+$tb3 isa material_threshold_basis,
+    has concept_id "tb_pct_total_assets",
+    has name "% Total Assets",
+    has description "Threshold as percentage of total assets",
+    has display_order 3;
+
+$tb4 isa material_threshold_basis,
+    has concept_id "tb_revenue",
+    has name "Revenue",
+    has description "Threshold based on revenue contribution",
+    has display_order 4;
+
+$tb5 isa material_threshold_basis,
+    has concept_id "tb_ebitda",
+    has name "EBITDA Contribution",
+    has description "Threshold based on EBITDA contribution",
+    has display_order 5;
+
+$tb6 isa material_threshold_basis,
+    has concept_id "tb_replacement_cost",
+    has name "Replacement Cost",
+    has description "Threshold based on replacement cost of the asset",
+    has display_order 6;
+
+$tb7 isa material_threshold_basis,
+    has concept_id "tb_board_good_faith",
+    has name "Board Good Faith",
+    has description "Threshold determined by board in good faith. Within borrower's control.",
+    has display_order 7;
+
+$tb8 isa material_threshold_basis,
+    has concept_id "tb_independent_appraisal",
+    has name "Independent Appraisal",
+    has description "Threshold based on independent third-party appraisal. Most objective and hardest to manipulate.",
+    has display_order 8;

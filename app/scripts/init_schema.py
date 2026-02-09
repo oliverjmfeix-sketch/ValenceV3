@@ -5,7 +5,7 @@ Run this once after setting up TypeDB Cloud:
     python -m app.scripts.init_schema
 
 This creates the database (if needed), loads schema, and seeds all data.
-Loads all 11 TQL files in dependency order.
+Loads all 14 TQL files in dependency order.
 """
 import os
 import sys
@@ -53,6 +53,11 @@ INVESTMENT_PATHWAY_METADATA_FILE = DATA_DIR / "investment_pathway_metadata.tql"
 
 # 11. V4 seed data (IP types, party types — multiple separate inserts)
 SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
+
+# 12-14. J.Crew deep analysis (concepts, questions, rules)
+JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
+JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
+JCREW_RULES_FILE = DATA_DIR / "jcrew_rules.tql"
 
 
 def get_driver():
@@ -234,7 +239,7 @@ def _load_multi_insert_file(driver, db_name: str, filepath: Path):
 def init_database():
     """Initialize TypeDB with ValenceV3 schema and all seed data."""
     logger.info("=" * 60)
-    logger.info("ValenceV3 Schema Initialization (all 11 data files)")
+    logger.info("ValenceV3 Schema Initialization (all 14 data files)")
     logger.info("=" * 60)
 
     driver = get_driver()
@@ -287,8 +292,22 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Concepts: {e}")
 
-        # 3. Load questions
-        logger.info("\n3. Loading questions.tql...")
+        # 3. Load J.Crew concepts
+        logger.info("\n3. Loading jcrew_concepts_seed.tql...")
+        if JCREW_CONCEPTS_FILE.exists():
+            jcrew_concepts_tql = load_tql_file(JCREW_CONCEPTS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
+            try:
+                tx.query(jcrew_concepts_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded J.Crew concepts ({len(jcrew_concepts_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   J.Crew concepts: {e}")
+
+        # 4. Load questions
+        logger.info("\n4. Loading questions.tql...")
         if QUESTIONS_FILE.exists():
             questions_tql = load_tql_file(QUESTIONS_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
@@ -301,45 +320,65 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Questions: {e}")
 
-        # 4. Load categories (mixed insert + match-insert)
-        logger.info("\n4. Loading categories.tql...")
+        # 5. Load categories (mixed insert + match-insert)
+        logger.info("\n5. Loading categories.tql...")
         if CATEGORIES_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, CATEGORIES_FILE)
 
-        # 5. Load expanded ontology
-        logger.info("\n5. Loading ontology_expanded.tql...")
+        # 6. Load expanded ontology
+        logger.info("\n6. Loading ontology_expanded.tql...")
         if ONTOLOGY_EXPANDED_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, ONTOLOGY_EXPANDED_FILE)
 
-        # 6. Load Category M ontology
-        logger.info("\n6. Loading ontology_category_m.tql...")
+        # 7. Load Category M ontology
+        logger.info("\n7. Loading ontology_category_m.tql...")
         if CATEGORY_M_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, CATEGORY_M_FILE)
 
-        # 7. Load extraction metadata
-        logger.info("\n7. Loading seed_extraction_metadata.tql...")
+        # 8. Load J.Crew questions (mixed insert + match-insert)
+        logger.info("\n8. Loading jcrew_questions_seed.tql...")
+        if JCREW_QUESTIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, JCREW_QUESTIONS_FILE)
+
+        # 9. Load extraction metadata
+        logger.info("\n9. Loading seed_extraction_metadata.tql...")
         if SEED_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_METADATA_FILE)
 
-        # 8. Load RP basket metadata
-        logger.info("\n8. Loading rp_basket_metadata.tql...")
+        # 10. Load RP basket metadata
+        logger.info("\n10. Loading rp_basket_metadata.tql...")
         if RP_BASKET_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, RP_BASKET_METADATA_FILE)
 
-        # 9. Load RDP basket metadata
-        logger.info("\n9. Loading rdp_basket_metadata.tql...")
+        # 11. Load RDP basket metadata
+        logger.info("\n11. Loading rdp_basket_metadata.tql...")
         if RDP_BASKET_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, RDP_BASKET_METADATA_FILE)
 
-        # 10. Load investment pathway metadata
-        logger.info("\n10. Loading investment_pathway_metadata.tql...")
+        # 12. Load investment pathway metadata
+        logger.info("\n12. Loading investment_pathway_metadata.tql...")
         if INVESTMENT_PATHWAY_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, INVESTMENT_PATHWAY_METADATA_FILE)
 
-        # 11. Load V4 seed data
-        logger.info("\n11. Loading seed_v4_data.tql...")
+        # 13. Load V4 seed data
+        logger.info("\n13. Loading seed_v4_data.tql...")
         if SEED_V4_DATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_V4_DATA_FILE)
+
+        # 14. Load J.Crew inference rules (SCHEMA transaction — rules are schema-level)
+        logger.info("\n14. Loading jcrew_rules.tql...")
+        if JCREW_RULES_FILE.exists():
+            rules_tql = load_tql_file(JCREW_RULES_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(rules_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded J.Crew rules ({len(rules_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   J.Crew rules: {e}")
+                logger.warning("   NOTE: TypeDB 3.x rule syntax may need adaptation. Rules saved for reference.")
 
         # ═══════════════════════════════════════════════════════════════
         # Verification
@@ -352,9 +391,9 @@ def init_database():
         tx = driver.transaction(TYPEDB_DATABASE, TransactionType.READ)
         try:
             checks = [
-                ("Concepts", "match $c isa concept; select $c;", 20),
-                ("Questions", "match $q isa ontology_question; select $q;", 88),
-                ("Categories", "match $cat isa ontology_category; select $cat;", 17),
+                ("Concepts (incl J.Crew)", "match $c isa concept; select $c;", 90),
+                ("Questions (incl J.Crew)", "match $q isa ontology_question; select $q;", 150),
+                ("Categories (incl JC1-3)", "match $cat isa ontology_category; select $cat;", 20),
                 ("Extraction metadata", "match $em isa extraction_metadata; select $em;", 20),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Party types", "match $p isa restricted_party; select $p;", 3),
