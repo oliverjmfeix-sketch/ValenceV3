@@ -1139,6 +1139,11 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
      protections, blocker scope vs. chain pathway mismatches, timing misalignments
    Explain how tiers interact when relevant: a strong blocker (T1) can be undermined by narrow
    definitions (T2), and T3 captures these compound vulnerabilities.
+7. **CROSS-REFERENCE DEFINITIONS**: When discussing definitions: If a term is defined by
+   cross-reference to another document (e.g., "Intellectual Property" is defined in the Security
+   Agreement), state this clearly. Do not say the term is "not defined" — it IS defined, but the
+   full definition requires reviewing the referenced document. Frame this as: "[Term] is defined
+   by reference to [Document] [p.X], so the scope of the definition depends on that document."
 
 ## FORMATTING
 

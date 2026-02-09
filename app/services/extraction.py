@@ -754,13 +754,18 @@ If your output is less than 30,000 characters, you are likely summarizing instea
         self,
         context: str,
         questions: List[Dict],
-        category_name: str
+        category_name: str,
+        system_instruction: str = "",
     ) -> List[AnsweredQuestion]:
         """Answer a category's questions against the RP universe context."""
         questions_text = self._format_questions_for_prompt(questions)
 
-        prompt = f"""Answer covenant analysis questions using the extracted RP-relevant content.
+        system_block = ""
+        if system_instruction:
+            system_block = f"\n## SYSTEM INSTRUCTION\n\n{system_instruction}\n"
 
+        prompt = f"""Answer covenant analysis questions using the extracted RP-relevant content.
+{system_block}
 ## RP-RELEVANT CONTEXT
 
 {context}
@@ -1205,13 +1210,46 @@ Return ONLY the JSON array."""
         prior_answers_summary: List[str] = []
         definitions_text = ""
 
+        _XREF_T1 = (
+            "DEFINITIONS RULE: A term defined by cross-reference (e.g., "
+            "'shall have the meaning assigned in the Security Agreement') "
+            "IS a defined term. Return cross-reference text verbatim when "
+            "asked to extract definitions. Answer true when asked if a term "
+            "is defined, even if defined by cross-reference."
+        )
+        _XREF_T2 = (
+            "CRITICAL DEFINITIONS RULE: Terms can be defined three ways:\n"
+            "(a) INLINE — full text in this document ('X means...')\n"
+            "(b) CROSS-REFERENCE — defined by reference to another document "
+            "('X shall have the meaning assigned in the Security Agreement')\n"
+            "(c) NOT DEFINED — term does not appear at all\n"
+            "A cross-reference IS a definition. When extracting definitions, "
+            "return the cross-reference language verbatim. When asked if a "
+            "term is defined, answer true for both inline and cross-reference. "
+            "When asked to analyze what a definition includes or excludes, and "
+            "the definition is a cross-reference, state that the analysis "
+            "requires the referenced document and answer SILENT for all "
+            "inclusion/exclusion checks (not EXCLUDED — we don't know what's "
+            "excluded without reading the other document)."
+        )
+        _XREF_T3 = (
+            "DEFINITIONS RULE: Cross-reference definitions (defined by "
+            "reference to another document) are definitions but cannot be "
+            "fully analyzed from this document alone. When a Tier 2 answer "
+            "shows a cross-reference definition, note this as a limitation — "
+            "the definition quality cannot be assessed without the referenced "
+            "document. Do not treat cross-reference definitions as gaps; "
+            "treat them as unknowns."
+        )
+
         # ── Pass 1: Tier 1 (Structural) against RP universe ──────────────
         if jc1_questions:
             logger.info("J.Crew Pass 1: Tier 1 structural analysis against RP universe...")
             t1_answers = self._answer_category_questions(
                 rp_universe.raw_text,
                 jc1_questions,
-                "J.Crew Tier 1 — Structural Vulnerability"
+                "J.Crew Tier 1 — Structural Vulnerability",
+                system_instruction=_XREF_T1,
             )
             all_category_answers.append(CategoryAnswers(
                 category_id="JC1",
@@ -1241,7 +1279,8 @@ Return ONLY the JSON array."""
             t2_answers = self._answer_category_questions(
                 definitions_text,
                 jc2_questions,
-                "J.Crew Tier 2 — Definition Quality"
+                "J.Crew Tier 2 — Definition Quality",
+                system_instruction=_XREF_T2,
             )
             all_category_answers.append(CategoryAnswers(
                 category_id="JC2",
@@ -1280,7 +1319,8 @@ Return ONLY the JSON array."""
             t3_answers = self._answer_category_questions(
                 combined_context,
                 jc3_questions,
-                "J.Crew Tier 3 — Cross-Reference Interactions"
+                "J.Crew Tier 3 — Cross-Reference Interactions",
+                system_instruction=_XREF_T3,
             )
             all_category_answers.append(CategoryAnswers(
                 category_id="JC3",
@@ -1492,7 +1532,12 @@ RULES:
 6. For dollar amounts, use raw numbers (130000000 not "130M")
 7. Be precise about "no worse" test - this is CRITICAL for risk analysis
 8. For ratio thresholds, use the decimal number (5.75x = 5.75)
-9. For reallocation_cap: use null (not "unlimited") if there is no cap"""
+9. For reallocation_cap: use null (not "unlimited") if there is no cap
+10. DEFINITIONS: Terms can be defined three ways in credit agreements:
+    (a) INLINE — full definition text appears in this document (e.g., "Material Intellectual Property" means...)
+    (b) CROSS-REFERENCE — defined by reference to another document (e.g., "Intellectual Property" shall have the meaning assigned to such term in the Security Agreement)
+    (c) NOT DEFINED — term does not appear in the defined terms section at all
+    A cross-reference IS a definition. When asked if a term is defined, answer true for both inline and cross-reference definitions. When asked to extract a definition, return the cross-reference text verbatim — do not say "NOT DEFINED" for cross-referenced terms. When a term is defined by cross-reference, note which document contains the full definition."""
 
         try:
             response = self.client.messages.create(
