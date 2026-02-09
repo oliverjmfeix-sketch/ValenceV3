@@ -730,31 +730,36 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                         $p isa provision, has provision_id "{provision_id}";
                         $rel (provision: $p, question: $q) isa provision_has_answer;
                         $q has question_id $qid;
-                        $rel has $attr;
-                    select $qid, $attr;
+                        try {{ $rel has answer_boolean $vb; }};
+                        try {{ $rel has answer_string $vs; }};
+                        try {{ $rel has answer_integer $vi; }};
+                        try {{ $rel has answer_double $vd; }};
+                        try {{ $rel has answer_date $vdate; }};
+                        try {{ $rel has source_text $st; }};
+                        try {{ $rel has source_page $sp; }};
+                        try {{ $rel has confidence $conf; }};
+                    select $qid, $vb, $vs, $vi, $vd, $vdate, $st, $sp, $conf;
                 """
                 answers_result = tx.query(answers_query).resolve()
                 for row in answers_result.as_concept_rows():
                     qid = _safe_get_value(row, "qid")
-                    attr_concept = row.get("attr")
-                    if not qid or not attr_concept:
+                    if not qid:
                         continue
-                    try:
-                        attr = attr_concept.as_attribute()
-                        attr_type = attr.get_type().get_label()
-                        value = attr.get_value()
-                        if qid not in stored_values:
-                            stored_values[qid] = {}
-                        if attr_type in ("answer_boolean", "answer_integer", "answer_double", "answer_string", "answer_date"):
-                            stored_values[qid]["value"] = value
-                        elif attr_type == "source_text":
-                            stored_values[qid]["source_text"] = value
-                        elif attr_type == "source_page":
-                            stored_values[qid]["source_page"] = value
-                        elif attr_type == "confidence":
-                            stored_values[qid]["confidence"] = value
-                    except Exception:
-                        pass
+                    if qid not in stored_values:
+                        stored_values[qid] = {}
+                    for var in ("vb", "vs", "vi", "vd", "vdate"):
+                        val = _safe_get_value(row, var)
+                        if val is not None:
+                            stored_values[qid]["value"] = val
+                    st = _safe_get_value(row, "st")
+                    if st is not None:
+                        stored_values[qid]["source_text"] = st
+                    sp = _safe_get_value(row, "sp")
+                    if sp is not None:
+                        stored_values[qid]["source_page"] = sp
+                    conf = _safe_get_value(row, "conf")
+                    if conf is not None:
+                        stored_values[qid]["confidence"] = conf
 
             # 3. Load concept applicabilities for multiselect questions
             multiselect_values = {}
@@ -888,51 +893,53 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                     $p isa provision, has provision_id "{provision_id}";
                     $rel (provision: $p, question: $q) isa provision_has_answer;
                     $q has question_id $qid;
-                    $rel has $attr;
-                select $qid, $attr;
+                    try {{ $rel has answer_boolean $vb; }};
+                    try {{ $rel has answer_string $vs; }};
+                    try {{ $rel has answer_integer $vi; }};
+                    try {{ $rel has answer_double $vd; }};
+                    try {{ $rel has answer_date $vdate; }};
+                    try {{ $rel has source_text $st; }};
+                    try {{ $rel has source_page $sp; }};
+                    try {{ $rel has confidence $conf; }};
+                select $qid, $vb, $vs, $vi, $vd, $vdate, $st, $sp, $conf;
             """
             answers_result = tx.query(answers_query).resolve()
             for row in answers_result.as_concept_rows():
                 qid = _safe_get_value(row, "qid")
-                attr_concept = row.get("attr")
-                if not qid or not attr_concept:
+                if not qid:
                     continue
-                try:
-                    attr = attr_concept.as_attribute()
-                    attr_type = attr.get_type().get_label()
-                    value = attr.get_value()
-                    if qid not in scalar_answers:
-                        scalar_answers[qid] = {}
-                    if attr_type in ("answer_boolean", "answer_integer", "answer_double", "answer_string", "answer_date"):
-                        scalar_answers[qid]["value"] = value
-                    elif attr_type == "source_text":
-                        scalar_answers[qid]["source_text"] = value
-                    elif attr_type == "source_page":
-                        scalar_answers[qid]["source_page"] = value
-                    elif attr_type == "confidence":
-                        scalar_answers[qid]["confidence"] = value
-                except Exception:
-                    pass
+                if qid not in scalar_answers:
+                    scalar_answers[qid] = {}
+                for var in ("vb", "vs", "vi", "vd", "vdate"):
+                    val = _safe_get_value(row, var)
+                    if val is not None:
+                        scalar_answers[qid]["value"] = val
+                st = _safe_get_value(row, "st")
+                if st is not None:
+                    scalar_answers[qid]["source_text"] = st
+                sp = _safe_get_value(row, "sp")
+                if sp is not None:
+                    scalar_answers[qid]["source_page"] = sp
+                conf = _safe_get_value(row, "conf")
+                if conf is not None:
+                    scalar_answers[qid]["confidence"] = conf
 
             # Get pattern flags (still flat attributes on rp_provision)
             pattern_flags = {}
             flags_query = f"""
                 match
                     $p isa rp_provision, has provision_id "{provision_id}";
-                    $p has $attr;
-                select $attr;
+                    try {{ $p has jcrew_pattern_detected $jpd; }};
+                    try {{ $p has serta_pattern_detected $spd; }};
+                    try {{ $p has collateral_leakage_pattern_detected $clpd; }};
+                select $jpd, $spd, $clpd;
             """
             flags_result = tx.query(flags_query).resolve()
             for row in flags_result.as_concept_rows():
-                attr_concept = row.get("attr")
-                if attr_concept:
-                    try:
-                        attr = attr_concept.as_attribute()
-                        attr_type = attr.get_type().get_label()
-                        if attr_type.endswith("_pattern_detected"):
-                            pattern_flags[attr_type] = attr.get_value()
-                    except Exception:
-                        pass
+                for var, flag_name in [("jpd", "jcrew_pattern_detected"), ("spd", "serta_pattern_detected"), ("clpd", "collateral_leakage_pattern_detected")]:
+                    val = _safe_get_value(row, var)
+                    if val is not None:
+                        pattern_flags[flag_name] = val
 
             # Get all concept applicabilities (multiselect answers)
             multiselect_answers = {}
