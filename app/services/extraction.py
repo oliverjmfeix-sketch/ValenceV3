@@ -139,6 +139,8 @@ class ExtractionResult:
     total_questions: int = 0
     high_confidence_answers: int = 0
     rp_universe_chars: int = 0
+    rp_universe: Optional['RPUniverse'] = None  # Retained for J.Crew pipeline
+    document_text: Optional[str] = None         # Retained for J.Crew pipeline
 
 
 # =============================================================================
@@ -1082,6 +1084,239 @@ Return ONLY the JSON array."""
             return False
 
     # =========================================================================
+    # J.CREW DEEP ANALYSIS PIPELINE
+    # =========================================================================
+
+    def extract_definitions_section(self, document_text: str) -> str:
+        """Extract definitions relevant to J.Crew deep analysis from document text.
+
+        Searches for defined terms critical to Tier 2 definition quality analysis:
+        IP, Transfer, Material, Unrestricted Subsidiary, Collateral, etc.
+
+        Uses regex to find "Term" means ... paragraphs in the definitions section.
+        Returns concatenated definition text for use as Tier 2 context.
+        """
+        target_terms = [
+            "Intellectual Property", "Material Intellectual Property", "Material IP",
+            "IP", "Transfer", "Disposition",
+            "Material", "Materiality",
+            "Unrestricted Subsidiary", "Excluded Subsidiary",
+            "Restricted Subsidiary", "Non-Guarantor Restricted Subsidiary",
+            "Loan Party", "Credit Party",
+            "Guarantor", "Subsidiary Guarantor",
+            "Permitted Investment", "Investment",
+            "Permitted Lien", "Permitted Encumbrance",
+            "Collateral", "Pledged Assets",
+            "Exclusive License", "License",
+            "Trade Secret", "Know-How", "Patent", "Trademark", "Copyright",
+            "Principal Property", "Material Asset",
+        ]
+
+        found = []
+        seen_starts = set()  # Deduplicate overlapping matches
+
+        for term in target_terms:
+            # Match "Term" means/shall mean patterns (smart and straight quotes)
+            pattern = (
+                rf'["\u201c]{re.escape(term)}["\u201d]'
+                rf'\s*(?:means?|shall mean|is defined as|has the meaning)'
+            )
+            for match in re.finditer(pattern, document_text, re.IGNORECASE):
+                start = match.start()
+
+                # Deduplicate: skip if we already captured near this position
+                bucket = start // 200
+                if bucket in seen_starts:
+                    continue
+                seen_starts.add(bucket)
+
+                # Walk back to paragraph/line start
+                line_start = document_text.rfind('\n', max(0, start - 500), start)
+                line_start = line_start + 1 if line_start != -1 else max(0, start - 500)
+
+                # Walk forward to find end of definition
+                search_end = min(start + 4000, len(document_text))
+                # Look for next quoted-term definition pattern
+                next_def = re.search(
+                    r'\n\s*["\u201c][A-Z][a-zA-Z\s]+["\u201d]\s*'
+                    r'(?:means?|shall mean|is defined|has the meaning)',
+                    document_text[start + 50:search_end]
+                )
+                if next_def:
+                    end = start + 50 + next_def.start()
+                else:
+                    # Fall back to double-newline paragraph break
+                    double_nl = document_text.find('\n\n', start + 50, search_end)
+                    end = double_nl if double_nl != -1 else search_end
+
+                found.append(document_text[line_start:end].strip())
+
+        if found:
+            result = "\n\n---\n\n".join(found)
+            logger.info(f"Extracted {len(found)} definitions ({len(result)} chars) for J.Crew analysis")
+            return result
+
+        logger.warning("No definitions found for J.Crew analysis — will fall back to RP universe definitions")
+        return ""
+
+    async def run_jcrew_deep_analysis(
+        self,
+        deal_id: str,
+        rp_universe: RPUniverse,
+        document_text: str,
+    ) -> Dict[str, Any]:
+        """
+        Run J.Crew 3-tier deep analysis on a deal.
+
+        Pass 1 (Tier 1 — Structural): JC1 questions against RP universe text
+        Pass 2 (Tier 2 — Definition Quality): JC2 questions against definitions text
+        Pass 3 (Tier 3 — Cross-Reference): JC3 questions against both + prior answers
+
+        Reuses existing _answer_category_questions and store_extraction_result.
+        Loads its own copy of JC questions from TypeDB (SSoT).
+
+        Args:
+            deal_id: The deal being analyzed
+            rp_universe: Already-extracted RP universe from the main pipeline
+            document_text: Full parsed document text (for definitions extraction)
+
+        Returns:
+            Summary dict with counts and timing
+        """
+        start_time = time.time()
+
+        # Load all RP questions and filter to J.Crew tiers
+        all_questions = self.load_questions_by_category("RP")
+        jc1_questions = all_questions.get("JC1", [])
+        jc2_questions = all_questions.get("JC2", [])
+        jc3_questions = all_questions.get("JC3", [])
+
+        jc_total = len(jc1_questions) + len(jc2_questions) + len(jc3_questions)
+        if jc_total == 0:
+            logger.info("No J.Crew questions loaded — skipping deep analysis")
+            return {"skipped": True, "reason": "no_jcrew_questions"}
+
+        logger.info(
+            f"J.Crew deep analysis: {len(jc1_questions)} T1, "
+            f"{len(jc2_questions)} T2, {len(jc3_questions)} T3 questions"
+        )
+
+        all_category_answers: List[CategoryAnswers] = []
+        prior_answers_summary: List[str] = []
+        definitions_text = ""
+
+        # ── Pass 1: Tier 1 (Structural) against RP universe ──────────────
+        if jc1_questions:
+            logger.info("J.Crew Pass 1: Tier 1 structural analysis against RP universe...")
+            t1_answers = self._answer_category_questions(
+                rp_universe.raw_text,
+                jc1_questions,
+                "J.Crew Tier 1 — Structural Vulnerability"
+            )
+            all_category_answers.append(CategoryAnswers(
+                category_id="JC1",
+                category_name="J.Crew Tier 1 — Structural Vulnerability",
+                answers=t1_answers,
+            ))
+            # Summarize T1 answers for T3 cross-reference
+            for a in t1_answers:
+                if a.confidence in ("high", "medium"):
+                    prior_answers_summary.append(
+                        f"[{a.question_id}] = {a.value} ({a.confidence})"
+                    )
+            logger.info(f"Pass 1 complete: {len(t1_answers)} answers")
+
+        # ── Pass 2: Tier 2 (Definition Quality) against definitions text ──
+        if jc2_questions:
+            logger.info("J.Crew Pass 2: Tier 2 definition quality analysis...")
+            definitions_text = self.extract_definitions_section(document_text)
+
+            # Fall back to RP universe definitions if regex extraction found nothing
+            if not definitions_text:
+                logger.warning(
+                    "No definitions extracted — falling back to RP universe definitions"
+                )
+                definitions_text = rp_universe.definitions or rp_universe.raw_text
+
+            t2_answers = self._answer_category_questions(
+                definitions_text,
+                jc2_questions,
+                "J.Crew Tier 2 — Definition Quality"
+            )
+            all_category_answers.append(CategoryAnswers(
+                category_id="JC2",
+                category_name="J.Crew Tier 2 — Definition Quality",
+                answers=t2_answers,
+            ))
+            # Summarize T2 answers for T3 cross-reference
+            for a in t2_answers:
+                if a.confidence in ("high", "medium"):
+                    prior_answers_summary.append(
+                        f"[{a.question_id}] = {a.value} ({a.confidence})"
+                    )
+            logger.info(f"Pass 2 complete: {len(t2_answers)} answers")
+
+        # ── Pass 3: Tier 3 (Cross-Reference) against both + prior answers ─
+        if jc3_questions:
+            logger.info("J.Crew Pass 3: Tier 3 cross-reference analysis...")
+
+            # Build combined context: RP universe + definitions + prior answers
+            combined_parts = [rp_universe.raw_text]
+
+            if definitions_text:
+                combined_parts.append("\n\n## DEFINITIONS (from document)\n\n")
+                combined_parts.append(definitions_text)
+
+            if prior_answers_summary:
+                combined_parts.append("\n\n## PRIOR TIER 1 & 2 FINDINGS\n\n")
+                combined_parts.append(
+                    "These findings from earlier analysis tiers are "
+                    "provided for cross-reference:\n"
+                )
+                combined_parts.append("\n".join(prior_answers_summary))
+
+            combined_context = "\n".join(combined_parts)
+
+            t3_answers = self._answer_category_questions(
+                combined_context,
+                jc3_questions,
+                "J.Crew Tier 3 — Cross-Reference Interactions"
+            )
+            all_category_answers.append(CategoryAnswers(
+                category_id="JC3",
+                category_name="J.Crew Tier 3 — Cross-Reference Interactions",
+                answers=t3_answers,
+            ))
+            logger.info(f"Pass 3 complete: {len(t3_answers)} answers")
+
+        # ── Store all J.Crew answers ──────────────────────────────────────
+        logger.info("Storing J.Crew deep analysis results...")
+        self.store_extraction_result(deal_id, all_category_answers)
+
+        elapsed = time.time() - start_time
+        total_answers = sum(len(ca.answers) for ca in all_category_answers)
+        high_conf = sum(
+            1 for ca in all_category_answers
+            for a in ca.answers if a.confidence == "high"
+        )
+
+        logger.info(
+            f"J.Crew deep analysis complete in {elapsed:.1f}s: "
+            f"{total_answers} answers ({high_conf} high confidence)"
+        )
+
+        return {
+            "total_answers": total_answers,
+            "high_confidence": high_conf,
+            "tier_counts": {
+                "JC1": len(jc1_questions),
+                "JC2": len(jc2_questions),
+                "JC3": len(jc3_questions),
+            },
+            "elapsed_seconds": round(elapsed, 1),
+        }
+
+    # =========================================================================
     # MAIN EXTRACTION FLOW
     # =========================================================================
 
@@ -1156,7 +1391,9 @@ Return ONLY the JSON array."""
             chunks_processed=1,  # Universe extraction counts as 1
             total_questions=total_questions,
             high_confidence_answers=high_conf_count,
-            rp_universe_chars=universe_chars
+            rp_universe_chars=universe_chars,
+            rp_universe=rp_universe,
+            document_text=document_text,
         )
 
     # =========================================================================

@@ -585,17 +585,46 @@ async def run_extraction(deal_id: str, pdf_path: str):
         high_conf = result.high_confidence_answers
         universe_kb = result.rp_universe_chars // 1024
 
-        # Update status: complete
+        logger.info(
+            f"Extraction complete for deal {deal_id}: "
+            f"{total_answers} answers in {result.extraction_time_seconds:.1f}s"
+        )
+
+        # ── J.Crew Deep Analysis (non-blocking) ─────────────────────────
+        # Runs 3-tier analysis if JC1/JC2/JC3 questions are seeded in TypeDB.
+        # Failure here does NOT block the main extraction from succeeding.
+        if result.rp_universe and result.document_text:
+            try:
+                extraction_status[deal_id] = ExtractionStatus(
+                    deal_id=deal_id,
+                    status="extracting",
+                    progress=85,
+                    current_step="Running J.Crew deep analysis (3-tier)..."
+                )
+                jcrew_result = await extraction_svc.run_jcrew_deep_analysis(
+                    deal_id=deal_id,
+                    rp_universe=result.rp_universe,
+                    document_text=result.document_text,
+                )
+                if not jcrew_result.get("skipped"):
+                    jc_answers = jcrew_result.get("total_answers", 0)
+                    jc_high = jcrew_result.get("high_confidence", 0)
+                    logger.info(
+                        f"J.Crew deep analysis for {deal_id}: "
+                        f"{jc_answers} answers ({jc_high} high confidence) "
+                        f"in {jcrew_result.get('elapsed_seconds', 0)}s"
+                    )
+            except Exception as jc_err:
+                logger.warning(
+                    f"J.Crew deep analysis failed for {deal_id} (non-blocking): {jc_err}"
+                )
+
+        # Update status: complete (after both standard + J.Crew)
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
             progress=100,
             current_step=f"Extracted {total_answers} answers ({high_conf} high confidence), {universe_kb}KB RP universe in {result.extraction_time_seconds:.1f}s"
-        )
-
-        logger.info(
-            f"Extraction complete for deal {deal_id}: "
-            f"{total_answers} answers in {result.extraction_time_seconds:.1f}s"
         )
 
     except Exception as e:
@@ -1100,6 +1129,16 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
+6. **J.CREW MULTI-TIER ANALYSIS**: When the user asks about J.Crew patterns, IP blocker analysis,
+   definition quality, or cross-provision interactions, reference the multi-tier analysis data:
+   - **Tier 1 (JC1)**: Structural vulnerability — blocker existence, scope, amendment rights,
+     chain pathway analysis, unrestricted subsidiary designation mechanics
+   - **Tier 2 (JC2)**: Definition quality — IP definition completeness (trade secrets, know-how),
+     transfer definition gaps (exclusive licenses, pledges), material definition objectivity
+   - **Tier 3 (JC3)**: Cross-reference interactions — how definition gaps undermine structural
+     protections, blocker scope vs. chain pathway mismatches, timing misalignments
+   Explain how tiers interact when relevant: a strong blocker (T1) can be undermined by narrow
+   definitions (T2), and T3 captures these compound vulnerabilities.
 
 ## FORMATTING
 
