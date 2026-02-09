@@ -1092,6 +1092,15 @@ Return ONLY the JSON array."""
     # J.CREW DEEP ANALYSIS PIPELINE
     # =========================================================================
 
+    @staticmethod
+    def _find_page_number(text: str, position: int) -> Optional[int]:
+        """Find the most recent [PAGE X] marker before the given position."""
+        preceding_text = text[:position]
+        matches = list(re.finditer(r'\[PAGE\s+(\d+)\]', preceding_text))
+        if matches:
+            return int(matches[-1].group(1))
+        return None
+
     def extract_definitions_section(self, document_text: str) -> str:
         """Extract definitions relevant to J.Crew deep analysis from document text.
 
@@ -1154,7 +1163,12 @@ Return ONLY the JSON array."""
                     double_nl = document_text.find('\n\n', start + 50, search_end)
                     end = double_nl if double_nl != -1 else search_end
 
-                found.append(document_text[line_start:end].strip())
+                page = self._find_page_number(document_text, start)
+                header = f"=== {term}"
+                if page:
+                    header += f" [page {page}]"
+                header += " ==="
+                found.append(f"{header}\n{document_text[line_start:end].strip()}")
 
         if found:
             result = "\n\n---\n\n".join(found)
