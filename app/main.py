@@ -81,10 +81,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware — explicit origins + wildcard for Lovable preview URLs
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https://.*\.lovable\.app|https://.*\.lovableproject\.com|https://lovable\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
