@@ -1092,35 +1092,62 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
             detail="No extracted data found. Please upload and extract a document first."
         )
 
-    # Step 2: Load question metadata for human-readable labels
-    question_meta = {}  # {question_id: question_text}
+    # Step 2: Load question metadata with category info for grouped display
+    question_meta = {}  # {question_id: {question_text, category_id, category_name}}
+    concept_type_labels = {}  # {concept_type: question_text} for multiselect labels
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
+            # Load question_id → question_text + category info
             meta_query = """
                 match
                     $q isa ontology_question,
                         has covenant_type "RP",
                         has question_id $qid,
                         has question_text $qtext;
-                select $qid, $qtext;
+                    (category: $cat, question: $q) isa category_has_question;
+                    $cat has category_id $cid, has name $cname;
+                select $qid, $qtext, $cid, $cname;
             """
             meta_result = tx.query(meta_query).resolve()
             for row in meta_result.as_concept_rows():
                 qid = _safe_get_value(row, "qid")
                 qtext = _safe_get_value(row, "qtext")
+                cid = _safe_get_value(row, "cid")
+                cname = _safe_get_value(row, "cname")
                 if qid and qtext:
-                    question_meta[qid] = qtext
+                    question_meta[qid] = {
+                        "question_text": qtext,
+                        "category_id": cid or "ZZ",
+                        "category_name": cname or "Other",
+                    }
+
+            # Load multiselect concept type → question_text labels from TypeDB
+            label_query = """
+                match
+                    $q isa ontology_question,
+                        has question_text $qt,
+                        has answer_type "multiselect";
+                    (question: $q) isa question_targets_concept,
+                        has target_concept_type $tct;
+                select $qt, $tct;
+            """
+            label_result = tx.query(label_query).resolve()
+            for row in label_result.as_concept_rows():
+                qt = _safe_get_value(row, "qt")
+                tct = _safe_get_value(row, "tct")
+                if qt and tct:
+                    concept_type_labels[tct] = qt
         finally:
             tx.close()
     except Exception:
         pass  # Proceed with empty metadata — context will still work
 
     # Step 3: Format answers as structured context for Claude
-    context = _format_rp_provision_as_context(rp_response, question_meta)
+    context = _format_rp_provision_as_context(rp_response, question_meta, concept_type_labels)
 
-    # Step 4: Build prompt with strict rules
-    prompt = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant.
+    # Step 4: Build system rules and user prompt (separated for priority)
+    system_rules = """You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted structured data.
 
 ## STRICT RULES
 
@@ -1153,20 +1180,17 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 - Use **bold** for key terms and defined terms
 - Use bullet points for lists
 - Keep response concise but complete
+- State facts with citations. Do not editorialize."""
 
-## USER QUESTION
+    user_prompt = f"""## USER QUESTION
 
 {request.question}
 
 ## EXTRACTED DATA FOR THIS DEAL
 
-{context}
+{context}"""
 
-## YOUR RESPONSE
-
-Answer the user's question following all rules above. State facts with citations. Do not editorialize."""
-
-    # Step 5: Call Claude with appropriate model
+    # Step 5: Call Claude with system message + user message
     try:
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -1175,7 +1199,8 @@ Answer the user's question following all rules above. State facts with citations
         response = client.messages.create(
             model=model_used,
             max_tokens=4000,
-            messages=[{"role": "user", "content": prompt}]
+            system=system_rules,
+            messages=[{"role": "user", "content": user_prompt}]
         )
 
         answer_text = response.content[0].text
@@ -1203,43 +1228,64 @@ Answer the user's question following all rules above. State facts with citations
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _format_rp_provision_as_context(rp_response: Dict, question_meta: Dict[str, str] = None) -> str:
+def _format_rp_provision_as_context(
+    rp_response: Dict,
+    question_meta: Dict[str, Dict] = None,
+    concept_type_labels: Dict[str, str] = None,
+) -> str:
     """Format RP provision data as structured context for Claude.
 
-    Uses question_text labels instead of internal question_ids.
-    Includes source_page provenance for citation support.
+    Groups scalar answers by category for easier navigation.
+    Uses question_text labels from TypeDB (SSoT).
+    Derives multiselect concept labels from TypeDB question_text.
     """
     if question_meta is None:
         question_meta = {}
+    if concept_type_labels is None:
+        concept_type_labels = {}
 
     lines = []
 
-    # Scalar answers with human-readable labels and provenance
-    lines.append("### EXTRACTED ANSWERS")
-    lines.append("")
-
+    # ── Scalar answers grouped by category ────────────────────────────
     scalar_answers = rp_response.get("scalar_answers", {})
-    for qid in sorted(scalar_answers.keys()):
-        data = scalar_answers[qid]
-        value = data.get("value")
-        if isinstance(value, bool):
-            value_str = "Yes" if value else "No"
-        elif isinstance(value, float) and value == int(value):
-            value_str = str(int(value))
+
+    # Group answers by (category_id, category_name)
+    by_category: Dict[tuple, list] = {}
+    for qid, data in scalar_answers.items():
+        meta = question_meta.get(qid)
+        if meta:
+            cat_key = (meta["category_id"], meta["category_name"])
         else:
-            value_str = str(value)
+            cat_key = ("ZZ", "Other")
+        by_category.setdefault(cat_key, []).append((qid, data))
 
-        label = question_meta.get(qid, qid)
-        page = data.get("source_page")
-        page_ref = f" [p.{page}]" if page else ""
-        lines.append(f"  - {label}: {value_str}{page_ref}")
-
-        source_text = data.get("source_text")
-        if source_text:
-            lines.append(f"    Source: \"{source_text}\"")
+    lines.append("## EXTRACTED ANSWERS")
     lines.append("")
 
-    # Pattern flags
+    for (cat_id, cat_name), answers in sorted(by_category.items()):
+        lines.append(f"### {cat_name} ({cat_id})")
+        for qid, data in sorted(answers, key=lambda x: x[0]):
+            meta = question_meta.get(qid)
+            q_text = meta["question_text"] if meta else qid
+
+            value = data.get("value")
+            if isinstance(value, bool):
+                value_str = "Yes" if value else "No"
+            elif isinstance(value, float) and value == int(value):
+                value_str = str(int(value))
+            else:
+                value_str = str(value)
+
+            page = data.get("source_page")
+            page_ref = f" [p.{page}]" if page else ""
+            lines.append(f"- {q_text}: {value_str}{page_ref}")
+
+            source_text = data.get("source_text")
+            if source_text:
+                lines.append(f"  Source: \"{source_text[:200]}\"")
+        lines.append("")
+
+    # ── Pattern flags ─────────────────────────────────────────────────
     pattern_flags = rp_response.get("pattern_flags", {})
     if pattern_flags:
         flag_labels = {
@@ -1247,27 +1293,25 @@ def _format_rp_provision_as_context(rp_response: Dict, question_meta: Dict[str, 
             "serta_pattern_detected": "Serta pattern detected",
             "collateral_leakage_pattern_detected": "Collateral leakage pattern detected",
         }
-        lines.append("### PATTERN FLAGS")
+        lines.append("## PATTERN FLAGS")
         lines.append("")
         for flag, value in sorted(pattern_flags.items()):
             label = flag_labels.get(flag, flag)
-            lines.append(f"  - {label}: {'Yes' if value else 'No'}")
+            lines.append(f"- {label}: {'Yes' if value else 'No'}")
         lines.append("")
 
-    # Multiselect answers
+    # ── Multiselect answers (labels from TypeDB) ─────────────────────
     multiselect_answers = rp_response.get("multiselect_answers", {})
     if multiselect_answers:
-        concept_labels = {
-            "facility_prong": "Facility prongs",
-            "ip_type": "IP types covered",
-            "restricted_party": "Restricted parties",
-        }
-        lines.append("### APPLICABLE CONCEPTS")
+        lines.append("## APPLICABLE CONCEPTS")
         lines.append("")
         for concept_type, concepts in sorted(multiselect_answers.items()):
             concept_names = [c["name"] for c in concepts]
-            label = concept_labels.get(concept_type, concept_type)
-            lines.append(f"  - {label}: {', '.join(concept_names)}")
+            label = concept_type_labels.get(
+                concept_type,
+                concept_type.replace("_", " ").title(),
+            )
+            lines.append(f"- {label}: {', '.join(concept_names)}")
         lines.append("")
 
     return "\n".join(lines)
