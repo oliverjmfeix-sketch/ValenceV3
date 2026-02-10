@@ -1,0 +1,48 @@
+################################################################################
+# MFN CONCEPTS - EXTENDED
+# Additional concept instances not in concepts.tql
+################################################################################
+
+insert
+
+# ── lien_priority: missing "unsecured" ────────────────────────────────────────
+
+$lp5 isa lien_priority,
+    has concept_id "unsecured",
+    has name "Unsecured",
+    has description "No lien on collateral; purely contractual claim",
+    has display_order 5;
+
+# ── fee_exclusion: missing "ticking_fees" ─────────────────────────────────────
+
+$fe6 isa fee_exclusion,
+    has concept_id "fe_ticking_fees",
+    has name "Ticking Fees",
+    has description "Fees accruing between signing and funding",
+    has display_order 6;
+
+# ── loophole_type: MFN-specific loopholes ─────────────────────────────────────
+
+$lt9 isa loophole_type,
+    has concept_id "reclassification_risk",
+    has name "Reclassification Risk",
+    has description "Borrower can reclassify incremental as ratio debt to avoid MFN",
+    has display_order 9;
+
+$lt10 isa loophole_type,
+    has concept_id "bridge_to_term",
+    has name "Bridge-to-Term Conversion",
+    has description "Issue as bridge loan (excluded from MFN) then convert to term loan",
+    has display_order 10;
+
+$lt11 isa loophole_type,
+    has concept_id "exclusion_stacking",
+    has name "Exclusion Stacking",
+    has description "Combining multiple MFN exclusions (acquisition + refinancing) to avoid MFN on virtually any new debt",
+    has display_order 11;
+
+$lt12 isa loophole_type,
+    has concept_id "amendment_risk",
+    has name "Amendment Risk",
+    has description "MFN can be waived or modified by simple majority vote without sacred right protection",
+    has display_order 12;

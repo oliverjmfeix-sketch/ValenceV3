@@ -1,0 +1,655 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# MFN (Most Favored Nation) Ontology Questions
+#
+# 42 questions across 6 categories covering the full MFN analysis workflow.
+# All questions use provision_has_answer (Channel 1) for scalar answers
+# or concept_applicability (Channel 2) for multiselect.
+#
+# Question ID pattern: mfn_XX where XX = sequential number
+# Covenant type: MFN
+#
+# Storage: All answers stored via provision_has_answer relation.
+# No new schema types needed — uses existing mfn_provision entity.
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_cat1 isa ontology_category,
+    has category_id "MFN1",
+    has name "MFN Core Structure",
+    has description "Existence, scope, and basic mechanics of the MFN provision. Does it exist, where is it, and what is the threshold?",
+    has display_order 101;
+
+insert $mfn_cat2 isa ontology_category,
+    has category_id "MFN2",
+    has name "Facility & Debt Scope",
+    has description "Which debt types, facilities, and lien priorities are subject to MFN protection. Defines the perimeter of what triggers a pricing adjustment.",
+    has display_order 102;
+
+insert $mfn_cat3 isa ontology_category,
+    has category_id "MFN3",
+    has name "Yield Mechanics",
+    has description "How yield is calculated for MFN comparison. Which components are included or excluded from the all-in yield determination.",
+    has display_order 103;
+
+insert $mfn_cat4 isa ontology_category,
+    has category_id "MFN4",
+    has name "Sunset & Timing",
+    has description "When MFN protection expires. Time-based sunsets, event-based termination, and interaction with maturity dates.",
+    has display_order 104;
+
+insert $mfn_cat5 isa ontology_category,
+    has category_id "MFN5",
+    has name "Governance & Waivers",
+    has description "How MFN can be modified, waived, or circumvented through amendment mechanics. Consent thresholds and affected lender provisions.",
+    has display_order 105;
+
+insert $mfn_cat6 isa ontology_category,
+    has category_id "MFN6",
+    has name "Loopholes & Weaknesses",
+    has description "Structural gaps in MFN protection. Reclassification risk, exclusion stacking, step-up mechanics, and other borrower-friendly features that can undermine MFN protection.",
+    has display_order 106;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN1: CORE STRUCTURE (Questions mfn_01 - mfn_07)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_01 isa ontology_question,
+    has question_id "mfn_01",
+    has covenant_type "MFN",
+    has question_text "Does an MFN (Most Favored Nation) provision exist?",
+    has answer_type "boolean",
+    has display_order 1,
+    has extraction_prompt "Determine if the credit agreement contains a Most Favored Nation clause. This typically appears in the incremental facility section (often Section 2.14 or 2.20) and requires that if new incremental term loans are issued at a higher yield than existing term loans, the existing term loan pricing must be increased. Look for language like 'effective yield', 'pricing adjustment', 'most favored nation', or 'MFN' in the incremental provisions.";
+
+insert $mfn_02 isa ontology_question,
+    has question_id "mfn_02",
+    has covenant_type "MFN",
+    has question_text "What section contains the MFN provision?",
+    has answer_type "string",
+    has display_order 2,
+    has extraction_prompt "Extract the exact section reference where the MFN provision is located. This is typically in Section 2.14, 2.20, or wherever incremental facilities are defined. Return the verbatim section number (e.g., 'Section 2.14(d)(iv)').";
+
+insert $mfn_03 isa ontology_question,
+    has question_id "mfn_03",
+    has covenant_type "MFN",
+    has question_text "What is the MFN threshold in basis points?",
+    has answer_type "integer",
+    has display_order 3,
+    has extraction_prompt "Extract the MFN threshold — the number of basis points by which a new incremental term loan's yield must exceed the existing term loan's yield before the MFN adjustment is triggered. Common values: 25bps, 50bps, 75bps. Look for language like 'exceeds the Applicable Rate by more than [X] basis points' or 'the Effective Yield exceeds [existing] by more than [X] bps'. Return as integer (e.g., 50 for 50bps).";
+
+insert $mfn_04 isa ontology_question,
+    has question_id "mfn_04",
+    has covenant_type "MFN",
+    has question_text "Does the threshold apply to margin only (not all-in yield)?",
+    has answer_type "boolean",
+    has display_order 4,
+    has extraction_prompt "Determine if the MFN threshold comparison uses only the interest rate margin/spread, or if it uses all-in yield (which includes OID, floors, fees). Margin-only is more borrower-friendly because it excludes yield components. Look for 'Applicable Rate' or 'interest rate margin' (margin-only) vs 'Effective Yield' or 'all-in yield' (all-in). Answer true if margin-only, false if all-in yield.";
+
+insert $mfn_05 isa ontology_question,
+    has question_id "mfn_05",
+    has covenant_type "MFN",
+    has question_text "Is the MFN adjustment automatic or requires lender consent?",
+    has answer_type "boolean",
+    has display_order 5,
+    has extraction_prompt "Determine if the MFN pricing adjustment happens automatically when triggered, or requires affirmative consent from affected lenders. Automatic is standard — look for 'shall be increased' or 'shall be adjusted'. If it says 'may request' or 'with the consent of', answer false. Answer true if automatic.";
+
+insert $mfn_06 isa ontology_question,
+    has question_id "mfn_06",
+    has covenant_type "MFN",
+    has question_text "Does the MFN adjustment apply only to the spread, or can it also adjust the floor?",
+    has answer_type "string",
+    has display_order 6,
+    has extraction_prompt "Determine what the MFN adjustment mechanism can modify. Options: 'spread_only' (only the interest rate margin increases), 'spread_and_floor' (both margin and SOFR/LIBOR floor can adjust), 'all_components' (any yield component can adjust). Look for language about what is 'increased' or 'adjusted'. Return one of: spread_only, spread_and_floor, all_components.";
+
+insert $mfn_07 isa ontology_question,
+    has question_id "mfn_07",
+    has covenant_type "MFN",
+    has question_text "Is the MFN protection bilateral (protects both existing and new lenders)?",
+    has answer_type "boolean",
+    has display_order 7,
+    has extraction_prompt "Determine if the MFN clause only protects existing term lenders (one-way: new debt priced higher triggers increase on existing) or if it also works in reverse (bilateral: existing lenders protected from being undercut, AND new lenders get equivalent terms). Most MFN clauses are one-way protecting existing lenders. Answer true if bilateral.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN2: FACILITY & DEBT SCOPE (Questions mfn_08 - mfn_17)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_08 isa ontology_question,
+    has question_id "mfn_08",
+    has covenant_type "MFN",
+    has question_text "Which facility types are subject to MFN protection?",
+    has answer_type "multiselect",
+    has display_order 8,
+    has extraction_prompt "Identify all facility/debt types that trigger MFN protection when issued at a higher yield. Check each: incremental term loans (most common), incremental revolving commitments, incremental equivalent debt (outside the credit agreement), ratio debt (incurred under ratio test), refinancing debt. Look in the incremental facility section for which types of new debt are subject to the MFN pricing comparison.";
+
+insert $mfn_09 isa ontology_question,
+    has question_id "mfn_09",
+    has covenant_type "MFN",
+    has question_text "Which lien priorities are covered by MFN?",
+    has answer_type "multiselect",
+    has display_order 9,
+    has extraction_prompt "Identify which lien priority levels of incremental debt are subject to MFN. Options: first lien (pari passu with existing term loans), second lien, junior lien, unsecured. Standard MFN only covers pari passu first lien debt. If the MFN covers junior or unsecured debt too, that is broader protection.";
+
+insert $mfn_10 isa ontology_question,
+    has question_id "mfn_10",
+    has covenant_type "MFN",
+    has question_text "Is acquisition debt excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 10,
+    has extraction_prompt "Determine if incremental debt used to finance acquisitions is carved out from MFN protection. This is a very common and significant exclusion — a borrower can price acquisition-related incremental debt at any yield without triggering MFN. Look for 'incurred in connection with a Permitted Acquisition' or 'acquisition debt' in the MFN exceptions.";
+
+insert $mfn_11 isa ontology_question,
+    has question_id "mfn_11",
+    has covenant_type "MFN",
+    has question_text "Is refinancing debt excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 11,
+    has extraction_prompt "Determine if incremental debt used to refinance existing debt is carved out from MFN protection. Look for exclusions for 'Refinancing Indebtedness', 'Credit Agreement Refinancing Indebtedness', or debt incurred to 'refinance, extend, or renew' existing facilities.";
+
+insert $mfn_12 isa ontology_question,
+    has question_id "mfn_12",
+    has covenant_type "MFN",
+    has question_text "Is ratio debt / incremental equivalent debt excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 12,
+    has extraction_prompt "Determine if debt incurred under the ratio-based incurrence test (as opposed to the dollar-based incremental basket) is excluded from MFN. In many modern credit agreements, 'Incremental Equivalent Debt' or 'ratio debt' can be incurred outside the MFN framework entirely. Look for whether the MFN applies only to 'Incremental Term Loans' under Section 2.14 but not to ratio debt incurred under the debt covenant.";
+
+insert $mfn_13 isa ontology_question,
+    has question_id "mfn_13",
+    has covenant_type "MFN",
+    has question_text "Is bridge financing excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 13,
+    has extraction_prompt "Determine if bridge loans or bridge facilities are excluded from MFN protection. Look for exclusions for 'bridge loans', 'Bridge Financing', or temporary financing facilities.";
+
+insert $mfn_14 isa ontology_question,
+    has question_id "mfn_14",
+    has covenant_type "MFN",
+    has question_text "Are revolving facilities excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 14,
+    has extraction_prompt "Determine if incremental revolving commitments are excluded from MFN. Many MFN clauses only apply to incremental term loans and explicitly exclude revolving facility increases.";
+
+insert $mfn_15 isa ontology_question,
+    has question_id "mfn_15",
+    has covenant_type "MFN",
+    has question_text "Are there any other specific exclusions from MFN coverage?",
+    has answer_type "string",
+    has display_order 15,
+    has extraction_prompt "Identify any other specific exclusions from MFN protection beyond acquisition debt, refinancing, ratio debt, bridge financing, and revolving facilities. This might include: debt below a de minimis amount, debt with a different maturity profile, privately placed debt, or debt incurred by non-US subsidiaries. Return verbatim exclusion language or 'None' if no additional exclusions.";
+
+insert $mfn_16 isa ontology_question,
+    has question_id "mfn_16",
+    has covenant_type "MFN",
+    has question_text "Does MFN apply only to same-currency debt?",
+    has answer_type "boolean",
+    has display_order 16,
+    has extraction_prompt "Determine if the MFN comparison only applies when the new incremental debt is in the same currency as the existing term loans. A currency limitation means a borrower could issue incremental debt in a different currency at a higher yield without triggering MFN. Look for 'denominated in the same currency' or similar language.";
+
+insert $mfn_17 isa ontology_question,
+    has question_id "mfn_17",
+    has covenant_type "MFN",
+    has question_text "Is there a de minimis size threshold below which MFN does not apply?",
+    has answer_type "string",
+    has display_order 17,
+    has extraction_prompt "Determine if there is a minimum size for an incremental facility below which the MFN does not apply. Some agreements exempt small incremental facilities from MFN. Extract the threshold amount if it exists, or return 'None' if no de minimis threshold.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN3: YIELD MECHANICS (Questions mfn_18 - mfn_27)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_18 isa ontology_question,
+    has question_id "mfn_18",
+    has covenant_type "MFN",
+    has question_text "Which yield components are included in the MFN comparison?",
+    has answer_type "multiselect",
+    has display_order 18,
+    has extraction_prompt "Identify all components included in the 'Effective Yield' or 'all-in yield' calculation for MFN comparison. Check each: interest rate margin/spread, LIBOR/SOFR floor, original issue discount (OID), upfront fees, commitment fees, arrangement fees. The broader the definition, the stronger the MFN protection for existing lenders.";
+
+insert $mfn_19 isa ontology_question,
+    has question_id "mfn_19",
+    has covenant_type "MFN",
+    has question_text "Is OID (Original Issue Discount) included in yield calculation?",
+    has answer_type "boolean",
+    has display_order 19,
+    has extraction_prompt "Determine if Original Issue Discount is included in the yield calculation for MFN comparison. OID is the discount from par at which debt is issued (e.g., issued at 99 cents = 1% OID). Excluding OID from the yield calculation is a significant borrower-friendly feature. Look for explicit inclusion or exclusion of OID in the yield/effective rate definition.";
+
+insert $mfn_20 isa ontology_question,
+    has question_id "mfn_20",
+    has covenant_type "MFN",
+    has question_text "Is the SOFR/LIBOR floor included in yield calculation?",
+    has answer_type "boolean",
+    has display_order 20,
+    has extraction_prompt "Determine if the reference rate floor (SOFR floor or LIBOR floor) is included in the yield calculation for MFN comparison. The floor provides a minimum yield regardless of market rates. Excluding the floor from MFN comparison means a borrower can offer a higher floor on new debt without triggering MFN. Look for 'interest rate floor' or 'SOFR floor' in the yield definition.";
+
+insert $mfn_21 isa ontology_question,
+    has question_id "mfn_21",
+    has covenant_type "MFN",
+    has question_text "Are upfront fees included in yield calculation?",
+    has answer_type "boolean",
+    has display_order 21,
+    has extraction_prompt "Determine if upfront fees paid at closing of the new incremental facility are included in the yield calculation. These are one-time fees that increase effective yield. Look for 'upfront fees', 'closing fees', or 'original issue discount (including upfront fees)'.";
+
+insert $mfn_22 isa ontology_question,
+    has question_id "mfn_22",
+    has covenant_type "MFN",
+    has question_text "Which fees are explicitly excluded from yield calculation?",
+    has answer_type "multiselect",
+    has display_order 22,
+    has extraction_prompt "Identify fees that are explicitly excluded from the MFN yield calculation. Common exclusions: arrangement fees (paid to arrangers), commitment fees (on undrawn amounts), agency fees (to administrative agent), amendment fees, participation fees, ticking fees. Each exclusion narrows MFN protection.";
+
+insert $mfn_23 isa ontology_question,
+    has question_id "mfn_23",
+    has covenant_type "MFN",
+    has question_text "How is OID amortized for yield calculation?",
+    has answer_type "string",
+    has display_order 23,
+    has extraction_prompt "If OID is included in yield, determine how it is amortized for the yield comparison. Common methods: 'amortized over 4 years' (standard), 'amortized to stated maturity', 'amortized over the lesser of 4 years and remaining life', or 'straight-line over [X] years'. A shorter amortization period results in a higher annualized yield impact. Return the verbatim amortization language or 'Not specified' if not addressed.";
+
+insert $mfn_24 isa ontology_question,
+    has question_id "mfn_24",
+    has covenant_type "MFN",
+    has question_text "What is the assumed OID amortization period (years)?",
+    has answer_type "integer",
+    has display_order 24,
+    has extraction_prompt "If OID is amortized over a specific number of years for yield calculation, extract that number. Most common is 4 years. If amortized to maturity, estimate the number of years. Return as integer (e.g., 4).";
+
+insert $mfn_25 isa ontology_question,
+    has question_id "mfn_25",
+    has covenant_type "MFN",
+    has question_text "Is there a yield comparison methodology specified (e.g., internal rate of return)?",
+    has answer_type "string",
+    has display_order 25,
+    has extraction_prompt "Determine if the agreement specifies a methodology for calculating and comparing yields. Some agreements specify 'internal rate of return', 'yield to maturity', or leave it to 'reasonable determination by the Administrative Agent'. Extract the verbatim methodology language or 'Not specified'.";
+
+insert $mfn_26 isa ontology_question,
+    has question_id "mfn_26",
+    has covenant_type "MFN",
+    has question_text "Does the yield calculation differentiate between fixed and floating rate debt?",
+    has answer_type "boolean",
+    has display_order 26,
+    has extraction_prompt "Determine if the MFN yield comparison has different mechanics for fixed-rate vs floating-rate incremental debt. A fixed-rate loan's yield is straightforward, but comparing it to a floating-rate loan's yield requires assumptions about future reference rates. Look for any special treatment of fixed-rate incremental facilities.";
+
+insert $mfn_27 isa ontology_question,
+    has question_id "mfn_27",
+    has covenant_type "MFN",
+    has question_text "Who determines the yield calculation (Administrative Agent, Borrower, or jointly)?",
+    has answer_type "string",
+    has display_order 27,
+    has extraction_prompt "Determine who makes the yield calculation for MFN purposes. Options: 'Administrative Agent' (lender-friendly), 'Borrower' (borrower-friendly), 'jointly by Borrower and Administrative Agent', 'Independent Accountant'. The party making the determination has discretion on borderline cases. Extract the verbatim language.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN4: SUNSET & TIMING (Questions mfn_28 - mfn_33)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_28 isa ontology_question,
+    has question_id "mfn_28",
+    has covenant_type "MFN",
+    has question_text "Is there a sunset provision that terminates MFN protection?",
+    has answer_type "boolean",
+    has display_order 28,
+    has extraction_prompt "Determine if MFN protection expires after a specified period. A sunset means incremental debt issued after the expiration date is not subject to MFN, even if priced at a higher yield. Look for time-limited language like 'during the period ending on the date that is [X] months after the Closing Date' or 'shall not apply after [date]'.";
+
+insert $mfn_29 isa ontology_question,
+    has question_id "mfn_29",
+    has covenant_type "MFN",
+    has question_text "What is the sunset period in months from the closing date?",
+    has answer_type "integer",
+    has display_order 29,
+    has extraction_prompt "If a sunset exists, extract the number of months from the Closing Date after which MFN protection expires. Common values: 6, 12, 18, 24 months. Return as integer.";
+
+insert $mfn_30 isa ontology_question,
+    has question_id "mfn_30",
+    has covenant_type "MFN",
+    has question_text "What sunset type applies?",
+    has answer_type "multiselect",
+    has display_order 30,
+    has extraction_prompt "Identify the type of sunset mechanism. Options: time-based sunset (expires after fixed period), refinancing reset (sunset restarts on refinancing), amendment reset (sunset restarts on material amendment), no sunset (MFN protection never expires). Some agreements have multiple sunset types.";
+
+insert $mfn_31 isa ontology_question,
+    has question_id "mfn_31",
+    has covenant_type "MFN",
+    has question_text "Is the sunset tied to the maturity date of existing term loans?",
+    has answer_type "boolean",
+    has display_order 31,
+    has extraction_prompt "Determine if the MFN sunset is linked to the maturity date of the existing term loans rather than a fixed period from closing. Some agreements sunset MFN protection when the existing term loan's remaining life falls below a threshold (e.g., MFN doesn't apply if new debt matures more than 1 year after existing term loans). This is an important nuance.";
+
+insert $mfn_32 isa ontology_question,
+    has question_id "mfn_32",
+    has covenant_type "MFN",
+    has question_text "Does the sunset reset upon a refinancing or repricing?",
+    has answer_type "boolean",
+    has display_order 32,
+    has extraction_prompt "Determine if the MFN sunset period resets (starts over) when the existing term loans are refinanced or repriced. If the sunset resets, a repricing event extends MFN protection. If it does not reset, the original sunset date stands regardless of subsequent events.";
+
+insert $mfn_33 isa ontology_question,
+    has question_id "mfn_33",
+    has covenant_type "MFN",
+    has question_text "Can the borrower issue incremental debt just after the sunset to avoid MFN?",
+    has answer_type "boolean",
+    has display_order 33,
+    has extraction_prompt "Assess whether the sunset creates a timing loophole: can the borrower wait for the sunset to expire and then issue incremental debt at a higher yield with no pricing adjustment? This is inherently true if a sunset exists with no reset mechanism, but some agreements add anti-abuse provisions or 'committed before the sunset' language. Answer true if the timing loophole exists (sunset with no anti-abuse protection).";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN5: GOVERNANCE & WAIVERS (Questions mfn_34 - mfn_38)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_34 isa ontology_question,
+    has question_id "mfn_34",
+    has covenant_type "MFN",
+    has question_text "What consent threshold is required to waive MFN protection?",
+    has answer_type "string",
+    has display_order 34,
+    has extraction_prompt "Determine what lender consent is required to waive or amend the MFN provision. Options: 'Required Lenders' (simple majority, typically 50%+1), 'supermajority' (66⅔% or 75%), 'all affected lenders' (unanimous consent of existing term lenders), 'each directly and adversely affected lender'. Extract the verbatim consent threshold. If MFN waiver is a sacred right requiring all-lender consent, note this.";
+
+insert $mfn_35 isa ontology_question,
+    has question_id "mfn_35",
+    has covenant_type "MFN",
+    has question_text "Is MFN modification a sacred right (requires all-lender consent)?",
+    has answer_type "boolean",
+    has display_order 35,
+    has extraction_prompt "Determine if modifying or waiving MFN protection is classified as a 'sacred right' requiring consent of all lenders or all directly affected lenders, rather than just Required Lenders (simple majority). Sacred right status makes MFN nearly impossible to waive. Check the amendment section (typically Section 9.02 or 10.01) for whether MFN-related provisions are in the list of provisions requiring all-lender or affected-lender consent.";
+
+insert $mfn_36 isa ontology_question,
+    has question_id "mfn_36",
+    has covenant_type "MFN",
+    has question_text "Can the MFN be waived for a specific incremental facility without waiving it generally?",
+    has answer_type "boolean",
+    has display_order 36,
+    has extraction_prompt "Determine if the MFN can be waived on a transaction-by-transaction basis (i.e., waived for one specific incremental facility without permanently waiving MFN for all future facilities). A transaction-specific waiver is less protective than a permanent waiver because lenders might agree to waive for one deal without realizing the precedent.";
+
+insert $mfn_37 isa ontology_question,
+    has question_id "mfn_37",
+    has covenant_type "MFN",
+    has question_text "Does the Administrative Agent have discretion in applying MFN?",
+    has answer_type "boolean",
+    has display_order 37,
+    has extraction_prompt "Determine if the Administrative Agent has any discretionary authority in interpreting or applying MFN — e.g., 'as reasonably determined by the Administrative Agent' or 'in the Administrative Agent's sole discretion'. Agent discretion can either strengthen or weaken MFN depending on the agent's alignment.";
+
+insert $mfn_38 isa ontology_question,
+    has question_id "mfn_38",
+    has covenant_type "MFN",
+    has question_text "Are there any affected lender provisions (lenders can opt out of incremental if MFN is insufficient)?",
+    has answer_type "boolean",
+    has display_order 38,
+    has extraction_prompt "Determine if existing lenders have any opt-out or objection mechanism if they believe the MFN is being circumvented or if the incremental debt is priced unfairly. Some agreements give affected lenders the right to refuse to participate in an incremental facility. This is rare but represents strong lender protection.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY MFN6: LOOPHOLES & WEAKNESSES (Questions mfn_39 - mfn_42)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_39 isa ontology_question,
+    has question_id "mfn_39",
+    has covenant_type "MFN",
+    has question_text "Which loopholes or structural weaknesses exist in the MFN?",
+    has answer_type "multiselect",
+    has display_order 39,
+    has extraction_prompt "Identify all structural weaknesses in MFN protection. Check each: reclassification risk (borrower can reclassify incremental as ratio debt to avoid MFN), sunset manipulation (issue debt right after sunset expires), exclusion stacking (combine acquisition + refinancing exclusions to avoid MFN), yield calculation gap (OID and floor both excluded, making yield comparison meaningless), amendment risk (MFN modifiable by simple majority), bridge-to-term conversion (issue as bridge to avoid MFN then convert to term loan).";
+
+insert $mfn_40 isa ontology_question,
+    has question_id "mfn_40",
+    has covenant_type "MFN",
+    has question_text "Can the borrower reclassify incremental debt as ratio debt to avoid MFN?",
+    has answer_type "boolean",
+    has display_order 40,
+    has extraction_prompt "Determine if the borrower can designate new debt as 'Incremental Equivalent Debt' or 'ratio debt' (incurred under the ratio-based incurrence test in the debt covenant, e.g., Section 6.01) instead of as an 'Incremental Term Loan' under Section 2.14, thereby avoiding the MFN provision that only applies to Section 2.14 incremental facilities. This is the most common and significant MFN loophole. Answer true if reclassification is possible.";
+
+insert $mfn_41 isa ontology_question,
+    has question_id "mfn_41",
+    has covenant_type "MFN",
+    has question_text "Is there a yield exclusion pattern (both OID and floor excluded from yield)?",
+    has answer_type "boolean",
+    has display_order 41,
+    has extraction_prompt "Determine if BOTH Original Issue Discount AND the reference rate floor are excluded from the MFN yield calculation. When both are excluded, the yield comparison becomes nearly meaningless — a borrower can offer a high OID and a high floor to attract lenders without triggering MFN. This combination is a significant structural weakness. Answer true if both OID and floor are excluded.";
+
+insert $mfn_42 isa ontology_question,
+    has question_id "mfn_42",
+    has covenant_type "MFN",
+    has question_text "Can the borrower use a bridge-to-term conversion to circumvent MFN?",
+    has answer_type "boolean",
+    has display_order 42,
+    has extraction_prompt "Determine if the borrower could issue a bridge loan (which may be excluded from MFN) that converts to a term loan after closing. If bridge financing is excluded from MFN and the bridge converts to a term loan by its terms, the resulting term loan may not be subject to MFN even though it is economically identical to an incremental term loan. Look for bridge exclusions in MFN and for bridge-to-term conversion mechanics elsewhere.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION RELATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# MFN1: Core Structure
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_01";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_02";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_03";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_04";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_05";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_06";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN1"; $q isa ontology_question, has question_id "mfn_07";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# MFN2: Facility & Debt Scope
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_08";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_09";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_15";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_16";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# MFN3: Yield Mechanics
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_18";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_19";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_20";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_21";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_22";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_23";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_24";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_25";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_26";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_27";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# MFN4: Sunset & Timing
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_28";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_29";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_30";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_31";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_32";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN4"; $q isa ontology_question, has question_id "mfn_33";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# MFN5: Governance & Waivers
+match $cat isa ontology_category, has category_id "MFN5"; $q isa ontology_question, has question_id "mfn_34";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN5"; $q isa ontology_question, has question_id "mfn_35";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN5"; $q isa ontology_question, has question_id "mfn_36";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN5"; $q isa ontology_question, has question_id "mfn_37";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN5"; $q isa ontology_question, has question_id "mfn_38";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# MFN6: Loopholes & Weaknesses
+match $cat isa ontology_category, has category_id "MFN6"; $q isa ontology_question, has question_id "mfn_39";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN6"; $q isa ontology_question, has question_id "mfn_40";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN6"; $q isa ontology_question, has question_id "mfn_41";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN6"; $q isa ontology_question, has question_id "mfn_42";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUESTION → MULTISELECT CONCEPT TYPE MAPPINGS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $q isa ontology_question, has question_id "mfn_08";
+insert (question: $q) isa question_targets_concept, has target_concept_type "facility_prong";
+
+match $q isa ontology_question, has question_id "mfn_09";
+insert (question: $q) isa question_targets_concept, has target_concept_type "lien_priority";
+
+match $q isa ontology_question, has question_id "mfn_18";
+insert (question: $q) isa question_targets_concept, has target_concept_type "yield_component";
+
+match $q isa ontology_question, has question_id "mfn_22";
+insert (question: $q) isa question_targets_concept, has target_concept_type "fee_exclusion";
+
+match $q isa ontology_question, has question_id "mfn_30";
+insert (question: $q) isa question_targets_concept, has target_concept_type "sunset_type";
+
+match $q isa ontology_question, has question_id "mfn_39";
+insert (question: $q) isa question_targets_concept, has target_concept_type "loophole_type";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUESTION → TARGET FIELD RELATIONS (scalar questions)
+# Maps each scalar question to its storage field on mfn_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# MFN1: Core Structure
+match $q isa ontology_question, has question_id "mfn_01";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_exists", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_02";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_section_reference", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_03";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_threshold_bps", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_04";
+insert (question: $q) isa question_targets_field, has target_field_name "threshold_applies_to_margin_only", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_05";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_adjustment_automatic", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_06";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_adjustment_scope", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_07";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_bilateral", has target_entity_type "mfn_provision";
+
+# MFN2: Facility & Debt Scope (scalar questions only — mfn_08 and mfn_09 are multiselect)
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_targets_field, has target_field_name "acquisition_debt_excluded", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_11";
+insert (question: $q) isa question_targets_field, has target_field_name "refinancing_debt_excluded", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_12";
+insert (question: $q) isa question_targets_field, has target_field_name "ratio_debt_excluded", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_13";
+insert (question: $q) isa question_targets_field, has target_field_name "bridge_financing_excluded", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_14";
+insert (question: $q) isa question_targets_field, has target_field_name "revolving_excluded", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_targets_field, has target_field_name "other_mfn_exclusions", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_16";
+insert (question: $q) isa question_targets_field, has target_field_name "same_currency_only", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_17";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_de_minimis_threshold", has target_entity_type "mfn_provision";
+
+# MFN3: Yield Mechanics (scalar questions only — mfn_18 and mfn_22 are multiselect)
+match $q isa ontology_question, has question_id "mfn_19";
+insert (question: $q) isa question_targets_field, has target_field_name "oid_included_in_yield", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_20";
+insert (question: $q) isa question_targets_field, has target_field_name "floor_included_in_yield", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_21";
+insert (question: $q) isa question_targets_field, has target_field_name "upfront_fees_included_in_yield", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_23";
+insert (question: $q) isa question_targets_field, has target_field_name "oid_amortization_method", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_24";
+insert (question: $q) isa question_targets_field, has target_field_name "oid_amortization_years", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_25";
+insert (question: $q) isa question_targets_field, has target_field_name "yield_comparison_methodology", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_26";
+insert (question: $q) isa question_targets_field, has target_field_name "fixed_vs_floating_differentiation", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_27";
+insert (question: $q) isa question_targets_field, has target_field_name "yield_determination_party", has target_entity_type "mfn_provision";
+
+# MFN4: Sunset & Timing (mfn_30 is multiselect)
+match $q isa ontology_question, has question_id "mfn_28";
+insert (question: $q) isa question_targets_field, has target_field_name "sunset_exists", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_29";
+insert (question: $q) isa question_targets_field, has target_field_name "sunset_period_months", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_31";
+insert (question: $q) isa question_targets_field, has target_field_name "sunset_tied_to_maturity", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_32";
+insert (question: $q) isa question_targets_field, has target_field_name "sunset_resets_on_refi", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_33";
+insert (question: $q) isa question_targets_field, has target_field_name "sunset_timing_loophole", has target_entity_type "mfn_provision";
+
+# MFN5: Governance & Waivers (mfn_39 is multiselect in MFN6)
+match $q isa ontology_question, has question_id "mfn_34";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_waiver_consent_threshold", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_35";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_is_sacred_right", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_36";
+insert (question: $q) isa question_targets_field, has target_field_name "mfn_transaction_specific_waiver", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_37";
+insert (question: $q) isa question_targets_field, has target_field_name "agent_discretion_in_mfn", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_38";
+insert (question: $q) isa question_targets_field, has target_field_name "affected_lender_opt_out", has target_entity_type "mfn_provision";
+
+# MFN6: Loopholes (mfn_39 is multiselect)
+match $q isa ontology_question, has question_id "mfn_40";
+insert (question: $q) isa question_targets_field, has target_field_name "reclassification_loophole_exists", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_41";
+insert (question: $q) isa question_targets_field, has target_field_name "yield_exclusion_pattern", has target_entity_type "mfn_provision";
+
+match $q isa ontology_question, has question_id "mfn_42";
+insert (question: $q) isa question_targets_field, has target_field_name "bridge_to_term_loophole", has target_entity_type "mfn_provision";

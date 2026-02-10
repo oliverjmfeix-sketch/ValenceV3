@@ -5,7 +5,7 @@ Run this once after setting up TypeDB Cloud:
     python -m app.scripts.init_schema
 
 This creates the database (if needed), loads schema, and seeds all data.
-Loads all 14 TQL files in dependency order.
+Loads all 16 TQL files in dependency order.
 """
 import os
 import sys
@@ -58,6 +58,10 @@ SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
 JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
 JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
 JCREW_RULES_FILE = DATA_DIR / "jcrew_rules.tql"
+
+# 15-16. MFN extended data
+MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
+MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 
 
 def get_driver():
@@ -239,7 +243,7 @@ def _load_multi_insert_file(driver, db_name: str, filepath: Path):
 def init_database():
     """Initialize TypeDB with ValenceV3 schema and all seed data."""
     logger.info("=" * 60)
-    logger.info("ValenceV3 Schema Initialization (all 14 data files)")
+    logger.info("ValenceV3 Schema Initialization (all 16 data files)")
     logger.info("=" * 60)
 
     driver = get_driver()
@@ -380,6 +384,16 @@ def init_database():
                 logger.warning(f"   J.Crew rules: {e}")
                 logger.warning("   NOTE: TypeDB 3.x rule syntax may need adaptation. Rules saved for reference.")
 
+        # 15. Load MFN extended concepts (after concepts.tql)
+        logger.info("\n15. Loading mfn_concepts_extended.tql...")
+        if MFN_CONCEPTS_EXTENDED_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_CONCEPTS_EXTENDED_FILE)
+
+        # 16. Load MFN ontology questions (after all concepts and questions)
+        logger.info("\n16. Loading mfn_ontology_questions.tql...")
+        if MFN_QUESTIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_QUESTIONS_FILE)
+
         # ═══════════════════════════════════════════════════════════════
         # Verification
         # ═══════════════════════════════════════════════════════════════
@@ -391,9 +405,9 @@ def init_database():
         tx = driver.transaction(TYPEDB_DATABASE, TransactionType.READ)
         try:
             checks = [
-                ("Concepts (incl J.Crew)", "match $c isa concept; select $c;", 90),
-                ("Questions (incl J.Crew)", "match $q isa ontology_question; select $q;", 150),
-                ("Categories (incl JC1-3)", "match $cat isa ontology_category; select $cat;", 20),
+                ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
+                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 190),
+                ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
                 ("Extraction metadata", "match $em isa extraction_metadata; select $em;", 20),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Party types", "match $p isa restricted_party; select $p;", 3),
