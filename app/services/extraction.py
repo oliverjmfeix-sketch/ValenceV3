@@ -1371,6 +1371,407 @@ Return ONLY the JSON array."""
         }
 
     # =========================================================================
+    # MFN EXTRACTION PIPELINE
+    # =========================================================================
+
+    def extract_mfn_universe(self, document_text: str) -> Optional[str]:
+        """
+        Extract the MFN-relevant universe from a credit agreement.
+
+        MFN provisions are in the INCREMENTAL FACILITY section (typically
+        Section 2.14 or 2.20), NOT in the covenants section. The MFN universe
+        is much shorter than RP — typically 5-15 pages vs 20+.
+        """
+        MFN_UNIVERSE_PROMPT = """You are a senior leveraged finance attorney. Extract the complete MFN
+(Most Favored Nation) universe from this credit agreement.
+
+## WHAT TO EXTRACT
+
+Return the COMPLETE text of all sections relevant to MFN analysis:
+
+1. **The Incremental Facility Section** (typically Section 2.14 or 2.20)
+   — Extract the ENTIRE section, not just the MFN sub-clause. The full
+   incremental facility mechanics provide context for which debt types
+   are subject to MFN.
+
+2. **The Effective Yield / All-In Yield Definition** (typically in
+   Section 1.01 Definitions) — This defines exactly which components
+   are included in the yield calculation for MFN comparison.
+
+3. **Amendment Provisions** (typically Section 9.02 or 10.01) — Only
+   the subsections about what constitutes a "sacred right" or what
+   requires all-lender consent vs. Required Lender consent. This
+   determines how easily MFN can be waived.
+
+4. **Debt Incurrence Covenant** (typically Section 6.01) — Only the
+   portions relevant to "Incremental Equivalent Debt", "Ratio Debt",
+   or similar defined terms that describe debt incurred outside the
+   credit agreement framework. This is needed to assess the
+   reclassification loophole.
+
+5. **Related Definitions** from Section 1.01:
+   - "Incremental Facility", "Incremental Term Loan", "Incremental
+     Revolving Commitment"
+   - "Incremental Equivalent Debt" or "Credit Agreement Refinancing
+     Indebtedness"
+   - "Effective Yield" or "All-In Yield"
+   - "Required Lenders"
+   - "Applicable Rate" or "Applicable Margin"
+
+## WHAT NOT TO EXTRACT
+
+- Restricted Payments section (Section 6.06) — not relevant to MFN
+- Financial covenants — not relevant
+- Representations and warranties — not relevant
+- Events of default — not relevant (unless cross-referenced by MFN)
+- Administrative provisions — not relevant
+
+## OUTPUT FORMAT
+
+Return the extracted text preserving:
+- Section numbers and headings
+- Page markers ([PAGE X])
+- Defined term capitalization
+- Cross-references to other sections
+
+The MFN universe is typically 5-15 pages (much shorter than RP)."""
+
+        try:
+            # MFN sections are shorter so we can send more document context
+            trimmed = document_text[:600000]
+
+            response = self.client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=30000,
+                messages=[{
+                    "role": "user",
+                    "content": f"{MFN_UNIVERSE_PROMPT}\n\n## DOCUMENT TEXT\n\n{trimmed}"
+                }]
+            )
+
+            raw_text = response.content[0].text
+            logger.info(f"MFN universe extracted: {len(raw_text)} chars")
+            return raw_text
+
+        except Exception as e:
+            logger.error(f"MFN universe extraction failed: {e}")
+            return None
+
+    async def run_mfn_extraction(
+        self,
+        deal_id: str,
+        mfn_universe_text: str,
+        document_text: str
+    ) -> dict:
+        """
+        Extract MFN provision data by answering 42 ontology questions.
+
+        Unlike RP which needs multi-pass extraction due to 160+ questions,
+        MFN has only 42 questions and a shorter universe (~5-15 pages).
+        This can be done in a single Claude call.
+        """
+        MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
+analysis. You are extracting Most Favored Nation (MFN) provision data from
+a credit agreement.
+
+## WHERE TO FIND THE MFN PROVISION
+
+MFN clauses are located in the INCREMENTAL FACILITY section of a credit
+agreement, NOT in the covenants section. Look in these locations:
+
+1. **Section 2.14** (most common) — "Incremental Facilities" or
+   "Incremental Commitments and Loans"
+2. **Section 2.20** — alternative numbering for incremental facilities
+3. **Section 2.21** or **2.22** — sometimes in larger agreements
+4. **Amendment No. [X]** — MFN may be added or modified by amendment
+
+Within the incremental facility section, MFN is typically a sub-clause
+that starts with language like:
+- "the Effective Yield applicable to any Incremental Term Loan shall not
+   exceed..."
+- "if the All-In Yield applicable to any Incremental Term Loan exceeds..."
+- "the Applicable Rate for any Incremental Term Loan shall not be more
+   than [X] basis points greater than..."
+
+## KEY TERMS TO RECOGNIZE
+
+- **Effective Yield / All-In Yield**: The total annualized return to a
+  lender, including spread, floor benefit, OID, and fees. The definition
+  of what's included is the most contested part of MFN.
+
+- **Applicable Rate / Applicable Margin**: The contractual interest rate
+  spread over the reference rate (SOFR/LIBOR). Some MFN clauses compare
+  only the Applicable Rate (margin-only, borrower-friendly) rather than
+  all-in yield.
+
+- **MFN Threshold**: The permitted pricing differential (e.g., 50bps).
+  New incremental debt can be priced UP TO this amount above existing
+  debt without triggering MFN adjustment.
+
+- **Incremental Equivalent Debt**: Debt incurred outside the credit
+  agreement (e.g., under the debt incurrence covenant, Section 6.01)
+  that is treated as equivalent to incremental facility debt. Whether
+  this is subject to MFN is critical — if not, it creates a major
+  reclassification loophole.
+
+- **Sunset**: A time limit after which MFN protection expires.
+  Common periods: 6, 12, 18, 24 months from closing.
+
+## EXTRACTION RULES
+
+1. Extract ONLY what the document states. Do not infer or assume.
+2. For boolean questions: answer true/false based on document language.
+3. For string questions: extract verbatim language where possible.
+4. For integer questions: extract exact numbers.
+5. For multiselect questions: return an array of concept_ids that apply.
+6. Always provide source_text — a verbatim quote (30-500 chars).
+7. Always provide source_page — use the [PAGE X] markers in the text.
+8. Always provide source_section — the section reference (e.g., "Section 2.14(d)(iv)").
+9. If the MFN provision does not exist, answer mfn_01 as false and
+   answer remaining questions as null.
+10. If information is genuinely not specified, answer null."""
+
+        # Load MFN questions from TypeDB (SSoT)
+        questions_by_cat = self.load_questions_by_category("MFN")
+        if not questions_by_cat:
+            logger.error("No MFN questions found in TypeDB")
+            return {"answers": [], "errors": ["No MFN questions in TypeDB"]}
+
+        # Flatten into single list since MFN is small enough for one call
+        questions = []
+        for cat_questions in questions_by_cat.values():
+            questions.extend(cat_questions)
+        questions.sort(key=lambda q: q.get("display_order", 0))
+
+        total_questions = len(questions)
+        logger.info(f"MFN extraction: {total_questions} questions loaded")
+
+        # Format questions using existing method (includes extraction hints)
+        questions_text = self._format_questions_for_prompt(questions)
+
+        user_prompt = f"""Answer each question below based on the MFN universe text.
+
+## QUESTIONS
+
+{questions_text}
+
+## RESPONSE FORMAT
+
+Return a JSON object with an "answers" array. Each answer:
+{{
+  "question_id": "mfn_01",
+  "value": true,
+  "source_text": "verbatim quote from document (30-500 chars)",
+  "source_page": 45,
+  "source_section": "Section 2.14(d)(iv)",
+  "confidence": "high"
+}}
+
+For multiselect questions, value is an array of concept_ids:
+{{
+  "question_id": "mfn_08",
+  "value": ["incremental_term_loans", "ratio_debt"],
+  "source_text": "...",
+  "source_page": 45,
+  "source_section": "Section 2.14(a)",
+  "confidence": "high"
+}}
+
+## MFN UNIVERSE TEXT
+
+{mfn_universe_text}"""
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=8000,
+                system=MFN_EXTRACTION_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_prompt}]
+            )
+
+            text = response.content[0].text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+
+            result = json.loads(text)
+            answers = result.get("answers", [])
+            logger.info(f"MFN extraction: {len(answers)}/{total_questions} answers")
+
+            return {
+                "answers": answers,
+                "errors": [],
+                "total_questions": total_questions,
+                "answered": len(answers)
+            }
+
+        except Exception as e:
+            logger.error(f"MFN extraction failed: {e}")
+            return {"answers": [], "errors": [str(e)]}
+
+    def _ensure_mfn_provision_exists(self, deal_id: str, provision_id: str):
+        """Create mfn_provision entity linked to deal if not exists."""
+        from typedb.driver import TransactionType
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            query = f"""
+                match $p isa mfn_provision, has provision_id "{provision_id}";
+                select $p;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            exists = len(result) > 0
+        finally:
+            tx.close()
+
+        if exists:
+            logger.debug(f"MFN provision {provision_id} already exists")
+            return
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match $d isa deal, has deal_id "{deal_id}";
+                insert
+                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    (deal: $d, provision: $p) isa deal_has_provision;
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.info(f"Created mfn_provision: {provision_id}")
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            logger.error(f"Error creating MFN provision: {e}")
+            raise
+
+    def _store_mfn_answers(self, deal_id: str, answers: list):
+        """
+        Store MFN extraction answers in TypeDB.
+
+        Creates mfn_provision (if not exists), links to deal via
+        deal_has_provision, then creates provision_has_answer relations
+        for each answer. Uses existing GraphStorage.store_scalar_answer
+        for the SSoT storage pattern.
+        """
+        from app.services.graph_storage import GraphStorage
+
+        provision_id = f"{deal_id}_mfn"
+
+        try:
+            # 1. Create mfn_provision + link to deal
+            self._ensure_mfn_provision_exists(deal_id, provision_id)
+
+            # 2. Store answers using GraphStorage (SSoT pattern)
+            storage = GraphStorage(deal_id)
+            stored_scalar = 0
+            stored_concept = 0
+            errors = 0
+
+            for ans in answers:
+                qid = ans.get("question_id")
+                value = ans.get("value")
+                if value is None:
+                    continue
+
+                confidence = ans.get("confidence", "medium")
+                if confidence == "not_found":
+                    continue
+
+                source_text = ans.get("source_text", "")
+                source_page = ans.get("source_page")
+                source_section = ans.get("source_section", "")
+
+                # Multiselect → concept_applicability
+                if isinstance(value, list):
+                    for concept_id in value:
+                        success = self._store_concept_applicability_for_provision(
+                            provision_id, concept_id, source_text,
+                            source_page or 0
+                        )
+                        if success:
+                            stored_concept += 1
+                    continue
+
+                # Scalar → provision_has_answer via GraphStorage
+                try:
+                    coerced = self._coerce_answer_value(
+                        value, self._infer_answer_type(value)
+                    )
+                    if coerced is not None:
+                        storage.store_scalar_answer(
+                            provision_id=provision_id,
+                            question_id=qid,
+                            value=coerced,
+                            source_text=source_text or None,
+                            source_page=source_page,
+                            source_section=source_section or None,
+                            confidence=confidence,
+                        )
+                        stored_scalar += 1
+                except Exception as e:
+                    errors += 1
+                    if errors <= 3:  # Only log first few errors
+                        logger.warning(f"MFN answer store error ({qid}): {e}")
+
+            logger.info(
+                f"Stored {stored_scalar} MFN scalar + "
+                f"{stored_concept} concept answers"
+            )
+
+        except Exception as e:
+            logger.error(f"MFN answer storage failed: {e}")
+
+    def _store_concept_applicability_for_provision(
+        self,
+        provision_id: str,
+        concept_id: str,
+        source_text: str,
+        source_page: int
+    ) -> bool:
+        """Store concept_applicability for any provision type (uses parent type)."""
+        from typedb.driver import TransactionType
+
+        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
+
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match
+                    $p isa provision, has provision_id "{provision_id}";
+                    $c isa concept, has concept_id "{concept_id}";
+                insert
+                    (provision: $p, concept: $c) isa concept_applicability,
+                        has applicability_status "INCLUDED",
+                        has source_text "{escaped_text}",
+                        has source_page {source_page};
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            return True
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            logger.warning(f"MFN concept store error ({concept_id}): {e}")
+            return False
+
+    @staticmethod
+    def _infer_answer_type(value) -> str:
+        """Infer answer type from Python value type."""
+        if isinstance(value, bool):
+            return "boolean"
+        elif isinstance(value, int):
+            return "integer"
+        elif isinstance(value, float):
+            return "double"
+        return "string"
+
+    # =========================================================================
     # MAIN EXTRACTION FLOW
     # =========================================================================
 

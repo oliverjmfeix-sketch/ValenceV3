@@ -619,7 +619,58 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     f"J.Crew deep analysis failed for {deal_id} (non-blocking): {jc_err}"
                 )
 
-        # Update status: complete (after both standard + J.Crew)
+        # ── MFN Extraction (non-blocking) ─────────────────────────────
+        # Extracts incremental facility / MFN provision and answers 42 questions.
+        # Failure here does NOT block the main extraction from succeeding.
+        if result.document_text:
+            try:
+                extraction_status[deal_id] = ExtractionStatus(
+                    deal_id=deal_id,
+                    status="extracting",
+                    progress=90,
+                    current_step="Extracting MFN provision..."
+                )
+                mfn_universe_text = extraction_svc.extract_mfn_universe(
+                    result.document_text
+                )
+                if mfn_universe_text:
+                    # Persist MFN universe text for eval pipeline
+                    mfn_universe_path = os.path.join(
+                        settings.upload_dir, f"{deal_id}_mfn_universe.txt"
+                    )
+                    os.makedirs(settings.upload_dir, exist_ok=True)
+                    with open(mfn_universe_path, "w", encoding="utf-8") as f:
+                        f.write(mfn_universe_text)
+                    logger.info(f"MFN universe saved: {len(mfn_universe_text)} chars")
+
+                    mfn_result = await extraction_svc.run_mfn_extraction(
+                        deal_id, mfn_universe_text, result.document_text
+                    )
+
+                    if mfn_result["answers"]:
+                        extraction_svc._store_mfn_answers(
+                            deal_id, mfn_result["answers"]
+                        )
+                        logger.info(
+                            f"MFN extraction complete: "
+                            f"{mfn_result['answered']}/{mfn_result['total_questions']} answers"
+                        )
+                    else:
+                        logger.warning(
+                            f"MFN extraction returned no answers: "
+                            f"{mfn_result.get('errors')}"
+                        )
+                else:
+                    logger.warning(
+                        "MFN universe extraction returned empty — "
+                        "no MFN provision found or extraction failed"
+                    )
+            except Exception as mfn_err:
+                logger.warning(
+                    f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}"
+                )
+
+        # Update status: complete (after standard + J.Crew + MFN)
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
