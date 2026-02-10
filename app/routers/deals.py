@@ -100,6 +100,130 @@ class AskResponse(BaseModel):
 # In-memory extraction status tracking (for MVP; use Redis in production)
 extraction_status: Dict[str, ExtractionStatus] = {}
 
+
+def _detect_covenant_type(question: str) -> str:
+    """
+    Detect whether a question is about MFN, RP, or both.
+
+    Returns: "mfn", "rp", or "both"
+    """
+    q_lower = question.lower()
+
+    mfn_signals = [
+        "mfn", "most favored nation", "most-favored-nation",
+        "incremental", "yield protection", "pricing adjustment",
+        "effective yield", "all-in yield", "applicable rate",
+        "sunset", "oid", "original issue discount", "libor floor",
+        "sofr floor", "fee exclusion", "threshold",
+        "ratio debt", "reclassification",
+        "bridge financing", "bridge-to-term",
+    ]
+
+    rp_signals = [
+        "restricted payment", "dividend", "distribution",
+        "builder basket", "cumulative amount", "ratio basket",
+        "management equity", "tax distribution",
+        "j.crew", "jcrew", "j-crew", "blocker",
+        "unrestricted subsidiary", "investment pathway",
+        "holdco overhead", "equity award",
+        "general basket", "permitted payment",
+    ]
+
+    has_mfn = any(sig in q_lower for sig in mfn_signals)
+    has_rp = any(sig in q_lower for sig in rp_signals)
+
+    if has_mfn and has_rp:
+        return "both"
+    elif has_mfn:
+        return "mfn"
+    else:
+        return "rp"  # default to RP
+
+
+MFN_SYNTHESIS_RULES = """
+## MFN ANALYSIS RULES
+
+When answering questions about MFN (Most Favored Nation) provisions,
+follow these rules:
+
+### 1. PROTECTION STRENGTH ASSESSMENT
+
+Assess overall MFN strength using these factors:
+
+STRONG PROTECTION indicators:
+- All-in yield comparison (not margin-only)
+- OID AND floor AND upfront fees all included in yield
+- No sunset, or sunset > 18 months
+- Sacred right status (requires all-lender consent to waive)
+- Covers incremental equivalent / ratio debt (no reclassification loophole)
+- Low threshold (25bps)
+
+WEAK PROTECTION indicators:
+- Margin-only comparison (excludes OID, floor, fees)
+- OID or floor excluded from yield calculation
+- Short sunset (6 months or less)
+- Modifiable by Required Lenders (simple majority)
+- Does NOT cover ratio debt / incremental equivalent (reclassification loophole)
+- High threshold (75bps+)
+- Acquisition debt excluded
+
+### 2. YIELD CALCULATION ANALYSIS
+
+When discussing yield mechanics, always:
+- State which components ARE included and which are EXCLUDED
+- If OID is included, state the amortization period
+- If both OID and floor are excluded, flag the "yield exclusion pattern"
+  as a significant weakness
+- Note who determines the yield calculation (agent vs borrower vs joint)
+
+### 3. LOOPHOLE DETECTION
+
+Always check and surface these loopholes:
+
+a) **Reclassification risk**: If ratio debt / incremental equivalent debt
+   is NOT subject to MFN, the borrower can incur the same economic debt
+   under the debt covenant (Section 6.01) instead of the incremental
+   facility (Section 2.14) and completely avoid MFN. This is the single
+   most important MFN loophole.
+
+b) **Sunset timing**: If a sunset exists, note the exact period and
+   whether there are anti-abuse provisions. A 6-month sunset on a 7-year
+   term loan means MFN protection covers less than 8% of the loan's life.
+
+c) **Exclusion stacking**: If acquisition debt AND refinancing debt AND
+   bridge facilities are all excluded, very little incremental debt
+   would actually trigger MFN.
+
+d) **Amendment vulnerability**: If MFN is NOT a sacred right, Required
+   Lenders (simple majority) can waive it. The borrower can potentially
+   negotiate a waiver as part of any amendment package.
+
+### 4. COMPARISON CONTEXT
+
+When comparing MFN provisions across deals:
+- 50bps threshold is MARKET STANDARD for broadly syndicated loans
+- 25bps is lender-friendly, 75bps is borrower-friendly
+- All-in yield comparison is stronger than margin-only
+- 12-18 month sunset is typical; no sunset is rare and lender-friendly
+- Sacred right status for MFN is becoming more common post-2020
+
+### 5. SECTION REFERENCES
+
+Always cite the specific section where the MFN provision is found
+(typically Section 2.14). For yield definitions, cite Section 1.01
+and the specific defined term.
+
+### 6. INTERACTION WITH OTHER COVENANTS
+
+If the user asks about MFN interaction with other covenant types:
+- MFN + Debt Incurrence: The debt incurrence covenant (Section 6.01)
+  creates the reclassification loophole if ratio debt is not MFN-covered
+- MFN + Restricted Payments: No direct interaction
+- MFN + Financial Covenants: Financial covenant leverage tests may
+  constrain the incurrence test for ratio debt, indirectly limiting the
+  reclassification loophole
+"""
+
 # Ensure uploads directory exists
 UPLOADS_DIR = "/app/uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
@@ -395,12 +519,20 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
             
             if not rows:
                 raise HTTPException(status_code=404, detail="Deal not found")
-            
+
+            # Check which provisions exist for this deal
+            rp_answers = _load_provision_answers(tx, f"{deal_id}_rp")
+            mfn_answers = _load_provision_answers(tx, f"{deal_id}_mfn")
+
             return {
                 "deal_id": deal_id,
                 "deal_name": _safe_get_value(rows[0], "name", "Unknown"),
-                "answers": {},
-                "applicabilities": {}
+                "answers": rp_answers,
+                "applicabilities": {},
+                "mfn_provision": {
+                    "answers": mfn_answers,
+                    "extracted": len(mfn_answers) > 0,
+                }
             }
         finally:
             tx.close()
@@ -1041,6 +1173,125 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{deal_id}/mfn-provision")
+async def get_mfn_provision(deal_id: str) -> Dict[str, Any]:
+    """
+    Get the MFN provision for a deal via provision_has_answer + concept_applicability.
+
+    Returns:
+        - provision_id
+        - scalar_answers: keyed by question_id with typed values + provenance
+        - pattern_flags: flat attributes (yield_exclusion_pattern_detected)
+        - multiselect_answers: concept_applicability relations grouped by concept type
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    provision_id = f"{deal_id}_mfn"
+
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # Check if provision exists
+            check_query = f"""
+                match $p isa mfn_provision, has provision_id "{provision_id}";
+                select $p;
+            """
+            check_result = tx.query(check_query).resolve()
+            if not list(check_result.as_concept_rows()):
+                raise HTTPException(status_code=404, detail="MFN provision not found for this deal")
+
+            # Get scalar answers via provision_has_answer (SSoT)
+            scalar_answers = _load_provision_answers(tx, provision_id)
+
+            # Get pattern flags (flat attributes on mfn_provision)
+            pattern_flags = {}
+            for flag_name in ("yield_exclusion_pattern_detected",):
+                try:
+                    flag_query = f"""
+                        match
+                            $p isa mfn_provision, has provision_id "{provision_id}",
+                                has {flag_name} $val;
+                        select $val;
+                    """
+                    flag_result = tx.query(flag_query).resolve()
+                    for row in flag_result.as_concept_rows():
+                        val = _safe_get_value(row, "val")
+                        if val is not None:
+                            pattern_flags[flag_name] = val
+                except Exception:
+                    pass  # Flag not set on this provision
+
+            # Get all concept applicabilities (multiselect answers)
+            multiselect_answers = {}
+            applicability_query = f"""
+                match
+                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    (provision: $p, concept: $c) isa concept_applicability;
+                    $c has concept_id $cid, has name $cname;
+                select $c, $cid, $cname;
+            """
+            applicability_result = tx.query(applicability_query).resolve()
+            for row in applicability_result.as_concept_rows():
+                concept_entity = _safe_get_entity(row, "c")
+                concept_id = _safe_get_value(row, "cid")
+                concept_name = _safe_get_value(row, "cname")
+
+                if concept_entity and concept_id:
+                    concept_type = concept_entity.get_type().get_label()
+                    if concept_type not in multiselect_answers:
+                        multiselect_answers[concept_type] = []
+                    multiselect_answers[concept_type].append({
+                        "concept_id": concept_id,
+                        "name": concept_name or "Unknown"
+                    })
+
+            return {
+                "deal_id": deal_id,
+                "provision_id": provision_id,
+                "provision_type": "mfn_provision",
+                "scalar_answers": scalar_answers,
+                "pattern_flags": pattern_flags,
+                "multiselect_answers": multiselect_answers,
+                "scalar_count": len(scalar_answers),
+                "pattern_flag_count": len(pattern_flags),
+                "multiselect_count": sum(len(v) for v in multiselect_answers.values())
+            }
+
+        finally:
+            tx.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting MFN provision for deal {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{deal_id}/mfn")
+async def get_deal_mfn(deal_id: str) -> Dict[str, Any]:
+    """Get MFN provision data for a deal."""
+    try:
+        result = await get_mfn_provision(deal_id)
+        return {
+            "deal_id": deal_id,
+            "extracted": result.get("scalar_count", 0) > 0,
+            "answer_count": result.get("scalar_count", 0),
+            "answers": result.get("scalar_answers", {}),
+            "applicabilities": result.get("multiselect_answers", {}),
+        }
+    except HTTPException as e:
+        if e.status_code == 404:
+            return {
+                "deal_id": deal_id,
+                "extracted": False,
+                "answer_count": 0,
+                "answers": {},
+                "applicabilities": {},
+            }
+        raise
+
+
 @router.post("/{deal_id}/qa")
 async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -1108,70 +1359,100 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     """
     Answer a natural language question about a deal using extracted data.
 
-    Model Selection:
-    - Simple questions: Sonnet (fast, cost-effective)
-    - Complex questions: Opus (deeper reasoning)
-    - Uncertain Sonnet responses: Automatic Opus fallback
+    Auto-detects whether the question is about MFN, RP, or both covenants
+    and loads the appropriate data and synthesis rules.
 
     Flow:
-    1. Fetch all answers for the deal (scalar + multiselect)
-    2. Format as structured context
-    3. Detect question complexity
-    4. Call appropriate model (with fallback)
+    1. Detect covenant type from question
+    2. Fetch answers for the deal (MFN, RP, or both)
+    3. Format as structured context
+    4. Call Claude with appropriate synthesis rules
     5. Return synthesized answer with citations
     """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
-    # Step 1: Get RP provision data (scalar + multiselect)
-    try:
-        rp_response = await get_rp_provision(deal_id)
-    except HTTPException as e:
-        if e.status_code == 404:
-            raise HTTPException(
-                status_code=400,
-                detail="Extraction not complete. Please wait for extraction to finish."
-            )
-        raise
+    # Step 1: Detect covenant type from question
+    covenant_type = _detect_covenant_type(request.question)
 
-    scalar_count = rp_response.get("scalar_count", 0)
-    multiselect_count = rp_response.get("multiselect_count", 0)
+    # Step 2: Load provision data based on detected type
+    rp_response = None
+    mfn_response = None
 
-    if scalar_count == 0 and multiselect_count == 0:
+    if covenant_type in ("rp", "both"):
+        try:
+            rp_response = await get_rp_provision(deal_id)
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise
+
+    if covenant_type in ("mfn", "both"):
+        try:
+            mfn_response = await get_mfn_provision(deal_id)
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise
+
+    # If MFN-only question but no MFN data, fall back to RP
+    if covenant_type == "mfn" and not mfn_response:
+        try:
+            rp_response = await get_rp_provision(deal_id)
+            covenant_type = "rp"
+        except HTTPException:
+            pass
+
+    # Check we have some data
+    total_scalar = 0
+    total_multiselect = 0
+    if rp_response:
+        total_scalar += rp_response.get("scalar_count", 0)
+        total_multiselect += rp_response.get("multiselect_count", 0)
+    if mfn_response:
+        total_scalar += mfn_response.get("scalar_count", 0)
+        total_multiselect += mfn_response.get("multiselect_count", 0)
+
+    if total_scalar == 0 and total_multiselect == 0:
         raise HTTPException(
             status_code=400,
             detail="No extracted data found. Please upload and extract a document first."
         )
 
-    # Step 2: Load question metadata with category info for grouped display
+    # Step 3: Load question metadata for the relevant covenant types
     question_meta = {}  # {question_id: {question_text, category_id, category_name}}
     concept_type_labels = {}  # {concept_type: question_text} for multiselect labels
+
+    covenant_types_to_load = []
+    if rp_response:
+        covenant_types_to_load.append("RP")
+    if mfn_response:
+        covenant_types_to_load.append("MFN")
+
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
-            # Load question_id → question_text + category info
-            meta_query = """
-                match
-                    $q isa ontology_question,
-                        has covenant_type "RP",
-                        has question_id $qid,
-                        has question_text $qtext;
-                    (category: $cat, question: $q) isa category_has_question;
-                    $cat has category_id $cid, has name $cname;
-                select $qid, $qtext, $cid, $cname;
-            """
-            meta_result = tx.query(meta_query).resolve()
-            for row in meta_result.as_concept_rows():
-                qid = _safe_get_value(row, "qid")
-                qtext = _safe_get_value(row, "qtext")
-                cid = _safe_get_value(row, "cid")
-                cname = _safe_get_value(row, "cname")
-                if qid and qtext:
-                    question_meta[qid] = {
-                        "question_text": qtext,
-                        "category_id": cid or "ZZ",
-                        "category_name": cname or "Other",
-                    }
+            for ct in covenant_types_to_load:
+                meta_query = f"""
+                    match
+                        $q isa ontology_question,
+                            has covenant_type "{ct}",
+                            has question_id $qid,
+                            has question_text $qtext;
+                        (category: $cat, question: $q) isa category_has_question;
+                        $cat has category_id $cid, has name $cname;
+                    select $qid, $qtext, $cid, $cname;
+                """
+                meta_result = tx.query(meta_query).resolve()
+                for row in meta_result.as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
+                    qtext = _safe_get_value(row, "qtext")
+                    cid = _safe_get_value(row, "cid")
+                    cname = _safe_get_value(row, "cname")
+                    if qid and qtext:
+                        question_meta[qid] = {
+                            "question_text": qtext,
+                            "category_id": cid or "ZZ",
+                            "category_name": cname or "Other",
+                        }
 
             # Load multiselect concept type → question_text labels from TypeDB
             label_query = """
@@ -1194,19 +1475,28 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     except Exception:
         pass  # Proceed with empty metadata — context will still work
 
-    # Step 3: Format answers as structured context for Claude
-    context = _format_rp_provision_as_context(rp_response, question_meta, concept_type_labels)
+    # Step 4: Format answers as structured context for Claude
+    context_parts = []
+    if rp_response:
+        rp_context = _format_rp_provision_as_context(
+            rp_response, question_meta, concept_type_labels
+        )
+        if mfn_response:
+            context_parts.append("# RESTRICTED PAYMENTS DATA\n\n" + rp_context)
+        else:
+            context_parts.append(rp_context)
+    if mfn_response:
+        mfn_context = _format_rp_provision_as_context(
+            mfn_response, question_meta, concept_type_labels
+        )
+        if rp_response:
+            context_parts.append("# MFN (MOST FAVORED NATION) DATA\n\n" + mfn_context)
+        else:
+            context_parts.append(mfn_context)
+    context = "\n\n".join(context_parts)
 
-    # Step 4: Build system rules and user prompt (separated for priority)
-    system_rules = """You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted structured data.
-
-## STRICT RULES
-
-1. **CITATION REQUIRED**: Every factual claim must include a clause and page citation where available, formatted as [Section X.XX(y), p.XX]. Use the section references from the extracted data. If only a page number is available, use [p.XX]. Never cite just a page number if a section reference is also available.
-2. **ONLY USE PROVIDED DATA**: Never invent facts not present in EXTRACTED DATA below
-3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
-4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
-5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
+    # Step 5: Build system rules based on covenant type
+    rp_specific_rules = """
 6. **JCREW BLOCKER ANALYSIS RULES**:
    When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as follows:
 
@@ -1262,7 +1552,29 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
    (e) **CAPACITY SUMMARY** — For complex questions, end with a table showing each
        potentially available basket, its capacity or test, and whether it is
        available for the specific scenario asked about.
+"""
 
+    # Determine which covenant-specific rules to include
+    if covenant_type == "mfn":
+        covenant_subject = "MFN (Most Favored Nation) provision"
+        specific_rules = MFN_SYNTHESIS_RULES
+    elif covenant_type == "both":
+        covenant_subject = "credit agreement covenants (Restricted Payments and MFN)"
+        specific_rules = rp_specific_rules + "\n" + MFN_SYNTHESIS_RULES
+    else:
+        covenant_subject = "restricted payments covenant"
+        specific_rules = rp_specific_rules
+
+    system_rules = f"""You are a legal analyst answering questions about a credit agreement's {covenant_subject} using pre-extracted structured data.
+
+## STRICT RULES
+
+1. **CITATION REQUIRED**: Every factual claim must include a clause and page citation where available, formatted as [Section X.XX(y), p.XX]. Use the section references from the extracted data. If only a page number is available, use [p.XX]. Never cite just a page number if a section reference is also available.
+2. **ONLY USE PROVIDED DATA**: Never invent facts not present in EXTRACTED DATA below
+3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
+4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
+5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
+{specific_rules}
 ## FORMATTING
 
 - Use **bold** for key terms and defined terms
@@ -1274,7 +1586,7 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
 After your answer, on a new line, output an evidence block in this exact format:
 
-<!-- EVIDENCE: ["rp_g5", "rp_f14", "jc_t2_01"] -->
+<!-- EVIDENCE: ["rp_g5", "rp_f14", "mfn_01"] -->
 
 List the question_ids of every extracted data point you relied on to form
 your answer. Include ALL data points that influenced your response — both
@@ -1290,7 +1602,7 @@ This block MUST appear at the very end of your response."""
 
 {context}"""
 
-    # Step 5: Call Claude with system message + user message
+    # Step 6: Call Claude with system message + user message
     try:
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -1306,8 +1618,19 @@ This block MUST appear at the very end of your response."""
         answer_text = response.content[0].text
 
         # Step 7: Parse evidence block and extract citations
+        # Merge scalar answers from all loaded provisions for evidence lookup
+        combined_response = {"scalar_answers": {}}
+        if rp_response:
+            combined_response["scalar_answers"].update(
+                rp_response.get("scalar_answers", {})
+            )
+        if mfn_response:
+            combined_response["scalar_answers"].update(
+                mfn_response.get("scalar_answers", {})
+            )
+
         clean_answer, evidence = _parse_evidence_block(
-            answer_text, rp_response, question_meta
+            answer_text, combined_response, question_meta
         )
         citations = _extract_citations_from_answer(clean_answer)
 
@@ -1316,11 +1639,12 @@ This block MUST appear at the very end of your response."""
             "answer": clean_answer,
             "citations": citations,
             "evidence": evidence,
+            "covenant_type": covenant_type,
             "model": model_used,
             "data_source": {
                 "deal_id": deal_id,
-                "scalar_answers": scalar_count,
-                "multiselect_answers": multiselect_count
+                "scalar_answers": total_scalar,
+                "multiselect_answers": total_multiselect
             }
         }
 
