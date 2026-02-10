@@ -1440,16 +1440,13 @@ The MFN universe is typically 5-15 pages (much shorter than RP)."""
             # MFN sections are shorter so we can send more document context
             trimmed = document_text[:600000]
 
-            response = self.client.messages.create(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=30000,
-                messages=[{
-                    "role": "user",
-                    "content": f"{MFN_UNIVERSE_PROMPT}\n\n## DOCUMENT TEXT\n\n{trimmed}"
-                }]
-            )
+            prompt = f"{MFN_UNIVERSE_PROMPT}\n\n## DOCUMENT TEXT\n\n{trimmed}"
+            raw_text = self._call_claude_streaming(prompt, max_tokens=30000)
 
-            raw_text = response.content[0].text
+            if not raw_text:
+                logger.warning("MFN universe extraction returned empty response")
+                return None
+
             logger.info(f"MFN universe extracted: {len(raw_text)} chars")
             return raw_text
 
