@@ -781,7 +781,7 @@ If your output is less than 30,000 characters, you are likely summarizing instea
 For EACH question, answer based ONLY on the extracted content above:
 - question_id: The ID in brackets
 - value: The answer (true/false for boolean, number for numeric, array for multiselect)
-- source_text: EXACT quote from the context supporting your answer (max 500 chars)
+- source_text: EXACT verbatim quote from the document text that supports your answer (max 500 chars). This MUST be actual contract language copied from the context above. NEVER write "See page X" or "See Section X" or any other reference — always paste the actual text. If no supporting text exists, use an empty string "".
 - source_pages: Page numbers from [PAGE X] markers
 - confidence:
   - "high" = explicit answer found in text

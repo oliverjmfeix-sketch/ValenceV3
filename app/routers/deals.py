@@ -79,7 +79,7 @@ def _load_provision_answers(tx, provision_id: str) -> Dict[str, Dict]:
             stored.setdefault(qid, {})["value"] = val
 
     # Get provenance fields
-    for attr, key in [("source_text", "source_text"), ("source_page", "source_page"), ("confidence", "confidence")]:
+    for attr, key in [("source_text", "source_text"), ("source_page", "source_page"), ("source_section", "source_section"), ("confidence", "confidence")]:
         for qid, val in _query_relation_attr(tx, provision_id, attr).items():
             if qid in stored:
                 stored[qid][key] = val
@@ -1151,7 +1151,7 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
 ## STRICT RULES
 
-1. **CITATION REQUIRED**: Every factual claim must include a [p.XX] page citation where available
+1. **CITATION REQUIRED**: Every factual claim must include a clause and page citation where available, formatted as [Section X.XX(y), p.XX]. Use the section references from the extracted data. If only a page number is available, use [p.XX]. Never cite just a page number if a section reference is also available.
 2. **ONLY USE PROVIDED DATA**: Never invent facts not present in EXTRACTED DATA below
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
@@ -1174,6 +1174,43 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
    **SYNTHESIS** — End with 2-3 sentences connecting findings with cause-and-effect relationships. Do NOT include subjective risk ratings. State objective facts and their connections. Legal professionals make the judgment calls.
 
    FORMATTING RULES FOR JCREW ANSWERS: Do NOT use labels "Tier 1", "Tier 2", "Tier 3". Do NOT repeat the same fact in multiple sections. Do NOT frame IP-only coverage as a gap. Do NOT list findings without explaining why they matter. ALWAYS include investment pathway data if available. ALWAYS state specific amendment thresholds. ALWAYS connect lien release to blocker analysis. ALWAYS end with connective synthesis.
+
+7. **RATIO BASKET AND DIVIDEND CAPACITY RULES**:
+   When answering questions about whether a specific dividend, distribution,
+   or restricted payment is permitted at a given leverage level:
+
+   (a) **CHECK ALL BASKETS** — Never answer based on one basket alone. The borrower
+       can use ANY available basket. Check in this order:
+       - Ratio-based unlimited basket — what is the absolute threshold?
+       - "No worse" test — does it exist? If yes, the borrower can make the
+         payment at ANY leverage level as long as the pro forma ratio is no
+         worse than immediately before the transaction.
+       - Builder basket / Cumulative Amount — what capacity has accumulated?
+       - General RP basket — fixed dollar + grower amounts
+       - Specific-purpose baskets — management equity, tax distributions, etc.
+       - Basket stacking — can multiple baskets be combined?
+
+   (b) **THE "NO WORSE" TEST IS CRITICAL** — If the extracted data shows a "no worse"
+       ratio test exists (look for answers about "no worse" in the Ratio Basket
+       category), ALWAYS analyze whether the specific transaction would pass it.
+       Key insight: Disposing of a negative-EBITDA asset IMPROVES the leverage
+       ratio (consolidated EBITDA increases), so the "no worse" test may be
+       satisfied even at leverage levels above the absolute threshold.
+
+   (c) **PRO FORMA ANALYSIS** — When a question specifies a transaction (e.g.,
+       "dividend a business division with $X EBITDA"), analyze the pro forma
+       impact on the leverage ratio. Removing EBITDA changes the denominator.
+       Removing debt changes the numerator. State the directional impact even
+       if you cannot compute exact numbers.
+
+   (d) **CITE SPECIFIC CLAUSES** — Reference the specific subsection for each basket
+       (e.g., "Section 6.06(n) permits unlimited dividends at <=5.75x" and
+       "Section 6.06(o) permits dividends under the No Worse Test"). When
+       source data includes section references, always include them.
+
+   (e) **CAPACITY SUMMARY** — For complex questions, end with a table showing each
+       potentially available basket, its capacity or test, and whether it is
+       available for the specific scenario asked about.
 
 ## FORMATTING
 
@@ -1277,8 +1314,17 @@ def _format_rp_provision_as_context(
                 value_str = str(value)
 
             page = data.get("source_page")
-            page_ref = f" [p.{page}]" if page else ""
-            lines.append(f"- {q_text}: {value_str}{page_ref}")
+            section = data.get("source_section", "")
+            # Build citation: prefer "Section X [p.Y]" over just "[p.Y]"
+            if section and page:
+                cite = f" [{section}, p.{page}]"
+            elif section:
+                cite = f" [{section}]"
+            elif page:
+                cite = f" [p.{page}]"
+            else:
+                cite = ""
+            lines.append(f"- {q_text}: {value_str}{cite}")
 
             source_text = data.get("source_text")
             if source_text:
@@ -1318,21 +1364,38 @@ def _format_rp_provision_as_context(
 
 
 def _extract_citations_from_answer(answer_text: str) -> List[Dict[str, Any]]:
-    """Extract page citations from the answer."""
+    """Extract page and section citations from the answer."""
 
-    # Find all [p.XX] patterns
-    page_refs = re.findall(r'\[p\.(\d+)\]', answer_text)
-    pages = list(set(int(p) for p in page_refs))
-    pages.sort()
+    # Find all [Section X, p.Y] patterns
+    section_page_refs = re.findall(r'\[([^,\]]+),\s*p\.(\d+)\]', answer_text)
+    # Find all standalone [p.XX] patterns
+    page_only_refs = re.findall(r'\[p\.(\d+)\]', answer_text)
 
-    # Build citation list
     citations = []
-    for page in pages:
+    seen_pages = set()
+
+    # Section + page citations
+    for section, page in section_page_refs:
+        page_int = int(page)
+        seen_pages.add(page_int)
         citations.append({
-            "page": page,
-            "text": None  # Would need source_text from provenance to populate
+            "page": page_int,
+            "section": section.strip(),
+            "text": None
         })
 
+    # Page-only citations (not already captured)
+    for page in page_only_refs:
+        page_int = int(page)
+        if page_int not in seen_pages:
+            seen_pages.add(page_int)
+            citations.append({
+                "page": page_int,
+                "section": None,
+                "text": None
+            })
+
+    citations.sort(key=lambda c: c["page"])
     return citations
 
 
