@@ -1217,7 +1217,19 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 - Use **bold** for key terms and defined terms
 - Use bullet points for lists
 - Keep response concise but complete
-- State facts with citations. Do not editorialize."""
+- State facts with citations. Do not editorialize.
+
+## EVIDENCE TRACING
+
+After your answer, on a new line, output an evidence block in this exact format:
+
+<!-- EVIDENCE: ["rp_g5", "rp_f14", "jc_t2_01"] -->
+
+List the question_ids of every extracted data point you relied on to form
+your answer. Include ALL data points that influenced your response — both
+those you cited explicitly and those you used for background context.
+Order them by importance (most critical first). Include 5-20 question_ids.
+This block MUST appear at the very end of your response."""
 
     user_prompt = f"""## USER QUESTION
 
@@ -1242,14 +1254,18 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
         answer_text = response.content[0].text
 
-        # Step 7: Extract citations from the answer
-        citations = _extract_citations_from_answer(answer_text)
+        # Step 7: Parse evidence block and extract citations
+        clean_answer, evidence = _parse_evidence_block(
+            answer_text, rp_response, question_meta
+        )
+        citations = _extract_citations_from_answer(clean_answer)
 
         return {
             "question": request.question,
-            "answer": answer_text,
+            "answer": clean_answer,
             "citations": citations,
-            "model": "opus",
+            "evidence": evidence,
+            "model": model_used,
             "data_source": {
                 "deal_id": deal_id,
                 "scalar_answers": scalar_count,
@@ -1361,6 +1377,55 @@ def _format_rp_provision_as_context(
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _parse_evidence_block(
+    answer_text: str,
+    rp_response: Dict,
+    question_meta: Dict[str, Dict],
+) -> tuple:
+    """Extract evidence block from answer and resolve to full data points.
+
+    Returns: (clean_answer, evidence_list)
+    """
+    evidence_match = re.search(
+        r'<!--\s*EVIDENCE:\s*\[([^\]]*)\]\s*-->',
+        answer_text,
+    )
+
+    if not evidence_match:
+        return answer_text, []
+
+    # Clean the answer (remove evidence block)
+    clean_answer = answer_text[:evidence_match.start()].rstrip()
+
+    # Parse question_ids
+    raw_ids = evidence_match.group(1)
+    question_ids = [
+        qid.strip().strip('"').strip("'")
+        for qid in raw_ids.split(",")
+        if qid.strip()
+    ]
+
+    # Look up each question_id in the extracted data
+    scalar_answers = rp_response.get("scalar_answers", {})
+    evidence = []
+
+    for qid in question_ids:
+        if qid in scalar_answers:
+            data = scalar_answers[qid]
+            meta = question_meta.get(qid)
+            evidence.append({
+                "question_id": qid,
+                "question_text": meta["question_text"] if meta else qid,
+                "value": data.get("value"),
+                "source_text": data.get("source_text", ""),
+                "source_page": data.get("source_page"),
+                "source_section": data.get("source_section", ""),
+                "confidence": data.get("confidence", ""),
+            })
+
+    return clean_answer, evidence
 
 
 def _extract_citations_from_answer(answer_text: str) -> List[Dict[str, Any]]:
