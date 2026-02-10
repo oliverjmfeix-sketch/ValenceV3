@@ -221,9 +221,20 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 
 ## Cost Awareness
 
+### Application API Calls (extraction pipeline, /ask endpoint)
 - RP Universe extraction: ~$0.50 (cache it, avoid re-running)
 - V4 entity extraction: ~$0.10 (fine to iterate)
 - Use Sonnet for extraction. Opus only for complex analysis.
+
+### Claude Code Development Tasks
+- **Opus**: Architecture decisions, multi-file refactors, complex debugging,
+  writing extraction prompts or synthesis rules, anything requiring deep
+  understanding of the codebase or legal domain
+- **Sonnet**: Standard feature implementation, single-file edits, writing
+  tests, code review, moderate-complexity tasks
+- **Haiku**: Syntax checks, file searches, simple grep/glob, commit
+  formatting, running shell commands, validating JSON/TQL, any task
+  where speed matters more than reasoning depth
 
 ## Commit Convention
 
