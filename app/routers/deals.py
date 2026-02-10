@@ -1129,21 +1129,24 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
-6. **J.CREW MULTI-TIER ANALYSIS**: When the user asks about J.Crew patterns, IP blocker analysis,
-   definition quality, or cross-provision interactions, reference the multi-tier analysis data:
-   - **Tier 1 (JC1)**: Structural vulnerability — blocker existence, scope, amendment rights,
-     chain pathway analysis, unrestricted subsidiary designation mechanics
-   - **Tier 2 (JC2)**: Definition quality — IP definition completeness (trade secrets, know-how),
-     transfer definition gaps (exclusive licenses, pledges), material definition objectivity
-   - **Tier 3 (JC3)**: Cross-reference interactions — how definition gaps undermine structural
-     protections, blocker scope vs. chain pathway mismatches, timing misalignments
-   Explain how tiers interact when relevant: a strong blocker (T1) can be undermined by narrow
-   definitions (T2), and T3 captures these compound vulnerabilities.
-7. **CROSS-REFERENCE DEFINITIONS**: When discussing definitions: If a term is defined by
-   cross-reference to another document (e.g., "Intellectual Property" is defined in the Security
-   Agreement), state this clearly. Do not say the term is "not defined" — it IS defined, but the
-   full definition requires reviewing the referenced document. Frame this as: "[Term] is defined
-   by reference to [Document] [p.X], so the scope of the definition depends on that document."
+6. **JCREW BLOCKER ANALYSIS RULES**:
+   When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as follows:
+
+   **BLOCKER PROVISION** — State whether the blocker exists, quote it verbatim, and cite the page. This is the anchor — everything else is analysis of this provision.
+
+   **WHAT IT COVERS** — State scope ONCE (do not repeat scope facts later). What actions are prohibited (ownership, licensing, etc.), who is bound (Loan Parties only vs all Restricted Subsidiaries), what assets are protected, when it applies (designation-only vs ongoing). IMPORTANT: A J.Crew blocker covering only Intellectual Property (not broader "material assets") is STANDARD MARKET PRACTICE — do not frame IP-only coverage as a limitation or gap.
+
+   **DEFINITION QUALITY** — For each key definition (Intellectual Property, Material, Transfer), state: is it defined inline, by cross-reference to another document, or not defined at all? If inline, what does it include/exclude? If cross-reference, state which document and note full analysis requires it. If not defined, flag as vulnerability. Frame by practical impact: "Material is determined by the Borrower Agent in good faith with no objective threshold — the borrower controls what is considered material" is better than just "Material is subjective."
+
+   **INVESTMENT PATHWAYS** — ALWAYS include if jc_t1 data is available. Show: direct LP-to-Unsub investment cap (dollar and percentage), LP-to-Non-Guarantor RS cap (first hop), RS-to-Unsub cap (second hop), whether baskets can stack or rebuild, which baskets fund unsub investments. If blocker binds ALL Restricted Subs, note this CLOSES the chain pathway. If only Loan Parties, flag chain pathway as open and explain the Pluralsight pattern.
+
+   **AMENDMENT VULNERABILITY** — State the SPECIFIC amendment threshold (Required Lenders/simple majority, supermajority with percentage, or all-lender consent). "Not a sacred right" alone is insufficient.
+
+   **LIEN RELEASE INTERACTION** — CONNECT lien release to blocker: explain WHY automatic lien release matters (IP collateral liens releasing without consent means collateral protection evaporates if blocker has gaps). Do not state the fact without the connection.
+
+   **SYNTHESIS** — End with 2-3 sentences connecting findings with cause-and-effect relationships. Do NOT include subjective risk ratings. State objective facts and their connections. Legal professionals make the judgment calls.
+
+   FORMATTING RULES FOR JCREW ANSWERS: Do NOT use labels "Tier 1", "Tier 2", "Tier 3". Do NOT repeat the same fact in multiple sections. Do NOT frame IP-only coverage as a gap. Do NOT list findings without explaining why they matter. ALWAYS include investment pathway data if available. ALWAYS state specific amendment thresholds. ALWAYS connect lien release to blocker analysis. ALWAYS end with connective synthesis.
 
 ## FORMATTING
 
