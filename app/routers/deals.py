@@ -584,14 +584,8 @@ async def create_deal(
 @router.delete("/{deal_id}")
 async def delete_deal(deal_id: str) -> Dict[str, Any]:
     """
-    Delete a deal and all related data:
-    1. Delete concept_applicability relations
-    2. Delete rp_provision entity
-    3. Delete mfn_provision entity
-    4. Delete deal_has_provision relations
-    5. Delete deal entity
-    6. Delete PDF file from disk
-    7. Clear extraction status
+    Delete a deal and all related data.
+    Order: answers → applicabilities → provisions → deal link → deal → files
     """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
@@ -599,83 +593,83 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
-            # 0. Delete provision_has_answer relations for RP provision
+            # 1. Delete provision_has_answer for RP provision
             try:
                 tx.query(f"""
                     match
                         $p isa rp_provision, has provision_id "{deal_id}_rp";
-                        $rel (provision: $p, question: $q) isa provision_has_answer;
-                    delete $rel isa provision_has_answer;
+                        $rel isa provision_has_answer(provision: $p, question: $q);
+                    delete $rel;
                 """).resolve()
             except Exception:
-                pass  # May not exist
+                pass
 
-            # 0b. Delete provision_has_answer relations for MFN provision
-            try:
-                tx.query(f"""
-                    match
-                        $p isa mfn_provision, has provision_id "{deal_id}_mfn";
-                        $rel (provision: $p, question: $q) isa provision_has_answer;
-                    delete $rel isa provision_has_answer;
-                """).resolve()
-            except Exception:
-                pass  # May not exist
-
-            # 1. Delete concept_applicability relations for RP provision
+            # 2. Delete concept_applicability for RP provision
             try:
                 tx.query(f"""
                     match
                         $p isa rp_provision, has provision_id "{deal_id}_rp";
-                        $rel isa concept_applicability, links (provision: $p, concept: $c);
-                    delete $rel isa concept_applicability;
+                        $rel isa concept_applicability(provision: $p, concept: $c);
+                    delete $rel;
                 """).resolve()
             except Exception:
-                pass  # May not exist
+                pass
 
-            # 1b. Delete concept_applicability relations for MFN provision
+            # 3. Delete provision_has_answer for MFN provision
             try:
                 tx.query(f"""
                     match
                         $p isa mfn_provision, has provision_id "{deal_id}_mfn";
-                        $rel isa concept_applicability, links (provision: $p, concept: $c);
-                    delete $rel isa concept_applicability;
+                        $rel isa provision_has_answer(provision: $p, question: $q);
+                    delete $rel;
                 """).resolve()
             except Exception:
-                pass  # May not exist
+                pass
 
-            # 2. Delete rp_provision
+            # 4. Delete concept_applicability for MFN provision
             try:
                 tx.query(f"""
-                    match $p isa rp_provision, has provision_id "{deal_id}_rp";
-                    delete $p isa rp_provision;
+                    match
+                        $p isa mfn_provision, has provision_id "{deal_id}_mfn";
+                        $rel isa concept_applicability(provision: $p, concept: $c);
+                    delete $rel;
                 """).resolve()
             except Exception:
-                pass  # May not exist
+                pass
 
-            # 3. Delete mfn_provision (if exists)
-            try:
-                tx.query(f"""
-                    match $p isa mfn_provision, has provision_id "{deal_id}_mfn";
-                    delete $p isa mfn_provision;
-                """).resolve()
-            except Exception:
-                pass  # May not exist
-
-            # 4. Delete deal_has_provision relations
+            # 5. Delete deal_has_provision relations
             try:
                 tx.query(f"""
                     match
                         $d isa deal, has deal_id "{deal_id}";
-                        $rel isa deal_has_provision, links (deal: $d, provision: $p);
-                    delete $rel isa deal_has_provision;
+                        $rel isa deal_has_provision(deal: $d, provision: $p);
+                    delete $rel;
                 """).resolve()
             except Exception:
-                pass  # May not exist
+                pass
 
-            # 5. Delete deal entity
+            # 6. Delete rp_provision entity
+            try:
+                tx.query(f"""
+                    match $p isa rp_provision, has provision_id "{deal_id}_rp";
+                    delete $p;
+                """).resolve()
+            except Exception:
+                pass
+
+            # 7. Delete mfn_provision entity
+            try:
+                tx.query(f"""
+                    match $p isa mfn_provision, has provision_id "{deal_id}_mfn";
+                    delete $p;
+                """).resolve()
+            except Exception:
+                pass
+
+            # 8. Delete deal entity
             tx.query(f"""
                 match $d isa deal, has deal_id "{deal_id}";
-                delete $d isa deal;
+                delete $d;
             """).resolve()
 
             tx.commit()
@@ -685,13 +679,23 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             tx.close()
             raise e
 
-        # 6. Delete PDF file
+        # 9. Delete PDF file
         pdf_path = Path(UPLOADS_DIR) / f"{deal_id}.pdf"
         if pdf_path.exists():
             pdf_path.unlink()
             logger.info(f"Deleted PDF: {pdf_path}")
 
-        # 7. Clear extraction status
+        # 10. Delete RP universe file
+        rp_path = Path(UPLOADS_DIR) / f"{deal_id}_rp_universe.txt"
+        if rp_path.exists():
+            rp_path.unlink()
+
+        # 11. Delete MFN universe file
+        mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.txt"
+        if mfn_path.exists():
+            mfn_path.unlink()
+
+        # 12. Clear extraction status
         if deal_id in extraction_status:
             del extraction_status[deal_id]
 
