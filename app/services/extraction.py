@@ -1401,6 +1401,17 @@ Return ONLY the JSON array."""
         universe_chars = len(rp_universe.raw_text)
         logger.info(f"RP Universe extracted: {universe_chars} chars")
 
+        # Cache RP universe text to disk for eval pipeline reuse
+        try:
+            import os
+            universe_path = os.path.join("/app/uploads", f"{deal_id}_rp_universe.txt")
+            os.makedirs("/app/uploads", exist_ok=True)
+            with open(universe_path, "w", encoding="utf-8") as f:
+                f.write(rp_universe.raw_text)
+            logger.info(f"Cached RP universe text: {universe_path} ({universe_chars} chars)")
+        except Exception as e:
+            logger.warning(f"Could not cache RP universe text: {e}")
+
         if universe_chars < 1000:
             logger.warning("RP Universe extraction yielded minimal content - extraction may fail")
 

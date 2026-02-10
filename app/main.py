@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
-from app.routers import health, deals, ontology, qa, patterns
+from app.routers import health, deals, ontology, qa, patterns, eval as eval_router
 
 # Configure logging
 logging.basicConfig(
@@ -97,6 +97,7 @@ app.include_router(deals.router)
 app.include_router(ontology.router)
 app.include_router(qa.router)
 app.include_router(patterns.router)
+app.include_router(eval_router.router)
 
 
 @app.get("/")
