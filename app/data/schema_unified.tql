@@ -95,6 +95,12 @@ attribute target_entity_type, value string;        # Channel 1 & 3: entity type 
 attribute target_concept_type, value string;       # Channel 2: concept subtype name
 attribute target_relation_type, value string;      # Channel 3: relation linking entity → provision
 
+# ─── Document segmentation ──────────────────────────────────────────────────
+
+attribute segment_type_id, value string;
+attribute find_description, value string;
+attribute rp_universe_field, value string;
+
 # ─── Deal metadata ───────────────────────────────────────────────────────────
 
 attribute deal_name, value string;
@@ -849,6 +855,15 @@ entity ontology_question,
     plays question_targets_concept:question,
     plays question_targets_entity:question,
     plays provision_has_answer:question;
+
+# ─── Document Segmentation ──────────────────────────────────────────────────
+
+entity document_segment_type,
+    owns segment_type_id @key,
+    owns name,
+    owns find_description,
+    owns display_order,
+    owns rp_universe_field;
 
 entity attribute_provenance,
     owns attributed_field_name,

@@ -1,0 +1,140 @@
+# ─── Document Segment Type Seed Data ────────────────────────────────────────
+# 21 segment definitions for credit agreement document segmentation.
+# Segment definitions are loaded from TypeDB at runtime (SSoT).
+# rp_universe_field maps segments to RPUniverse dataclass fields.
+# ─────────────────────────────────────────────────────────────────────────────
+
+insert
+
+$seg_definitions isa document_segment_type,
+    has segment_type_id "definitions",
+    has name "Definitions",
+    has find_description "The defined terms section. Contains all defined terms for the agreement, typically the longest single section (30-100 pages). Look for: 'Defined Terms', a long alphabetical list of quoted terms followed by 'means' or 'shall mean'. Every credit agreement has this section.",
+    has display_order 1,
+    has rp_universe_field "definitions";
+
+$seg_commitments isa document_segment_type,
+    has segment_type_id "commitments_and_loans",
+    has name "The Commitments / Loans",
+    has find_description "The main lending mechanics. Contains: term loan commitments, revolving commitments, borrowing procedures, interest rate selection, fees. Look for: 'Term Loans', 'Revolving Commitments', 'The Borrower may request a Borrowing', 'Interest Elections'. In UK-style agreements, look for 'Facility', 'Utilisations', 'Drawdown'.",
+    has display_order 2;
+
+$seg_incremental isa document_segment_type,
+    has segment_type_id "incremental_facility",
+    has name "Incremental Facilities / MFN Provision",
+    has find_description "The section allowing additional debt to be incurred under the credit agreement. Look for: 'Incremental Term Loans', 'Incremental Facilities', 'Incremental Commitments', 'Effective Yield', 'Most Favored Nation'. Contains the MFN yield protection clause. In UK-style agreements, look for 'Accordion', 'Additional Facility'.",
+    has display_order 3;
+
+$seg_prepayments isa document_segment_type,
+    has segment_type_id "prepayments",
+    has name "Mandatory and Voluntary Prepayments",
+    has find_description "The prepayment section. Look for the SECTION HEADER containing 'Mandatory Prepayments' or 'Prepayments'. Contains: Excess Cash Flow sweeps, asset sale mandatory prepayments, voluntary prepayment mechanics, application of prepayments. This is a multi-page section. In UK-style agreements, look for 'Mandatory Prepayment', 'Voluntary Cancellation'.",
+    has display_order 4;
+
+$seg_repricing isa document_segment_type,
+    has segment_type_id "repricing_protection",
+    has name "Repricing Protection / Soft Call",
+    has find_description "A SHORT provision (1-3 paragraphs) imposing a premium on repricing transactions within a specified period after closing. Look for: 'Repricing Transaction', 'Repricing Event', 'Loan Call Protection', 'prepayment premium of 1.00%', 'soft call'. Typically within or immediately after the prepayments section. In UK-style agreements, look for 'Prepayment Fees' or 'Repricing'.",
+    has display_order 5;
+
+$seg_conditions isa document_segment_type,
+    has segment_type_id "conditions_precedent",
+    has name "Conditions Precedent",
+    has find_description "Conditions that must be satisfied before loans are funded. Look for: 'Conditions Precedent', 'Conditions of Lending', 'conditions to the Initial Credit Extension', 'conditions to each Borrowing'. Contains closing deliverables and ongoing conditions.",
+    has display_order 6;
+
+$seg_reps isa document_segment_type,
+    has segment_type_id "representations",
+    has name "Representations and Warranties",
+    has find_description "Statements of fact the borrower makes to the lenders. Look for: 'Representations and Warranties', 'The Borrower represents and warrants', 'Organization; Existence', 'Due Authorization'. Contains representations about organization, authority, financial statements, litigation, etc.",
+    has display_order 7;
+
+$seg_affirm isa document_segment_type,
+    has segment_type_id "affirmative_covenants",
+    has name "Affirmative Covenants",
+    has find_description "Ongoing 'shall' obligations of the borrower. Look for: 'Affirmative Covenants', 'Financial Statements', 'Certificates', 'Notices', 'Preservation of Existence', 'Maintenance of Properties'. These are things the borrower MUST do (not restrictions on what it cannot do). In UK-style agreements, look for 'Information Undertakings', 'General Undertakings'.",
+    has display_order 8;
+
+$seg_fincov isa document_segment_type,
+    has segment_type_id "financial_covenants",
+    has name "Financial Covenants",
+    has find_description "Maintenance financial ratio tests. Look for: 'Financial Covenant', 'Maximum Total Leverage Ratio', 'First Lien Leverage Ratio', 'Springing Financial Covenant', 'shall not permit the Total Leverage Ratio to exceed'. May be a very short section (1-2 pages) if there is only a springing covenant. In UK-style agreements, look for 'Financial Condition', 'Financial Testing'.",
+    has display_order 9;
+
+$seg_debt isa document_segment_type,
+    has segment_type_id "negative_cov_debt",
+    has name "Debt Incurrence Covenant",
+    has find_description "Restrictions on incurring additional debt. Look for: 'shall not create, incur, assume or suffer to exist any Indebtedness', 'Limitation on Indebtedness', 'Permitted Indebtedness'. Contains permitted debt baskets. In UK-style agreements, look for 'Financial Indebtedness' restrictions.",
+    has display_order 10;
+
+$seg_liens isa document_segment_type,
+    has segment_type_id "negative_cov_liens",
+    has name "Liens Covenant",
+    has find_description "Restrictions on granting security interests. Look for: 'shall not create, incur, assume or suffer to exist any Lien', 'Limitation on Liens', 'Permitted Liens'. Contains permitted lien baskets. In UK-style agreements, look for 'Negative Pledge' or 'Security' restrictions.",
+    has display_order 11;
+
+$seg_investments isa document_segment_type,
+    has segment_type_id "negative_cov_investments",
+    has name "Investments Covenant",
+    has find_description "Restrictions on making investments. Look for: 'shall not make or hold any Investment', 'Limitation on Investments', 'shall not make any advance, loan, extension of credit or capital contribution', 'Permitted Investments'. Contains permitted investment baskets including Unrestricted Subsidiary investments.",
+    has display_order 12,
+    has rp_universe_field "investment_covenant";
+
+$seg_rp isa document_segment_type,
+    has segment_type_id "negative_cov_rp",
+    has name "Restricted Payments / Dividends Covenant",
+    has find_description "Restrictions on distributions to equity holders. Look for: 'shall not declare or pay any dividend', 'shall not make any Restricted Payment', 'Limitation on Restricted Payments', 'Limitation on Dividends'. One of the longest covenant sections with 20-30 permitted baskets labeled (a) through (z). In UK-style agreements, look for 'Distributions', 'Restricted Payments'.",
+    has display_order 13,
+    has rp_universe_field "dividend_covenant";
+
+$seg_asset_sales isa document_segment_type,
+    has segment_type_id "negative_cov_asset_sales",
+    has name "Asset Sales / Dispositions Covenant",
+    has find_description "Restrictions on selling assets. Look for: 'shall not make any Disposition', 'shall not convey, sell, lease, assign, transfer or otherwise dispose of', 'Asset Sale', 'Limitation on Asset Sales'. Contains reinvestment rights and mandatory prepayment triggers. In UK-style agreements, look for 'Disposals'.",
+    has display_order 14,
+    has rp_universe_field "asset_sale_covenant";
+
+$seg_rdp isa document_segment_type,
+    has segment_type_id "negative_cov_rdp",
+    has name "Restricted Debt Payments",
+    has find_description "Restrictions on prepaying the borrower's OWN subordinated or junior debt. This is SEPARATE from Restricted Payments (which covers distributions to equity). Look for: 'shall not prepay, redeem, purchase, defease or otherwise retire any Junior Financing', 'Restricted Debt Payment', 'voluntary or optional payment, prepayment, repurchase or redemption of Subordinated Indebtedness'. May not exist as a standalone section — some agreements fold this into the RP covenant. In UK-style agreements, look for restrictions on prepayment of subordinated liabilities.",
+    has display_order 15,
+    has rp_universe_field "rdp_covenant";
+
+$seg_affil isa document_segment_type,
+    has segment_type_id "negative_cov_affiliate_transactions",
+    has name "Affiliate Transactions",
+    has find_description "Restrictions on transactions with affiliates. Look for: 'shall not enter into any transaction with any Affiliate', 'Transactions with Affiliates', 'on terms no less favorable'. Contains exceptions for arm's length transactions, compensation, and existing agreements.",
+    has display_order 16;
+
+$seg_mergers isa document_segment_type,
+    has segment_type_id "negative_cov_mergers",
+    has name "Fundamental Changes / Mergers",
+    has find_description "Restrictions on mergers, consolidations, and fundamental corporate changes. Look for: 'shall not merge into or consolidate', 'Fundamental Changes', 'shall not liquidate or dissolve'. In UK-style agreements, look for 'Merger', 'Consolidation', 'Amalgamation'.",
+    has display_order 17;
+
+$seg_unsub isa document_segment_type,
+    has segment_type_id "unrestricted_sub_mechanics",
+    has name "Unrestricted Subsidiary Designation",
+    has find_description "The MECHANICS for how subsidiaries are designated or redesignated as Unrestricted Subsidiaries. Look for: 'Designation of Subsidiaries', 'designate any Subsidiary as an Unrestricted Subsidiary', 'Unrestricted Subsidiary Redesignation'. This is NOT the definition of 'Unrestricted Subsidiary' in the definitions section — it is a separate section describing the PROCESS, conditions, and consequences of designation. Often in affirmative covenants or as a standalone section. In UK-style agreements, look in Schedules.",
+    has display_order 18,
+    has rp_universe_field "unsub_mechanics";
+
+$seg_proforma isa document_segment_type,
+    has segment_type_id "pro_forma_mechanics",
+    has name "Pro Forma / Calculation Mechanics",
+    has find_description "The section defining HOW financial ratios are calculated on a pro forma basis. Look for: 'Pro Forma Basis', 'Pro Forma Compliance', 'Limited Condition Transaction', 'Limited Condition Acquisition', 'giving pro forma effect'. This is a standalone section (not just the definition of 'Pro Forma Basis') that describes calculation methodology, treatment of add-backs, and how Limited Condition Transactions freeze the testing date.",
+    has display_order 19,
+    has rp_universe_field "pro_forma_mechanics";
+
+$seg_eod isa document_segment_type,
+    has segment_type_id "events_of_default",
+    has name "Events of Default",
+    has find_description "Events that trigger acceleration. Look for: 'Events of Default', 'each of the following shall constitute an Event of Default'. Contains: payment default, covenant breach, cross-default, bankruptcy, judgments, change of control.",
+    has display_order 20;
+
+$seg_amendments isa document_segment_type,
+    has segment_type_id "amendments_waivers",
+    has name "Amendments and Waivers",
+    has find_description "How the agreement can be modified. Look for: 'Amendments', 'Waivers', 'no amendment or waiver of any provision', 'Required Lenders', 'consent of each Lender directly and adversely affected'. Contains voting thresholds, sacred rights, and amendment mechanics.",
+    has display_order 21;

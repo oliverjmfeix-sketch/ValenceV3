@@ -184,12 +184,228 @@ class ExtractionService:
         return full_text
 
     # =========================================================================
-    # STEP 2: Extract RP-Relevant Universe (Format-Agnostic)
+    # STEP 2: Extract RP-Relevant Universe (Segmenter-Based)
     # =========================================================================
 
     def extract_rp_universe(self, document_text: str) -> RPUniverse:
         """
-        Extract the complete RP-relevant universe from the document.
+        Extract RP-relevant universe using document segmentation.
+
+        Segment definitions loaded from TypeDB (SSoT).
+        Claude identifies section locations (page numbers),
+        Python slices the original text.
+        """
+        doc_len = len(document_text)
+        logger.info(f"Segmenting {doc_len} char document for RP universe")
+
+        segment_map = self.segment_document(document_text)
+
+        found_count = sum(
+            1 for s in segment_map.get("segments", [])
+            if s.get("found", True)
+        )
+        logger.info(f"Segmentation complete: {found_count} sections found")
+
+        universe = self._build_rp_universe_from_segments(document_text, segment_map)
+
+        logger.info(
+            f"RP Universe built: definitions={len(universe.definitions)}, "
+            f"dividend={len(universe.dividend_covenant)}, "
+            f"investment={len(universe.investment_covenant)}, "
+            f"rdp={len(universe.rdp_covenant)} chars"
+        )
+
+        return universe
+
+    def segment_document(self, document_text: str) -> dict:
+        """
+        Send full document to Claude. Get back JSON with page numbers for each section.
+        Segment definitions loaded from TypeDB (SSoT).
+        Uses N-way split for documents > 400K chars.
+        """
+        import math
+
+        doc_len = len(document_text)
+        max_chunk = 400000
+
+        if doc_len <= max_chunk:
+            # Single call
+            prompt = self._build_segmentation_prompt(document_text)
+            response_text = self._call_claude_streaming(prompt, max_tokens=4096)
+            if response_text:
+                return self._parse_segmentation_response(response_text)
+            return {"segments": []}
+
+        # N-way split for large documents
+        num_chunks = math.ceil(doc_len / max_chunk)
+        chunk_size = doc_len // num_chunks
+
+        # Find page boundaries for splits
+        boundaries = [0]
+        for i in range(1, num_chunks):
+            target = chunk_size * i
+            pb = document_text.rfind(
+                "[PAGE ", max(0, target - 5000), min(doc_len, target + 5000)
+            )
+            if pb == -1:
+                pb = target
+            boundaries.append(pb)
+        boundaries.append(doc_len)
+
+        logger.info(f"Large doc ({doc_len} chars): splitting into {num_chunks} chunks")
+
+        chunk_maps = []
+        for ci in range(len(boundaries) - 1):
+            chunk = document_text[boundaries[ci]:boundaries[ci + 1]]
+            if ci == 0:
+                part_hint = f"\nNOTE: This is PART 1 of {num_chunks} of a large document. Definitions and early articles are usually here.\n"
+            elif ci == num_chunks - 1:
+                part_hint = f"\nNOTE: This is PART {ci + 1} of {num_chunks} (LAST PART). Negative covenants and events of default are usually here.\n"
+            else:
+                part_hint = f"\nNOTE: This is PART {ci + 1} of {num_chunks} (MIDDLE PART). Report whatever sections you find.\n"
+
+            prompt = self._build_segmentation_prompt(chunk, part_hint=part_hint)
+            response_text = self._call_claude_streaming(prompt, max_tokens=4096)
+            if response_text:
+                chunk_maps.append(self._parse_segmentation_response(response_text))
+
+        # Merge: prefer larger page spans
+        return self._merge_segment_maps(chunk_maps)
+
+    def _build_segmentation_prompt(
+        self, document_text: str, part_hint: str = ""
+    ) -> str:
+        """Build segmentation prompt dynamically from TypeDB segment types."""
+        from app.services.segment_introspector import get_segment_types
+
+        segments = get_segment_types()
+
+        section_lines = ""
+        for seg in segments:
+            section_lines += (
+                f'\n- **{seg["segment_type_id"]}** ({seg["name"]}): '
+                f'{seg["find_description"]}'
+            )
+
+        return f"""You are analyzing a credit agreement to identify the location of each major section.
+{part_hint}
+## SECTIONS TO FIND
+{section_lines}
+
+## DOCUMENT
+
+{document_text}
+
+## YOUR TASK
+
+For each section, find it in the document and report WHERE it is.
+Do NOT copy or extract any text. Just report locations.
+
+Return ONLY valid JSON, no markdown fences, no explanation:
+
+{{
+  "segments": [
+    {{"segment_type_id": "definitions", "found": true, "section_ref": "Section 1.01", "start_page": 3, "end_page": 58}},
+    {{"segment_type_id": "repricing_protection", "found": false}}
+  ]
+}}
+
+CRITICAL:
+1. start_page / end_page are from the [PAGE X] markers in the document
+2. end_page is the LAST page of this section (before the next section starts)
+3. If a section doesn't exist, set found=false"""
+
+    def _parse_segmentation_response(self, response_text: str) -> dict:
+        """Parse Claude's segmentation JSON response."""
+        clean = response_text.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r'^```(?:json)?\s*', '', clean)
+            clean = re.sub(r'\s*```$', '', clean)
+        try:
+            return json.loads(clean)
+        except json.JSONDecodeError as e:
+            logger.error(f"Segmentation JSON parse failed: {e}")
+            return {"segments": []}
+
+    def _merge_segment_maps(self, maps: list) -> dict:
+        """Merge segment maps from N chunks. Prefer larger page spans."""
+        best = {}
+        not_found = {}
+
+        for seg_map in maps:
+            for seg in seg_map.get("segments", []):
+                sid = seg["segment_type_id"]
+                if not seg.get("found", True):
+                    if sid not in best:
+                        not_found[sid] = seg
+                    continue
+
+                span = seg.get("end_page", 0) - seg.get("start_page", 0)
+                if sid not in best:
+                    best[sid] = (seg, span)
+                else:
+                    if span >= best[sid][1]:
+                        best[sid] = (seg, span)
+
+        merged = [seg for seg, _ in best.values()]
+        for sid, seg in not_found.items():
+            if sid not in best:
+                merged.append(seg)
+
+        return {"segments": merged}
+
+    def _slice_by_pages(
+        self, document_text: str, start_page: int, end_page: int
+    ) -> str:
+        """Slice document text between [PAGE X] markers."""
+        start_marker = f"[PAGE {start_page}]"
+        end_marker = f"[PAGE {end_page + 1}]"
+
+        start_pos = document_text.find(start_marker)
+        if start_pos == -1:
+            return ""
+
+        end_pos = document_text.find(end_marker, start_pos)
+        if end_pos == -1:
+            # Section runs to end of document (or cap at 200K)
+            return document_text[start_pos:start_pos + 200000]
+
+        return document_text[start_pos:end_pos]
+
+    def _build_rp_universe_from_segments(
+        self, document_text: str, segment_map: dict
+    ) -> RPUniverse:
+        """Build RPUniverse by slicing document at segment page boundaries."""
+        from app.services.segment_introspector import get_rp_segment_mapping
+
+        rp_mapping = get_rp_segment_mapping()
+        universe = RPUniverse()
+
+        segments_by_id = {
+            s["segment_type_id"]: s
+            for s in segment_map.get("segments", [])
+            if s.get("found", True)
+        }
+
+        for seg_id, rp_field in rp_mapping.items():
+            seg = segments_by_id.get(seg_id)
+            if seg:
+                sliced = self._slice_by_pages(
+                    document_text, seg["start_page"], seg["end_page"]
+                )
+                if sliced:
+                    setattr(universe, rp_field, sliced)
+
+        universe.raw_text = self._build_combined_context(universe)
+        return universe
+
+    # =========================================================================
+    # STEP 2 (LEGACY): Format-Agnostic Universe Extraction
+    # =========================================================================
+
+    def _legacy_extract_rp_universe(self, document_text: str) -> RPUniverse:
+        """
+        [LEGACY] Extract the complete RP-relevant universe from the document.
 
         Uses CONTENT PATTERNS (not section numbers) to find:
         - All relevant definitions (Restricted Payment, CNI, Cumulative Amount, etc.)
@@ -198,23 +414,23 @@ class ExtractionService:
         - Mechanics (Unrestricted Sub designation, Pro forma)
 
         For docs > 400k chars, uses 2-call merge strategy.
+
+        Replaced by segmenter-based extract_rp_universe(). Kept for fallback.
         """
         doc_len = len(document_text)
-        logger.info(f"Extracting RP universe from {doc_len} char document")
+        logger.info(f"[LEGACY] Extracting RP universe from {doc_len} char document")
 
         if doc_len <= 400000:
-            # Single call for smaller documents
-            return self._extract_rp_universe_single(document_text)
+            return self._legacy_extract_rp_universe_single(document_text)
         else:
-            # Two-call merge for large documents
-            return self._extract_rp_universe_merge(document_text)
+            return self._legacy_extract_rp_universe_merge(document_text)
 
-    def _extract_rp_universe_single(self, document_text: str) -> RPUniverse:
-        """Extract RP universe with a single Claude call."""
-        prompt = self._build_universe_extraction_prompt(document_text)
+    def _legacy_extract_rp_universe_single(self, document_text: str) -> RPUniverse:
+        """[LEGACY] Extract RP universe with a single Claude call."""
+        prompt = self._legacy_build_universe_extraction_prompt(document_text)
         response_text = self._call_claude_streaming(prompt, max_tokens=32000)
         if response_text:
-            return self._parse_universe_extraction(response_text)
+            return self._legacy_parse_universe_extraction(response_text)
         return RPUniverse()
 
     def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000) -> str:
@@ -238,8 +454,8 @@ class ExtractionService:
             logger.error(f"Claude streaming error: {e}")
             return ""
 
-    def _extract_rp_universe_merge(self, document_text: str) -> RPUniverse:
-        """Extract RP universe with two calls for large documents, then merge."""
+    def _legacy_extract_rp_universe_merge(self, document_text: str) -> RPUniverse:
+        """[LEGACY] Extract RP universe with two calls for large documents, then merge."""
         doc_len = len(document_text)
         midpoint = doc_len // 2
         overlap = 50000  # 50k overlap to catch content at boundaries
@@ -254,24 +470,24 @@ class ExtractionService:
         logger.info(f"  Part 2: chars {midpoint - overlap}-{doc_len} (covenants)")
 
         # Extract from first half (expect definitions) - use streaming for long operations
-        prompt1 = self._build_universe_extraction_prompt(first_half, part=1, focus="definitions")
+        prompt1 = self._legacy_build_universe_extraction_prompt(first_half, part=1, focus="definitions")
         logger.info("Extracting Part 1 (definitions)...")
         response1 = self._call_claude_streaming(prompt1, max_tokens=32000)
         if response1:
-            universe1 = self._parse_universe_extraction(response1)
+            universe1 = self._legacy_parse_universe_extraction(response1)
             logger.info(f"Part 1: definitions={len(universe1.definitions)} chars")
         else:
             logger.error("Part 1 extraction returned empty")
             universe1 = RPUniverse()
 
         # Extract from second half (expect covenants) - use streaming for long operations
-        prompt2 = self._build_universe_extraction_prompt(second_half, part=2, focus="covenants")
+        prompt2 = self._legacy_build_universe_extraction_prompt(second_half, part=2, focus="covenants")
         logger.info("Extracting Part 2 (covenants)...")
         response2 = self._call_claude_streaming(prompt2, max_tokens=32000)
         logger.info(f"Part 2 response received: {len(response2) if response2 else 0} chars")
         if response2:
             try:
-                universe2 = self._parse_universe_extraction(response2)
+                universe2 = self._legacy_parse_universe_extraction(response2)
                 logger.info(f"Part 2: dividend_covenant={len(universe2.dividend_covenant)} chars")
             except Exception as e:
                 logger.exception(f"Part 2 parse error: {e}")
@@ -303,13 +519,13 @@ class ExtractionService:
             logger.exception(f"Error merging RP universe: {e}")
             return RPUniverse()
 
-    def _build_universe_extraction_prompt(
+    def _legacy_build_universe_extraction_prompt(
         self,
         document_text: str,
         part: int = 0,
         focus: str = "all"
     ) -> str:
-        """Build the format-agnostic RP universe extraction prompt."""
+        """[LEGACY] Build the format-agnostic RP universe extraction prompt."""
 
         if part == 1:
             focus_instruction = """
@@ -465,8 +681,8 @@ Return your extraction in this EXACT format with clear section markers:
 REMEMBER: Your output should be 50,000-100,000 characters of verbatim extracted text.
 If your output is less than 30,000 characters, you are likely summarizing instead of extracting."""
 
-    def _parse_universe_extraction(self, response_text: str) -> RPUniverse:
-        """Parse the RP universe extraction response."""
+    def _legacy_parse_universe_extraction(self, response_text: str) -> RPUniverse:
+        """[LEGACY] Parse the RP universe extraction response."""
         logger.info(f"Parsing universe extraction response: {len(response_text)} chars")
         universe = RPUniverse()
 

@@ -5,7 +5,7 @@ Run this once after setting up TypeDB Cloud:
     python -m app.scripts.init_schema
 
 This creates the database (if needed), loads schema, and seeds all data.
-Loads all 16 TQL files in dependency order.
+Loads all 17 TQL files in dependency order.
 """
 import os
 import sys
@@ -62,6 +62,9 @@ JCREW_RULES_FILE = DATA_DIR / "jcrew_rules.tql"
 # 15-16. MFN extended data
 MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
 MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
+
+# 17. Document segmentation types
+SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
 
 def get_driver():
@@ -243,7 +246,7 @@ def _load_multi_insert_file(driver, db_name: str, filepath: Path):
 def init_database():
     """Initialize TypeDB with ValenceV3 schema and all seed data."""
     logger.info("=" * 60)
-    logger.info("ValenceV3 Schema Initialization (all 16 data files)")
+    logger.info("ValenceV3 Schema Initialization (all 17 data files)")
     logger.info("=" * 60)
 
     driver = get_driver()
@@ -394,6 +397,20 @@ def init_database():
         if MFN_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_QUESTIONS_FILE)
 
+        # 17. Load document segment types
+        logger.info("\n17. Loading segment_types_seed.tql...")
+        if SEGMENT_TYPES_FILE.exists():
+            seg_tql = load_tql_file(SEGMENT_TYPES_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
+            try:
+                tx.query(seg_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded segment types ({len(seg_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   Segment types: {e}")
+
         # ═══════════════════════════════════════════════════════════════
         # Verification
         # ═══════════════════════════════════════════════════════════════
@@ -411,6 +428,7 @@ def init_database():
                 ("Extraction metadata", "match $em isa extraction_metadata; select $em;", 20),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Party types", "match $p isa restricted_party; select $p;", 3),
+                ("Segment types", "match $s isa document_segment_type; select $s;", 21),
             ]
             for label, query, min_expected in checks:
                 try:
