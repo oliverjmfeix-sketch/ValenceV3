@@ -245,6 +245,8 @@ def _load_multi_insert_file(driver, db_name: str, filepath: Path):
 
 def init_database():
     """Initialize TypeDB with ValenceV3 schema and all seed data."""
+    force = "--force" in sys.argv
+
     logger.info("=" * 60)
     logger.info("ValenceV3 Schema Initialization (all 17 data files)")
     logger.info("=" * 60)
@@ -257,10 +259,11 @@ def init_database():
         logger.info(f"Database '{TYPEDB_DATABASE}' exists: {db_exists}")
 
         if db_exists:
-            response = input("Drop and recreate? (yes/no): ").strip().lower()
-            if response != 'yes':
-                logger.info("Aborted. Use existing database.")
-                return
+            if not force:
+                response = input("Drop and recreate? (yes/no): ").strip().lower()
+                if response != 'yes':
+                    logger.info("Aborted. Use existing database.")
+                    return
             driver.databases.get(TYPEDB_DATABASE).delete()
             logger.info(f"Dropped database '{TYPEDB_DATABASE}'")
 

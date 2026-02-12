@@ -24,6 +24,8 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+.segmenter_cache/
+.comparison_cache/
 
 # Uploads
 uploads/
