@@ -18,7 +18,7 @@ define
 # ─── TIER 1: VULNERABILITY PATTERN FUNCTIONS (10) ────────────────────────────
 
 # Pattern 1: No blocker exists at all — maximum vulnerability
-fun has_pattern_no_blocker($ref: string) -> bool:
+fun has_pattern_no_blocker($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_designation_permitted true,
@@ -28,7 +28,7 @@ fun has_pattern_no_blocker($ref: string) -> bool:
 
 # Pattern 2: Chain pathway open (LP → RS → Unsub)
 # True if ANY of three sub-patterns match
-fun has_pattern_chain_pathway_open($ref: string) -> bool:
+fun has_pattern_chain_pathway_open($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr;
         {
@@ -43,7 +43,7 @@ fun has_pattern_chain_pathway_open($ref: string) -> bool:
     return check;
 
 # Pattern 3: Blocker scope gap — does not bind all restricted subs
-fun has_pattern_blocker_scope_gap($ref: string) -> bool:
+fun has_pattern_blocker_scope_gap($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -52,7 +52,7 @@ fun has_pattern_blocker_scope_gap($ref: string) -> bool:
     return check;
 
 # Pattern 4: Blocker timing gap — only applies at designation
-fun has_pattern_blocker_timing_gap($ref: string) -> bool:
+fun has_pattern_blocker_timing_gap($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -61,7 +61,7 @@ fun has_pattern_blocker_timing_gap($ref: string) -> bool:
     return check;
 
 # Pattern 5: Licensing gap — transfer definition excludes licensing
-fun has_pattern_licensing_gap($ref: string) -> bool:
+fun has_pattern_licensing_gap($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -71,7 +71,7 @@ fun has_pattern_licensing_gap($ref: string) -> bool:
     return check;
 
 # Pattern 6: Amendment vulnerable — not sacred right, majority can amend
-fun has_pattern_amendment_vulnerable($ref: string) -> bool:
+fun has_pattern_amendment_vulnerable($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -80,7 +80,7 @@ fun has_pattern_amendment_vulnerable($ref: string) -> bool:
     return check;
 
 # Pattern 7: Automatic lien release on permitted transfers
-fun has_pattern_automatic_lien_release($ref: string) -> bool:
+fun has_pattern_automatic_lien_release($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has lien_release_automatic_on_permitted_transfer true;
@@ -88,7 +88,7 @@ fun has_pattern_automatic_lien_release($ref: string) -> bool:
     return check;
 
 # Pattern 8: No cap on unrestricted sub designation
-fun has_pattern_no_unsub_cap($ref: string) -> bool:
+fun has_pattern_no_unsub_cap($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_designation_permitted true,
@@ -97,7 +97,7 @@ fun has_pattern_no_unsub_cap($ref: string) -> bool:
     return check;
 
 # Pattern 9: Basket fungibility — builder/general/catch-all can fund unsub
-fun has_pattern_basket_fungibility($ref: string) -> bool:
+fun has_pattern_basket_fungibility($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_investment_basket_can_rebuild true;
@@ -105,7 +105,7 @@ fun has_pattern_basket_fungibility($ref: string) -> bool:
     return check;
 
 # Pattern 10: Basket stacking — multiple baskets can combine
-fun has_pattern_basket_stacking($ref: string) -> bool:
+fun has_pattern_basket_stacking($ref: string) -> boolean:
     match
         $a isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_investment_baskets_can_stack true;
@@ -116,7 +116,7 @@ fun has_pattern_basket_stacking($ref: string) -> bool:
 # ─── TIER 3: INTERACTION PATTERN FUNCTIONS (5) ───────────────────────────────
 
 # Interaction 1: IP definition narrower than blocker scope
-fun has_interaction_ip_definition_narrower($ref: string) -> bool:
+fun has_interaction_ip_definition_narrower($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -126,7 +126,7 @@ fun has_interaction_ip_definition_narrower($ref: string) -> bool:
     return check;
 
 # Interaction 2: Transfer definition narrower than blocker prohibition
-fun has_interaction_transfer_definition_narrower($ref: string) -> bool:
+fun has_interaction_transfer_definition_narrower($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -136,7 +136,7 @@ fun has_interaction_transfer_definition_narrower($ref: string) -> bool:
     return check;
 
 # Interaction 3: Material definition undermines blocker
-fun has_interaction_material_definition_undermines($ref: string) -> bool:
+fun has_interaction_material_definition_undermines($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -146,7 +146,7 @@ fun has_interaction_material_definition_undermines($ref: string) -> bool:
     return check;
 
 # Interaction 4: Blocker scope misses chain pathway
-fun has_interaction_blocker_scope_misses_chain($ref: string) -> bool:
+fun has_interaction_blocker_scope_misses_chain($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has blocker_applies_at_designation_only true;
@@ -155,7 +155,7 @@ fun has_interaction_blocker_scope_misses_chain($ref: string) -> bool:
     return check;
 
 # Interaction 5: Blocker timing mismatches designation conditions
-fun has_interaction_blocker_timing_mismatches($ref: string) -> bool:
+fun has_interaction_blocker_timing_mismatches($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has blocker_applies_at_designation_only true;
@@ -168,7 +168,7 @@ fun has_interaction_blocker_timing_mismatches($ref: string) -> bool:
 # ─── PROTECTION PATTERN FUNCTIONS (13) ───────────────────────────────────────
 
 # Protection 1: Blocker covers ownership transfers
-fun has_protection_blocker_covers_ownership($ref: string) -> bool:
+fun has_protection_blocker_covers_ownership($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -177,7 +177,7 @@ fun has_protection_blocker_covers_ownership($ref: string) -> bool:
     return check;
 
 # Protection 2: Blocker covers all licensing (exclusive + non-exclusive)
-fun has_protection_blocker_covers_all_licensing($ref: string) -> bool:
+fun has_protection_blocker_covers_all_licensing($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -188,7 +188,7 @@ fun has_protection_blocker_covers_all_licensing($ref: string) -> bool:
     return check;
 
 # Protection 3: Blocker covers all restricted subs
-fun has_protection_blocker_covers_restricted_subs($ref: string) -> bool:
+fun has_protection_blocker_covers_restricted_subs($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -197,7 +197,7 @@ fun has_protection_blocker_covers_restricted_subs($ref: string) -> bool:
     return check;
 
 # Protection 4: Blocker applies at all times (ongoing, not just point-in-time)
-fun has_protection_blocker_applies_at_all_times($ref: string) -> bool:
+fun has_protection_blocker_applies_at_all_times($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true,
@@ -206,7 +206,7 @@ fun has_protection_blocker_applies_at_all_times($ref: string) -> bool:
     return check;
 
 # Protection 5: Blocker is sacred right (all-lender consent to amend)
-fun has_protection_blocker_is_sacred_right($ref: string) -> bool:
+fun has_protection_blocker_is_sacred_right($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has blocker_amendment_requires_all_lender_consent true;
@@ -214,7 +214,7 @@ fun has_protection_blocker_is_sacred_right($ref: string) -> bool:
     return check;
 
 # Protection 6: IP definition is comprehensive (includes trade secrets + know-how)
-fun has_protection_ip_definition_comprehensive($ref: string) -> bool:
+fun has_protection_ip_definition_comprehensive($ref: string) -> boolean:
     match
         $da isa definition_quality_analysis, has deal_ref $dr,
             has ip_definition_exists true,
@@ -224,7 +224,7 @@ fun has_protection_ip_definition_comprehensive($ref: string) -> bool:
     return check;
 
 # Protection 7: Transfer definition is comprehensive (includes all licensing)
-fun has_protection_transfer_definition_comprehensive($ref: string) -> bool:
+fun has_protection_transfer_definition_comprehensive($ref: string) -> boolean:
     match
         $da isa definition_quality_analysis, has deal_ref $dr,
             has transfer_definition_exists true,
@@ -234,7 +234,7 @@ fun has_protection_transfer_definition_comprehensive($ref: string) -> bool:
     return check;
 
 # Protection 8: Material definition is objective (not subjective/manipulable)
-fun has_protection_material_definition_objective($ref: string) -> bool:
+fun has_protection_material_definition_objective($ref: string) -> boolean:
     match
         $da isa definition_quality_analysis, has deal_ref $dr,
             has material_definition_is_subjective false,
@@ -243,7 +243,7 @@ fun has_protection_material_definition_objective($ref: string) -> bool:
     return check;
 
 # Protection 9: Unsub has hard dollar cap
-fun has_protection_unsub_has_hard_cap($ref: string) -> bool:
+fun has_protection_unsub_has_hard_cap($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_designation_permitted true,
@@ -252,7 +252,7 @@ fun has_protection_unsub_has_hard_cap($ref: string) -> bool:
     return check;
 
 # Protection 10: Unsub has EBITDA percentage cap
-fun has_protection_unsub_has_ebitda_cap($ref: string) -> bool:
+fun has_protection_unsub_has_ebitda_cap($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_designation_permitted true;
@@ -261,7 +261,7 @@ fun has_protection_unsub_has_ebitda_cap($ref: string) -> bool:
     return check;
 
 # Protection 11: Dedicated basket required (no stacking or rebuilding)
-fun has_protection_dedicated_basket_required($ref: string) -> bool:
+fun has_protection_dedicated_basket_required($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has unsub_investment_baskets_can_stack false,
@@ -270,7 +270,7 @@ fun has_protection_dedicated_basket_required($ref: string) -> bool:
     return check;
 
 # Protection 12: Material assets covered by blocker
-fun has_protection_material_assets_covered($ref: string) -> bool:
+fun has_protection_material_assets_covered($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has jcrew_blocker_exists true;
@@ -281,7 +281,7 @@ fun has_protection_material_assets_covered($ref: string) -> bool:
     return check;
 
 # Protection 13: Lien release requires consent (not automatic)
-fun has_protection_lien_release_requires_consent($ref: string) -> bool:
+fun has_protection_lien_release_requires_consent($ref: string) -> boolean:
     match
         $pa isa jcrew_provision_analysis, has deal_ref $dr,
             has lien_release_automatic_on_permitted_transfer false;
