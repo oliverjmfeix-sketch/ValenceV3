@@ -11,6 +11,45 @@ from app.services.typedb_client import typedb_client
 router = APIRouter(tags=["Health"])
 
 
+@router.get("/api/admin/ssot-status")
+async def ssot_status() -> Dict[str, Any]:
+    """Live SSoT verification — returns counts of all TypeDB-sourced data."""
+    from app.services.segment_introspector import get_segment_types
+
+    segments = get_segment_types()
+
+    counts = {
+        "segment_types": len(segments),
+        "extraction_metadata": 0,
+        "ontology_questions": 0,
+        "ontology_categories": 0,
+        "legal_concepts": 0,
+    }
+
+    try:
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            for key, query in [
+                ("extraction_metadata", "match $em isa extraction_metadata; select $em;"),
+                ("ontology_questions", "match $q isa ontology_question; select $q;"),
+                ("ontology_categories", "match $c isa ontology_category; select $c;"),
+                ("legal_concepts", "match $c isa concept; select $c;"),
+            ]:
+                r = tx.query(query).resolve()
+                counts[key] = len(list(r.as_concept_rows()))
+        finally:
+            tx.close()
+    except Exception as e:
+        return {"error": str(e), **counts}
+
+    return {
+        **counts,
+        "ssot_compliant": counts["segment_types"] == 21 and counts["extraction_metadata"] >= 19,
+    }
+
+
 def _safe_get_value(row, key: str, default=None):
     """Safely get attribute value from a TypeDB row with null check."""
     try:

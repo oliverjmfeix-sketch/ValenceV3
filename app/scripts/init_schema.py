@@ -57,7 +57,7 @@ SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
 # 12-14. J.Crew deep analysis (concepts, questions, rules)
 JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
 JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
-JCREW_RULES_FILE = DATA_DIR / "jcrew_rules.tql"
+JCREW_FUNCTIONS_FILE = DATA_DIR / "jcrew_functions.tql"
 
 # 15-16. MFN extended data
 MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
@@ -375,20 +375,20 @@ def init_database():
         if SEED_V4_DATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_V4_DATA_FILE)
 
-        # 14. Load J.Crew inference rules (SCHEMA transaction — rules are schema-level)
-        logger.info("\n14. Loading jcrew_rules.tql...")
-        if JCREW_RULES_FILE.exists():
-            rules_tql = load_tql_file(JCREW_RULES_FILE)
+        # 14. Load J.Crew pattern detection functions (TypeDB 3.x fun syntax)
+        logger.info("\n14. Loading jcrew_functions.tql...")
+        if JCREW_FUNCTIONS_FILE.exists():
+            functions_tql = load_tql_file(JCREW_FUNCTIONS_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
             try:
-                tx.query(rules_tql).resolve()
+                tx.query(functions_tql).resolve()
                 tx.commit()
-                logger.info(f"   Loaded J.Crew rules ({len(rules_tql)} chars)")
+                logger.info(f"   Loaded J.Crew functions ({len(functions_tql)} chars)")
             except Exception as e:
                 if tx.is_open():
                     tx.close()
-                logger.warning(f"   J.Crew rules: {e}")
-                logger.warning("   NOTE: TypeDB 3.x rule syntax may need adaptation. Rules saved for reference.")
+                logger.warning(f"   J.Crew functions: {e}")
+                logger.warning("   Pattern detection functions not available. Check TypeDB 3.x fun syntax.")
 
         # 15. Load MFN extended concepts (after concepts.tql)
         logger.info("\n15. Loading mfn_concepts_extended.tql...")

@@ -14,7 +14,7 @@ Legal document analysis platform that extracts typed primitives from credit agre
 1. **Typed Primitives** - No JSON blobs. Every extracted value is a typed attribute.
 2. **Provenance** - Every primitive links to source_text, source_page, source_section.
 3. **SSoT** - TypeDB is single source of truth. Questions come from schema, not hardcoded lists.
-4. **Inference Rules** - Pattern detection (J.Crew, Serta, yield exclusion) happens in TypeDB, not Python.
+4. **Pattern Functions** — J.Crew vulnerability detection via TypeDB 3.x `fun` functions defined in `jcrew_functions.tql`. Logic lives in the database schema, called on the fly from queries.
 
 ## Setup
 

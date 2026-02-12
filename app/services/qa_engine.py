@@ -138,8 +138,11 @@ class QAEngine:
     def _identify_relevant_attributes(self, question: str) -> List[str]:
         """
         Identify which TypeDB attributes are relevant to the question.
-        
+
         Uses pattern matching and keyword detection.
+
+        # TODO: SSoT violation — these keyword mappings should be derived from
+        # TypeDB category/question metadata, not hardcoded in Python.
         """
         question_lower = question.lower()
         relevant = []
