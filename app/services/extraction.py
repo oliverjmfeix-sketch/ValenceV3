@@ -1710,20 +1710,28 @@ The MFN universe is typically 5-15 pages (much shorter than RP)."""
             logger.error(f"MFN universe extraction failed: {e}")
             return None
 
-    async def run_mfn_extraction(
-        self,
-        deal_id: str,
-        mfn_universe_text: str,
-        document_text: str
-    ) -> dict:
-        """
-        Extract MFN provision data by answering 42 ontology questions.
+    # ── MFN Batch Configuration ─────────────────────────────────────────────
+    # Maps each MFN category to the universe sections it needs.
+    # None = full universe text.
+    _MFN_BATCH_SECTIONS = {
+        "MFN1": None,  # Core Structure — needs full context
+        "MFN2": ["INCREMENTAL_FACILITY", "DEBT_INCURRENCE"],
+        "MFN3": ["INCREMENTAL_FACILITY", "DEFINITIONS"],
+        "MFN4": ["INCREMENTAL_FACILITY"],
+        "MFN5": ["INCREMENTAL_FACILITY", "AMENDMENTS_WAIVERS"],
+        "MFN6": None,  # Loopholes — needs full context + entity data
+    }
 
-        Unlike RP which needs multi-pass extraction due to 160+ questions,
-        MFN has only 42 questions and a shorter universe (~5-15 pages).
-        This can be done in a single Claude call.
-        """
-        MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
+    _MFN_BATCH_HINTS = {
+        "MFN1": "Focus on whether MFN exists, the threshold (basis points), and whether adjustment is automatic.",
+        "MFN2": "Focus on which facility types are covered, lien priority restrictions, and debt type exclusions.",
+        "MFN3": "Focus on how yield/rate is calculated — what components are included in the comparison.",
+        "MFN4": "Focus on sunset timing, trigger events, and whether the sunset resets on refinancing.",
+        "MFN5": "Focus on amendment mechanics, voting thresholds, and whether MFN is a sacred right.",
+        "MFN6": "Analyze loopholes, weaknesses, and interaction patterns. Use prior analysis data below.",
+    }
+
+    _MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
 analysis. You are extracting Most Favored Nation (MFN) provision data from
 a credit agreement.
 
@@ -1784,25 +1792,82 @@ that starts with language like:
    answer remaining questions as null.
 10. If information is genuinely not specified, answer null."""
 
-        # Load MFN questions from TypeDB (SSoT)
-        questions_by_cat = self.load_questions_by_category("MFN")
-        if not questions_by_cat:
-            logger.error("No MFN questions found in TypeDB")
-            return {"answers": [], "errors": ["No MFN questions in TypeDB"]}
+    def _parse_mfn_universe_sections(self, mfn_universe_text: str) -> Dict[str, str]:
+        """Parse MFN universe text into sections by === HEADER === markers."""
+        sections: Dict[str, str] = {}
+        current_key: Optional[str] = None
+        current_lines: list = []
 
-        # Flatten into single list since MFN is small enough for one call
-        questions = []
-        for cat_questions in questions_by_cat.values():
-            questions.extend(cat_questions)
-        questions.sort(key=lambda q: q.get("display_order", 0))
+        for line in mfn_universe_text.split('\n'):
+            if line.startswith('=== ') and line.endswith(' ==='):
+                if current_key:
+                    sections[current_key] = '\n'.join(current_lines)
+                current_key = line.strip('= ').strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
 
-        total_questions = len(questions)
-        logger.info(f"MFN extraction: {total_questions} questions loaded")
+        if current_key:
+            sections[current_key] = '\n'.join(current_lines)
 
-        # Format questions using existing method (includes extraction hints)
+        return sections
+
+    def _build_mfn_batch_context(
+        self,
+        cat_id: str,
+        full_universe: str,
+        sections: Dict[str, str]
+    ) -> str:
+        """Build focused MFN universe context for a specific batch."""
+        needed = self._MFN_BATCH_SECTIONS.get(cat_id)
+        if not needed or not sections:
+            return full_universe
+
+        parts = []
+        for section_key in needed:
+            if section_key in sections:
+                parts.append(f"=== {section_key} ===\n{sections[section_key]}")
+
+        if not parts:
+            return full_universe
+
+        return "\n\n".join(parts)
+
+    def _summarize_batch_answers(self, cat_id: str, answers: list) -> str:
+        """Summarize batch answers for cross-reference by MFN6."""
+        if not answers:
+            return ""
+        lines = [f"## Prior Analysis: {cat_id}"]
+        for a in answers:
+            qid = a.get("question_id", "")
+            val = a.get("value")
+            if val is not None:
+                lines.append(f"- {qid}: {val}")
+        return "\n".join(lines)
+
+    def _extract_mfn_batch(
+        self,
+        cat_id: str,
+        questions: List[Dict],
+        full_universe: str,
+        universe_sections: Dict[str, str],
+        entity_context: Optional[str] = None
+    ) -> list:
+        """Extract answers for one MFN category batch."""
+        context_text = self._build_mfn_batch_context(
+            cat_id, full_universe, universe_sections
+        )
         questions_text = self._format_questions_for_prompt(questions)
+        batch_hint = self._MFN_BATCH_HINTS.get(cat_id, "")
+
+        entity_section = ""
+        if entity_context:
+            entity_section = f"\n\n## PRIOR ANALYSIS (from earlier batches)\n\n{entity_context}"
 
         user_prompt = f"""Answer each question below based on the MFN universe text.
+
+## BATCH FOCUS: {cat_id}
+{batch_hint}
 
 ## QUESTIONS
 
@@ -1828,17 +1893,17 @@ For multiselect questions, value is an array of concept_ids:
   "source_page": 45,
   "source_section": "Section 2.14(a)",
   "confidence": "high"
-}}
+}}{entity_section}
 
 ## MFN UNIVERSE TEXT
 
-{mfn_universe_text}"""
+{context_text}"""
 
         try:
             response = self.client.messages.create(
                 model="claude-sonnet-4-5-20250929",
-                max_tokens=8000,
-                system=MFN_EXTRACTION_SYSTEM_PROMPT,
+                max_tokens=4000,
+                system=self._MFN_EXTRACTION_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}]
             )
 
@@ -1848,18 +1913,73 @@ For multiselect questions, value is an array of concept_ids:
 
             result = json.loads(text)
             answers = result.get("answers", [])
-            logger.info(f"MFN extraction: {len(answers)}/{total_questions} answers")
-
-            return {
-                "answers": answers,
-                "errors": [],
-                "total_questions": total_questions,
-                "answered": len(answers)
-            }
+            logger.info(f"MFN batch {cat_id}: {len(answers)}/{len(questions)} answers")
+            return answers
 
         except Exception as e:
-            logger.error(f"MFN extraction failed: {e}")
-            return {"answers": [], "errors": [str(e)]}
+            logger.error(f"MFN batch {cat_id} failed: {e}")
+            return []
+
+    async def run_mfn_extraction(
+        self,
+        deal_id: str,
+        mfn_universe_text: str,
+        document_text: str
+    ) -> dict:
+        """
+        Extract MFN provision data by answering 42 ontology questions.
+
+        Splits into domain-driven batches by category (MFN1-MFN6).
+        Each batch gets focused context from the relevant universe sections.
+        MFN6 (Loopholes) receives entity data from earlier batches.
+        """
+        # Load MFN questions from TypeDB (SSoT)
+        questions_by_cat = self.load_questions_by_category("MFN")
+        if not questions_by_cat:
+            logger.error("No MFN questions found in TypeDB")
+            return {"answers": [], "errors": ["No MFN questions in TypeDB"]}
+
+        total_questions = sum(len(qs) for qs in questions_by_cat.values())
+        logger.info(
+            f"MFN extraction: {total_questions} questions in "
+            f"{len(questions_by_cat)} batches"
+        )
+
+        # Parse universe into sections for focused context per batch
+        universe_sections = self._parse_mfn_universe_sections(mfn_universe_text)
+
+        all_answers = []
+        prior_analysis_parts = []  # Accumulated for MFN6
+
+        for cat_id in sorted(questions_by_cat.keys()):
+            cat_questions = questions_by_cat[cat_id]
+            cat_questions.sort(key=lambda q: q.get("display_order", 0))
+
+            # MFN6 gets prior analysis from batches 2-4
+            entity_context = None
+            if cat_id == "MFN6" and prior_analysis_parts:
+                entity_context = "\n\n".join(prior_analysis_parts)
+
+            batch_answers = self._extract_mfn_batch(
+                cat_id, cat_questions, mfn_universe_text,
+                universe_sections, entity_context=entity_context
+            )
+            all_answers.extend(batch_answers)
+
+            # Accumulate entity-relevant answers for MFN6
+            if cat_id in ("MFN2", "MFN3", "MFN4"):
+                summary = self._summarize_batch_answers(cat_id, batch_answers)
+                if summary:
+                    prior_analysis_parts.append(summary)
+
+        logger.info(f"MFN extraction complete: {len(all_answers)}/{total_questions} answers")
+
+        return {
+            "answers": all_answers,
+            "errors": [],
+            "total_questions": total_questions,
+            "answered": len(all_answers)
+        }
 
     def _ensure_mfn_provision_exists(self, deal_id: str, provision_id: str):
         """Create mfn_provision entity linked to deal if not exists."""
