@@ -843,6 +843,12 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}"
                 )
 
+        # Compute MFN pattern flags from TypeDB functions
+        try:
+            extraction_svc._compute_mfn_pattern_flags(deal_id, f"{deal_id}_mfn")
+        except Exception as flag_err:
+            logger.warning(f"MFN pattern flags failed (non-blocking): {flag_err}")
+
         # Cross-reference MFN ↔ RP provisions if both exist
         try:
             extraction_svc._create_cross_references(deal_id)

@@ -1985,6 +1985,60 @@ For multiselect questions, value is an array of concept_ids:
         return "string"
 
     # =========================================================================
+    # MFN PATTERN FLAG COMPUTATION
+    # =========================================================================
+
+    def _compute_mfn_pattern_flags(self, deal_id: str, provision_id: str):
+        """Compute pattern flags by calling TypeDB functions."""
+        from typedb.driver import TransactionType
+
+        flag_functions = {
+            "yield_exclusion_pattern_detected": "detect_mfn_yield_exclusion_pattern",
+            "reclassification_loophole_detected": "detect_mfn_reclassification_loophole",
+            "mfn_amendment_vulnerable": "detect_mfn_amendment_vulnerable",
+            "mfn_exclusion_stacking_detected": "detect_mfn_exclusion_stacking",
+        }
+
+        for flag_attr, func_name in flag_functions.items():
+            try:
+                # Call function in READ transaction
+                tx = typedb_client.driver.transaction(
+                    settings.typedb_database, TransactionType.READ
+                )
+                try:
+                    query = f'''
+                        match
+                            let $detected = {func_name}("{provision_id}");
+                        select $detected;
+                    '''
+                    result = list(tx.query(query).resolve().as_concept_rows())
+                    # TypeDB 3.x `return check`: rows present = true, empty = false
+                    detected_bool = len(result) > 0
+                finally:
+                    tx.close()
+
+                # Write flag in WRITE transaction
+                tx = typedb_client.driver.transaction(
+                    settings.typedb_database, TransactionType.WRITE
+                )
+                try:
+                    write_query = f'''
+                        match $p isa mfn_provision,
+                            has provision_id "{provision_id}";
+                        insert $p has {flag_attr} {str(detected_bool).lower()};
+                    '''
+                    tx.query(write_query).resolve()
+                    tx.commit()
+                    logger.info(f"Pattern flag {flag_attr} = {detected_bool}")
+                except Exception as e:
+                    if tx.is_open():
+                        tx.close()
+                    logger.warning(f"Failed to write {flag_attr}: {e}")
+
+            except Exception as e:
+                logger.warning(f"Pattern detection {func_name} failed: {e}")
+
+    # =========================================================================
     # CROSS-REFERENCES
     # =========================================================================
 
