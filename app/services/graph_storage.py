@@ -1704,7 +1704,7 @@ Return ONLY the JSON object. No markdown, no explanation."""
                     has metadata_id $id,
                     has target_entity_type $type,
                     has extraction_prompt $prompt;
-                $id like "mfn_%";
+                $id like "mfn_.*";
             select $id, $type, $prompt, $em;
         '''
 

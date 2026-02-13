@@ -1878,7 +1878,12 @@ that starts with language like:
         if entity_context:
             entity_section = f"\n\n## PRIOR ANALYSIS (from earlier batches)\n\n{entity_context}"
 
-        user_prompt = f"""Answer each question below based on the MFN universe text.
+        user_prompt = f"""## MFN UNIVERSE TEXT
+
+{context_text}
+{entity_section}
+
+---
 
 ## BATCH FOCUS: {cat_id}
 {batch_hint}
@@ -1907,11 +1912,9 @@ For multiselect questions, value is an array of concept_ids:
   "source_page": 45,
   "source_section": "Section 2.14(a)",
   "confidence": "high"
-}}{entity_section}
+}}
 
-## MFN UNIVERSE TEXT
-
-{context_text}"""
+IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, explanation, or preamble before or after the JSON."""
 
         try:
             context_chars = len(context_text)
