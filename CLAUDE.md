@@ -144,9 +144,9 @@ that the database exists.
 ### Development Workflow for Seed Data Changes
 1. Edit the `.tql` seed files locally
 2. `git add` → `git commit` → `git push origin main`
-3. Railway auto-deploys and runs init_schema.py
-4. **Do NOT** try to run seed scripts locally — typedb-driver is not installed locally
-5. **Do NOT** write temp Python scripts to reseed — just commit and push
+3. To reseed TypeDB: `railway ssh --service ValenceV3 -- python -m app.scripts.init_schema --force`
+4. **Do NOT** install typedb-driver locally or run TypeDB scripts locally
+5. **Do NOT** write temp Python scripts to reseed — use init_schema.py via `railway ssh`
 
 ## Extraction Pipeline
 
