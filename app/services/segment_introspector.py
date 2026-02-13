@@ -70,6 +70,7 @@ def get_segment_types() -> List[Dict]:
             segments.sort(key=lambda x: x["display_order"])
             _segment_cache = segments
             logger.info(f"Loaded {len(segments)} segment types from TypeDB")
+            validate_segment_references()
             return segments
         finally:
             tx.close()
@@ -103,6 +104,39 @@ def get_mfn_segment_mapping() -> Dict[str, str]:
         for s in segments
         if s.get("mfn_universe_field")
     }
+
+
+def validate_segment_references():
+    """
+    Validate that all segment_type_id strings referenced in mappings
+    actually exist in TypeDB. Call at startup to catch drift.
+    """
+    known_ids = {s["segment_type_id"] for s in get_segment_types()}
+    if not known_ids:
+        logger.warning("No segment types loaded — skipping validation")
+        return
+
+    # Check RP mapping
+    referenced_ids = set()
+    rp_mapping = get_rp_segment_mapping()
+    referenced_ids.update(rp_mapping.keys())
+
+    # Check MFN mapping
+    mfn_mapping = get_mfn_segment_mapping()
+    referenced_ids.update(mfn_mapping.keys())
+
+    missing = referenced_ids - known_ids
+    if missing:
+        logger.error(
+            f"SEGMENT ID MISMATCH: Mappings reference {missing} "
+            f"but TypeDB only has {known_ids}. "
+            f"Update TypeDB seed or fix mapping references."
+        )
+    else:
+        logger.info(
+            f"Segment ID validation passed: {len(referenced_ids)} "
+            f"referenced IDs all exist in TypeDB"
+        )
 
 
 def clear_cache():
