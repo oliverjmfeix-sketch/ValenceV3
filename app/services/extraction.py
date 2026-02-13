@@ -1985,6 +1985,65 @@ For multiselect questions, value is an array of concept_ids:
         return "string"
 
     # =========================================================================
+    # CROSS-REFERENCES
+    # =========================================================================
+
+    def _create_cross_references(self, deal_id: str):
+        """Create provision_cross_reference between MFN and RP provisions."""
+        from typedb.driver import TransactionType
+
+        mfn_id = f"{deal_id}_mfn"
+
+        # Check both provisions exist
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
+                    $rp isa rp_provision, has provision_id $rpid;
+                    (deal: $d, provision: $mfn) isa deal_has_provision;
+                    (deal: $d, provision: $rp) isa deal_has_provision;
+                select $rpid;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+            has_both = len(result) > 0
+        finally:
+            tx.close()
+
+        if not has_both:
+            logger.debug(f"No cross-reference needed for {deal_id} (missing MFN or RP)")
+            return
+
+        # Create cross-reference
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.WRITE
+        )
+        try:
+            query = f"""
+                match
+                    $d isa deal, has deal_id "{deal_id}";
+                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
+                    $rp isa rp_provision, has provision_id $rpid;
+                    (deal: $d, provision: $mfn) isa deal_has_provision;
+                    (deal: $d, provision: $rp) isa deal_has_provision;
+                insert
+                    (source_provision: $mfn, target_provision: $rp)
+                        isa provision_cross_reference,
+                        has cross_reference_type "depends_on",
+                        has cross_reference_explanation "MFN exclusion capacity shares debt incurrence covenant capacity with RP ratio baskets. Incremental equivalent debt incurred under ratio test avoids MFN but may consume RP debt incurrence capacity.";
+            """
+            tx.query(query).resolve()
+            tx.commit()
+            logger.info(f"Created MFN↔RP cross-reference for deal {deal_id}")
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            raise
+
+    # =========================================================================
     # MFN ENTITY EXTRACTION (Channel 3)
     # =========================================================================
 

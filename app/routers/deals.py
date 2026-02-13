@@ -843,6 +843,12 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}"
                 )
 
+        # Cross-reference MFN ↔ RP provisions if both exist
+        try:
+            extraction_svc._create_cross_references(deal_id)
+        except Exception as xref_err:
+            logger.warning(f"Cross-reference creation failed (non-blocking): {xref_err}")
+
         # Update status: complete (after standard + J.Crew + MFN)
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
