@@ -381,7 +381,11 @@ entity mfn_provision sub provision,
     owns yield_exclusion_pattern_detected,
     owns reclassification_loophole_detected,
     owns mfn_amendment_vulnerable,
-    owns mfn_exclusion_stacking_detected;
+    owns mfn_exclusion_stacking_detected,
+    plays provision_has_exclusion:provision,
+    plays provision_has_yield_def:provision,
+    plays provision_has_sunset:provision,
+    plays provision_has_freebie:provision;
 
 entity rp_provision sub provision,
     owns jcrew_pattern_detected,
@@ -732,6 +736,131 @@ entity equity_funded_rdp_basket sub rdp_basket,
     owns not_otherwise_applied;
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN ENTITIES (Channel 3)
+#
+#   Structured data for MFN analysis. Each entity captures a complete
+#   legal provision unit — exclusion type, yield methodology, sunset,
+#   or freebie basket — with full provenance.
+#
+#   Matches the RP entity pattern: introspect-at-runtime, no hardcoded fields.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── New MFN attributes ───────────────────────────────────────────────────────
+
+attribute exclusion_id, value string;
+attribute exclusion_type, value string;
+attribute exclusion_has_cap, value boolean;
+attribute exclusion_cap_usd, value double;
+attribute exclusion_cap_pct_ebitda, value double;
+attribute exclusion_conditions, value string;
+attribute can_stack_with_other_exclusions, value boolean;
+attribute excludes_from_mfn, value boolean;
+
+attribute yield_def_id, value string;
+attribute defined_term, value string;
+attribute includes_margin, value boolean;
+attribute includes_floor_benefit, value boolean;
+attribute includes_oid, value boolean;
+attribute includes_upfront_fees, value boolean;
+attribute includes_commitment_fees, value boolean;
+attribute includes_other_fees, value boolean;
+attribute comparison_baseline, value string;
+
+attribute sunset_id, value string;
+attribute sunset_trigger_event, value string;
+
+attribute freebie_id, value string;
+attribute dollar_amount_usd, value double;
+attribute ebitda_pct, value double;
+attribute stacks_with_general_basket, value boolean;
+attribute general_basket_amount_usd, value double;
+attribute total_mfn_exempt_capacity_usd, value double;
+
+attribute mfn_universe_field, value string;
+
+# ── MFN entity types ─────────────────────────────────────────────────────────
+
+entity mfn_exclusion,
+    owns exclusion_id @key,
+    owns exclusion_type,
+    owns exclusion_has_cap,
+    owns exclusion_cap_usd,
+    owns exclusion_cap_pct_ebitda,
+    owns exclusion_conditions,
+    owns can_stack_with_other_exclusions,
+    owns excludes_from_mfn,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_exclusion:exclusion;
+
+entity mfn_yield_definition,
+    owns yield_def_id @key,
+    owns defined_term,
+    owns includes_margin,
+    owns includes_floor_benefit,
+    owns includes_oid,
+    owns includes_upfront_fees,
+    owns includes_commitment_fees,
+    owns includes_other_fees,
+    owns oid_amortization_method,
+    owns oid_amortization_years,
+    owns comparison_baseline,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_yield_def:yield_def;
+
+entity mfn_sunset_provision,
+    owns sunset_id @key,
+    owns sunset_exists,
+    owns sunset_period_months,
+    owns sunset_trigger_event,
+    owns sunset_resets_on_refi,
+    owns sunset_tied_to_maturity,
+    owns sunset_timing_loophole,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_sunset:sunset;
+
+entity mfn_freebie_basket,
+    owns freebie_id @key,
+    owns dollar_amount_usd,
+    owns ebitda_pct,
+    owns uses_greater_of,
+    owns stacks_with_general_basket,
+    owns general_basket_amount_usd,
+    owns total_mfn_exempt_capacity_usd,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_freebie:freebie;
+
+# ── MFN entity relations ─────────────────────────────────────────────────────
+
+relation provision_has_exclusion,
+    relates provision,
+    relates exclusion;
+
+relation provision_has_yield_def,
+    relates provision,
+    relates yield_def;
+
+relation provision_has_sunset,
+    relates provision,
+    relates sunset;
+
+relation provision_has_freebie,
+    relates provision,
+    relates freebie;
+
+
 ################################################################################
 # §4  CONCEPT TYPE HIERARCHY (for multiselect questions)
 #
@@ -833,7 +962,8 @@ entity document_segment_type,
     owns name,
     owns find_description,
     owns display_order,
-    owns rp_universe_field;
+    owns rp_universe_field,
+    owns mfn_universe_field;
 
 entity attribute_provenance,
     owns attributed_field_name,
