@@ -1483,17 +1483,18 @@ async def get_mfn_universe_text(deal_id: str):
             )
         logger.info(f"Regenerating MFN universe for {deal_id} from PDF...")
         from app.services.pdf_parser import PDFParser
+        svc = get_extraction_service()
         parser = PDFParser()
         pages = parser.extract_pages(str(pdf_path))
         document_text = parser.get_full_text(pages)
 
-        segment_map = extraction_svc.segment_document(document_text)
-        mfn_text = extraction_svc._build_mfn_universe_from_segments(
+        segment_map = svc.segment_document(document_text)
+        mfn_text = svc._build_mfn_universe_from_segments(
             document_text, segment_map
         )
         if not mfn_text or len(mfn_text) < 1000:
             logger.warning("Segmenter MFN universe too small, falling back to Claude")
-            mfn_text = extraction_svc.extract_mfn_universe(document_text)
+            mfn_text = svc.extract_mfn_universe(document_text)
 
         if mfn_text:
             os.makedirs(UPLOADS_DIR, exist_ok=True)
