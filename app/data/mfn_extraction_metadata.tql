@@ -1,0 +1,131 @@
+################################################################################
+# VALENCE V4 - EXTRACTION METADATA FOR MFN ENTITIES
+#
+# Mirrors the RP extraction_metadata pattern. Each entity type gets one or more
+# metadata entries that tell the extraction pipeline:
+#   1. What entity type to create
+#   2. What Claude prompt to use
+#   3. Which sections to look in
+#   4. What priority order to extract
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN EXCLUSIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_mfn_excl isa extraction_metadata,
+    has metadata_id "mfn_exclusion.all",
+    has target_entity_type "mfn_exclusion",
+    has extraction_prompt "Extract ALL debt types that are excluded from MFN protection.
+Each exclusion is a SEPARATE entity. Common exclusion types:
+
+- acquisition: Debt incurred to finance Permitted Acquisitions or Investments
+- refinancing: Credit Agreement Refinancing Indebtedness or Refinancing Debt
+- ratio: Debt incurred under the ratio-based incurrence test (Incremental Equivalent Debt)
+- bridge: Bridge loans or bridge facilities
+- revolving: Incremental revolving commitments
+- freebie: Dollar/EBITDA basket exempt from MFN (typically 'greater of $X and Y% of EBITDA')
+- maturity: Debt maturing after the Term Maturity Date
+- currency: Non-USD denominated debt
+- fixed_rate: Fixed rate (non-floating) debt
+- private: Non-broadly-syndicated (private credit) debt
+- priority: Debt not ranking pari passu in right of payment
+
+For EACH exclusion extract:
+- exclusion_type: one of the types above
+- exclusion_has_cap: does this exclusion have a dollar/EBITDA cap?
+- exclusion_cap_usd: if capped, dollar amount
+- exclusion_cap_pct_ebitda: if grower, EBITDA percentage (1.0 = 100% EBITDA)
+- exclusion_conditions: verbatim condition language
+- can_stack_with_other_exclusions: can this be combined with other exclusions?
+- excludes_from_mfn: true if this exclusion removes debt from MFN entirely
+
+Look in Section 2.14 (Incremental Facilities) for the MFN provision's exception list.",
+    has extraction_section_hint "Section 2.14, Section 2.20",
+    has extraction_priority 50;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN YIELD DEFINITION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_mfn_yield isa extraction_metadata,
+    has metadata_id "mfn_yield_definition.core",
+    has target_entity_type "mfn_yield_definition",
+    has extraction_prompt "Extract the yield calculation methodology used for MFN comparison.
+
+Find the definition of 'Effective Yield' or 'All-In Yield' in Section 1.01,
+then cross-reference with the MFN clause in Section 2.14.
+
+Extract:
+- defined_term: exact defined term used ('Effective Yield', 'All-In Yield', 'Applicable Rate')
+- includes_margin: is interest rate spread included? (always yes)
+- includes_floor_benefit: is SOFR/LIBOR floor benefit included?
+- includes_oid: is Original Issue Discount included?
+- includes_upfront_fees: are upfront/arrangement fees included?
+- includes_commitment_fees: are commitment fees included?
+- includes_other_fees: are other fees (shared with lenders generally) included?
+- oid_amortization_method: how is OID amortized? ('4yr_life', '3yr_life', 'shortest_maturity', 'actual_life', 'stated_maturity')
+- oid_amortization_years: number of years for assumed life
+- comparison_baseline: what is compared? ('closing_yield', 'current_yield', 'applicable_rate')
+
+CRITICAL: If both OID AND floor are EXCLUDED, flag this as a significant weakness —
+it makes the yield comparison nearly meaningless.",
+    has extraction_section_hint "Section 1.01 (Effective Yield definition), Section 2.14",
+    has extraction_priority 51;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN SUNSET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_mfn_sunset isa extraction_metadata,
+    has metadata_id "mfn_sunset_provision.core",
+    has target_entity_type "mfn_sunset_provision",
+    has extraction_prompt "Extract the MFN sunset provision — when MFN protection expires.
+
+Look for time-based language in the MFN clause:
+- 'incurred prior to the date that is [X] months after the Effective Date'
+- 'during the [X]-month period following the Closing Date'
+
+Extract:
+- sunset_exists: is there a time limit on MFN protection?
+- sunset_period_months: how many months after closing?
+- sunset_trigger_event: what starts the clock? ('closing_date', 'effective_date', 'amendment_date')
+- sunset_resets_on_refi: does the sunset restart if the facility is refinanced?
+- sunset_tied_to_maturity: is sunset linked to the Term Maturity Date?
+- sunset_timing_loophole: could the borrower time debt issuance to just after sunset?
+
+Common periods: 6, 12, 18, 24 months. No sunset = perpetual MFN protection.",
+    has extraction_section_hint "Section 2.14",
+    has extraction_priority 52;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN FREEBIE BASKET
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $em_mfn_freebie isa extraction_metadata,
+    has metadata_id "mfn_freebie_basket.core",
+    has target_entity_type "mfn_freebie_basket",
+    has extraction_prompt "Extract the MFN freebie basket — the dollar/EBITDA amount of
+incremental debt that can be incurred WITHOUT triggering MFN protection.
+
+Look for language like:
+- 'other than First Lien Incremental Term Facilities... in an aggregate principal
+   amount not to exceed the greater of $X and Y% of Consolidated EBITDA'
+- 'together with First Lien Incremental Equivalent Debt in an aggregate principal
+   amount not to exceed...'
+
+Extract:
+- dollar_amount_usd: fixed dollar cap (e.g., 147000000 for $147M)
+- ebitda_pct: EBITDA grower percentage (1.0 = 100% of EBITDA)
+- uses_greater_of: is it 'greater of' dollar and EBITDA?
+- stacks_with_general_basket: can the freebie stack with the general debt basket?
+- general_basket_amount_usd: if stacking, what's the general basket amount?
+- total_mfn_exempt_capacity_usd: total capacity exempt from MFN
+  (freebie + general + other exempt baskets combined)
+
+This basket is CRITICAL for the gold standard Q&A — analysts need to know the
+total dollar capacity available without triggering MFN.",
+    has extraction_section_hint "Section 2.14",
+    has extraction_priority 53,
+    has requires_context true,
+    has context_entities "mfn_exclusion";

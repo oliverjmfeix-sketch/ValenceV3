@@ -63,6 +63,9 @@ JCREW_FUNCTIONS_FILE = DATA_DIR / "jcrew_functions.tql"
 MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
 MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 
+# 18. MFN extraction metadata
+MFN_METADATA_FILE = DATA_DIR / "mfn_extraction_metadata.tql"
+
 # 17. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
@@ -414,6 +417,11 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Segment types: {e}")
 
+        # 18. Load MFN extraction metadata
+        logger.info("\n18. Loading mfn_extraction_metadata.tql...")
+        if MFN_METADATA_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_METADATA_FILE)
+
         # ═══════════════════════════════════════════════════════════════
         # Verification
         # ═══════════════════════════════════════════════════════════════
@@ -428,7 +436,8 @@ def init_database():
                 ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
                 ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 190),
                 ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
-                ("Extraction metadata", "match $em isa extraction_metadata; select $em;", 20),
+                ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 24),
+                ("MFN extraction metadata", 'match $em isa extraction_metadata, has metadata_id $id; $id like "mfn_%"; select $id;', 4),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Party types", "match $p isa restricted_party; select $p;", 3),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),
