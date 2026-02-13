@@ -910,11 +910,16 @@ entity no_default_basket sub concept;
 # §5  ONTOLOGY SYSTEM
 ################################################################################
 
+attribute extraction_context_sections, value string;
+attribute extraction_batch_hint, value string;
+
 entity ontology_category,
     owns category_id @key,
     owns name,
     owns description,
     owns display_order,
+    owns extraction_context_sections,
+    owns extraction_batch_hint,
     plays category_has_question:category,
     plays category_hierarchy:parent_category,
     plays category_hierarchy:child_category;

@@ -21,37 +21,49 @@ insert $mfn_cat1 isa ontology_category,
     has category_id "MFN1",
     has name "MFN Core Structure",
     has description "Existence, scope, and basic mechanics of the MFN provision. Does it exist, where is it, and what is the threshold?",
-    has display_order 101;
+    has display_order 101,
+    has extraction_context_sections "INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Focus on whether MFN exists, the EXACT threshold in basis points, and whether adjustment is automatic. The threshold is stated as a specific number (e.g., 50, 75, or 100 bps). Read the MFN clause carefully for the precise number — do NOT guess or use a common default.";
 
 insert $mfn_cat2 isa ontology_category,
     has category_id "MFN2",
     has name "Facility & Debt Scope",
     has description "Which debt types, facilities, and lien priorities are subject to MFN protection. Defines the perimeter of what triggers a pricing adjustment.",
-    has display_order 102;
+    has display_order 102,
+    has extraction_context_sections "INCREMENTAL_FACILITY,DEBT_INCURRENCE",
+    has extraction_batch_hint "Focus on which facility types are covered, lien priority restrictions, and debt type exclusions. CRITICAL for ratio debt / incremental equivalent debt (IED): Determine whether debt incurred OUTSIDE this credit agreement (e.g., under the debt incurrence covenant) is subject to MFN. The MFN may reference 'First Lien Incremental Equivalent Debt' — carefully analyze whether IED is included in MFN scope or carved out. If IED is only mentioned within a freebie basket cap, that means IED above the cap IS subject to MFN (answer: not excluded). If IED is broadly excluded from MFN regardless of amount, answer: excluded.";
 
 insert $mfn_cat3 isa ontology_category,
     has category_id "MFN3",
     has name "Yield Mechanics",
     has description "How yield is calculated for MFN comparison. Which components are included or excluded from the all-in yield determination.",
-    has display_order 103;
+    has display_order 103,
+    has extraction_context_sections "INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Focus on how yield/rate is calculated — what components are included in the Effective Yield comparison. Look for the DEFINED TERM 'Effective Yield' in the MFN clause or definitions section. Identify whether OID, interest rate floors, upfront fees, and margins are INCLUDED or EXCLUDED from the yield calculation. Do not confuse the MFN threshold (bps cushion) with yield components.";
 
 insert $mfn_cat4 isa ontology_category,
     has category_id "MFN4",
     has name "Sunset & Timing",
     has description "When MFN protection expires. Time-based sunsets, event-based termination, and interaction with maturity dates.",
-    has display_order 104;
+    has display_order 104,
+    has extraction_context_sections "INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Focus on sunset timing, trigger events, and whether the sunset resets on refinancing.";
 
 insert $mfn_cat5 isa ontology_category,
     has category_id "MFN5",
     has name "Governance & Waivers",
     has description "How MFN can be modified, waived, or circumvented through amendment mechanics. Consent thresholds and affected lender provisions.",
-    has display_order 105;
+    has display_order 105,
+    has extraction_context_sections "INCREMENTAL_FACILITY,AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Focus on amendment mechanics, voting thresholds, and whether MFN is a sacred right.";
 
 insert $mfn_cat6 isa ontology_category,
     has category_id "MFN6",
     has name "Loopholes & Weaknesses",
     has description "Structural gaps in MFN protection. Reclassification risk, exclusion stacking, step-up mechanics, and other borrower-friendly features that can undermine MFN protection.",
-    has display_order 106;
+    has display_order 106,
+    has extraction_context_sections "INCREMENTAL_FACILITY,DEBT_INCURRENCE",
+    has extraction_batch_hint "Analyze loopholes, weaknesses, and interaction patterns. Use prior analysis data below. Identify specific dollar amounts for combined freebie + basket capacity. Calculate the total MFN-free debt capacity by summing all available exclusions.";
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY MFN1: CORE STRUCTURE (Questions mfn_01 - mfn_07)

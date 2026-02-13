@@ -1711,39 +1711,42 @@ The MFN universe is typically 5-15 pages (much shorter than RP)."""
             return None
 
     # ── MFN Batch Configuration ─────────────────────────────────────────────
-    # Maps each MFN category to the universe sections it needs.
-    # None = full universe text.
-    _MFN_BATCH_SECTIONS = {
-        "MFN1": ["INCREMENTAL_FACILITY"],
-        "MFN2": ["INCREMENTAL_FACILITY", "DEBT_INCURRENCE"],
-        "MFN3": ["INCREMENTAL_FACILITY"],
-        "MFN4": ["INCREMENTAL_FACILITY"],
-        "MFN5": ["INCREMENTAL_FACILITY", "AMENDMENTS_WAIVERS"],
-        "MFN6": ["INCREMENTAL_FACILITY", "DEBT_INCURRENCE"],
-    }
+    # Batch sections and hints loaded from TypeDB (SSoT) via
+    # ontology_category.extraction_context_sections and extraction_batch_hint.
+    # See _get_batch_metadata().
+    _mfn_batch_metadata_cache: Dict[str, Dict[str, str]] = {}
 
-    _MFN_BATCH_HINTS = {
-        "MFN1": """Focus on whether MFN exists, the EXACT threshold in basis points, and whether
-adjustment is automatic. The threshold is stated as a specific number (e.g., 50, 75, or 100 bps).
-Read the MFN clause carefully for the precise number — do NOT guess or use a common default.""",
-        "MFN2": """Focus on which facility types are covered, lien priority restrictions, and debt
-type exclusions. CRITICAL for ratio debt / incremental equivalent debt (IED): Determine whether
-debt incurred OUTSIDE this credit agreement (e.g., under the debt incurrence covenant)
-is subject to MFN. The MFN may reference "First Lien Incremental Equivalent Debt" — carefully
-analyze whether IED is included in MFN scope or carved out. If IED is only mentioned within a
-freebie basket cap, that means IED above the cap IS subject to MFN (answer: not excluded).
-If IED is broadly excluded from MFN regardless of amount, answer: excluded.""",
-        "MFN3": """Focus on how yield/rate is calculated — what components are included in the
-Effective Yield comparison. Look for the DEFINED TERM "Effective Yield" in the MFN clause or
-definitions section. Identify whether OID, interest rate floors, upfront fees, and margins are
-INCLUDED or EXCLUDED from the yield calculation. Do not confuse the MFN threshold (bps cushion)
-with yield components.""",
-        "MFN4": "Focus on sunset timing, trigger events, and whether the sunset resets on refinancing.",
-        "MFN5": "Focus on amendment mechanics, voting thresholds, and whether MFN is a sacred right.",
-        "MFN6": """Analyze loopholes, weaknesses, and interaction patterns. Use prior analysis data
-below. Identify specific dollar amounts for combined freebie + basket capacity. Calculate the total
-MFN-free debt capacity by summing all available exclusions.""",
-    }
+    def _get_batch_metadata(self, cat_id: str) -> Dict[str, str]:
+        """Load extraction_context_sections and extraction_batch_hint for a category from TypeDB."""
+        if cat_id in self._mfn_batch_metadata_cache:
+            return self._mfn_batch_metadata_cache[cat_id]
+
+        from typedb.driver import TransactionType
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            result = tx.query(f"""
+                match
+                    $cat isa ontology_category,
+                        has category_id "{cat_id}";
+                    try {{ $cat has extraction_context_sections $secs; }};
+                    try {{ $cat has extraction_batch_hint $hint; }};
+                select $secs, $hint;
+            """).resolve()
+
+            for row in result.as_concept_rows():
+                secs = row.get("secs")
+                hint = row.get("hint")
+                metadata = {
+                    "extraction_context_sections": secs.as_attribute().get_value() if secs else "",
+                    "extraction_batch_hint": hint.as_attribute().get_value() if hint else "",
+                }
+                self._mfn_batch_metadata_cache[cat_id] = metadata
+                return metadata
+            return {"extraction_context_sections": "", "extraction_batch_hint": ""}
+        finally:
+            tx.close()
 
     _MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
 analysis. You are extracting Most Favored Nation (MFN) provision data from
@@ -1836,7 +1839,9 @@ that starts with language like:
         sections: Dict[str, str]
     ) -> str:
         """Build focused MFN universe context for a specific batch."""
-        needed = self._MFN_BATCH_SECTIONS.get(cat_id)
+        metadata = self._get_batch_metadata(cat_id)
+        sections_str = metadata.get("extraction_context_sections", "")
+        needed = sections_str.split(",") if sections_str else None
         if not needed or not sections:
             return full_universe
 
@@ -1875,7 +1880,8 @@ that starts with language like:
             cat_id, full_universe, universe_sections
         )
         questions_text = self._format_questions_for_prompt(questions)
-        batch_hint = self._MFN_BATCH_HINTS.get(cat_id, "")
+        metadata = self._get_batch_metadata(cat_id)
+        batch_hint = metadata.get("extraction_batch_hint", "")
 
         entity_section = ""
         if entity_context:
