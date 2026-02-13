@@ -2,8 +2,8 @@
 // AUTO-GENERATED FROM TYPEDB SCHEMA (schema_unified.tql)
 // DO NOT EDIT MANUALLY
 //
-// Generated: 2026-02-07
-// Schema version: 3.0.0
+// Generated: 2026-02-13
+// Schema version: 7.0.0
 //
 // Architecture: Provisions are PURE ANCHORS (zero extracted values).
 // Three data channels:
@@ -455,6 +455,75 @@ export interface InvestmentPathway extends EntityProvenance {
   can_stack_with_other_baskets?: boolean;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// MFN ENTITIES (Channel 3)
+//
+// Structured data for MFN analysis. Each entity captures a complete
+// legal provision unit with full provenance.
+// ────────────────────────────────────────────────────────────────────────────
+
+export type MFNExclusionType =
+  | 'acquisition'
+  | 'refinancing'
+  | 'ratio'
+  | 'bridge'
+  | 'revolving'
+  | 'freebie'
+  | 'maturity'
+  | 'currency'
+  | 'fixed_rate'
+  | 'private'
+  | 'priority';
+
+/** MFN Exclusion — a debt type excluded from MFN protection */
+export interface MFNExclusion extends EntityProvenance {
+  exclusion_id: string;
+  exclusion_type: MFNExclusionType;
+  exclusion_has_cap?: boolean;
+  exclusion_cap_usd?: number;
+  exclusion_cap_pct_ebitda?: number;
+  exclusion_conditions?: string;
+  can_stack_with_other_exclusions?: boolean;
+  excludes_from_mfn?: boolean;
+}
+
+/** MFN Yield Definition — how yield is calculated for MFN comparison */
+export interface MFNYieldDefinition extends EntityProvenance {
+  yield_def_id: string;
+  defined_term?: string;
+  includes_margin?: boolean;
+  includes_floor_benefit?: boolean;
+  includes_oid?: boolean;
+  includes_upfront_fees?: boolean;
+  includes_commitment_fees?: boolean;
+  includes_other_fees?: boolean;
+  oid_amortization_method?: string;
+  oid_amortization_years?: number;
+  comparison_baseline?: string;
+}
+
+/** MFN Sunset Provision — when MFN protection expires */
+export interface MFNSunsetProvision extends EntityProvenance {
+  sunset_id: string;
+  sunset_exists?: boolean;
+  sunset_period_months?: number;
+  sunset_trigger_event?: string;
+  sunset_resets_on_refi?: boolean;
+  sunset_tied_to_maturity?: boolean;
+  sunset_timing_loophole?: boolean;
+}
+
+/** MFN Freebie Basket — dollar/EBITDA amount exempt from MFN */
+export interface MFNFreebieBasket extends EntityProvenance {
+  freebie_id: string;
+  dollar_amount_usd?: number;
+  ebitda_pct?: number;
+  uses_greater_of?: boolean;
+  stacks_with_general_basket?: boolean;
+  general_basket_amount_usd?: number;
+  total_mfn_exempt_capacity_usd?: number;
+}
+
 // ============================================================================
 // QUALIFICATION & CITATION
 // ============================================================================
@@ -513,8 +582,16 @@ export interface ProvisionBase {
 
 export interface MFNProvision extends ProvisionBase {
   yield_exclusion_pattern_detected?: boolean;
+  reclassification_loophole_detected?: boolean;
+  mfn_amendment_vulnerable?: boolean;
+  mfn_exclusion_stacking_detected?: boolean;
   answers?: ProvisionAnswerMap;
   applicabilities?: Record<string, ConceptApplicability[]>;
+  // Channel 3 entities
+  exclusions?: MFNExclusion[];
+  yield_definition?: MFNYieldDefinition;
+  sunset?: MFNSunsetProvision;
+  freebie_basket?: MFNFreebieBasket;
 }
 
 export interface RPProvision extends ProvisionBase {
