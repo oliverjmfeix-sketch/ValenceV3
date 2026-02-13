@@ -66,6 +66,9 @@ MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 # 18. MFN extraction metadata
 MFN_METADATA_FILE = DATA_DIR / "mfn_extraction_metadata.tql"
 
+# 19. MFN inference functions
+MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
+
 # 17. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
@@ -421,6 +424,21 @@ def init_database():
         logger.info("\n18. Loading mfn_extraction_metadata.tql...")
         if MFN_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_METADATA_FILE)
+
+        # 19. Load MFN inference functions (SCHEMA transaction)
+        logger.info("\n19. Loading mfn_functions.tql...")
+        if MFN_FUNCTIONS_FILE.exists():
+            functions_tql = load_tql_file(MFN_FUNCTIONS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(functions_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded MFN functions ({len(functions_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   MFN functions: {e}")
+                logger.warning("   MFN pattern detection functions not available.")
 
         # ═══════════════════════════════════════════════════════════════
         # Verification

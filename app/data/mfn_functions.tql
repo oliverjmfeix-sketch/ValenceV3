@@ -1,0 +1,135 @@
+################################################################################
+# MFN INFERENCE FUNCTIONS — TypeDB 3.x
+#
+# 10 functions detecting MFN vulnerability patterns.
+# Loaded as SCHEMA (define), called at extraction time to set pattern flags.
+#
+# CRITICAL: These use TypeDB 3.x `fun` syntax, NOT 2.x `rule` syntax.
+# Return type is `boolean` (NOT `bool`).
+# Value params separated from attribute bindings to avoid variable conflicts.
+################################################################################
+
+define
+
+# ─── VULNERABILITY PATTERNS ──────────────────────────────────────────────────
+
+# 1. Reclassification Loophole
+# Borrower can classify debt as ratio/IED instead of incremental to avoid MFN
+fun detect_mfn_reclassification_loophole($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, exclusion: $e) isa provision_has_exclusion;
+        $e has exclusion_type "ratio";
+        $e has excludes_from_mfn true;
+    return check;
+
+# 2. Yield Exclusion Pattern
+# Both OID and floor excluded → yield comparison nearly meaningless
+fun detect_mfn_yield_exclusion_pattern($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, yield_def: $y) isa provision_has_yield_def;
+        $y has includes_oid false;
+        $y has includes_floor_benefit false;
+    return check;
+
+# 3. Sunset Timing Loophole
+# Short sunset (<12 months) without reset on refi
+fun detect_mfn_sunset_timing_loophole($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, sunset: $s) isa provision_has_sunset;
+        $s has sunset_exists true;
+        $s has sunset_period_months $months;
+        $months < 12;
+        not { $s has sunset_resets_on_refi true; };
+    return check;
+
+# 4. Exclusion Stacking
+# 3+ exclusions on the same provision
+fun detect_mfn_exclusion_stacking($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, exclusion: $e1) isa provision_has_exclusion;
+        (provision: $p, exclusion: $e2) isa provision_has_exclusion;
+        (provision: $p, exclusion: $e3) isa provision_has_exclusion;
+        not { $e1 is $e2; };
+        not { $e1 is $e3; };
+        not { $e2 is $e3; };
+    return check;
+
+# 5. Bridge-to-Term Loophole
+# Bridge debt excluded with no conversion restriction
+fun detect_mfn_bridge_to_term_loophole($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, exclusion: $e) isa provision_has_exclusion;
+        $e has exclusion_type "bridge";
+        $e has excludes_from_mfn true;
+    return check;
+
+# 6. Currency Arbitrage
+# Non-USD debt excluded → can offer higher yield in another currency
+fun detect_mfn_currency_arbitrage($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, exclusion: $e) isa provision_has_exclusion;
+        $e has exclusion_type "currency";
+        $e has excludes_from_mfn true;
+    return check;
+
+# 7. Freebie Oversized
+# Total MFN-exempt capacity > $200M
+fun detect_mfn_freebie_oversized($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, freebie: $f) isa provision_has_freebie;
+        $f has total_mfn_exempt_capacity_usd $total;
+        $total > 200000000;
+    return check;
+
+# ─── CHANNEL 1 CROSS-REFERENCE PATTERNS ──────────────────────────────────────
+
+# 8. Margin-Only Weakness
+# Threshold applies only to margin, not all-in yield (mfn_04 = true)
+fun detect_mfn_margin_only_weakness($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        $q isa ontology_question, has question_id "mfn_04";
+        (provision: $p, question: $q) isa provision_has_answer,
+            has answer_boolean true;
+    return check;
+
+# 9. Amendment Vulnerable
+# MFN is not a sacred right (mfn_35 = false)
+fun detect_mfn_amendment_vulnerable($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        $q isa ontology_question, has question_id "mfn_35";
+        (provision: $p, question: $q) isa provision_has_answer,
+            has answer_boolean false;
+    return check;
+
+# ─── POSITIVE PATTERN ────────────────────────────────────────────────────────
+
+# 10. Comprehensive Protection
+# All-in yield includes OID + floor, no sunset
+fun detect_mfn_comprehensive_protection($prov_id: string) -> boolean:
+    match
+        $p isa mfn_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, yield_def: $y) isa provision_has_yield_def;
+        $y has includes_oid true;
+        $y has includes_floor_benefit true;
+        (provision: $p, sunset: $s) isa provision_has_sunset;
+        $s has sunset_exists false;
+    return check;
