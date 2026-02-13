@@ -1,0 +1,17 @@
+# Migration 7.0.0: MFN Pure Anchor
+#
+# Removes extracted-value attributes from mfn_provision entity.
+# All MFN extracted data now flows through:
+#   Channel 1: provision_has_answer (scalar answers)
+#   Channel 2: concept_applicability (multiselect)
+#   Channel 3: typed entities (Phase 2 — exclusions, yield def, sunset, freebie)
+#
+# BREAKING CHANGE: Existing MFN data stored as mfn_provision attributes
+# must be re-extracted. The provision_has_answer data is preserved.
+#
+# New pattern flags added:
+#   reclassification_loophole_detected
+#   mfn_amendment_vulnerable
+#   mfn_exclusion_stacking_detected
+#
+# Date: 2026-02-13
