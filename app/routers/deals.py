@@ -1359,6 +1359,11 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="Question is required")
 
     try:
+        # MFN questions → redirect to Claude-powered /ask endpoint
+        covenant_type = _detect_covenant_type(question)
+        if covenant_type in ("mfn", "both"):
+            return await ask_question(deal_id, AskRequest(question=question))
+
         # Get all answers for context
         answers_response = await get_deal_answers(deal_id)
         answers = answers_response.get("answers", {})
@@ -1368,9 +1373,8 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
         relevant = {}
         question_lower = question.lower()
 
-        # Simple keyword matching for common queries
+        # Simple keyword matching for common RP queries
         keyword_map = {
-            "mfn": ["mfn_exists", "mfn_applies_to", "threshold_bps", "sunset"],
             "dividend": ["general_dividend_prohibition_exists", "ratio_dividend_basket"],
             "builder": ["builder_basket_exists", "builder_starter", "builder_uses_greater_of"],
             "jcrew": ["jcrew_blocker_exists", "blocker_covers", "unsub_designation"],
@@ -1395,7 +1399,7 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "deal_id": deal_id,
             "question": question,
-            "answer": f"Based on the extracted data, here are the relevant findings:",
+            "answer": "Based on the extracted data, here are the relevant findings:",
             "relevant_fields": relevant,
             "total_extracted": len(answers)
         }
