@@ -1466,10 +1466,45 @@ async def get_deal_mfn(deal_id: str) -> Dict[str, Any]:
 
 @router.get("/{deal_id}/mfn-universe")
 async def get_mfn_universe_text(deal_id: str):
-    """Serve the cached MFN universe text for a deal (eval pipeline)."""
+    """Serve the cached MFN universe text for a deal (eval pipeline).
+
+    If the cached file doesn't exist but the PDF does, regenerates it
+    from the PDF using the segmenter-based extraction.
+    """
     mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.txt"
+
     if not mfn_path.exists():
-        raise HTTPException(status_code=404, detail="MFN universe text not found")
+        # Try to regenerate from PDF
+        pdf_path = Path(UPLOADS_DIR) / f"{deal_id}.pdf"
+        if not pdf_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="MFN universe text not found and PDF not available for regeneration"
+            )
+        logger.info(f"Regenerating MFN universe for {deal_id} from PDF...")
+        from app.services.pdf_parser import PDFParser
+        parser = PDFParser()
+        pages = parser.extract_pages(str(pdf_path))
+        document_text = parser.get_full_text(pages)
+
+        segment_map = extraction_svc.segment_document(document_text)
+        mfn_text = extraction_svc._build_mfn_universe_from_segments(
+            document_text, segment_map
+        )
+        if not mfn_text or len(mfn_text) < 1000:
+            logger.warning("Segmenter MFN universe too small, falling back to Claude")
+            mfn_text = extraction_svc.extract_mfn_universe(document_text)
+
+        if mfn_text:
+            os.makedirs(UPLOADS_DIR, exist_ok=True)
+            mfn_path.write_text(mfn_text, encoding="utf-8")
+            logger.info(f"MFN universe regenerated and saved: {len(mfn_text)} chars")
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to regenerate MFN universe from PDF"
+            )
+
     text = mfn_path.read_text(encoding="utf-8")
     return {"deal_id": deal_id, "text": text, "chars": len(text)}
 
