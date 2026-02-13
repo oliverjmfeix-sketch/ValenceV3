@@ -29,7 +29,7 @@ Key elements to extract:
 
 Look for: 'refinancing... Restricted Debt Payments', 'prepayment of junior debt',
 'permitted refinancing', 'Refinancing Indebtedness'.",
-    has extraction_section_hint "Section 6.09(b), 6.09(c)",
+    has extraction_section_hint "RESTRICTED_DEBT_PAYMENTS",
     has extraction_priority 60;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ Key elements to extract:
 - Default condition: which defaults block this basket?
 
 Look for: 'Restricted Debt Payments in an aggregate amount not to exceed the greater of $X and Y% of EBITDA'.",
-    has extraction_section_hint "Section 6.09(g), 6.09(h)",
+    has extraction_section_hint "RESTRICTED_DEBT_PAYMENTS",
     has extraction_priority 61;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -74,7 +74,7 @@ Key elements to extract:
 
 Look for: 'Restricted Debt Payments if First Lien Leverage Ratio <= X:1.00',
 'unlimited prepayment if ratio satisfied'.",
-    has extraction_section_hint "Section 6.09(j), 6.09(k)",
+    has extraction_section_hint "RESTRICTED_DEBT_PAYMENTS",
     has extraction_priority 62;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -96,8 +96,8 @@ Key elements to extract:
 - Default condition: which defaults block this basket?
 
 Look for: 'Available Amount', 'Cumulative Amount' in the RDP section (6.09),
-cross-references to Section 6.06(f) builder basket.",
-    has extraction_section_hint "Section 6.09(c), 6.09(f)",
+cross-references to the RP builder basket in the Restricted Payments covenant.",
+    has extraction_section_hint "RESTRICTED_DEBT_PAYMENTS, RESTRICTED_PAYMENTS",
     has extraction_priority 63;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -120,5 +120,5 @@ Key elements to extract:
 
 Look for: 'Restricted Debt Payments funded with proceeds of equity contributions',
 'Net Cash Proceeds of Equity Issuances... applied to prepay'.",
-    has extraction_section_hint "Section 6.09(d), 6.09(e)",
+    has extraction_section_hint "RESTRICTED_DEBT_PAYMENTS",
     has extraction_priority 64;

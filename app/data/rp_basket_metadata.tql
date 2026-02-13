@@ -32,7 +32,7 @@ Key elements to extract:
 
 Look for: 'distributions to Holdings to pay... operating expenses', 'management fees payable to Sponsor',
 'customary overhead costs of Holdings'.",
-    has extraction_section_hint "Section 6.06(b), 6.06(c)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 53;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -60,5 +60,5 @@ Key elements to extract:
 Look for: 'deemed repurchases in connection with the exercise of stock options',
 'withholding obligations... upon exercise or vesting',
 'cashless exercise', 'net settlement'.",
-    has extraction_section_hint "Section 6.06(c), 6.06(d)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 54;

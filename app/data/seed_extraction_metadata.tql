@@ -12,7 +12,7 @@ insert $em_rb1 isa extraction_metadata,
     has metadata_id "ratio_basket.core",
     has target_entity_type "ratio_basket",
     has extraction_prompt "Extract the ratio-based dividend basket. Look for unlimited dividends permitted if leverage ratio is below a threshold. Common patterns: 'unlimited Restricted Payments if First Lien Leverage Ratio <= X:1.00'. Extract: threshold ratio, section reference.",
-    has extraction_section_hint "Section 6.06",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 1;
 
 insert $em_rb2 isa extraction_metadata,
@@ -30,7 +30,7 @@ Look for EXACT phrases:
 
 The 'no worse' test is often in SEPARATE subsection from unlimited basket.
 Answer TRUE if 'no worse' test exists.",
-    has extraction_section_hint "Section 6.06(n), 6.06(o)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 2,
     has requires_context true,
     has context_entities "ratio_basket";
@@ -50,7 +50,7 @@ Examples:
 If 'no worse' has NO leverage cap (applies at any level), answer: 99.0
 If 'no worse' has a specific cap (e.g., 6.25x), answer: 6.25
 If no 'no worse' test exists, answer: 0",
-    has extraction_section_hint "Section 6.06(o)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 3,
     has requires_context true,
     has context_entities "ratio_basket";
@@ -68,7 +68,7 @@ Extract:
 - Starter amount (usually 'greater of $X and Y% of EBITDA')
 - Section reference
 - Start date language (when does accumulation begin?)",
-    has extraction_section_hint "Section 6.06(f)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 10;
 
 insert $em_bb2 isa extraction_metadata,
@@ -86,7 +86,7 @@ insert $em_bb2 isa extraction_metadata,
 
 Look for 'greatest of' language indicating multiple tests.
 Extract each source as SEPARATE entity.",
-    has extraction_section_hint "Section 6.06(f)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 11,
     has requires_context true,
     has context_entities "builder_basket";
@@ -103,7 +103,7 @@ Common patterns:
 - 'beginning on the Closing Date'
 
 Quote verbatim - this affects capacity calculations.",
-    has extraction_section_hint "Section 6.06(f)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 12;
 
 insert $em_bb4 isa extraction_metadata,
@@ -116,7 +116,7 @@ Look for: 'the GREATEST OF (x) [CNI formula], (y) [ECF formula], and (z) [EBITDA
 
 This is MORE borrower-friendly than cumulative sources.
 Answer TRUE if 'greatest of' structure exists.",
-    has extraction_section_hint "Section 6.06(f)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 13;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -136,7 +136,7 @@ Extract:
 - Section reference
 - Whether it covers TRANSFER (moving ownership)
 - Whether it covers DESIGNATION (making IP-holding sub Unrestricted)",
-    has extraction_section_hint "Section 6.06",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 20;
 
 insert $em_jc2 isa extraction_metadata,
@@ -152,7 +152,7 @@ insert $em_jc2 isa extraction_metadata,
 - Required by law
 
 Each exception is a potential loophole. Extract as SEPARATE entity with scope limitation.",
-    has extraction_section_hint "Section 6.06",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 21,
     has requires_context true,
     has context_entities "jcrew_blocker";
@@ -170,7 +170,7 @@ Options:
 - Holdings
 
 Narrow scope = higher risk. Extract as relation to party entities.",
-    has extraction_section_hint "Section 6.06",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 22;
 
 insert $em_jc4 isa extraction_metadata,
@@ -187,7 +187,7 @@ Look for definitions of 'Material Intellectual Property' or 'Material IP':
 - Domain names
 
 Narrow IP coverage = higher risk (valuable IP might not be covered).",
-    has extraction_section_hint "Section 1.01 definitions, Section 6.06",
+    has extraction_section_hint "DEFINITIONS, RESTRICTED_PAYMENTS",
     has extraction_priority 23,
     has requires_context true,
     has context_entities "jcrew_blocker";
@@ -210,7 +210,7 @@ Create SEPARATE entity for each tier with:
 - leverage_threshold (the ratio)
 - sweep_percentage (what % is swept to prepay debt)
 - is_highest_tier (true for the first/strictest tier)",
-    has extraction_section_hint "Section 2.10, 2.11",
+    has extraction_section_hint "PREPAYMENTS",
     has extraction_priority 30;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -231,7 +231,7 @@ Extract:
 - dollar_amount: the fixed dollar floor
 - ebitda_percentage: the EBITDA percentage (if 'greater of')
 - uses_greater_of: true/false",
-    has extraction_section_hint "Section 2.10",
+    has extraction_section_hint "PREPAYMENTS",
     has extraction_priority 31;
 
 insert $em_dm2 isa extraction_metadata,
@@ -250,7 +250,7 @@ Extract:
 - dollar_amount: the fixed dollar floor
 - ebitda_percentage: if 'greater of'
 - permits_carryforward: true/false",
-    has extraction_section_hint "Section 2.10",
+    has extraction_section_hint "PREPAYMENTS",
     has extraction_priority 32;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -270,7 +270,7 @@ Key elements:
 - Can assets be dividended from Unsubs to shareholders?
 
 This is CRITICAL for J.Crew pathway analysis.",
-    has extraction_section_hint "Section 5.15, 6.06(p)",
+    has extraction_section_hint "UNRESTRICTED_SUB_MECHANICS, RESTRICTED_PAYMENTS",
     has extraction_priority 25;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -282,7 +282,7 @@ insert $em_ra1 isa extraction_metadata,
     has target_entity_type "basket_reallocates_to",
     has extraction_prompt "Identify baskets that can be REALLOCATED to fund Restricted Payments.
 
-Look in RP covenant (usually 6.06) for cross-references like:
+Look in the Restricted Payments covenant for cross-references like:
 - 'amounts available under Section 6.03(y)' (Investment basket)
 - 'amounts available under Section 6.09(a)' (RDP basket)
 - 'plus any amounts not used under...'
@@ -295,7 +295,7 @@ For EACH reallocation path extract:
 - Is bidirectional? (can capacity flow both ways?)
 
 This is critical for total dividend capacity calculation.",
-    has extraction_section_hint "Section 6.06(j)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 40;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -314,7 +314,7 @@ Key elements:
 - Does unused capacity carry forward?
 
 Look for: 'repurchases of Equity Interests held by employees...'",
-    has extraction_section_hint "Section 6.06(c)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 50;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -337,7 +337,7 @@ Key elements:
 
 Look for: 'distributions to pay taxes... as if such entity were a standalone corporate taxpayer',
 'tax sharing agreement', 'estimated taxes'.",
-    has extraction_section_hint "Section 6.06(b)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 51;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -356,5 +356,5 @@ Extract:
 - EBITDA percentage
 - uses_greater_of: true/false
 - Any conditions (no default, ratio test)?",
-    has extraction_section_hint "Section 6.06(h)",
+    has extraction_section_hint "RESTRICTED_PAYMENTS",
     has extraction_priority 52;

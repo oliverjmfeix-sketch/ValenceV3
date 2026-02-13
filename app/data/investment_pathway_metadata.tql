@@ -40,9 +40,9 @@ For EACH pathway extract:
 - is_uncapped: true if NO cap on this pathway
 - can_stack_with_other_baskets: true if this basket can be combined with other baskets
 
-Look in Section 6.03 (Investments) and Section 5.15 (Designation of Unrestricted Subsidiaries).
+Look in the Investments covenant and the Unrestricted Subsidiary Designation mechanics section.
 Cross-reference with J.Crew blocker to assess which pathways are actually blocked.",
-    has extraction_section_hint "Section 6.03, 5.15",
+    has extraction_section_hint "INVESTMENTS, UNRESTRICTED_SUB_MECHANICS",
     has extraction_priority 70,
     has requires_context true,
     has context_entities "jcrew_blocker,unsub_designation";
