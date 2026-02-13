@@ -1714,21 +1714,35 @@ The MFN universe is typically 5-15 pages (much shorter than RP)."""
     # Maps each MFN category to the universe sections it needs.
     # None = full universe text.
     _MFN_BATCH_SECTIONS = {
-        "MFN1": None,  # Core Structure — needs full context
+        "MFN1": ["INCREMENTAL_FACILITY"],
         "MFN2": ["INCREMENTAL_FACILITY", "DEBT_INCURRENCE"],
-        "MFN3": ["INCREMENTAL_FACILITY", "DEFINITIONS"],
+        "MFN3": ["INCREMENTAL_FACILITY"],
         "MFN4": ["INCREMENTAL_FACILITY"],
         "MFN5": ["INCREMENTAL_FACILITY", "AMENDMENTS_WAIVERS"],
-        "MFN6": None,  # Loopholes — needs full context + entity data
+        "MFN6": ["INCREMENTAL_FACILITY", "DEBT_INCURRENCE"],
     }
 
     _MFN_BATCH_HINTS = {
-        "MFN1": "Focus on whether MFN exists, the threshold (basis points), and whether adjustment is automatic.",
-        "MFN2": "Focus on which facility types are covered, lien priority restrictions, and debt type exclusions.",
-        "MFN3": "Focus on how yield/rate is calculated — what components are included in the comparison.",
+        "MFN1": """Focus on whether MFN exists, the EXACT threshold in basis points, and whether
+adjustment is automatic. The threshold is stated as a specific number (e.g., 50, 75, or 100 bps).
+Read the MFN clause carefully for the precise number — do NOT guess or use a common default.""",
+        "MFN2": """Focus on which facility types are covered, lien priority restrictions, and debt
+type exclusions. CRITICAL for ratio debt / incremental equivalent debt (IED): Determine whether
+debt incurred OUTSIDE this credit agreement (e.g., under Section 6.01 debt incurrence covenant)
+is subject to MFN. The MFN may reference "First Lien Incremental Equivalent Debt" — carefully
+analyze whether IED is included in MFN scope or carved out. If IED is only mentioned within a
+freebie basket cap, that means IED above the cap IS subject to MFN (answer: not excluded).
+If IED is broadly excluded from MFN regardless of amount, answer: excluded.""",
+        "MFN3": """Focus on how yield/rate is calculated — what components are included in the
+Effective Yield comparison. Look for the DEFINED TERM "Effective Yield" in the MFN clause or
+definitions section. Identify whether OID, interest rate floors, upfront fees, and margins are
+INCLUDED or EXCLUDED from the yield calculation. Do not confuse the MFN threshold (bps cushion)
+with yield components.""",
         "MFN4": "Focus on sunset timing, trigger events, and whether the sunset resets on refinancing.",
         "MFN5": "Focus on amendment mechanics, voting thresholds, and whether MFN is a sacred right.",
-        "MFN6": "Analyze loopholes, weaknesses, and interaction patterns. Use prior analysis data below.",
+        "MFN6": """Analyze loopholes, weaknesses, and interaction patterns. Use prior analysis data
+below. Identify specific dollar amounts for combined freebie + basket capacity. Calculate the total
+MFN-free debt capacity by summing all available exclusions.""",
     }
 
     _MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
@@ -1900,14 +1914,33 @@ For multiselect questions, value is an array of concept_ids:
 {context_text}"""
 
         try:
+            context_chars = len(context_text)
+            logger.info(
+                f"MFN batch {cat_id}: {len(questions)} questions, "
+                f"context={context_chars} chars"
+            )
+
             response = self.client.messages.create(
                 model="claude-sonnet-4-5-20250929",
-                max_tokens=4000,
+                max_tokens=8000,
                 system=self._MFN_EXTRACTION_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}]
             )
 
             text = response.content[0].text.strip()
+            stop = response.stop_reason
+            logger.info(
+                f"MFN batch {cat_id}: response {len(text)} chars, "
+                f"stop_reason={stop}"
+            )
+
+            if not text:
+                logger.error(
+                    f"MFN batch {cat_id}: empty response "
+                    f"(stop_reason={stop})"
+                )
+                return []
+
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0]
 
@@ -1916,6 +1949,12 @@ For multiselect questions, value is an array of concept_ids:
             logger.info(f"MFN batch {cat_id}: {len(answers)}/{len(questions)} answers")
             return answers
 
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"MFN batch {cat_id} JSON parse failed: {e}. "
+                f"Raw response (first 500 chars): {text[:500] if text else 'EMPTY'}"
+            )
+            return []
         except Exception as e:
             logger.error(f"MFN batch {cat_id} failed: {e}")
             return []
