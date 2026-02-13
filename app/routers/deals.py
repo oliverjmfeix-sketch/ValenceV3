@@ -222,6 +222,35 @@ If the user asks about MFN interaction with other covenant types:
 - MFN + Financial Covenants: Financial covenant leverage tests may
   constrain the incurrence test for ratio debt, indirectly limiting the
   reclassification loophole
+
+### 7. MFN ENTITY ANALYSIS RULES
+
+When answering questions about MFN using Channel 3 entity data:
+
+(a) CHECK ALL EXCLUSIONS — enumerate every exclusion from the
+    MFN EXCLUSION ANALYSIS section. If ANY exclusion applies, MFN is
+    not triggered for that debt type.
+
+(b) CHECK THE FREEBIE — even if no exclusion applies, debt within the
+    freebie basket capacity is exempt from MFN.
+
+(c) COMPUTE TOTAL EXEMPT CAPACITY — freebie + general basket + any
+    other exempt amounts. Always state the total dollar figure.
+
+(d) YIELD METHODOLOGY MATTERS — when discussing yield comparison,
+    always specify what is included/excluded. If both OID and floor
+    are excluded, explicitly flag this as making the comparison
+    "nearly meaningless."
+
+(e) SUNSET TIMING — if sunset exists, specify when it expires and
+    whether the borrower could time issuance to exploit it.
+
+(f) PATTERN FLAGS — reference detected patterns from the DETECTED
+    PATTERNS section. These are computed by deterministic TypeDB
+    functions, not LLM judgment — cite them as architectural findings.
+
+(g) CROSS-COVENANT — if cross-references exist, explain how MFN
+    exclusions interact with RP debt incurrence capacity.
 """
 
 # Ensure uploads directory exists
@@ -1550,6 +1579,17 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
             context_parts.append("# MFN (MOST FAVORED NATION) DATA\n\n" + mfn_context)
         else:
             context_parts.append(mfn_context)
+
+        # Add MFN entity context (Channel 3)
+        try:
+            entity_context = await _format_mfn_entities_as_context(
+                deal_id, f"{deal_id}_mfn"
+            )
+            if entity_context:
+                context_parts.append(entity_context)
+        except Exception as e:
+            logger.warning(f"MFN entity context failed: {e}")
+
     context = "\n\n".join(context_parts)
 
     # Step 5: Build system rules based on covenant type
@@ -1711,6 +1751,265 @@ This block MUST appear at the very end of your response."""
     except Exception as e:
         logger.error(f"Error in Q&A: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> str:
+    """Load MFN Channel 3 entities from TypeDB and format as structured text."""
+    if not typedb_client.driver:
+        return ""
+
+    context_parts = []
+
+    def _run_query(query: str) -> list:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            result = list(tx.query(query).resolve().as_concept_rows())
+            return result
+        except Exception:
+            return []
+        finally:
+            tx.close()
+
+    # 1. Exclusions
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                (provision: $p, exclusion: $e) isa provision_has_exclusion;
+                $e has exclusion_id $eid, has exclusion_type $type;
+                try {{ $e has exclusion_has_cap $cap; }};
+                try {{ $e has exclusion_cap_usd $cap_usd; }};
+                try {{ $e has exclusion_conditions $cond; }};
+                try {{ $e has can_stack_with_other_exclusions $stack; }};
+                try {{ $e has excludes_from_mfn $excl; }};
+                try {{ $e has source_text $src; }};
+                try {{ $e has source_page $page; }};
+            select $eid, $type, $cap, $cap_usd, $cond, $stack, $excl, $src, $page;
+        ''')
+        if rows:
+            lines = ["## MFN EXCLUSION ANALYSIS", f"Total exclusions: {len(rows)}", ""]
+            for row in rows:
+                etype = _safe_get_value(row, "type", "unknown")
+                lines.append(f"### Exclusion: {etype}")
+                cap = _safe_get_value(row, "cap")
+                cap_usd = _safe_get_value(row, "cap_usd")
+                excl = _safe_get_value(row, "excl")
+                stack = _safe_get_value(row, "stack")
+                cond = _safe_get_value(row, "cond")
+                src = _safe_get_value(row, "src")
+                page = _safe_get_value(row, "page")
+                if excl is not None:
+                    lines.append(f"- Excluded from MFN: {'YES' if excl else 'NO'}")
+                if cap is not None:
+                    lines.append(f"- Has cap: {'YES' if cap else 'NO (unlimited)'}")
+                if cap_usd is not None:
+                    lines.append(f"- Cap amount: ${cap_usd:,.0f}")
+                if stack is not None:
+                    lines.append(f"- Can stack with other exclusions: {'YES' if stack else 'NO'}")
+                if cond:
+                    lines.append(f"- Conditions: {cond}")
+                if src:
+                    lines.append(f"- Source: {src[:200]}")
+                if page is not None:
+                    lines.append(f"- Page: {page}")
+                lines.append("")
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN exclusion query: {e}")
+
+    # 2. Yield definition
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                (provision: $p, yield_def: $y) isa provision_has_yield_def;
+                $y has yield_def_id $yid;
+                try {{ $y has defined_term $term; }};
+                try {{ $y has includes_margin $margin; }};
+                try {{ $y has includes_floor_benefit $floor; }};
+                try {{ $y has includes_oid $oid; }};
+                try {{ $y has includes_upfront_fees $fees; }};
+                try {{ $y has includes_commitment_fees $cfees; }};
+                try {{ $y has oid_amortization_method $method; }};
+                try {{ $y has oid_amortization_years $years; }};
+                try {{ $y has comparison_baseline $baseline; }};
+            select $yid, $term, $margin, $floor, $oid, $fees, $cfees, $method, $years, $baseline;
+        ''')
+        if rows:
+            row = rows[0]
+            lines = ["## MFN YIELD METHODOLOGY"]
+            term = _safe_get_value(row, "term")
+            if term:
+                lines.append(f"- Defined term: \"{term}\"")
+
+            includes = []
+            excludes = []
+            for field, label in [("margin", "margin"), ("floor", "floor benefit"),
+                                 ("oid", "OID"), ("fees", "upfront fees"),
+                                 ("cfees", "commitment fees")]:
+                val = _safe_get_value(row, field)
+                if val is True:
+                    includes.append(label)
+                elif val is False:
+                    excludes.append(label)
+            if includes:
+                lines.append(f"- Includes: {', '.join(includes)}")
+            if excludes:
+                lines.append(f"- Excludes: {', '.join(excludes)}")
+
+            method = _safe_get_value(row, "method")
+            years = _safe_get_value(row, "years")
+            if method:
+                lines.append(f"- OID amortization: {method}")
+            if years is not None:
+                lines.append(f"- OID amortization years: {years}")
+
+            baseline = _safe_get_value(row, "baseline")
+            if baseline:
+                lines.append(f"- Comparison baseline: {baseline}")
+
+            # Flag weakness
+            oid_val = _safe_get_value(row, "oid")
+            floor_val = _safe_get_value(row, "floor")
+            if oid_val is False and floor_val is False:
+                lines.append("- WARNING: Both OID and floor EXCLUDED — yield comparison nearly meaningless")
+
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN yield query: {e}")
+
+    # 3. Sunset
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                (provision: $p, sunset: $s) isa provision_has_sunset;
+                $s has sunset_id $sid;
+                try {{ $s has sunset_exists $exists; }};
+                try {{ $s has sunset_period_months $months; }};
+                try {{ $s has sunset_trigger_event $trigger; }};
+                try {{ $s has sunset_resets_on_refi $resets; }};
+                try {{ $s has sunset_tied_to_maturity $maturity; }};
+                try {{ $s has sunset_timing_loophole $loophole; }};
+            select $sid, $exists, $months, $trigger, $resets, $maturity, $loophole;
+        ''')
+        if rows:
+            row = rows[0]
+            lines = ["## MFN SUNSET"]
+            exists = _safe_get_value(row, "exists")
+            months = _safe_get_value(row, "months")
+            trigger = _safe_get_value(row, "trigger")
+            resets = _safe_get_value(row, "resets")
+            maturity = _safe_get_value(row, "maturity")
+            loophole = _safe_get_value(row, "loophole")
+            if exists is not None:
+                lines.append(f"- Sunset exists: {'YES' if exists else 'NO (perpetual protection)'}")
+            if months is not None:
+                lines.append(f"- Period: {months} months")
+            if trigger:
+                lines.append(f"- Trigger event: {trigger}")
+            if resets is not None:
+                lines.append(f"- Resets on refinancing: {'YES' if resets else 'NO'}")
+            if maturity is not None:
+                lines.append(f"- Tied to maturity: {'YES' if maturity else 'NO'}")
+            if loophole is not None:
+                lines.append(f"- Timing loophole: {'YES — borrower can time issuance after sunset' if loophole else 'NO'}")
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN sunset query: {e}")
+
+    # 4. Freebie basket
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                (provision: $p, freebie: $f) isa provision_has_freebie;
+                $f has freebie_id $fid;
+                try {{ $f has dollar_amount_usd $dollar; }};
+                try {{ $f has ebitda_pct $pct; }};
+                try {{ $f has uses_greater_of $greater; }};
+                try {{ $f has stacks_with_general_basket $stacks; }};
+                try {{ $f has general_basket_amount_usd $gen; }};
+                try {{ $f has total_mfn_exempt_capacity_usd $total; }};
+            select $fid, $dollar, $pct, $greater, $stacks, $gen, $total;
+        ''')
+        if rows:
+            row = rows[0]
+            lines = ["## MFN FREEBIE BASKET"]
+            dollar = _safe_get_value(row, "dollar")
+            pct = _safe_get_value(row, "pct")
+            greater = _safe_get_value(row, "greater")
+            stacks = _safe_get_value(row, "stacks")
+            gen = _safe_get_value(row, "gen")
+            total = _safe_get_value(row, "total")
+            if dollar is not None:
+                lines.append(f"- Dollar amount: ${dollar:,.0f}")
+            if pct is not None:
+                lines.append(f"- EBITDA percentage: {pct * 100:.0f}%")
+            if greater is not None:
+                lines.append(f"- Uses greater of: {'YES' if greater else 'NO'}")
+            if stacks is not None:
+                lines.append(f"- Stacks with general basket: {'YES' if stacks else 'NO'}")
+            if gen is not None:
+                lines.append(f"- General basket amount: ${gen:,.0f}")
+            if total is not None:
+                lines.append(f"- TOTAL MFN-exempt capacity: ${total:,.0f}")
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN freebie query: {e}")
+
+    # 5. Pattern flags
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                try {{ $p has yield_exclusion_pattern_detected $yep; }};
+                try {{ $p has reclassification_loophole_detected $rld; }};
+                try {{ $p has mfn_amendment_vulnerable $mav; }};
+                try {{ $p has mfn_exclusion_stacking_detected $esd; }};
+            select $yep, $rld, $mav, $esd;
+        ''')
+        if rows:
+            row = rows[0]
+            lines = ["## DETECTED PATTERNS (computed by TypeDB functions)"]
+            flags = [
+                ("yep", "Yield exclusion pattern"),
+                ("rld", "Reclassification loophole"),
+                ("mav", "Amendment vulnerable"),
+                ("esd", "Exclusion stacking"),
+            ]
+            for var, label in flags:
+                val = _safe_get_value(row, var)
+                if val is not None:
+                    lines.append(f"- {label}: {'YES' if val else 'NO'}")
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN pattern flags query: {e}")
+
+    # 6. Cross-references
+    try:
+        rows = _run_query(f'''
+            match
+                $p isa mfn_provision, has provision_id "{provision_id}";
+                (source_provision: $p, target_provision: $t)
+                    isa provision_cross_reference,
+                    has cross_reference_type $type,
+                    has cross_reference_explanation $expl;
+                $t has provision_id $tid;
+            select $tid, $type, $expl;
+        ''')
+        if rows:
+            lines = ["## CROSS-COVENANT INTERACTIONS"]
+            for row in rows:
+                tid = _safe_get_value(row, "tid", "")
+                xtype = _safe_get_value(row, "type", "")
+                expl = _safe_get_value(row, "expl", "")
+                lines.append(f"- MFN → {tid}: {xtype} — {expl}")
+            context_parts.append("\n".join(lines))
+    except Exception as e:
+        logger.debug(f"MFN cross-ref query: {e}")
+
+    return "\n\n".join(context_parts)
 
 
 def _format_rp_provision_as_context(
