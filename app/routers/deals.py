@@ -1464,6 +1464,16 @@ async def get_deal_mfn(deal_id: str) -> Dict[str, Any]:
         raise
 
 
+@router.get("/{deal_id}/mfn-universe")
+async def get_mfn_universe_text(deal_id: str):
+    """Serve the cached MFN universe text for a deal (eval pipeline)."""
+    mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.txt"
+    if not mfn_path.exists():
+        raise HTTPException(status_code=404, detail="MFN universe text not found")
+    text = mfn_path.read_text(encoding="utf-8")
+    return {"deal_id": deal_id, "text": text, "chars": len(text)}
+
+
 @router.post("/{deal_id}/qa")
 async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
     """
