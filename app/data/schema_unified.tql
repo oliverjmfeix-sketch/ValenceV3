@@ -153,6 +153,12 @@ attribute yield_exclusion_pattern_detected, value boolean;
 attribute reclassification_loophole_detected, value boolean;
 attribute mfn_amendment_vulnerable, value boolean;
 attribute mfn_exclusion_stacking_detected, value boolean;
+attribute sunset_timing_loophole_detected, value boolean;
+attribute bridge_to_term_loophole_detected, value boolean;
+attribute currency_arbitrage_detected, value boolean;
+attribute freebie_oversized_detected, value boolean;
+attribute mfn_margin_only_weakness_detected, value boolean;
+attribute mfn_comprehensive_protection_detected, value boolean;
 
 # ─── Entity attributes ───────────────────────────────────────────────────────
 #
@@ -287,44 +293,14 @@ attribute uses_closing_ratio_alternative, value boolean;  # T12 Q326-327: ratio 
 attribute requires_qualified_stock_only, value boolean;
 attribute requires_cash_common_equity, value boolean;
 
-# ── MFN scalar attributes ────────────────────────────────────────────────────
-
-attribute mfn_exists, value boolean;
-attribute mfn_section_reference, value string;
-attribute mfn_threshold_bps, value integer;
-attribute threshold_applies_to_margin_only, value boolean;
-attribute mfn_adjustment_automatic, value boolean;
-attribute mfn_adjustment_scope, value string;
-attribute mfn_bilateral, value boolean;
-attribute acquisition_debt_excluded, value boolean;
-attribute refinancing_debt_excluded, value boolean;
-attribute ratio_debt_excluded, value boolean;
-attribute bridge_financing_excluded, value boolean;
-attribute revolving_excluded, value boolean;
-attribute other_mfn_exclusions, value string;
-attribute same_currency_only, value boolean;
-attribute mfn_de_minimis_threshold, value string;
-attribute oid_included_in_yield, value boolean;
-attribute floor_included_in_yield, value boolean;
-attribute upfront_fees_included_in_yield, value boolean;
+# ── MFN Channel 3 entity attributes (owned by yield_def / sunset) ────────────
 attribute oid_amortization_method, value string;
 attribute oid_amortization_years, value integer;
-attribute yield_comparison_methodology, value string;
-attribute fixed_vs_floating_differentiation, value boolean;
-attribute yield_determination_party, value string;
 attribute sunset_exists, value boolean;
 attribute sunset_period_months, value integer;
 attribute sunset_tied_to_maturity, value boolean;
 attribute sunset_resets_on_refi, value boolean;
 attribute sunset_timing_loophole, value boolean;
-attribute mfn_waiver_consent_threshold, value string;
-attribute mfn_is_sacred_right, value boolean;
-attribute mfn_transaction_specific_waiver, value boolean;
-attribute agent_discretion_in_mfn, value boolean;
-attribute affected_lender_opt_out, value boolean;
-attribute reclassification_loophole_exists, value boolean;
-attribute yield_exclusion_pattern, value boolean;
-attribute bridge_to_term_loophole, value boolean;
 
 
 ################################################################################
@@ -382,6 +358,12 @@ entity mfn_provision sub provision,
     owns reclassification_loophole_detected,
     owns mfn_amendment_vulnerable,
     owns mfn_exclusion_stacking_detected,
+    owns sunset_timing_loophole_detected,
+    owns bridge_to_term_loophole_detected,
+    owns currency_arbitrage_detected,
+    owns freebie_oversized_detected,
+    owns mfn_margin_only_weakness_detected,
+    owns mfn_comprehensive_protection_detected,
     plays provision_has_exclusion:provision,
     plays provision_has_yield_def:provision,
     plays provision_has_sunset:provision,

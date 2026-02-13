@@ -63,7 +63,7 @@ insert $mfn_01 isa ontology_question,
     has question_text "Does an MFN (Most Favored Nation) provision exist?",
     has answer_type "boolean",
     has display_order 1,
-    has extraction_prompt "Determine if the credit agreement contains a Most Favored Nation clause. This typically appears in the incremental facility section (often Section 2.14 or 2.20) and requires that if new incremental term loans are issued at a higher yield than existing term loans, the existing term loan pricing must be increased. Look for language like 'effective yield', 'pricing adjustment', 'most favored nation', or 'MFN' in the incremental provisions.";
+    has extraction_prompt "Determine if the credit agreement contains a Most Favored Nation clause. This typically appears in the incremental facility section (the section number varies by document) and requires that if new incremental term loans are issued at a higher yield than existing term loans, the existing term loan pricing must be increased. Look for language like 'effective yield', 'pricing adjustment', 'most favored nation', or 'MFN' in the incremental provisions.";
 
 insert $mfn_02 isa ontology_question,
     has question_id "mfn_02",
@@ -71,7 +71,7 @@ insert $mfn_02 isa ontology_question,
     has question_text "What section contains the MFN provision?",
     has answer_type "string",
     has display_order 2,
-    has extraction_prompt "Extract the exact section reference where the MFN provision is located. This is typically in Section 2.14, 2.20, or wherever incremental facilities are defined. Return the verbatim section number (e.g., 'Section 2.14(d)(iv)').";
+    has extraction_prompt "Extract the exact section reference where the MFN provision is located. This is in the incremental facility section (section number varies by document). Return the verbatim section number as it appears in THIS document.";
 
 insert $mfn_03 isa ontology_question,
     has question_id "mfn_03",
@@ -155,7 +155,7 @@ insert $mfn_12 isa ontology_question,
     has question_text "Is ratio debt / incremental equivalent debt excluded from MFN?",
     has answer_type "boolean",
     has display_order 12,
-    has extraction_prompt "Determine if debt incurred under the ratio-based incurrence test (as opposed to the dollar-based incremental basket) is excluded from MFN. In many modern credit agreements, 'Incremental Equivalent Debt' or 'ratio debt' can be incurred outside the MFN framework entirely. Look for whether the MFN applies only to 'Incremental Term Loans' under Section 2.14 but not to ratio debt incurred under the debt covenant.";
+    has extraction_prompt "Determine if Ratio Debt and Incremental Equivalent Debt fall OUTSIDE the scope of MFN protection. Do NOT look for an explicit exclusion clause. Instead, examine MFN's triggering language — it typically says 'for any First Lien Incremental Term Facility' or 'for any Incremental Term Loan incurred under [the incremental facility section]'. If MFN only covers debt incurred under that specific section of THIS agreement, then debt incurred under a different mechanism — such as Ratio Debt under the debt incurrence covenant or Incremental Equivalent Debt under separate agreements — is inherently outside MFN scope. Answer true if MFN's scope is limited to the incremental facility section. The absence of coverage IS the exclusion.";
 
 insert $mfn_13 isa ontology_question,
     has question_id "mfn_13",
@@ -351,7 +351,7 @@ insert $mfn_35 isa ontology_question,
     has question_text "Is MFN modification a sacred right (requires all-lender consent)?",
     has answer_type "boolean",
     has display_order 35,
-    has extraction_prompt "Determine if modifying or waiving MFN protection is classified as a 'sacred right' requiring consent of all lenders or all directly affected lenders, rather than just Required Lenders (simple majority). Sacred right status makes MFN nearly impossible to waive. Check the amendment section (typically Section 9.02 or 10.01) for whether MFN-related provisions are in the list of provisions requiring all-lender or affected-lender consent.";
+    has extraction_prompt "Determine if modifying or waiving MFN protection is classified as a 'sacred right' requiring consent of all lenders or all directly affected lenders, rather than just Required Lenders (simple majority). Sacred right status makes MFN nearly impossible to waive. Check the amendment provisions for whether MFN-related provisions are in the list of provisions requiring all-lender or affected-lender consent.";
 
 insert $mfn_36 isa ontology_question,
     has question_id "mfn_36",
@@ -395,7 +395,7 @@ insert $mfn_40 isa ontology_question,
     has question_text "Can the borrower reclassify incremental debt as ratio debt to avoid MFN?",
     has answer_type "boolean",
     has display_order 40,
-    has extraction_prompt "Determine if the borrower can designate new debt as 'Incremental Equivalent Debt' or 'ratio debt' (incurred under the ratio-based incurrence test in the debt covenant, e.g., Section 6.01) instead of as an 'Incremental Term Loan' under Section 2.14, thereby avoiding the MFN provision that only applies to Section 2.14 incremental facilities. This is the most common and significant MFN loophole. Answer true if reclassification is possible.";
+    has extraction_prompt "Determine if the borrower can designate new debt as 'Incremental Equivalent Debt' or 'ratio debt' (incurred under the ratio-based incurrence test in the debt incurrence covenant) instead of as an 'Incremental Term Loan' under the incremental facility section, thereby avoiding the MFN provision that only applies to incremental facilities. This is the most common and significant MFN loophole. Answer true if reclassification is possible.";
 
 insert $mfn_41 isa ontology_question,
     has question_id "mfn_41",

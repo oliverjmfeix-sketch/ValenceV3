@@ -40,8 +40,8 @@ For EACH exclusion extract:
 - can_stack_with_other_exclusions: can this be combined with other exclusions?
 - excludes_from_mfn: true if this exclusion removes debt from MFN entirely
 
-Look in Section 2.14 (Incremental Facilities) for the MFN provision's exception list.",
-    has extraction_section_hint "Section 2.14, Section 2.20",
+Look in the Incremental Facility section for the MFN provision's exception list.",
+    has extraction_section_hint "INCREMENTAL_FACILITY",
     has extraction_priority 50;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -53,8 +53,8 @@ insert $em_mfn_yield isa extraction_metadata,
     has target_entity_type "mfn_yield_definition",
     has extraction_prompt "Extract the yield calculation methodology used for MFN comparison.
 
-Find the definition of 'Effective Yield' or 'All-In Yield' in Section 1.01,
-then cross-reference with the MFN clause in Section 2.14.
+Find the definition of 'Effective Yield' or 'All-In Yield' in the Definitions section,
+then cross-reference with the MFN clause in the Incremental Facility section.
 
 Extract:
 - defined_term: exact defined term used ('Effective Yield', 'All-In Yield', 'Applicable Rate')
@@ -70,7 +70,7 @@ Extract:
 
 CRITICAL: If both OID AND floor are EXCLUDED, flag this as a significant weakness —
 it makes the yield comparison nearly meaningless.",
-    has extraction_section_hint "Section 1.01 (Effective Yield definition), Section 2.14",
+    has extraction_section_hint "DEFINITIONS, INCREMENTAL_FACILITY",
     has extraction_priority 51;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -95,7 +95,7 @@ Extract:
 - sunset_timing_loophole: could the borrower time debt issuance to just after sunset?
 
 Common periods: 6, 12, 18, 24 months. No sunset = perpetual MFN protection.",
-    has extraction_section_hint "Section 2.14",
+    has extraction_section_hint "INCREMENTAL_FACILITY",
     has extraction_priority 52;
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -125,7 +125,7 @@ Extract:
 
 This basket is CRITICAL for the gold standard Q&A — analysts need to know the
 total dollar capacity available without triggering MFN.",
-    has extraction_section_hint "Section 2.14",
+    has extraction_section_hint "INCREMENTAL_FACILITY",
     has extraction_priority 53,
     has requires_context true,
     has context_entities "mfn_exclusion";

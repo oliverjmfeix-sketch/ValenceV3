@@ -117,6 +117,10 @@ def _detect_covenant_type(question: str) -> str:
         "sofr floor", "fee exclusion", "threshold",
         "ratio debt", "reclassification",
         "bridge financing", "bridge-to-term",
+        "carveout", "carve-out", "carve out",
+        "pari passu", "pari-passu",
+        "term loan", "freebie",
+        "incremental equivalent",
     ]
 
     rp_signals = [
@@ -137,7 +141,7 @@ def _detect_covenant_type(question: str) -> str:
     elif has_mfn:
         return "mfn"
     else:
-        return "rp"  # default to RP
+        return "both"  # ambiguous questions get both contexts
 
 
 MFN_SYNTHESIS_RULES = """
@@ -182,8 +186,8 @@ Always check and surface these loopholes:
 
 a) **Reclassification risk**: If ratio debt / incremental equivalent debt
    is NOT subject to MFN, the borrower can incur the same economic debt
-   under the debt covenant (Section 6.01) instead of the incremental
-   facility (Section 2.14) and completely avoid MFN. This is the single
+   under the debt incurrence covenant instead of the incremental
+   facility section and completely avoid MFN. This is the single
    most important MFN loophole.
 
 b) **Sunset timing**: If a sunset exists, note the exact period and
@@ -201,7 +205,6 @@ d) **Amendment vulnerability**: If MFN is NOT a sacred right, Required
 ### 4. COMPARISON CONTEXT
 
 When comparing MFN provisions across deals:
-- 50bps threshold is MARKET STANDARD for broadly syndicated loans
 - 25bps is lender-friendly, 75bps is borrower-friendly
 - All-in yield comparison is stronger than margin-only
 - 12-18 month sunset is typical; no sunset is rare and lender-friendly
@@ -210,14 +213,14 @@ When comparing MFN provisions across deals:
 ### 5. SECTION REFERENCES
 
 Always cite the specific section where the MFN provision is found
-(typically Section 2.14). For yield definitions, cite Section 1.01
-and the specific defined term.
+(the incremental facility section). For yield definitions, cite the
+definitions section and the specific defined term.
 
 ### 6. INTERACTION WITH OTHER COVENANTS
 
 If the user asks about MFN interaction with other covenant types:
-- MFN + Debt Incurrence: The debt incurrence covenant (Section 6.01)
-  creates the reclassification loophole if ratio debt is not MFN-covered
+- MFN + Debt Incurrence: The debt incurrence covenant creates the
+  reclassification loophole if ratio debt is not MFN-covered
 - MFN + Restricted Payments: No direct interaction
 - MFN + Financial Covenants: Financial covenant leverage tests may
   constrain the incurrence test for ratio debt, indirectly limiting the
@@ -251,6 +254,70 @@ When answering questions about MFN using Channel 3 entity data:
 
 (g) CROSS-COVENANT — if cross-references exist, explain how MFN
     exclusions interact with RP debt incurrence capacity.
+
+### 8. MFN TRIGGER CONDITIONS ARE CONJUNCTIVE
+
+MFN applies ONLY when ALL of the following conditions are met
+simultaneously for the new debt:
+- Is a First Lien Incremental Term Facility under the incremental
+  facility section of this agreement
+- Is broadly syndicated
+- Is a floating rate term loan
+- Ranks pari passu in right of payment and security with Initial TLs
+- Is denominated in USD (if same-currency restriction exists)
+- Is scheduled to mature on or prior to the Term Maturity Date
+- Is NOT within the freebie basket threshold
+- Is NOT incurred to finance a Permitted Acquisition (if carve-out
+  exists)
+
+If ANY SINGLE condition is not met, MFN DOES NOT APPLY. Do not
+analyze freebie baskets or other exclusions when the debt is already
+outside MFN scope due to a failed trigger condition.
+
+When analyzing hypothetical debt, check each condition against the
+debt's characteristics. Identify the FIRST condition that fails and
+state that as the primary reason MFN does not apply.
+
+### 9. YIELD REPRICING AND MARKET PRICE
+
+When a user asks how existing debt would be repriced under MFN, or
+which yield figure is used in the comparison:
+
+- The Effective Yield comparison uses CONTRACTUAL economics, not
+  secondary market trading prices
+- Reference rate movements (SOFR/LIBOR) affect both existing and new
+  debt equally — they do not independently change the yield
+  differential
+- Market price decline (e.g., debt trading at 95 cents) is NOT
+  reflected in Effective Yield. Market price is a secondary market
+  phenomenon, not a contractual yield component
+- Effective Yield components: contractual margin, reference rate floor
+  benefit (fixed at closing), OID (amortized, fixed at closing), and
+  upfront fees paid to lenders
+
+When asked "would the original yield or current yield be used?": it
+depends on WHY yield changed. SOFR movement affects both sides
+equally. Market price decline is irrelevant to MFN entirely.
+
+### 10. COMBINED MFN-EXEMPT CAPACITY
+
+When asked about total capacity to avoid MFN, compute the COMBINED
+MFN-exempt figure from all available baskets. Present individual
+components AND total: freebie basket + general debt basket + any
+EBITDA-based carveout. This is in ADDITION to unlimited capacity via
+Ratio Debt and Incremental Equivalent Debt (outside MFN scope).
+
+Always present the dollar figure. If data includes
+total_mfn_exempt_capacity_usd, use it. Otherwise sum the components.
+
+### 11. PRIORITY ALTERATION LOOPHOLE
+
+MFN applies to debt that "ranks equal in right of payment" with
+Initial Term Loans AND is "secured on a pari passu basis." A sponsor
+can structure new debt to NOT rank equal in payment priority (e.g.,
+subordinating the payment waterfall) while still obtaining a pari
+passu lien on collateral. This gives equivalent collateral protection
+while technically falling outside MFN scope.
 """
 
 # Ensure uploads directory exists
@@ -1300,7 +1367,18 @@ async def get_mfn_provision(deal_id: str) -> Dict[str, Any]:
 
             # Get pattern flags (flat attributes on mfn_provision)
             pattern_flags = {}
-            for flag_name in ("yield_exclusion_pattern_detected",):
+            for flag_name in (
+                "yield_exclusion_pattern_detected",
+                "reclassification_loophole_detected",
+                "mfn_amendment_vulnerable",
+                "mfn_exclusion_stacking_detected",
+                "sunset_timing_loophole_detected",
+                "bridge_to_term_loophole_detected",
+                "currency_arbitrage_detected",
+                "freebie_oversized_detected",
+                "mfn_margin_only_weakness_detected",
+                "mfn_comprehensive_protection_detected",
+            ):
                 try:
                     flag_query = f"""
                         match
@@ -1599,6 +1677,9 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
             )
             if entity_context:
                 context_parts.append(entity_context)
+                logger.info(f"MFN entity context appended: {len(entity_context)} chars")
+            else:
+                logger.warning("MFN entity context returned empty")
         except Exception as e:
             logger.warning(f"MFN entity context failed: {e}")
 
@@ -1767,7 +1848,9 @@ This block MUST appear at the very end of your response."""
 
 async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> str:
     """Load MFN Channel 3 entities from TypeDB and format as structured text."""
+    logger.info(f"Loading MFN entities for {provision_id}")
     if not typedb_client.driver:
+        logger.warning("TypeDB not connected for MFN entity context")
         return ""
 
     context_parts = []
@@ -1826,6 +1909,9 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
                     lines.append(f"- Page: {page}")
                 lines.append("")
             context_parts.append("\n".join(lines))
+            logger.info(f"  MFN exclusions found: {len(rows)}")
+        else:
+            logger.info("  MFN exclusions found: 0")
     except Exception as e:
         logger.debug(f"MFN exclusion query: {e}")
 
@@ -1887,6 +1973,9 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
                 lines.append("- WARNING: Both OID and floor EXCLUDED — yield comparison nearly meaningless")
 
             context_parts.append("\n".join(lines))
+            logger.info(f"  MFN yield defs found: {len(rows)}")
+        else:
+            logger.info("  MFN yield defs found: 0")
     except Exception as e:
         logger.debug(f"MFN yield query: {e}")
 
@@ -1927,6 +2016,9 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
             if loophole is not None:
                 lines.append(f"- Timing loophole: {'YES — borrower can time issuance after sunset' if loophole else 'NO'}")
             context_parts.append("\n".join(lines))
+            logger.info(f"  MFN sunsets found: {len(rows)}")
+        else:
+            logger.info("  MFN sunsets found: 0")
     except Exception as e:
         logger.debug(f"MFN sunset query: {e}")
 
@@ -1967,6 +2059,9 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
             if total is not None:
                 lines.append(f"- TOTAL MFN-exempt capacity: ${total:,.0f}")
             context_parts.append("\n".join(lines))
+            logger.info(f"  MFN freebies found: {len(rows)}")
+        else:
+            logger.info("  MFN freebies found: 0")
     except Exception as e:
         logger.debug(f"MFN freebie query: {e}")
 
@@ -1979,7 +2074,13 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
                 try {{ $p has reclassification_loophole_detected $rld; }};
                 try {{ $p has mfn_amendment_vulnerable $mav; }};
                 try {{ $p has mfn_exclusion_stacking_detected $esd; }};
-            select $yep, $rld, $mav, $esd;
+                try {{ $p has sunset_timing_loophole_detected $stl; }};
+                try {{ $p has bridge_to_term_loophole_detected $btl; }};
+                try {{ $p has currency_arbitrage_detected $cad; }};
+                try {{ $p has freebie_oversized_detected $fod; }};
+                try {{ $p has mfn_margin_only_weakness_detected $mow; }};
+                try {{ $p has mfn_comprehensive_protection_detected $mcp; }};
+            select $yep, $rld, $mav, $esd, $stl, $btl, $cad, $fod, $mow, $mcp;
         ''')
         if rows:
             row = rows[0]
@@ -1989,12 +2090,23 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
                 ("rld", "Reclassification loophole"),
                 ("mav", "Amendment vulnerable"),
                 ("esd", "Exclusion stacking"),
+                ("stl", "Sunset timing loophole"),
+                ("btl", "Bridge-to-term loophole"),
+                ("cad", "Currency arbitrage"),
+                ("fod", "Freebie oversized"),
+                ("mow", "Margin-only weakness"),
+                ("mcp", "Comprehensive protection"),
             ]
+            flag_count = 0
             for var, label in flags:
                 val = _safe_get_value(row, var)
                 if val is not None:
                     lines.append(f"- {label}: {'YES' if val else 'NO'}")
+                    flag_count += 1
             context_parts.append("\n".join(lines))
+            logger.info(f"  MFN pattern flags: {flag_count}")
+        else:
+            logger.info("  MFN pattern flags: 0")
     except Exception as e:
         logger.debug(f"MFN pattern flags query: {e}")
 
@@ -2021,7 +2133,9 @@ async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> st
     except Exception as e:
         logger.debug(f"MFN cross-ref query: {e}")
 
-    return "\n\n".join(context_parts)
+    result = "\n\n".join(context_parts)
+    logger.info(f"  MFN entity context total: {len(result)} chars")
+    return result
 
 
 def _format_rp_provision_as_context(
@@ -2087,7 +2201,7 @@ def _format_rp_provision_as_context(
 
             source_text = data.get("source_text")
             if source_text:
-                lines.append(f"  Source: \"{source_text[:200]}\"")
+                lines.append(f"  Source: \"{source_text[:500]}\"")
         lines.append("")
 
     # ── Pattern flags ─────────────────────────────────────────────────

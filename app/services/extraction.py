@@ -307,7 +307,7 @@ Return ONLY valid JSON, no markdown fences, no explanation:
 
 {{
   "segments": [
-    {{"segment_type_id": "definitions", "found": true, "section_ref": "Section 1.01", "start_page": 3, "end_page": 58}},
+    {{"segment_type_id": "definitions", "found": true, "section_ref": "as found in document", "start_page": 3, "end_page": 58}},
     {{"segment_type_id": "repricing_protection", "found": false}}
   ]
 }}
@@ -594,7 +594,7 @@ Your output should be 50,000-100,000 characters of verbatim text.
 ## WHAT TO EXTRACT
 
 ### 1. DEFINITIONS
-Find the definitions section (usually Article I, Section 1.01, or just "DEFINITIONS").
+Find the definitions section (usually Article I, or just "DEFINITIONS").
 Extract COMPLETE definitions for these terms (include variants/similar terms):
 
 **Core Restricted Payment terms:**
@@ -1634,8 +1634,8 @@ Return ONLY the JSON array."""
         """
         Extract the MFN-relevant universe from a credit agreement.
 
-        MFN provisions are in the INCREMENTAL FACILITY section (typically
-        Section 2.14 or 2.20), NOT in the covenants section. The MFN universe
+        MFN provisions are in the INCREMENTAL FACILITY section of the
+        agreement, NOT in the covenants section. The MFN universe
         is much shorter than RP — typically 5-15 pages vs 20+.
         """
         MFN_UNIVERSE_PROMPT = """You are a senior leveraged finance attorney. Extract the complete MFN
@@ -1645,27 +1645,27 @@ Return ONLY the JSON array."""
 
 Return the COMPLETE text of all sections relevant to MFN analysis:
 
-1. **The Incremental Facility Section** (typically Section 2.14 or 2.20)
-   — Extract the ENTIRE section, not just the MFN sub-clause. The full
-   incremental facility mechanics provide context for which debt types
-   are subject to MFN.
+1. **The Incremental Facility Section** — Extract the ENTIRE section,
+   not just the MFN sub-clause. The full incremental facility mechanics
+   provide context for which debt types are subject to MFN. This section
+   is titled variations of "Incremental Facilities", "Incremental
+   Commitments and Loans", or "Additional Credit Extensions". The section
+   number varies by document.
 
-2. **The Effective Yield / All-In Yield Definition** (typically in
-   Section 1.01 Definitions) — This defines exactly which components
-   are included in the yield calculation for MFN comparison.
+2. **The Effective Yield / All-In Yield Definition** (in the Definitions
+   section) — This defines exactly which components are included in the
+   yield calculation for MFN comparison.
 
-3. **Amendment Provisions** (typically Section 9.02 or 10.01) — Only
-   the subsections about what constitutes a "sacred right" or what
-   requires all-lender consent vs. Required Lender consent. This
-   determines how easily MFN can be waived.
+3. **Amendment Provisions** — Only the subsections about what constitutes
+   a "sacred right" or what requires all-lender consent vs. Required
+   Lender consent. This determines how easily MFN can be waived.
 
-4. **Debt Incurrence Covenant** (typically Section 6.01) — Only the
-   portions relevant to "Incremental Equivalent Debt", "Ratio Debt",
-   or similar defined terms that describe debt incurred outside the
-   credit agreement framework. This is needed to assess the
-   reclassification loophole.
+4. **Debt Incurrence Covenant** — Only the portions relevant to
+   "Incremental Equivalent Debt", "Ratio Debt", or similar defined terms
+   that describe debt incurred outside the credit agreement framework.
+   This is needed to assess the reclassification loophole.
 
-5. **Related Definitions** from Section 1.01:
+5. **Related Definitions** from the Definitions section:
    - "Incremental Facility", "Incremental Term Loan", "Incremental
      Revolving Commitment"
    - "Incremental Equivalent Debt" or "Credit Agreement Refinancing
@@ -1676,7 +1676,7 @@ Return the COMPLETE text of all sections relevant to MFN analysis:
 
 ## WHAT NOT TO EXTRACT
 
-- Restricted Payments section (Section 6.06) — not relevant to MFN
+- Restricted Payments covenant — not relevant to MFN
 - Financial covenants — not relevant
 - Representations and warranties — not relevant
 - Events of default — not relevant (unless cross-referenced by MFN)
@@ -1728,7 +1728,7 @@ adjustment is automatic. The threshold is stated as a specific number (e.g., 50,
 Read the MFN clause carefully for the precise number — do NOT guess or use a common default.""",
         "MFN2": """Focus on which facility types are covered, lien priority restrictions, and debt
 type exclusions. CRITICAL for ratio debt / incremental equivalent debt (IED): Determine whether
-debt incurred OUTSIDE this credit agreement (e.g., under Section 6.01 debt incurrence covenant)
+debt incurred OUTSIDE this credit agreement (e.g., under the debt incurrence covenant)
 is subject to MFN. The MFN may reference "First Lien Incremental Equivalent Debt" — carefully
 analyze whether IED is included in MFN scope or carved out. If IED is only mentioned within a
 freebie basket cap, that means IED above the cap IS subject to MFN (answer: not excluded).
@@ -1754,11 +1754,13 @@ a credit agreement.
 MFN clauses are located in the INCREMENTAL FACILITY section of a credit
 agreement, NOT in the covenants section. Look in these locations:
 
-1. **Section 2.14** (most common) — "Incremental Facilities" or
-   "Incremental Commitments and Loans"
-2. **Section 2.20** — alternative numbering for incremental facilities
-3. **Section 2.21** or **2.22** — sometimes in larger agreements
-4. **Amendment No. [X]** — MFN may be added or modified by amendment
+MFN clauses are in the INCREMENTAL FACILITY section of a credit
+agreement, NOT in the covenants section. This section is titled
+variations of "Incremental Facilities", "Incremental Commitments and
+Loans", "Incremental Term Loans", or "Additional Credit Extensions".
+It is in the Loans/Commitments article, not the Negative Covenants
+article. The section number varies by document — do NOT assume any
+specific number.
 
 Within the incremental facility section, MFN is typically a sub-clause
 that starts with language like:
@@ -1784,7 +1786,8 @@ that starts with language like:
   debt without triggering MFN adjustment.
 
 - **Incremental Equivalent Debt**: Debt incurred outside the credit
-  agreement (e.g., under the debt incurrence covenant, Section 6.01)
+  agreement (e.g., under the debt incurrence covenant in the Negative
+  Covenants article)
   that is treated as equivalent to incremental facility debt. Whether
   this is subject to MFN is critical — if not, it creates a major
   reclassification loophole.
@@ -1801,7 +1804,7 @@ that starts with language like:
 5. For multiselect questions: return an array of concept_ids that apply.
 6. Always provide source_text — a verbatim quote (30-500 chars).
 7. Always provide source_page — use the [PAGE X] markers in the text.
-8. Always provide source_section — the section reference (e.g., "Section 2.14(d)(iv)").
+8. Always provide source_section — the section reference as it appears in THIS document.
 9. If the MFN provision does not exist, answer mfn_01 as false and
    answer remaining questions as null.
 10. If information is genuinely not specified, answer null."""
@@ -1900,7 +1903,7 @@ Return a JSON object with an "answers" array. Each answer:
   "value": true,
   "source_text": "verbatim quote from document (30-500 chars)",
   "source_page": 45,
-  "source_section": "Section 2.14(d)(iv)",
+  "source_section": "as found in this document",
   "confidence": "high"
 }}
 
@@ -1910,7 +1913,7 @@ For multiselect questions, value is an array of concept_ids:
   "value": ["incremental_term_loans", "ratio_debt"],
   "source_text": "...",
   "source_page": 45,
-  "source_section": "Section 2.14(a)",
+  "source_section": "e.g., Section X.XX(a)",
   "confidence": "high"
 }}
 
@@ -2199,6 +2202,12 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             "reclassification_loophole_detected": "detect_mfn_reclassification_loophole",
             "mfn_amendment_vulnerable": "detect_mfn_amendment_vulnerable",
             "mfn_exclusion_stacking_detected": "detect_mfn_exclusion_stacking",
+            "sunset_timing_loophole_detected": "detect_mfn_sunset_timing_loophole",
+            "bridge_to_term_loophole_detected": "detect_mfn_bridge_to_term_loophole",
+            "currency_arbitrage_detected": "detect_mfn_currency_arbitrage",
+            "freebie_oversized_detected": "detect_mfn_freebie_oversized",
+            "mfn_margin_only_weakness_detected": "detect_mfn_margin_only_weakness",
+            "mfn_comprehensive_protection_detected": "detect_mfn_comprehensive_protection",
         }
 
         for flag_attr, func_name in flag_functions.items():
@@ -2367,7 +2376,7 @@ with the fields described in the instructions above. Example:
       "exclusion_type": "acquisition",
       "exclusion_has_cap": false,
       ...
-      "section_reference": "Section 2.14(d)(iv)",
+      "section_reference": "as found in this document",
       "source_text": "verbatim quote (30-500 chars)",
       "source_page": 45,
       "confidence": "high"
