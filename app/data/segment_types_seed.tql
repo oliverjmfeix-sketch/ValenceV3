@@ -23,7 +23,7 @@ $seg_commitments isa document_segment_type,
 $seg_incremental isa document_segment_type,
     has segment_type_id "incremental_facility",
     has name "Incremental Facilities / MFN Provision",
-    has find_description "The section allowing additional debt to be incurred under the credit agreement. Look for: 'Incremental Term Loans', 'Incremental Facilities', 'Incremental Commitments', 'Effective Yield', 'Most Favored Nation'. Contains the MFN yield protection clause. In UK-style agreements, look for 'Accordion', 'Additional Facility'.",
+    has find_description "The section allowing additional debt to be incurred under the credit agreement. Look for ANY of these language patterns: 'Incremental Term Loans', 'Incremental Term Facilities', 'Incremental Facilities', 'Incremental Commitments', 'Incremental Assumption Agreement', 'Additional Credit Extensions', 'Effective Yield', 'Most Favored Nation', 'MFN'. This section is within the lending mechanics article (NOT the negative covenants article). It authorizes the borrower to add new tranches of debt under the existing agreement, subject to conditions. Contains the MFN yield protection clause if one exists. In UK-style agreements, look for 'Accordion', 'Additional Facility', 'Incremental Facility'.",
     has display_order 3,
     has mfn_universe_field "incremental_facility";
 
