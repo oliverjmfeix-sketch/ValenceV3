@@ -817,9 +817,21 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     progress=90,
                     current_step="Extracting MFN provision..."
                 )
-                mfn_universe_text = extraction_svc.extract_mfn_universe(
-                    result.document_text
+                # Reuse segmentation from RP extraction (already computed)
+                segment_map = result.segment_map
+                if not segment_map:
+                    segment_map = extraction_svc.segment_document(result.document_text)
+
+                mfn_universe_text = extraction_svc._build_mfn_universe_from_segments(
+                    result.document_text, segment_map
                 )
+
+                # Fallback: if segmenter yields too little, use Claude-based extraction
+                if not mfn_universe_text or len(mfn_universe_text) < 1000:
+                    logger.warning("Segmenter MFN universe too small, falling back to Claude")
+                    mfn_universe_text = extraction_svc.extract_mfn_universe(
+                        result.document_text
+                    )
                 if mfn_universe_text:
                     # Persist MFN universe text for eval pipeline
                     mfn_universe_path = os.path.join(

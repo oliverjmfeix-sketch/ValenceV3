@@ -11,7 +11,8 @@ $seg_definitions isa document_segment_type,
     has name "Definitions",
     has find_description "The defined terms section. Contains all defined terms for the agreement, typically the longest single section (30-100 pages). Look for: 'Defined Terms', a long alphabetical list of quoted terms followed by 'means' or 'shall mean'. Every credit agreement has this section.",
     has display_order 1,
-    has rp_universe_field "definitions";
+    has rp_universe_field "definitions",
+    has mfn_universe_field "definitions";
 
 $seg_commitments isa document_segment_type,
     has segment_type_id "commitments_and_loans",
@@ -23,7 +24,8 @@ $seg_incremental isa document_segment_type,
     has segment_type_id "incremental_facility",
     has name "Incremental Facilities / MFN Provision",
     has find_description "The section allowing additional debt to be incurred under the credit agreement. Look for: 'Incremental Term Loans', 'Incremental Facilities', 'Incremental Commitments', 'Effective Yield', 'Most Favored Nation'. Contains the MFN yield protection clause. In UK-style agreements, look for 'Accordion', 'Additional Facility'.",
-    has display_order 3;
+    has display_order 3,
+    has mfn_universe_field "incremental_facility";
 
 $seg_prepayments isa document_segment_type,
     has segment_type_id "prepayments",
@@ -65,7 +67,8 @@ $seg_debt isa document_segment_type,
     has segment_type_id "negative_cov_debt",
     has name "Debt Incurrence Covenant",
     has find_description "Restrictions on incurring additional debt. Look for: 'shall not create, incur, assume or suffer to exist any Indebtedness', 'Limitation on Indebtedness', 'Permitted Indebtedness'. Contains permitted debt baskets. In UK-style agreements, look for 'Financial Indebtedness' restrictions.",
-    has display_order 10;
+    has display_order 10,
+    has mfn_universe_field "debt_incurrence";
 
 $seg_liens isa document_segment_type,
     has segment_type_id "negative_cov_liens",
@@ -137,4 +140,5 @@ $seg_amendments isa document_segment_type,
     has segment_type_id "amendments_waivers",
     has name "Amendments and Waivers",
     has find_description "How the agreement can be modified. Look for: 'Amendments', 'Waivers', 'no amendment or waiver of any provision', 'Required Lenders', 'consent of each Lender directly and adversely affected'. Contains voting thresholds, sacred rights, and amendment mechanics.",
-    has display_order 21;
+    has display_order 21,
+    has mfn_universe_field "amendments_waivers";

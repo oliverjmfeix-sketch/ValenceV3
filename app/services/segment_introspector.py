@@ -41,7 +41,8 @@ def get_segment_types() -> List[Dict]:
                         has find_description $desc,
                         has display_order $order;
                     try { $s has rp_universe_field $rpf; };
-                select $sid, $name, $desc, $order, $rpf;
+                    try { $s has mfn_universe_field $mfnf; };
+                select $sid, $name, $desc, $order, $rpf, $mfnf;
             """).resolve()
 
             segments = []
@@ -54,12 +55,16 @@ def get_segment_types() -> List[Dict]:
                 rpf_concept = row.get("rpf")
                 rpf = rpf_concept.as_attribute().get_value() if rpf_concept else None
 
+                mfnf_concept = row.get("mfnf")
+                mfnf = mfnf_concept.as_attribute().get_value() if mfnf_concept else None
+
                 segments.append({
                     "segment_type_id": sid,
                     "name": name,
                     "find_description": desc,
                     "display_order": order,
                     "rp_universe_field": rpf,
+                    "mfn_universe_field": mfnf,
                 })
 
             segments.sort(key=lambda x: x["display_order"])
@@ -83,6 +88,20 @@ def get_rp_segment_mapping() -> Dict[str, str]:
         s["segment_type_id"]: s["rp_universe_field"]
         for s in segments
         if s.get("rp_universe_field")
+    }
+
+
+def get_mfn_segment_mapping() -> Dict[str, str]:
+    """
+    Get segment_type_id -> mfn_universe_field mapping.
+    Only returns segments that map to MFN universe fields.
+    SSoT: loaded from TypeDB mfn_universe_field attribute.
+    """
+    segments = get_segment_types()
+    return {
+        s["segment_type_id"]: s["mfn_universe_field"]
+        for s in segments
+        if s.get("mfn_universe_field")
     }
 
 

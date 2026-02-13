@@ -141,6 +141,7 @@ class ExtractionResult:
     rp_universe_chars: int = 0
     rp_universe: Optional['RPUniverse'] = None  # Retained for J.Crew pipeline
     document_text: Optional[str] = None         # Retained for J.Crew pipeline
+    segment_map: Optional[dict] = None          # Reused for MFN universe extraction
 
 
 # =============================================================================
@@ -199,6 +200,7 @@ class ExtractionService:
         logger.info(f"Segmenting {doc_len} char document for RP universe")
 
         segment_map = self.segment_document(document_text)
+        self._last_segment_map = segment_map  # Retained for MFN universe reuse
 
         found_count = sum(
             1 for s in segment_map.get("segments", [])
@@ -398,6 +400,44 @@ CRITICAL:
 
         universe.raw_text = self._build_combined_context(universe)
         return universe
+
+    def _build_mfn_universe_from_segments(
+        self, document_text: str, segment_map: dict
+    ) -> Optional[str]:
+        """
+        Build MFN universe by slicing document at segment page boundaries.
+        Returns plain text string (same interface as extract_mfn_universe).
+
+        Mirrors _build_rp_universe_from_segments but:
+        - Uses get_mfn_segment_mapping() instead of get_rp_segment_mapping()
+        - Returns concatenated string instead of RPUniverse object
+        """
+        from app.services.segment_introspector import get_mfn_segment_mapping
+
+        mfn_mapping = get_mfn_segment_mapping()
+
+        segments_by_id = {
+            s["segment_type_id"]: s
+            for s in segment_map.get("segments", [])
+            if s.get("found", True)
+        }
+
+        parts = []
+        for seg_id, mfn_field in mfn_mapping.items():
+            seg = segments_by_id.get(seg_id)
+            if seg:
+                sliced = self._slice_by_pages(
+                    document_text, seg["start_page"], seg["end_page"]
+                )
+                if sliced:
+                    parts.append(f"=== {mfn_field.upper()} ===\n{sliced}")
+
+        if not parts:
+            return None
+
+        result = "\n\n".join(parts)
+        logger.info(f"MFN universe from segments: {len(result)} chars")
+        return result
 
     # =========================================================================
     # STEP 2 (LEGACY): Format-Agnostic Universe Extraction
@@ -2260,6 +2300,7 @@ If no entities of this type exist, return: {{"entities": []}}
         # Step 2: Extract RP Universe
         logger.info("Step 2: Extracting RP-Relevant Universe...")
         rp_universe = self.extract_rp_universe(document_text)
+        segment_map = getattr(self, '_last_segment_map', None)
         universe_chars = len(rp_universe.raw_text)
         logger.info(f"RP Universe extracted: {universe_chars} chars")
 
@@ -2321,6 +2362,7 @@ If no entities of this type exist, return: {{"entities": []}}
             rp_universe_chars=universe_chars,
             rp_universe=rp_universe,
             document_text=document_text,
+            segment_map=segment_map,
         )
 
     # =========================================================================
