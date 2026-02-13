@@ -1512,6 +1512,228 @@ Return ONLY the JSON object. No markdown, no explanation."""
         '''
         self._execute_query(query)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MFN ENTITY STORAGE (Channel 3)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def store_mfn_exclusion(self, provision_id: str, entity_data: dict) -> str:
+        """Store mfn_exclusion entity + provision_has_exclusion relation."""
+        excl_id = f"mfn_excl_{self.deal_id}_{uuid.uuid4().hex[:8]}"
+        attrs = [f'has exclusion_id "{excl_id}"']
+
+        field_map = {
+            "exclusion_type": ("string", "exclusion_type"),
+            "exclusion_has_cap": ("bool", "exclusion_has_cap"),
+            "exclusion_cap_usd": ("double", "exclusion_cap_usd"),
+            "exclusion_cap_pct_ebitda": ("double", "exclusion_cap_pct_ebitda"),
+            "exclusion_conditions": ("string", "exclusion_conditions"),
+            "can_stack_with_other_exclusions": ("bool", "can_stack_with_other_exclusions"),
+            "excludes_from_mfn": ("bool", "excludes_from_mfn"),
+            "section_reference": ("string", "section_reference"),
+            "source_text": ("string", "source_text"),
+            "confidence": ("string", "confidence"),
+        }
+        attrs.extend(self._build_attrs_from_data(entity_data, field_map))
+
+        if entity_data.get("source_page") is not None:
+            attrs.append(f'has source_page {int(entity_data["source_page"])}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa mfn_provision, has provision_id "{provision_id}";
+            insert
+                $excl isa mfn_exclusion,
+                {attrs_str};
+                (provision: $prov, exclusion: $excl) isa provision_has_exclusion;
+        '''
+        self._execute_query(query)
+        logger.debug(f"Stored mfn_exclusion: {excl_id}")
+        return excl_id
+
+    def store_mfn_yield_definition(self, provision_id: str, entity_data: dict) -> str:
+        """Store mfn_yield_definition entity + provision_has_yield_def relation."""
+        yield_id = f"mfn_yield_{self.deal_id}_{uuid.uuid4().hex[:8]}"
+        attrs = [f'has yield_def_id "{yield_id}"']
+
+        field_map = {
+            "defined_term": ("string", "defined_term"),
+            "includes_margin": ("bool", "includes_margin"),
+            "includes_floor_benefit": ("bool", "includes_floor_benefit"),
+            "includes_oid": ("bool", "includes_oid"),
+            "includes_upfront_fees": ("bool", "includes_upfront_fees"),
+            "includes_commitment_fees": ("bool", "includes_commitment_fees"),
+            "includes_other_fees": ("bool", "includes_other_fees"),
+            "oid_amortization_method": ("string", "oid_amortization_method"),
+            "comparison_baseline": ("string", "comparison_baseline"),
+            "section_reference": ("string", "section_reference"),
+            "source_text": ("string", "source_text"),
+            "confidence": ("string", "confidence"),
+        }
+        attrs.extend(self._build_attrs_from_data(entity_data, field_map))
+
+        if entity_data.get("source_page") is not None:
+            attrs.append(f'has source_page {int(entity_data["source_page"])}')
+        if entity_data.get("oid_amortization_years") is not None:
+            attrs.append(f'has oid_amortization_years {int(entity_data["oid_amortization_years"])}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa mfn_provision, has provision_id "{provision_id}";
+            insert
+                $ydef isa mfn_yield_definition,
+                {attrs_str};
+                (provision: $prov, yield_def: $ydef) isa provision_has_yield_def;
+        '''
+        self._execute_query(query)
+        logger.debug(f"Stored mfn_yield_definition: {yield_id}")
+        return yield_id
+
+    def store_mfn_sunset_provision(self, provision_id: str, entity_data: dict) -> str:
+        """Store mfn_sunset_provision entity + provision_has_sunset relation."""
+        sunset_id = f"mfn_sunset_{self.deal_id}_{uuid.uuid4().hex[:8]}"
+        attrs = [f'has sunset_id "{sunset_id}"']
+
+        field_map = {
+            "sunset_exists": ("bool", "sunset_exists"),
+            "sunset_trigger_event": ("string", "sunset_trigger_event"),
+            "sunset_resets_on_refi": ("bool", "sunset_resets_on_refi"),
+            "sunset_tied_to_maturity": ("bool", "sunset_tied_to_maturity"),
+            "sunset_timing_loophole": ("bool", "sunset_timing_loophole"),
+            "section_reference": ("string", "section_reference"),
+            "source_text": ("string", "source_text"),
+            "confidence": ("string", "confidence"),
+        }
+        attrs.extend(self._build_attrs_from_data(entity_data, field_map))
+
+        if entity_data.get("source_page") is not None:
+            attrs.append(f'has source_page {int(entity_data["source_page"])}')
+        if entity_data.get("sunset_period_months") is not None:
+            attrs.append(f'has sunset_period_months {int(entity_data["sunset_period_months"])}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa mfn_provision, has provision_id "{provision_id}";
+            insert
+                $sun isa mfn_sunset_provision,
+                {attrs_str};
+                (provision: $prov, sunset: $sun) isa provision_has_sunset;
+        '''
+        self._execute_query(query)
+        logger.debug(f"Stored mfn_sunset_provision: {sunset_id}")
+        return sunset_id
+
+    def store_mfn_freebie_basket(self, provision_id: str, entity_data: dict) -> str:
+        """Store mfn_freebie_basket entity + provision_has_freebie relation."""
+        freebie_id = f"mfn_freebie_{self.deal_id}_{uuid.uuid4().hex[:8]}"
+        attrs = [f'has freebie_id "{freebie_id}"']
+
+        field_map = {
+            "uses_greater_of": ("bool", "uses_greater_of"),
+            "stacks_with_general_basket": ("bool", "stacks_with_general_basket"),
+            "section_reference": ("string", "section_reference"),
+            "source_text": ("string", "source_text"),
+            "confidence": ("string", "confidence"),
+        }
+        attrs.extend(self._build_attrs_from_data(entity_data, field_map))
+
+        if entity_data.get("source_page") is not None:
+            attrs.append(f'has source_page {int(entity_data["source_page"])}')
+
+        for dbl_field in ("dollar_amount_usd", "ebitda_pct",
+                          "general_basket_amount_usd", "total_mfn_exempt_capacity_usd"):
+            if entity_data.get(dbl_field) is not None:
+                attrs.append(f'has {dbl_field} {float(entity_data[dbl_field])}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa mfn_provision, has provision_id "{provision_id}";
+            insert
+                $fb isa mfn_freebie_basket,
+                {attrs_str};
+                (provision: $prov, freebie: $fb) isa provision_has_freebie;
+        '''
+        self._execute_query(query)
+        logger.debug(f"Stored mfn_freebie_basket: {freebie_id}")
+        return freebie_id
+
+    def _build_attrs_from_data(self, data: dict, field_map: dict) -> list:
+        """Build TypeQL attribute clauses from entity data dict.
+
+        field_map: {json_key: (type, tql_attr_name)}
+        type is 'string', 'bool', 'double', or 'int'.
+        """
+        attrs = []
+        for json_key, (ftype, tql_name) in field_map.items():
+            val = data.get(json_key)
+            if val is None:
+                continue
+            if ftype == "string":
+                attrs.append(f'has {tql_name} "{self._escape(str(val)[:2000])}"')
+            elif ftype == "bool":
+                attrs.append(f'has {tql_name} {str(val).lower()}')
+            elif ftype == "double":
+                attrs.append(f'has {tql_name} {float(val)}')
+            elif ftype == "int":
+                attrs.append(f'has {tql_name} {int(val)}')
+        return attrs
+
+    MFN_ENTITY_STORE_MAP = {
+        "mfn_exclusion": "store_mfn_exclusion",
+        "mfn_yield_definition": "store_mfn_yield_definition",
+        "mfn_sunset_provision": "store_mfn_sunset_provision",
+        "mfn_freebie_basket": "store_mfn_freebie_basket",
+    }
+
+    @classmethod
+    def load_mfn_extraction_metadata(cls) -> list:
+        """Load extraction metadata for MFN entity types only."""
+        driver = typedb_client.driver
+        db_name = settings.typedb_database
+
+        if not driver:
+            logger.warning("No TypeDB driver for MFN metadata")
+            return []
+
+        query = '''
+            match
+                $em isa extraction_metadata,
+                    has metadata_id $id,
+                    has target_entity_type $type,
+                    has extraction_prompt $prompt;
+                $id like "mfn_%";
+            select $id, $type, $prompt, $em;
+        '''
+
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            result = tx.query(query).resolve()
+            rows = list(result.as_concept_rows())
+            tx.close()
+
+            metadata = []
+            for row in rows:
+                item = {
+                    "metadata_id": cls._get_attr(row, "id"),
+                    "target_entity_type": cls._get_attr(row, "type"),
+                    "extraction_prompt": cls._get_attr(row, "prompt"),
+                }
+                meta_id = item["metadata_id"]
+                item.update(cls._get_optional_metadata_attrs(meta_id))
+                metadata.append(item)
+
+            metadata.sort(key=lambda x: x.get("extraction_priority", 99))
+            return metadata
+
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            logger.error(f"Error loading MFN extraction metadata: {e}")
+            return []
+
     def summarize_extraction(self, extraction: RPExtractionV4) -> str:
         """Create summary string of what was extracted."""
         parts = []

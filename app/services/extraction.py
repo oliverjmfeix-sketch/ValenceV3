@@ -1985,6 +1985,141 @@ For multiselect questions, value is an array of concept_ids:
         return "string"
 
     # =========================================================================
+    # MFN ENTITY EXTRACTION (Channel 3)
+    # =========================================================================
+
+    async def run_mfn_entity_extraction(
+        self,
+        deal_id: str,
+        mfn_universe_text: str,
+    ) -> dict:
+        """
+        Extract MFN Channel 3 entities using extraction_metadata from TypeDB.
+
+        Loads metadata for mfn_exclusion, mfn_yield_definition,
+        mfn_sunset_provision, and mfn_freebie_basket. For each metadata
+        entry, calls Claude with the extraction prompt and MFN universe text,
+        then stores the resulting entities via GraphStorage.
+
+        Returns:
+            dict with entity counts and errors
+        """
+        from app.services.graph_storage import GraphStorage
+
+        provision_id = f"{deal_id}_mfn"
+        storage = GraphStorage(deal_id)
+
+        # 1. Load MFN extraction metadata from TypeDB (SSoT)
+        metadata_list = GraphStorage.load_mfn_extraction_metadata()
+        if not metadata_list:
+            logger.warning("No MFN extraction metadata found in TypeDB")
+            return {"entities_stored": 0, "errors": ["No MFN metadata in TypeDB"]}
+
+        logger.info(
+            f"MFN entity extraction: {len(metadata_list)} metadata entries loaded"
+        )
+
+        total_entities = 0
+        errors = []
+
+        # 2. For each metadata entry, extract entities
+        for meta in metadata_list:
+            entity_type = meta["target_entity_type"]
+            meta_id = meta["metadata_id"]
+            prompt_text = meta["extraction_prompt"]
+            section_hint = meta.get("extraction_section_hint", "")
+
+            logger.info(f"Extracting {entity_type} ({meta_id})...")
+
+            user_prompt = f"""Extract structured entities from the MFN universe text below.
+
+## ENTITY TYPE: {entity_type}
+
+## EXTRACTION INSTRUCTIONS
+{prompt_text}
+
+## SECTION HINT
+Focus on: {section_hint}
+
+## RESPONSE FORMAT
+
+Return a JSON object with an "entities" array. Each entity is a JSON object
+with the fields described in the instructions above. Example:
+
+{{
+  "entities": [
+    {{
+      "exclusion_type": "acquisition",
+      "exclusion_has_cap": false,
+      ...
+      "section_reference": "Section 2.14(d)(iv)",
+      "source_text": "verbatim quote (30-500 chars)",
+      "source_page": 45,
+      "confidence": "high"
+    }}
+  ]
+}}
+
+If no entities of this type exist, return: {{"entities": []}}
+
+## MFN UNIVERSE TEXT
+
+{mfn_universe_text}"""
+
+            try:
+                response = self.client.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=8000,
+                    messages=[{"role": "user", "content": user_prompt}],
+                )
+
+                text = response.content[0].text.strip()
+                if text.startswith("```"):
+                    text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+
+                result = json.loads(text)
+                entities = result.get("entities", [])
+
+                if not entities:
+                    logger.info(f"  {entity_type}: no entities found")
+                    continue
+
+                # 3. Store each entity via the appropriate GraphStorage method
+                store_method_name = storage.MFN_ENTITY_STORE_MAP.get(entity_type)
+                if not store_method_name:
+                    errors.append(f"No store method for {entity_type}")
+                    continue
+
+                store_method = getattr(storage, store_method_name)
+                stored = 0
+                for entity_data in entities:
+                    try:
+                        store_method(provision_id, entity_data)
+                        stored += 1
+                    except Exception as e:
+                        errors.append(f"{entity_type} store error: {e}")
+                        logger.warning(f"  {entity_type} store error: {e}")
+
+                total_entities += stored
+                logger.info(f"  {entity_type}: stored {stored}/{len(entities)}")
+
+            except json.JSONDecodeError as e:
+                errors.append(f"{meta_id} JSON parse error: {e}")
+                logger.warning(f"  {meta_id}: JSON parse error")
+            except Exception as e:
+                errors.append(f"{meta_id} extraction error: {e}")
+                logger.warning(f"  {meta_id}: extraction error: {e}")
+
+        logger.info(
+            f"MFN entity extraction complete: {total_entities} entities stored"
+        )
+        return {
+            "entities_stored": total_entities,
+            "metadata_entries": len(metadata_list),
+            "errors": errors,
+        }
+
+    # =========================================================================
     # MAIN EXTRACTION FLOW
     # =========================================================================
 

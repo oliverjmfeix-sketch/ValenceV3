@@ -813,6 +813,21 @@ async def run_extraction(deal_id: str, pdf_path: str):
                             f"MFN extraction complete: "
                             f"{mfn_result['answered']}/{mfn_result['total_questions']} answers"
                         )
+
+                        # Step 3: MFN entity extraction (Channel 3)
+                        extraction_status[deal_id] = ExtractionStatus(
+                            deal_id=deal_id,
+                            status="extracting",
+                            progress=95,
+                            current_step="Extracting MFN entities..."
+                        )
+                        mfn_entity_result = await extraction_svc.run_mfn_entity_extraction(
+                            deal_id, mfn_universe_text
+                        )
+                        logger.info(
+                            f"MFN entity extraction: "
+                            f"{mfn_entity_result['entities_stored']} entities stored"
+                        )
                     else:
                         logger.warning(
                             f"MFN extraction returned no answers: "
