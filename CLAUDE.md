@@ -7,6 +7,7 @@
 1. **NEVER touch `C:\Users\olive\mfn-lens-main`** — that is a DEPRECATED repo. All work happens here in ValenceV3.
 2. **ALWAYS push after commit:** `git push origin main`
 3. Railway auto-deploys from GitHub. **NEVER use `railway up`.**
+4. **NEVER install typedb-driver locally.** It only exists on Railway. Do NOT run TypeDB scripts locally — make code changes, commit, push. Railway runs them on deploy.
 
 ## Repo & Deployment
 
@@ -139,6 +140,13 @@ that the database exists.
 - **Fresh deploy:** run `python -m app.scripts.init_schema` first, then start server
 - **Server restart:** just starts, no re-seeding, fast startup
 - **Schema changes:** run init_schema.py again (drop/recreate)
+
+### Development Workflow for Seed Data Changes
+1. Edit the `.tql` seed files locally
+2. `git add` → `git commit` → `git push origin main`
+3. Railway auto-deploys and runs init_schema.py
+4. **Do NOT** try to run seed scripts locally — typedb-driver is not installed locally
+5. **Do NOT** write temp Python scripts to reseed — just commit and push
 
 ## Extraction Pipeline
 
