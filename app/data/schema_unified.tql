@@ -150,6 +150,9 @@ attribute jcrew_pattern_detected, value boolean;
 attribute serta_pattern_detected, value boolean;
 attribute collateral_leakage_pattern_detected, value boolean;
 attribute yield_exclusion_pattern_detected, value boolean;
+attribute reclassification_loophole_detected, value boolean;
+attribute mfn_amendment_vulnerable, value boolean;
+attribute mfn_exclusion_stacking_detected, value boolean;
 
 # ─── Entity attributes ───────────────────────────────────────────────────────
 #
@@ -375,43 +378,10 @@ entity provision @abstract,
     plays answer_has_citation:cited_answer;
 
 entity mfn_provision sub provision,
-    owns mfn_exists,
-    owns mfn_section_reference,
-    owns mfn_threshold_bps,
-    owns threshold_applies_to_margin_only,
-    owns mfn_adjustment_automatic,
-    owns mfn_adjustment_scope,
-    owns mfn_bilateral,
-    owns acquisition_debt_excluded,
-    owns refinancing_debt_excluded,
-    owns ratio_debt_excluded,
-    owns bridge_financing_excluded,
-    owns revolving_excluded,
-    owns other_mfn_exclusions,
-    owns same_currency_only,
-    owns mfn_de_minimis_threshold,
-    owns oid_included_in_yield,
-    owns floor_included_in_yield,
-    owns upfront_fees_included_in_yield,
-    owns oid_amortization_method,
-    owns oid_amortization_years,
-    owns yield_comparison_methodology,
-    owns fixed_vs_floating_differentiation,
-    owns yield_determination_party,
-    owns sunset_exists,
-    owns sunset_period_months,
-    owns sunset_tied_to_maturity,
-    owns sunset_resets_on_refi,
-    owns sunset_timing_loophole,
-    owns mfn_waiver_consent_threshold,
-    owns mfn_is_sacred_right,
-    owns mfn_transaction_specific_waiver,
-    owns agent_discretion_in_mfn,
-    owns affected_lender_opt_out,
-    owns reclassification_loophole_exists,
-    owns yield_exclusion_pattern,
     owns yield_exclusion_pattern_detected,
-    owns bridge_to_term_loophole;
+    owns reclassification_loophole_detected,
+    owns mfn_amendment_vulnerable,
+    owns mfn_exclusion_stacking_detected;
 
 entity rp_provision sub provision,
     owns jcrew_pattern_detected,
