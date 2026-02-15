@@ -378,6 +378,7 @@ entity rp_provision sub provision,
     plays provision_has_blocker:provision,
     plays provision_has_unsub:provision,
     plays provision_has_sweep_tier:provision,
+    plays provision_has_sweep_exemption:provision,
     plays provision_has_de_minimis:provision,
     plays provision_has_reallocation:provision,
     plays provision_has_pathway:provision;
@@ -1125,6 +1126,7 @@ relation provision_cross_reference,
 #     "blocker_has_exception"       → blocker_has_exception
 #     "provision_has_unsub"         → provision_has_unsub
 #     "provision_has_sweep_tier"    → provision_has_sweep_tier
+#     "provision_has_sweep_exemption" → provision_has_sweep_exemption
 #     "provision_has_de_minimis"    → provision_has_de_minimis
 #     "provision_has_reallocation"  → provision_has_reallocation
 #     "provision_has_pathway"       → provision_has_pathway
@@ -1161,6 +1163,10 @@ relation provision_has_unsub,
 relation provision_has_sweep_tier,
     relates provision,
     relates tier;
+
+relation provision_has_sweep_exemption,
+    relates provision,
+    relates exemption;
 
 relation provision_has_de_minimis,
     relates provision,
@@ -1229,7 +1235,8 @@ attribute exemption_name, value string;
 
 entity sweep_exemption @abstract,
     owns exemption_id @key,
-    owns exemption_name;
+    owns exemption_name,
+    plays provision_has_sweep_exemption:exemption;
 
 entity non_collateral_exemption sub sweep_exemption;
 entity ordinary_course_sale_exemption sub sweep_exemption;
