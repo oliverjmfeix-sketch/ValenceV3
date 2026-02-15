@@ -211,9 +211,9 @@ class GraphQueries:
         """Get IP types covered by a blocker."""
         query = f'''
             match
-                $b isa blocker, has blocker_id "{blocker_id}";
-                ($b, $ip) isa blocker_covers;
-                $ip has ip_type_id $ipid;
+                $b isa jcrew_blocker, has blocker_id "{blocker_id}";
+                ($b, $ip) isa blocker_covers_ip_type;
+                $ip has concept_id $ipid;
             select $ipid;
         '''
         rows = self._execute_read(query)

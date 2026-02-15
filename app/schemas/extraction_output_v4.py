@@ -709,6 +709,16 @@ class RPExtractionV4(BaseModel):
     # ─────────────────────────────────────────────────────────────────────────
     sweep_tiers: List[SweepTier] = Field(default_factory=list)
     de_minimis_thresholds: List[DeMinimisThreshold] = Field(default_factory=list)
+    sweep_exemptions: List[Literal[
+        "non_collateral",
+        "ordinary_course_sale",
+        "casualty",
+        "below_threshold",
+        "ratio_basket"
+    ]] = Field(
+        default_factory=list,
+        description="Asset sale types exempt from mandatory prepayment. IDs match seed data in seed_v4_data.tql."
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # REALLOCATION

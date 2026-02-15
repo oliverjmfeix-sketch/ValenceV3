@@ -625,6 +625,13 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 except Exception as e:
                     results["errors"].append(f"De minimis: {str(e)[:100]}")
 
+            # Store sweep exemptions (link to pre-seeded reference entities)
+            for exemption_id in extraction.sweep_exemptions:
+                try:
+                    self._link_exemption_to_provision(provision_id, exemption_id)
+                except Exception as e:
+                    results["errors"].append(f"Sweep exemption '{exemption_id}': {str(e)[:100]}")
+
             # Store reallocations (note: need basket IDs, may fail if baskets don't exist)
             for realloc in extraction.reallocations:
                 try:
@@ -1329,8 +1336,21 @@ Return ONLY the JSON object. No markdown, no explanation."""
         for i, exc in enumerate(blocker.exceptions):
             self._store_blocker_exception_v4(blocker_id, exc, i)
 
-        # Note: IP types and bound parties would need seed data to link
-        # For now, we store the data on the blocker itself
+        # Link to seeded IP type reference entities
+        # concept_id values in seeds match Pydantic Literal values ("patents", "trademarks", etc.)
+        for ip_type_id in blocker.covered_ip_types:
+            try:
+                self._link_blocker_to_ip_type(blocker_id, ip_type_id)
+            except Exception as e:
+                logger.warning(f"Could not link IP type '{ip_type_id}' to blocker: {e}")
+
+        # TODO: bound_parties not linked to graph — schema conflict between
+        # restricted_party entities (V4 path, party_id key) and covered_entity_type
+        # concepts (J.Crew v2 path, concept_id key). blocker_binds relation roles
+        # are (provision, bound_entity_type) for the v2 pattern, incompatible with
+        # (blocker, party) that the legacy link function expects.
+        # Long-term: deprecate restricted_party entities, use concept_applicability.
+        # Data IS captured in Pydantic model and available to Q&A synthesis.
 
     def _store_blocker_exception_v4(self, blocker_id: str, exc, index: int):
         """Store blocker exception."""
@@ -2199,14 +2219,20 @@ Return ONLY the JSON object. No markdown, no explanation."""
         '''
         self._execute_query(query)
 
-    def _link_blocker_to_ip_type(self, blocker_id: str, ip_type_id: str, scope: str = "full"):
-        """Link blocker to IP type it covers."""
+    def _link_blocker_to_ip_type(self, blocker_id: str, ip_type_concept_id: str, scope: str = "full"):
+        """Link blocker to IP type it covers.
+
+        Fixed from legacy version:
+        - concept_id (not ip_type_id): ip_type sub concept inherits concept_id @key
+        - blocker_covers_ip_type (not blocker_covers): per schema_unified.tql
+        - jcrew_blocker (not blocker): V4 path creates jcrew_blocker instances
+        """
         query = f'''
             match
-                $blocker isa blocker, has blocker_id "{blocker_id}";
-                $ip isa ip_type, has ip_type_id "{ip_type_id}";
+                $blocker isa jcrew_blocker, has blocker_id "{blocker_id}";
+                $ip isa ip_type, has concept_id "{ip_type_concept_id}";
             insert
-                (blocker: $blocker, ip_type: $ip) isa blocker_covers,
+                (blocker: $blocker, ip_type: $ip) isa blocker_covers_ip_type,
                     has coverage_scope "{scope}";
         '''
         self._execute_query(query)
