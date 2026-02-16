@@ -681,7 +681,7 @@ CRITICAL:
     # STEP 4: Answer Questions Against RP Universe
     # =========================================================================
 
-    def answer_questions_against_universe(
+    def _retired_answer_questions_against_universe(
         self,
         rp_universe: RPUniverse,
         questions_by_category: Dict[str, List[Dict]]
@@ -1146,7 +1146,7 @@ Return ONLY the JSON array."""
         logger.warning("No definitions found for J.Crew analysis — will fall back to RP universe definitions")
         return ""
 
-    async def run_jcrew_deep_analysis(
+    async def _retired_run_jcrew_deep_analysis(
         self,
         deal_id: str,
         rp_universe: RPUniverse,
@@ -2187,7 +2187,7 @@ If no entities of this type exist, return: {{"entities": []}}
     # MAIN EXTRACTION FLOW
     # =========================================================================
 
-    async def extract_rp_provision(
+    async def _retired_extract_rp_provision(
         self,
         pdf_path: str,
         deal_id: str,
@@ -2239,7 +2239,7 @@ If no entities of this type exist, return: {{"entities": []}}
 
         # Step 4: Answer ALL questions against RP Universe
         logger.info("Step 4: Answering questions against RP Universe...")
-        category_answers = self.answer_questions_against_universe(
+        category_answers = self._retired_answer_questions_against_universe(
             rp_universe,
             questions_by_category
         )
@@ -2378,9 +2378,11 @@ If no entities of this type exist, return: {{"entities": []}}
             },
         )
 
-    def _call_claude_v4(self, prompt: str, model: str) -> str:
-        """Call Claude API for V4 structured extraction."""
-        system_prompt = """You are a legal analyst extracting covenant data from credit agreements.
+    # =========================================================================
+    # V4 UNIFIED EXTRACTION (single Claude call for entities + answers)
+    # =========================================================================
+
+    _V4_SYSTEM_PROMPT = """You are a legal analyst extracting covenant data from credit agreements.
 
 RULES:
 1. Return ONLY valid JSON - no markdown code blocks, no explanation before/after
@@ -2396,15 +2398,285 @@ RULES:
     (a) INLINE — full definition text appears in this document (e.g., "Material Intellectual Property" means...)
     (b) CROSS-REFERENCE — defined by reference to another document (e.g., "Intellectual Property" shall have the meaning assigned to such term in the Security Agreement)
     (c) NOT DEFINED — term does not appear in the defined terms section at all
-    A cross-reference IS a definition. When asked if a term is defined, answer true for both inline and cross-reference definitions. When asked to extract a definition, return the cross-reference text verbatim — do not say "NOT DEFINED" for cross-referenced terms. When a term is defined by cross-reference, note which document contains the full definition."""
+    A cross-reference IS a definition. When asked if a term is defined, answer true for both inline and cross-reference definitions. When asked to extract a definition, return the cross-reference text verbatim — do not say "NOT DEFINED" for cross-referenced terms. When a term is defined by cross-reference, note which document contains the full definition.
+11. For flat answers: value types must match answer_type exactly. Booleans are true/false (not strings). Numbers are numeric. Multiselect values are arrays of concept IDs.
+12. source_text in answers MUST be exact verbatim quotes from the document text, not paraphrases or references."""
 
+    async def extract_rp_v4_unified(
+        self,
+        deal_id: str,
+        document_text: str,
+        rp_universe: 'RPUniverse',
+        segment_map: Optional[dict] = None,
+        model: Optional[str] = None,
+    ) -> 'ExtractionResultV4':
+        """
+        V4 Unified extraction pipeline — single Claude call for entities + flat answers.
+
+        Replaces the old per-category extraction loop (10-24 Claude calls)
+        with a single call that produces typed entities AND provision_has_answer records.
+
+        After the main call, runs JC Tiers 2 & 3 separately (different context needed).
+
+        Args:
+            deal_id: The deal being extracted
+            document_text: Full parsed document text
+            rp_universe: Already-extracted RP universe
+            segment_map: Segment map from segmentation (for reuse)
+            model: Claude model to use (default from settings)
+
+        Returns:
+            ExtractionResultV4 with extraction, storage results, and cost data
+        """
+        from app.services.graph_storage import GraphStorage
+        from app.schemas.extraction_output_v4 import RPExtractionV4
+
+        start_time = time.time()
+        model = model or settings.claude_model
+        universe_chars = len(rp_universe.raw_text)
+
+        # Step 1: Load extraction metadata from TypeDB (SSoT)
+        logger.info(f"Unified V4 extraction starting for deal {deal_id}")
+        metadata = GraphStorage.load_extraction_metadata()
+        logger.info(f"Loaded {len(metadata)} extraction metadata instructions")
+
+        # Step 2: Load all RP questions (including JC1, excluding JC2/JC3)
+        all_questions = self.load_questions_by_category("RP")
+
+        # JC1 goes into the unified call (same RP universe context).
+        # JC2/JC3 need separate context, handled after.
+        jc2_questions = all_questions.pop("JC2", [])
+        jc3_questions = all_questions.pop("JC3", [])
+
+        total_questions = sum(len(qs) for qs in all_questions.values())
+        logger.info(
+            f"Loaded {total_questions} questions for unified call "
+            f"({len(all_questions)} categories, JC2={len(jc2_questions)}, JC3={len(jc3_questions)} deferred)"
+        )
+
+        # Step 3: Build unified prompt (entities + questions)
+        prompt = GraphStorage.build_claude_prompt(
+            metadata, rp_universe.raw_text, questions=all_questions
+        )
+        logger.info(f"Unified prompt built: {len(prompt)} chars")
+
+        # Step 4: Call Claude (single call for entities + all RP/JC1 answers)
+        logger.info(f"Calling Claude ({model}) for unified extraction...")
+        response_text = self._call_claude_v4_unified(prompt, model, deal_id)
+        logger.info(f"Response received: {len(response_text)} chars")
+
+        # Collect cost tracking
+        from app.services.cost_tracker import ExtractionCostSummary
+        cost_summary = ExtractionCostSummary(deal_id=deal_id)
+        if getattr(self, '_last_v4_usage', None):
+            self._last_v4_usage.deal_id = deal_id
+            cost_summary.add(self._last_v4_usage)
+
+        # Step 5: Parse response into Pydantic model
+        logger.info("Parsing unified response...")
+        extraction = GraphStorage.parse_claude_response(response_text)
+        logger.info(
+            f"Parsed: {len(extraction.answers)} answers, "
+            f"builder={extraction.builder_basket is not None}, "
+            f"ratio={extraction.ratio_basket is not None}, "
+            f"blocker={extraction.jcrew_blocker is not None}"
+        )
+
+        # Step 6: Store in TypeDB (entities + answers in one pass)
+        storage = GraphStorage(deal_id)
+        logger.info("Storing unified extraction to TypeDB...")
+        storage_result = storage.store_rp_extraction_v4(extraction, deal_id=deal_id)
+        logger.info(f"Storage complete: {storage_result}")
+
+        # Step 7: Run JC Tiers 2 & 3 (separate Claude calls — different context)
+        jc_result = await self._run_jcrew_tiers_2_3(
+            deal_id=deal_id,
+            provision_id=f"{deal_id}_rp",
+            document_text=document_text,
+            rp_universe=rp_universe,
+            jc2_questions=jc2_questions,
+            jc3_questions=jc3_questions,
+        )
+        if jc_result:
+            for step_usage in (getattr(self, '_last_qa_usage', None),):
+                if step_usage:
+                    cost_summary.add(step_usage)
+
+        extraction_time = time.time() - start_time
+        logger.info(f"Unified V4 extraction complete in {extraction_time:.1f}s")
+        cost_summary.log_summary()
+
+        return ExtractionResultV4(
+            deal_id=deal_id,
+            extraction=extraction,
+            storage_result=storage_result,
+            extraction_time_seconds=extraction_time,
+            rp_universe_chars=universe_chars,
+            model_used=model,
+            total_cost_usd=round(cost_summary.total_cost_usd, 4),
+            cost_breakdown={
+                "num_api_calls": len(cost_summary.steps),
+                "total_input_tokens": cost_summary.total_input_tokens,
+                "total_output_tokens": cost_summary.total_output_tokens,
+                "steps": [
+                    {"step": s.step, "model": s.model, "cost_usd": round(s.cost_usd, 4)}
+                    for s in cost_summary.steps
+                ],
+            },
+        )
+
+    def _call_claude_v4_unified(self, prompt: str, model: str, deal_id: Optional[str] = None) -> str:
+        """Call Claude API for V4 unified extraction (entities + answers).
+
+        Uses higher max_tokens (16384) and longer timeout (600s) than
+        entity-only extraction since the response includes both entities and answers.
+        """
+        from app.services.cost_tracker import extract_usage
+        try:
+            start = time.time()
+            response = self.client.messages.create(
+                model=model,
+                max_tokens=16384,
+                system=self._V4_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=600.0  # 10 minute timeout for unified extraction
+            )
+            duration = time.time() - start
+            self._last_v4_usage = extract_usage(
+                response, model, "rp_unified_v4", deal_id=deal_id, duration=duration
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Claude API error (unified): {e}")
+            self._last_v4_usage = None
+            raise
+
+    async def _run_jcrew_tiers_2_3(
+        self,
+        deal_id: str,
+        provision_id: str,
+        document_text: str,
+        rp_universe: 'RPUniverse',
+        jc2_questions: List[Dict],
+        jc3_questions: List[Dict],
+    ) -> Optional[Dict[str, Any]]:
+        """Run J.Crew Tiers 2 & 3 as separate Claude calls.
+
+        Tier 2 needs definitions section context (not RP universe).
+        Tier 3 needs combined context + prior Tier 1/2 answers.
+        JC Tier 1 is absorbed into the unified extraction call.
+
+        Returns summary dict or None if no JC2/JC3 questions.
+        """
+        if not jc2_questions and not jc3_questions:
+            logger.info("No JC2/JC3 questions — skipping tiers 2-3")
+            return None
+
+        start_time = time.time()
+        all_category_answers: List[CategoryAnswers] = []
+        prior_answers_summary: List[str] = []
+        definitions_text = ""
+
+        _XREF_T2 = (
+            "CRITICAL DEFINITIONS RULE: Terms can be defined three ways:\n"
+            "(a) INLINE — full text in this document ('X means...')\n"
+            "(b) CROSS-REFERENCE — defined by reference to another document "
+            "('X shall have the meaning assigned in the Security Agreement')\n"
+            "(c) NOT DEFINED — term does not appear at all\n"
+            "A cross-reference IS a definition. When extracting definitions, "
+            "return the cross-reference language verbatim. When asked if a "
+            "term is defined, answer true for both inline and cross-reference. "
+            "When asked to analyze what a definition includes or excludes, and "
+            "the definition is a cross-reference, state that the analysis "
+            "requires the referenced document and answer SILENT for all "
+            "inclusion/exclusion checks (not EXCLUDED — we don't know what's "
+            "excluded without reading the other document)."
+        )
+        _XREF_T3 = (
+            "DEFINITIONS RULE: Cross-reference definitions (defined by "
+            "reference to another document) are definitions but cannot be "
+            "fully analyzed from this document alone. When a Tier 2 answer "
+            "shows a cross-reference definition, note this as a limitation — "
+            "the definition quality cannot be assessed without the referenced "
+            "document. Do not treat cross-reference definitions as gaps; "
+            "treat them as unknowns."
+        )
+
+        # Tier 2: Definition quality against definitions text
+        if jc2_questions:
+            logger.info(f"J.Crew Tier 2: {len(jc2_questions)} questions against definitions...")
+            definitions_text = self.extract_definitions_section(document_text)
+            if not definitions_text:
+                definitions_text = rp_universe.definitions or rp_universe.raw_text
+
+            t2_answers = self._answer_category_questions(
+                definitions_text,
+                jc2_questions,
+                "J.Crew Tier 2 — Definition Quality",
+                system_instruction=_XREF_T2,
+            )
+            all_category_answers.append(CategoryAnswers(
+                category_id="JC2",
+                category_name="J.Crew Tier 2 — Definition Quality",
+                answers=t2_answers,
+            ))
+            for a in t2_answers:
+                if a.confidence in ("high", "medium"):
+                    prior_answers_summary.append(
+                        f"[{a.question_id}] = {a.value} ({a.confidence})"
+                    )
+            logger.info(f"Tier 2 complete: {len(t2_answers)} answers")
+
+        # Tier 3: Cross-reference against combined context + prior answers
+        if jc3_questions:
+            logger.info(f"J.Crew Tier 3: {len(jc3_questions)} questions (cross-reference)...")
+            combined_parts = [rp_universe.raw_text]
+            if definitions_text:
+                combined_parts.append("\n\n## DEFINITIONS (from document)\n\n")
+                combined_parts.append(definitions_text)
+            if prior_answers_summary:
+                combined_parts.append("\n\n## PRIOR TIER 1 & 2 FINDINGS\n\n")
+                combined_parts.append(
+                    "These findings from earlier analysis tiers are "
+                    "provided for cross-reference:\n"
+                )
+                combined_parts.append("\n".join(prior_answers_summary))
+
+            t3_answers = self._answer_category_questions(
+                "\n".join(combined_parts),
+                jc3_questions,
+                "J.Crew Tier 3 — Cross-Reference Interactions",
+                system_instruction=_XREF_T3,
+            )
+            all_category_answers.append(CategoryAnswers(
+                category_id="JC3",
+                category_name="J.Crew Tier 3 — Cross-Reference Interactions",
+                answers=t3_answers,
+            ))
+            logger.info(f"Tier 3 complete: {len(t3_answers)} answers")
+
+        # Store JC2/JC3 answers
+        if all_category_answers:
+            self.store_extraction_result(deal_id, all_category_answers)
+
+        elapsed = time.time() - start_time
+        total = sum(len(ca.answers) for ca in all_category_answers)
+        logger.info(f"J.Crew Tiers 2-3 complete in {elapsed:.1f}s: {total} answers")
+
+        return {
+            "total_answers": total,
+            "elapsed_seconds": round(elapsed, 1),
+        }
+
+    def _call_claude_v4(self, prompt: str, model: str) -> str:
+        """Call Claude API for V4 structured extraction (entity-only, legacy)."""
         from app.services.cost_tracker import extract_usage
         try:
             start = time.time()
             response = self.client.messages.create(
                 model=model,
                 max_tokens=8192,
-                system=system_prompt,
+                system=self._V4_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=300.0  # 5 minute timeout for extraction
             )

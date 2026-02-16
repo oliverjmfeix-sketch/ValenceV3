@@ -667,99 +667,96 @@ async def run_extraction(deal_id: str, pdf_path: str):
     """
     Background task: extract RP provision from PDF and store in TypeDB.
 
-    Uses the simplified 5-step pipeline:
-    1. Parse PDF
-    2. Extract RP content (ONE Claude call)
-    3. Load questions from TypeDB
-    4. Answer questions by category
-    5. Store results to TypeDB (automatic)
+    V4 Unified pipeline:
+    1. Parse PDF → text with page markers
+    2. Segment document → extract RP universe
+    3. Single Claude call → entities (baskets, blockers, etc.) + flat answers (~200 Q)
+    4. Store entities + answers to TypeDB in one pass
+    5. Run J.Crew Tiers 2-3 (separate context needed)
+    6. Run MFN extraction (separate provision type)
     """
     extraction_svc = get_extraction_service()
 
     try:
-        # Update status: extracting content
+        # Update status: parsing PDF
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="extracting",
             progress=10,
-            current_step="Parsing PDF and extracting RP content..."
+            current_step="Parsing PDF..."
         )
 
-        # Run the simplified extraction pipeline
-        # This handles: parse → extract content → load questions → answer → store
-        result = await extraction_svc.extract_rp_provision(
-            pdf_path=pdf_path,
+        # Step 1: Parse PDF
+        document_text = extraction_svc.parse_document(pdf_path)
+
+        # Step 2: Extract RP Universe
+        extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
-            store_results=True  # Automatically stores to TypeDB
+            status="extracting",
+            progress=20,
+            current_step="Extracting RP-relevant content..."
+        )
+        rp_universe = extraction_svc.extract_rp_universe(document_text)
+        segment_map = getattr(extraction_svc, '_last_segment_map', None)
+        universe_chars = len(rp_universe.raw_text)
+        universe_kb = universe_chars // 1024
+
+        # Cache RP universe text to disk
+        try:
+            universe_path = os.path.join(settings.upload_dir, f"{deal_id}_rp_universe.txt")
+            os.makedirs(settings.upload_dir, exist_ok=True)
+            with open(universe_path, "w", encoding="utf-8") as f:
+                f.write(rp_universe.raw_text)
+        except Exception as e:
+            logger.warning(f"Could not cache RP universe text: {e}")
+
+        # Steps 3-5: V4 Unified extraction (entities + answers + JC tiers 2-3)
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id,
+            status="extracting",
+            progress=40,
+            current_step="Running V4 unified extraction (entities + answers)..."
         )
 
-        # Count answers for status message
-        total_answers = sum(
-            len(cat.answers) for cat in result.category_answers
+        v4_result = await extraction_svc.extract_rp_v4_unified(
+            deal_id=deal_id,
+            document_text=document_text,
+            rp_universe=rp_universe,
+            segment_map=segment_map,
         )
-        high_conf = result.high_confidence_answers
-        universe_kb = result.rp_universe_chars // 1024
+
+        answers_stored = v4_result.storage_result.get("answers_stored", 0)
+        entities_stored = v4_result.storage_result.get("baskets_created", 0)
 
         logger.info(
-            f"Extraction complete for deal {deal_id}: "
-            f"{total_answers} answers in {result.extraction_time_seconds:.1f}s"
+            f"V4 unified extraction for {deal_id}: "
+            f"{answers_stored} answers, {entities_stored} baskets "
+            f"in {v4_result.extraction_time_seconds:.1f}s"
         )
 
-        # ── J.Crew Deep Analysis (non-blocking) ─────────────────────────
-        # Runs 3-tier analysis if JC1/JC2/JC3 questions are seeded in TypeDB.
-        # Failure here does NOT block the main extraction from succeeding.
-        if result.rp_universe and result.document_text:
+        # ── MFN Extraction (non-blocking) ─────────────────────────────
+        # Separate provision type — not affected by RP unification
+        if document_text:
             try:
                 extraction_status[deal_id] = ExtractionStatus(
                     deal_id=deal_id,
                     status="extracting",
                     progress=85,
-                    current_step="Running J.Crew deep analysis (3-tier)..."
-                )
-                jcrew_result = await extraction_svc.run_jcrew_deep_analysis(
-                    deal_id=deal_id,
-                    rp_universe=result.rp_universe,
-                    document_text=result.document_text,
-                )
-                if not jcrew_result.get("skipped"):
-                    jc_answers = jcrew_result.get("total_answers", 0)
-                    jc_high = jcrew_result.get("high_confidence", 0)
-                    logger.info(
-                        f"J.Crew deep analysis for {deal_id}: "
-                        f"{jc_answers} answers ({jc_high} high confidence) "
-                        f"in {jcrew_result.get('elapsed_seconds', 0)}s"
-                    )
-            except Exception as jc_err:
-                logger.error(
-                    f"J.Crew deep analysis failed for {deal_id} (non-blocking): {jc_err}",
-                    exc_info=True
-                )
-
-        # ── MFN Extraction (non-blocking) ─────────────────────────────
-        # Extracts incremental facility / MFN provision and answers 42 questions.
-        # Failure here does NOT block the main extraction from succeeding.
-        if result.document_text:
-            try:
-                extraction_status[deal_id] = ExtractionStatus(
-                    deal_id=deal_id,
-                    status="extracting",
-                    progress=90,
                     current_step="Extracting MFN provision..."
                 )
-                # Reuse segmentation from RP extraction (already computed)
-                segment_map = result.segment_map
+                # Reuse segmentation from RP extraction
                 if not segment_map:
-                    segment_map = extraction_svc.segment_document(result.document_text)
+                    segment_map = extraction_svc.segment_document(document_text)
 
                 mfn_universe_text = extraction_svc._build_mfn_universe_from_segments(
-                    result.document_text, segment_map
+                    document_text, segment_map
                 )
 
                 # Fallback: if segmenter yields too little, use Claude-based extraction
                 if not mfn_universe_text or len(mfn_universe_text) < 1000:
                     logger.warning("Segmenter MFN universe too small, falling back to Claude")
                     mfn_universe_text = extraction_svc.extract_mfn_universe(
-                        result.document_text
+                        document_text
                     )
                 if mfn_universe_text:
                     # Persist MFN universe text for eval pipeline
@@ -772,7 +769,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     logger.info(f"MFN universe saved: {len(mfn_universe_text)} chars")
 
                     mfn_result = await extraction_svc.run_mfn_extraction(
-                        deal_id, mfn_universe_text, result.document_text
+                        deal_id, mfn_universe_text, document_text
                     )
 
                     if mfn_result["answers"]:
@@ -784,7 +781,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
                             f"{mfn_result['answered']}/{mfn_result['total_questions']} answers"
                         )
 
-                        # Step 3: MFN entity extraction (Channel 3)
+                        # MFN entity extraction (Channel 3)
                         extraction_status[deal_id] = ExtractionStatus(
                             deal_id=deal_id,
                             status="extracting",
@@ -826,12 +823,15 @@ async def run_extraction(deal_id: str, pdf_path: str):
         except Exception as xref_err:
             logger.warning(f"Cross-reference creation failed (non-blocking): {xref_err}")
 
-        # Update status: complete (after standard + J.Crew + MFN)
+        # Update status: complete
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id,
             status="complete",
             progress=100,
-            current_step=f"Extracted {total_answers} answers ({high_conf} high confidence), {universe_kb}KB RP universe in {result.extraction_time_seconds:.1f}s"
+            current_step=(
+                f"V4 unified: {answers_stored} answers, {entities_stored} baskets, "
+                f"{universe_kb}KB universe in {v4_result.extraction_time_seconds:.1f}s"
+            )
         )
 
     except Exception as e:

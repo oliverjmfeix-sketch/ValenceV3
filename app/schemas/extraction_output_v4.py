@@ -674,6 +674,23 @@ class InvestmentPathway(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# FLAT ANSWER (Channel 1 — Scalar provision_has_answer)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FlatAnswer(BaseModel):
+    """
+    A single scalar answer to an ontology question.
+    Stored via provision_has_answer relation in TypeDB.
+    """
+    question_id: str = Field(..., description="Ontology question ID (e.g., 'rp_a1')")
+    value: Any = Field(..., description="Answer value (bool, number, string, or list for multiselect)")
+    answer_type: str = Field("string", description="boolean | number | string | multiselect")
+    confidence: Optional[str] = Field(None, description="high | medium | low")
+    source_text: Optional[str] = Field(None, description="Verbatim quote from document (max 500 chars)")
+    source_page: Optional[int] = Field(None, description="PDF page number")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TOP-LEVEL EXTRACTION OUTPUT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -738,6 +755,14 @@ class RPExtractionV4(BaseModel):
     # INVESTMENT PATHWAYS (J.Crew chain analysis)
     # ─────────────────────────────────────────────────────────────────────────
     investment_pathways: List[InvestmentPathway] = Field(default_factory=list)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # FLAT ANSWERS (Channel 1 — scalar provision_has_answer)
+    # ─────────────────────────────────────────────────────────────────────────
+    answers: List[FlatAnswer] = Field(
+        default_factory=list,
+        description="Scalar answers to ontology questions (stored via provision_has_answer)"
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # METADATA

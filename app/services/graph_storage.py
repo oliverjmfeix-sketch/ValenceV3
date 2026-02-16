@@ -124,13 +124,20 @@ class GraphStorage:
             return default
 
     @classmethod
-    def build_claude_prompt(cls, metadata: List[Dict], document_text: str) -> str:
+    def build_claude_prompt(
+        cls,
+        metadata: List[Dict],
+        document_text: str,
+        questions: Optional[Dict[str, List]] = None,
+    ) -> str:
         """
         Build Claude extraction prompt from TypeDB metadata.
 
         Args:
             metadata: List of extraction metadata from load_extraction_metadata()
             document_text: The covenant document text to analyze
+            questions: Optional dict of {category_id: [question_dicts]} for unified extraction.
+                       When provided, appends FlatAnswer schema and question list to prompt.
 
         Returns:
             Formatted prompt string for Claude
@@ -401,6 +408,10 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
                 prompt += f"(Look in: {m['extraction_section_hint']})\n"
             prompt += "\n"
 
+        # Append questions section if provided (unified extraction)
+        if questions:
+            prompt += cls._build_questions_prompt_section(questions)
+
         prompt += f"""
 ## DOCUMENT TEXT
 
@@ -411,6 +422,86 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
 Return ONLY the JSON object. No markdown, no explanation."""
 
         return prompt
+
+    @classmethod
+    def _build_questions_prompt_section(cls, questions: Dict[str, List]) -> str:
+        """Build the questions section for unified extraction prompt.
+
+        Appends FlatAnswer schema definition and formatted question list
+        grouped by category.
+        """
+        section = '''
+
+## FLAT ANSWERS
+
+In ADDITION to the entity extraction above, answer the following questions.
+Include your answers in an `answers` array at the top level of the JSON response.
+
+Each answer object has this schema:
+```json
+{
+  "question_id": "rp_a1",
+  "value": true,
+  "answer_type": "boolean",
+  "confidence": "high",
+  "source_text": "exact verbatim quote from document (max 500 chars)",
+  "source_page": 145
+}
+```
+
+### answer_type values:
+- "boolean": value is true/false
+- "number": value is a number (integer or decimal)
+- "string": value is a text string
+- "multiselect": value is an array of concept IDs from the valid options listed
+
+### confidence values:
+- "high": explicit answer found in text
+- "medium": answer inferred from context
+- "low": uncertain, partial information
+
+### Rules:
+- For boolean questions: value MUST be true or false (not "yes"/"no")
+- For number questions: use raw numbers (130000000 not "130M", 0.5 not "50%")
+- For multiselect questions: value is an array of concept IDs from the listed options
+- source_text MUST be an exact verbatim quote from the document, NOT a reference like "See Section X"
+- Omit questions you cannot answer from the document
+
+## QUESTIONS TO ANSWER
+
+'''
+        # Sort categories for consistent ordering
+        for cat_id in sorted(questions.keys()):
+            cat_questions = questions[cat_id]
+            if not cat_questions:
+                continue
+
+            cat_name = cat_questions[0].get("category_name", cat_id)
+            section += f"### Category {cat_id}: {cat_name} ({len(cat_questions)} questions)\n\n"
+
+            # Sort by display_order
+            for q in sorted(cat_questions, key=lambda x: x.get("display_order", 0)):
+                answer_type = q.get("answer_type", "string")
+                qid = q["question_id"]
+                text = q.get("question_text", "")
+                section += f"- **{qid}**: \"{text}\" ({answer_type})\n"
+
+                # Add extraction hint if available
+                hint = q.get("extraction_prompt")
+                if hint:
+                    section += f"  Hint: {hint}\n"
+
+                # Add multiselect options
+                if answer_type == "multiselect" and q.get("concept_options"):
+                    opts = ", ".join(
+                        f"{opt['id']} ({opt['name']})"
+                        for opt in q["concept_options"]
+                    )
+                    section += f"  Valid options: [{opts}]\n"
+
+            section += "\n"
+
+        return section
 
     @classmethod
     def parse_claude_response(cls, response_text: str) -> RPExtractionV4:
@@ -470,12 +561,17 @@ Return ONLY the JSON object. No markdown, no explanation."""
     # V4 TYPED STORAGE - Works with RPExtractionV4 Pydantic model
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def store_rp_extraction_v4(self, extraction: RPExtractionV4) -> Dict[str, Any]:
+    def store_rp_extraction_v4(
+        self, extraction: RPExtractionV4, deal_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Store V4 extraction as TypeDB graph entities and relations.
 
         Args:
             extraction: Validated RPExtractionV4 Pydantic model
+            deal_id: Optional deal_id for deterministic provision_id.
+                     When provided, provision_id = "{deal_id}_rp" (idempotent).
+                     When None, generates random ID (legacy behavior).
 
         Returns:
             Dict with provision_id and counts of created entities
@@ -491,13 +587,19 @@ Return ONLY the JSON object. No markdown, no explanation."""
             "de_minimis_created": 0,
             "reallocations_created": 0,
             "pathways_created": 0,
+            "answers_stored": 0,
+            "multiselect_stored": 0,
             "errors": []
         }
 
         try:
-            # Create provision and link to deal
-            provision_id = self._gen_id("rp_prov")
-            self._create_rp_provision_v4(provision_id)
+            # Create provision (deterministic ID if deal_id provided)
+            if deal_id:
+                provision_id = f"{deal_id}_rp"
+                self._ensure_rp_provision_v4(provision_id)
+            else:
+                provision_id = self._gen_id("rp_prov")
+                self._create_rp_provision_v4(provision_id)
             results["provision_id"] = provision_id
 
             # Store builder basket
@@ -648,11 +750,44 @@ Return ONLY the JSON object. No markdown, no explanation."""
                 except Exception as e:
                     results["errors"].append(f"Investment pathway: {str(e)[:100]}")
 
+            # Store flat answers (Channel 1 — unified extraction)
+            for answer in extraction.answers:
+                try:
+                    if answer.value is None:
+                        continue
+                    if answer.answer_type == "multiselect" and isinstance(answer.value, list):
+                        # Multiselect: store as concept_applicability relations
+                        for concept_id in answer.value:
+                            self._store_concept_applicability_v4(
+                                provision_id,
+                                answer.question_id,
+                                concept_id,
+                                answer.source_text,
+                                answer.source_page,
+                            )
+                            results["multiselect_stored"] += 1
+                    else:
+                        # Scalar: store via provision_has_answer
+                        coerced = self._coerce_flat_answer(answer.value, answer.answer_type)
+                        if coerced is not None:
+                            self.store_scalar_answer(
+                                provision_id=provision_id,
+                                question_id=answer.question_id,
+                                value=coerced,
+                                source_text=answer.source_text,
+                                source_page=answer.source_page,
+                                confidence=answer.confidence,
+                            )
+                            results["answers_stored"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Answer {answer.question_id}: {str(e)[:100]}")
+
             logger.info(
                 f"V4 extraction stored for {self.deal_id}: "
                 f"{results['baskets_created']} baskets, {results['rdp_baskets_created']} rdp_baskets, "
                 f"{results['sources_created']} sources, {results['pathways_created']} pathways, "
-                f"{results['blockers_created']} blockers, {results['sweep_tiers_created']} tiers"
+                f"{results['blockers_created']} blockers, {results['sweep_tiers_created']} tiers, "
+                f"{results['answers_stored']} answers, {results['multiselect_stored']} multiselect"
             )
 
         except Exception as e:
@@ -677,6 +812,208 @@ Return ONLY the JSON object. No markdown, no explanation."""
         '''
         self._execute_query(query)
         logger.debug(f"Created rp_provision {provision_id}")
+
+    def _ensure_rp_provision_v4(self, provision_id: str):
+        """Create RP provision if it doesn't already exist. Idempotent.
+
+        On re-extraction (provision exists), cleans up old answers/entities
+        so fresh data can be stored without duplicates.
+        """
+        # Check if provision exists
+        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        try:
+            result = list(tx.query(f'''
+                match $p isa rp_provision, has provision_id "{provision_id}";
+                select $p;
+            ''').resolve().as_concept_rows())
+            exists = len(result) > 0
+        finally:
+            tx.close()
+
+        if exists:
+            logger.info(f"Provision {provision_id} exists — cleaning up old data for re-extraction")
+            self._cleanup_provision_data(provision_id)
+            return
+
+        # Create new provision + link to deal
+        self._create_rp_provision_v4(provision_id)
+
+    def _cleanup_provision_data(self, provision_id: str):
+        """Delete old answers, applicabilities, and entity relations for a provision.
+
+        Preserves the provision entity and deal_has_provision link.
+        Called before re-extraction to ensure clean state.
+        """
+        cleanup_queries = [
+            # 1. Delete provision_has_answer relations
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_answer(provision: $p, question: $q);
+            delete $rel;''',
+            # 2. Delete concept_applicability relations
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa concept_applicability(provision: $p, concept: $c);
+            delete $rel;''',
+            # 3. Delete blocker exceptions (must delete before blocker)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, blocker: $b) isa provision_has_blocker;
+                $exc_rel isa blocker_has_exception(blocker: $b, exception: $exc);
+            delete $exc_rel;''',
+            # 4. Delete blocker exception entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, blocker: $b) isa provision_has_blocker;
+                (blocker: $b, exception: $exc) isa blocker_has_exception;
+            delete $exc;''',
+            # 5. Delete builder sources (must delete before basket)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_basket;
+                $src_rel isa builder_has_source(builder: $b, source: $src);
+            delete $src_rel;''',
+            # 6. Delete builder source entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_basket;
+                (builder: $b, source: $src) isa builder_has_source;
+            delete $src;''',
+            # 7. Delete provision_has_basket relations + basket entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_basket(provision: $p, basket: $b);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_basket;
+            delete $b;''',
+            # 8. Delete provision_has_rdp_basket relations + entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_rdp_basket(provision: $p, basket: $b);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_rdp_basket;
+            delete $b;''',
+            # 9. Delete provision_has_blocker relations + blocker entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_blocker(provision: $p, blocker: $b);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, blocker: $b) isa provision_has_blocker;
+            delete $b;''',
+            # 10. Delete provision_has_unsub + unsub entities
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_unsub(provision: $p, unsub: $u);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, unsub: $u) isa provision_has_unsub;
+            delete $u;''',
+            # 11. Delete sweep tiers
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_sweep_tier(provision: $p, tier: $t);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, tier: $t) isa provision_has_sweep_tier;
+            delete $t;''',
+            # 12. Delete de minimis thresholds
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_de_minimis(provision: $p, threshold: $t);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, threshold: $t) isa provision_has_de_minimis;
+            delete $t;''',
+            # 13. Delete reallocations
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_reallocation(provision: $p, reallocation: $r);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, reallocation: $r) isa provision_has_reallocation;
+            delete $r;''',
+            # 14. Delete investment pathways
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_pathway(provision: $p, pathway: $pw);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, pathway: $pw) isa provision_has_pathway;
+            delete $pw;''',
+        ]
+
+        for query in cleanup_queries:
+            try:
+                self._execute_query(query)
+            except Exception:
+                pass  # Silently skip if relation/entity doesn't exist
+
+        logger.info(f"Cleaned up old data for provision {provision_id}")
+
+    @staticmethod
+    def _coerce_flat_answer(value: Any, answer_type: str) -> Any:
+        """Coerce a FlatAnswer value to the correct Python type for store_scalar_answer."""
+        if value is None:
+            return None
+        if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
+            return None
+
+        if answer_type == "boolean":
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() in ("true", "yes", "1")
+            return bool(value)
+
+        if answer_type == "number":
+            try:
+                v = float(str(value).strip("'\""))
+                return int(v) if v == int(v) else v
+            except (ValueError, TypeError):
+                return None
+
+        # Default to string
+        return str(value)
+
+    def _store_concept_applicability_v4(
+        self,
+        provision_id: str,
+        question_id: str,
+        concept_id: str,
+        source_text: Optional[str],
+        source_page: Optional[int],
+    ):
+        """Store a concept applicability relation (multiselect answer)."""
+        attrs = ['has applicability_status "INCLUDED"']
+        if source_text:
+            attrs.append(f'has source_text "{self._escape(source_text[:500])}"')
+        if source_page is not None:
+            attrs.append(f'has source_page {source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+
+        # Derive concept_type from question_id by looking up the question
+        # Use concept_id directly — it references a seeded concept entity
+        query = f'''
+            match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $c isa concept, has concept_id "{concept_id}";
+            insert
+                (provision: $p, concept: $c) isa concept_applicability,
+                {attrs_str};
+        '''
+        self._execute_query(query)
 
     def store_scalar_answer(
         self,
