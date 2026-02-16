@@ -5,7 +5,7 @@ Run this once after setting up TypeDB Cloud:
     python -m app.scripts.init_schema
 
 This creates the database (if needed), loads schema, and seeds all data.
-Loads all 17 TQL files in dependency order.
+Loads all 18 TQL files in dependency order.
 """
 import os
 import sys
@@ -54,22 +54,21 @@ INVESTMENT_PATHWAY_METADATA_FILE = DATA_DIR / "investment_pathway_metadata.tql"
 # 11. V4 seed data (IP types, party types — multiple separate inserts)
 SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
 
-# 12-14. J.Crew deep analysis (concepts, questions, rules)
+# 12-13. J.Crew deep analysis (concepts, questions)
 JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
 JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
-JCREW_FUNCTIONS_FILE = DATA_DIR / "jcrew_functions.tql"
 
-# 15-16. MFN extended data
+# 14-15. MFN extended data
 MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
 MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 
-# 18. MFN extraction metadata
+# 17. MFN extraction metadata
 MFN_METADATA_FILE = DATA_DIR / "mfn_extraction_metadata.tql"
 
-# 19. MFN inference functions
+# 18. MFN inference functions
 MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
 
-# 17. Document segmentation types
+# 16. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
 
@@ -254,7 +253,7 @@ def init_database():
     force = "--force" in sys.argv
 
     logger.info("=" * 60)
-    logger.info("ValenceV3 Schema Initialization (all 17 data files)")
+    logger.info("ValenceV3 Schema Initialization (all 18 data files)")
     logger.info("=" * 60)
 
     driver = get_driver()
@@ -381,33 +380,18 @@ def init_database():
         if SEED_V4_DATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_V4_DATA_FILE)
 
-        # 14. Load J.Crew pattern detection functions (TypeDB 3.x fun syntax)
-        logger.info("\n14. Loading jcrew_functions.tql...")
-        if JCREW_FUNCTIONS_FILE.exists():
-            functions_tql = load_tql_file(JCREW_FUNCTIONS_FILE)
-            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
-            try:
-                tx.query(functions_tql).resolve()
-                tx.commit()
-                logger.info(f"   Loaded J.Crew functions ({len(functions_tql)} chars)")
-            except Exception as e:
-                if tx.is_open():
-                    tx.close()
-                logger.warning(f"   J.Crew functions: {e}")
-                logger.warning("   Pattern detection functions not available. Check TypeDB 3.x fun syntax.")
-
-        # 15. Load MFN extended concepts (after concepts.tql)
-        logger.info("\n15. Loading mfn_concepts_extended.tql...")
+        # 14. Load MFN extended concepts (after concepts.tql)
+        logger.info("\n14. Loading mfn_concepts_extended.tql...")
         if MFN_CONCEPTS_EXTENDED_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_CONCEPTS_EXTENDED_FILE)
 
-        # 16. Load MFN ontology questions (after all concepts and questions)
-        logger.info("\n16. Loading mfn_ontology_questions.tql...")
+        # 15. Load MFN ontology questions (after all concepts and questions)
+        logger.info("\n15. Loading mfn_ontology_questions.tql...")
         if MFN_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_QUESTIONS_FILE)
 
-        # 17. Load document segment types
-        logger.info("\n17. Loading segment_types_seed.tql...")
+        # 16. Load document segment types
+        logger.info("\n16. Loading segment_types_seed.tql...")
         if SEGMENT_TYPES_FILE.exists():
             seg_tql = load_tql_file(SEGMENT_TYPES_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
@@ -420,13 +404,13 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Segment types: {e}")
 
-        # 18. Load MFN extraction metadata
-        logger.info("\n18. Loading mfn_extraction_metadata.tql...")
+        # 17. Load MFN extraction metadata
+        logger.info("\n17. Loading mfn_extraction_metadata.tql...")
         if MFN_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_METADATA_FILE)
 
-        # 19. Load MFN inference functions (SCHEMA transaction)
-        logger.info("\n19. Loading mfn_functions.tql...")
+        # 18. Load MFN inference functions (SCHEMA transaction)
+        logger.info("\n18. Loading mfn_functions.tql...")
         if MFN_FUNCTIONS_FILE.exists():
             functions_tql = load_tql_file(MFN_FUNCTIONS_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
