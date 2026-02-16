@@ -57,7 +57,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000", has deal_name $name;
+            $d isa deal, has deal_id "6297ebfa", has deal_name $name;
         select $name;
     ''', "0a")
     if not rows:
@@ -72,7 +72,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision, has provision_id $pid;
         select $pid;
@@ -89,7 +89,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $a) isa provision_has_answer;
@@ -145,7 +145,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision, has provision_id $pid;
             ($p, $a) isa provision_has_answer;
@@ -164,7 +164,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $a) isa provision_has_answer;
@@ -189,7 +189,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $concept) isa concept_applicability, has applicability_status $status;
@@ -209,7 +209,7 @@ def main():
     print("\n  5a. rp_k1 (blocker exists boolean):")
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $a) isa provision_has_answer;
@@ -226,7 +226,7 @@ def main():
     print("\n  5b. blocker_prohibition_type concepts:")
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $concept) isa concept_applicability;
@@ -242,7 +242,7 @@ def main():
     print("\n  5c. jc_t1_33 (verbatim blocker text):")
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $a) isa provision_has_answer;
@@ -260,7 +260,7 @@ def main():
     print("\n  5d. jcrew_blocker V4 entity:")
     rows = run_query(driver, '''
         match
-            $d isa deal, has deal_id "b6209000";
+            $d isa deal, has deal_id "6297ebfa";
             ($d, $p) isa deal_has_provision;
             $p isa rp_provision;
             ($p, $b) isa provision_has_blocker;
@@ -314,7 +314,7 @@ def main():
     print("=" * 70)
     rows = run_query(driver, '''
         match
-            true == has_pattern_no_blocker("b6209000");
+            true == has_pattern_no_blocker("6297ebfa");
         select;
     ''', "7-composition")
     print(f"  Result: {'matched (true)' if rows else 'empty (false or no data)'}")
