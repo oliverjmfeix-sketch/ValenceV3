@@ -167,7 +167,7 @@ class GraphQueries:
                 "blocker_id": blocker_id,
                 "exceptions": self.get_blocker_exceptions(blocker_id),
                 "ip_types_covered": self.get_blocker_ip_types(blocker_id),
-                "bound_parties": self.get_blocker_parties(blocker_id),
+                # bound_parties: from concept_applicability (Channel 2), not graph entities
             }
 
             # Get J.Crew specific attributes
@@ -218,18 +218,6 @@ class GraphQueries:
         '''
         rows = self._execute_read(query)
         return [self._get_attr(row, "ipid") for row in rows]
-
-    def get_blocker_parties(self, blocker_id: str) -> List[str]:
-        """Get parties bound by a blocker."""
-        query = f'''
-            match
-                $b isa blocker, has blocker_id "{blocker_id}";
-                ($b, $party) isa blocker_binds;
-                $party has party_id $pid;
-            select $pid;
-        '''
-        rows = self._execute_read(query)
-        return [self._get_attr(row, "pid") for row in rows]
 
     # ═══════════════════════════════════════════════════════════════════════════
     # SWEEP CONFIG QUERIES

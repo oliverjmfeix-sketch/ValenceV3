@@ -1210,23 +1210,6 @@ entity extraction_metadata,
     owns context_entities;
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# RESTRICTED PARTY TYPES (bound by J.Crew blocker)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-attribute party_id, value string;
-attribute party_name, value string;
-
-entity restricted_party @abstract,
-    owns party_id @key,
-    owns party_name;
-
-entity borrower_party sub restricted_party;
-entity guarantor_party sub restricted_party;
-entity restricted_sub_party sub restricted_party;
-entity loan_party sub restricted_party;
-entity holdings_party sub restricted_party;
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # SWEEP EXEMPTION TYPES
 # ═══════════════════════════════════════════════════════════════════════════════
 

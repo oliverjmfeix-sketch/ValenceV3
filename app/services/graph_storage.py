@@ -1344,13 +1344,8 @@ Return ONLY the JSON object. No markdown, no explanation."""
             except Exception as e:
                 logger.warning(f"Could not link IP type '{ip_type_id}' to blocker: {e}")
 
-        # TODO: bound_parties not linked to graph — schema conflict between
-        # restricted_party entities (V4 path, party_id key) and covered_entity_type
-        # concepts (J.Crew v2 path, concept_id key). blocker_binds relation roles
-        # are (provision, bound_entity_type) for the v2 pattern, incompatible with
-        # (blocker, party) that the legacy link function expects.
-        # Long-term: deprecate restricted_party entities, use concept_applicability.
-        # Data IS captured in Pydantic model and available to Q&A synthesis.
+        # bound_parties: captured in Pydantic model for Q&A synthesis.
+        # Graph representation uses covered_entity_type via concept_applicability (Channel 2).
 
     def _store_blocker_exception_v4(self, blocker_id: str, exc, index: int):
         """Store blocker exception."""
@@ -1883,11 +1878,6 @@ Return ONLY the JSON object. No markdown, no explanation."""
                         self._link_blocker_to_ip_type(blocker_id, ip_type_id)
                         results["relations_created"] += 1
 
-                    # Link to restricted parties
-                    parties = blocker_data.get("bound_parties", [])
-                    for party_id in parties:
-                        self._link_blocker_to_party(blocker_id, party_id)
-                        results["relations_created"] += 1
                 except Exception as e:
                     results["errors"].append(f"Blocker error: {str(e)[:100]}")
 
@@ -2234,17 +2224,6 @@ Return ONLY the JSON object. No markdown, no explanation."""
             insert
                 (blocker: $blocker, ip_type: $ip) isa blocker_covers_ip_type,
                     has coverage_scope "{scope}";
-        '''
-        self._execute_query(query)
-
-    def _link_blocker_to_party(self, blocker_id: str, party_id: str):
-        """Link blocker to restricted party it binds."""
-        query = f'''
-            match
-                $blocker isa blocker, has blocker_id "{blocker_id}";
-                $party isa restricted_party, has party_id "{party_id}";
-            insert
-                (blocker: $blocker, party: $party) isa blocker_binds;
         '''
         self._execute_query(query)
 

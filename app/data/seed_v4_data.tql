@@ -1,7 +1,7 @@
 ################################################################################
 # VALENCE V4 - SEED DATA
 #
-# IP Types and Restricted Party types for graph schema
+# IP Types and reference entities for graph schema
 ################################################################################
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -9,16 +9,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # IP types already seeded in concepts.tql via concept_id — skip here
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# RESTRICTED PARTY TYPES
-# ═══════════════════════════════════════════════════════════════════════════════
-
-insert $rp1 isa borrower_party, has party_id "borrower", has party_name "Borrower";
-insert $rp2 isa guarantor_party, has party_id "guarantors", has party_name "Guarantors";
-insert $rp3 isa restricted_sub_party, has party_id "restricted_subs", has party_name "Restricted Subsidiaries";
-insert $rp4 isa loan_party, has party_id "loan_parties", has party_name "Loan Parties";
-insert $rp5 isa holdings_party, has party_id "holdings", has party_name "Holdings";
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER SOURCE TYPES (for multiselect reference)
