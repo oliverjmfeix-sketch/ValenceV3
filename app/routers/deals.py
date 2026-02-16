@@ -335,23 +335,28 @@ async def list_deals() -> List[Dict[str, Any]]:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             query = """
-                match 
-                    $d isa deal, 
-                    has deal_id $id, 
+                match
+                    $d isa deal,
+                    has deal_id $id,
                     has deal_name $name;
-                select $id, $name;
+                    try { $d has created_at $ca; };
+                select $id, $name, $ca;
             """
             result = tx.query(query).resolve()
-            
+
             deals = []
             for row in result.as_concept_rows():
                 deal_id = _safe_get_value(row, "id")
                 deal_name = _safe_get_value(row, "name")
+                created_at = _safe_get_value(row, "ca")
                 if deal_id:  # Only add if we have a valid ID
-                    deals.append({
+                    deal_obj = {
                         "deal_id": deal_id,
-                        "deal_name": deal_name or "Unknown"
-                    })
+                        "deal_name": deal_name or "Unknown",
+                    }
+                    if created_at:
+                        deal_obj["created_at"] = str(created_at)
+                    deals.append(deal_obj)
             return deals
         finally:
             tx.close()
@@ -400,12 +405,16 @@ async def upload_deal(
             safe_name = deal_name.replace('"', '\\"')
             safe_borrower = borrower.replace('"', '\\"')
 
+            from datetime import datetime, timezone
+            now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
             query = f"""
                 insert
                     $d isa deal,
                     has deal_id "{deal_id}",
                     has deal_name "{safe_name}",
-                    has borrower_name "{safe_borrower}";
+                    has borrower_name "{safe_borrower}",
+                    has created_at {now_iso};
             """
             tx.query(query).resolve()
             tx.commit()
@@ -651,18 +660,22 @@ async def create_deal(
     deal_id = str(uuid.uuid4())[:8]
     
     try:
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
             query = f"""
-                insert 
+                insert
                     $d isa deal,
                     has deal_id "{deal_id}",
                     has deal_name "{deal_name}",
-                    has borrower_name "{borrower}";
+                    has borrower_name "{borrower}",
+                    has created_at {now_iso};
             """
             tx.query(query).resolve()
             tx.commit()
-            
+
             return {
                 "deal_id": deal_id,
                 "deal_name": deal_name,

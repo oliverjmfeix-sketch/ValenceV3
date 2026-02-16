@@ -663,12 +663,16 @@ Return ONLY the JSON object. No markdown, no explanation."""
 
     def _create_rp_provision_v4(self, provision_id: str):
         """Create RP provision and link to deal."""
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
         query = f'''
             match
                 $deal isa deal, has deal_id "{self.deal_id}";
             insert
                 $prov isa rp_provision,
-                    has provision_id "{provision_id}";
+                    has provision_id "{provision_id}",
+                    has extracted_at {now_iso};
                 (deal: $deal, provision: $prov) isa deal_has_provision;
         '''
         self._execute_query(query)

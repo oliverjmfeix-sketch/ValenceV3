@@ -1270,6 +1270,7 @@ Return ONLY the JSON array."""
     def _ensure_provision_exists(self, deal_id: str, provision_id: str):
         """Create rp_provision entity linked to deal if not exists."""
         from typedb.driver import TransactionType
+        from datetime import datetime, timezone
 
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.READ
@@ -1288,6 +1289,7 @@ Return ONLY the JSON array."""
             logger.debug(f"Provision {provision_id} already exists")
             return
 
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.WRITE
         )
@@ -1295,7 +1297,9 @@ Return ONLY the JSON array."""
             query = f"""
                 match $d isa deal, has deal_id "{deal_id}";
                 insert
-                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $p isa rp_provision,
+                        has provision_id "{provision_id}",
+                        has extracted_at {now_iso};
                     (deal: $d, provision: $p) isa deal_has_provision;
             """
             tx.query(query).resolve()
@@ -2089,6 +2093,9 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             logger.debug(f"MFN provision {provision_id} already exists")
             return
 
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.WRITE
         )
@@ -2096,7 +2103,9 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             query = f"""
                 match $d isa deal, has deal_id "{deal_id}";
                 insert
-                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    $p isa mfn_provision,
+                        has provision_id "{provision_id}",
+                        has extracted_at {now_iso};
                     (deal: $d, provision: $p) isa deal_has_provision;
             """
             tx.query(query).resolve()
