@@ -170,13 +170,20 @@ def _get_rp_universe_text(deal_id: str) -> str:
 
 def _call_sonnet(system: str, user: str, max_tokens: int = 4000) -> str:
     """Call Claude Sonnet for eval tasks (cost-effective)."""
+    import time as _time
+    from app.services.cost_tracker import extract_usage
+
+    eval_model = "claude-sonnet-4-20250514"
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    start = _time.time()
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=eval_model,
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
+    duration = _time.time() - start
+    extract_usage(response, eval_model, "eval", duration=duration)
     return response.content[0].text
 
 

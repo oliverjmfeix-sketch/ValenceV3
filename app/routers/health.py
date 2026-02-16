@@ -11,6 +11,24 @@ from app.services.typedb_client import typedb_client
 router = APIRouter(tags=["Health"])
 
 
+@router.get("/api/admin/cost-summary")
+async def cost_summary() -> Dict[str, Any]:
+    """Return pricing table and expected per-doc costs for reference."""
+    from app.services.cost_tracker import MODEL_PRICING
+    return {
+        "model_pricing_per_1k_tokens": MODEL_PRICING,
+        "expected_costs": {
+            "segmentation": "~$0.76 (Sonnet, ~250K input tokens)",
+            "rp_extraction": "~$0.20 (Sonnet, ~40K input tokens)",
+            "mfn_extraction": "~$0.15 (Sonnet, ~30K input tokens)",
+            "qa_question": "~$0.01 (Sonnet, ~3K input tokens)",
+            "total_per_document": "~$0.96-$1.10",
+        },
+        "note": "Actual per-call costs are logged as structured JSON (event=claude_api_cost). "
+                "Filter Railway logs with: railway logs | grep claude_api_cost",
+    }
+
+
 @router.get("/api/admin/ssot-status")
 async def ssot_status() -> Dict[str, Any]:
     """Live SSoT verification — returns counts of all TypeDB-sourced data."""

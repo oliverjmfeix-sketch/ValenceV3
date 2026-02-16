@@ -233,7 +233,9 @@ class ExtractionService:
         if doc_len <= max_chunk:
             # Single call
             prompt = self._build_segmentation_prompt(document_text)
-            response_text = self._call_claude_streaming(prompt, max_tokens=4096)
+            response_text = self._call_claude_streaming(
+                prompt, max_tokens=4096, step="segmentation"
+            )
             if response_text:
                 return self._parse_segmentation_response(response_text)
             return {"segments": []}
@@ -267,7 +269,9 @@ class ExtractionService:
                 part_hint = f"\nNOTE: This is PART {ci + 1} of {num_chunks} (MIDDLE PART). Report whatever sections you find.\n"
 
             prompt = self._build_segmentation_prompt(chunk, part_hint=part_hint)
-            response_text = self._call_claude_streaming(prompt, max_tokens=4096)
+            response_text = self._call_claude_streaming(
+                prompt, max_tokens=4096, step="segmentation"
+            )
             if response_text:
                 chunk_maps.append(self._parse_segmentation_response(response_text))
 
@@ -468,16 +472,22 @@ CRITICAL:
     def _legacy_extract_rp_universe_single(self, document_text: str) -> RPUniverse:
         """[LEGACY] Extract RP universe with a single Claude call."""
         prompt = self._legacy_build_universe_extraction_prompt(document_text)
-        response_text = self._call_claude_streaming(prompt, max_tokens=32000)
+        response_text = self._call_claude_streaming(
+            prompt, max_tokens=32000, step="rp_universe_extraction"
+        )
         if response_text:
             return self._legacy_parse_universe_extraction(response_text)
         return RPUniverse()
 
-    def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000) -> str:
+    def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000,
+                               step: str = "legacy_extraction",
+                               deal_id: str = None) -> str:
         """Call Claude with streaming to handle long operations."""
+        from app.services.cost_tracker import extract_usage
         try:
             collected_text = []
             chunk_count = 0
+            start = time.time()
             with self.client.messages.stream(
                 model=self.model,
                 max_tokens=max_tokens,
@@ -486,12 +496,18 @@ CRITICAL:
                 for text in stream.text_stream:
                     collected_text.append(text)
                     chunk_count += 1
+                final_message = stream.get_final_message()
+            duration = time.time() - start
             logger.info(f"Streaming complete: {chunk_count} chunks received")
             result = "".join(collected_text)
             logger.info(f"Response assembled: {len(result)} chars")
+            self._last_streaming_usage = extract_usage(
+                final_message, self.model, step, deal_id, duration
+            )
             return result
         except Exception as e:
             logger.error(f"Claude streaming error: {e}")
+            self._last_streaming_usage = None
             return ""
 
     def _legacy_extract_rp_universe_merge(self, document_text: str) -> RPUniverse:
@@ -512,7 +528,9 @@ CRITICAL:
         # Extract from first half (expect definitions) - use streaming for long operations
         prompt1 = self._legacy_build_universe_extraction_prompt(first_half, part=1, focus="definitions")
         logger.info("Extracting Part 1 (definitions)...")
-        response1 = self._call_claude_streaming(prompt1, max_tokens=32000)
+        response1 = self._call_claude_streaming(
+            prompt1, max_tokens=32000, step="rp_universe_extraction"
+        )
         if response1:
             universe1 = self._legacy_parse_universe_extraction(response1)
             logger.info(f"Part 1: definitions={len(universe1.definitions)} chars")
@@ -523,7 +541,9 @@ CRITICAL:
         # Extract from second half (expect covenants) - use streaming for long operations
         prompt2 = self._legacy_build_universe_extraction_prompt(second_half, part=2, focus="covenants")
         logger.info("Extracting Part 2 (covenants)...")
-        response2 = self._call_claude_streaming(prompt2, max_tokens=32000)
+        response2 = self._call_claude_streaming(
+            prompt2, max_tokens=32000, step="rp_universe_extraction"
+        )
         logger.info(f"Part 2 response received: {len(response2) if response2 else 0} chars")
         if response2:
             try:
@@ -1057,15 +1077,22 @@ Return JSON array:
 
 Return ONLY the JSON array."""
 
+        from app.services.cost_tracker import extract_usage
         try:
+            start = time.time()
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=8000,
                 messages=[{"role": "user", "content": prompt}]
             )
+            duration = time.time() - start
+            self._last_qa_usage = extract_usage(
+                response, self.model, "rp_qa", deal_id=None, duration=duration
+            )
             return self._parse_qa_response(response.content[0].text, questions)
         except Exception as e:
             logger.error(f"QA error for {category_name}: {e}")
+            self._last_qa_usage = None
             return []
 
     def _format_questions_for_prompt(self, questions: List[Dict]) -> str:
@@ -1697,7 +1724,9 @@ The MFN universe is typically 5-15 pages (much shorter than RP)."""
             trimmed = document_text[:600000]
 
             prompt = f"{MFN_UNIVERSE_PROMPT}\n\n## DOCUMENT TEXT\n\n{trimmed}"
-            raw_text = self._call_claude_streaming(prompt, max_tokens=30000)
+            raw_text = self._call_claude_streaming(
+                prompt, max_tokens=30000, step="mfn_universe_extraction"
+            )
 
             if not raw_text:
                 logger.warning("MFN universe extraction returned empty response")
@@ -1925,6 +1954,7 @@ For multiselect questions, value is an array of concept_ids:
 
 IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, explanation, or preamble before or after the JSON."""
 
+        from app.services.cost_tracker import extract_usage
         try:
             context_chars = len(context_text)
             logger.info(
@@ -1932,11 +1962,17 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                 f"context={context_chars} chars"
             )
 
+            mfn_model = "claude-sonnet-4-5-20250929"
+            start = time.time()
             response = self.client.messages.create(
-                model="claude-sonnet-4-5-20250929",
+                model=mfn_model,
                 max_tokens=8000,
                 system=self._MFN_EXTRACTION_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_prompt}]
+            )
+            duration = time.time() - start
+            self._last_mfn_batch_usage = extract_usage(
+                response, mfn_model, "mfn_extraction", deal_id=None, duration=duration
             )
 
             text = response.content[0].text.strip()
@@ -2396,11 +2432,19 @@ If no entities of this type exist, return: {{"entities": []}}
 
 {mfn_universe_text}"""
 
+            from app.services.cost_tracker import extract_usage
             try:
+                mfn_entity_model = "claude-sonnet-4-5-20250929"
+                start = time.time()
                 response = self.client.messages.create(
-                    model="claude-sonnet-4-5-20250929",
+                    model=mfn_entity_model,
                     max_tokens=8000,
                     messages=[{"role": "user", "content": user_prompt}],
+                )
+                duration = time.time() - start
+                extract_usage(
+                    response, mfn_entity_model, "mfn_entity_extraction",
+                    deal_id=deal_id, duration=duration
                 )
 
                 text = response.content[0].text.strip()
@@ -2599,6 +2643,13 @@ If no entities of this type exist, return: {{"entities": []}}
         response_text = self._call_claude_v4(prompt, model)
         logger.info(f"Response received: {len(response_text)} chars")
 
+        # Collect cost tracking
+        from app.services.cost_tracker import ExtractionCostSummary
+        cost_summary = ExtractionCostSummary(deal_id=deal_id)
+        if getattr(self, '_last_v4_usage', None):
+            self._last_v4_usage.deal_id = deal_id
+            cost_summary.add(self._last_v4_usage)
+
         # Step 6: Parse response into Pydantic model
         logger.info("Step 6: Parsing response...")
         extraction = GraphStorage.parse_claude_response(response_text)
@@ -2616,13 +2667,25 @@ If no entities of this type exist, return: {{"entities": []}}
         extraction_time = time.time() - start_time
         logger.info(f"V4 Extraction complete in {extraction_time:.1f}s")
 
+        cost_summary.log_summary()
+
         return ExtractionResultV4(
             deal_id=deal_id,
             extraction=extraction,
             storage_result=storage_result,
             extraction_time_seconds=extraction_time,
             rp_universe_chars=universe_chars,
-            model_used=model
+            model_used=model,
+            total_cost_usd=round(cost_summary.total_cost_usd, 4),
+            cost_breakdown={
+                "num_api_calls": len(cost_summary.steps),
+                "total_input_tokens": cost_summary.total_input_tokens,
+                "total_output_tokens": cost_summary.total_output_tokens,
+                "steps": [
+                    {"step": s.step, "model": s.model, "cost_usd": round(s.cost_usd, 4)}
+                    for s in cost_summary.steps
+                ],
+            },
         )
 
     def _call_claude_v4(self, prompt: str, model: str) -> str:
@@ -2645,7 +2708,9 @@ RULES:
     (c) NOT DEFINED — term does not appear in the defined terms section at all
     A cross-reference IS a definition. When asked if a term is defined, answer true for both inline and cross-reference definitions. When asked to extract a definition, return the cross-reference text verbatim — do not say "NOT DEFINED" for cross-referenced terms. When a term is defined by cross-reference, note which document contains the full definition."""
 
+        from app.services.cost_tracker import extract_usage
         try:
+            start = time.time()
             response = self.client.messages.create(
                 model=model,
                 max_tokens=8192,
@@ -2653,9 +2718,14 @@ RULES:
                 messages=[{"role": "user", "content": prompt}],
                 timeout=300.0  # 5 minute timeout for extraction
             )
+            duration = time.time() - start
+            self._last_v4_usage = extract_usage(
+                response, model, "rp_extraction", deal_id=None, duration=duration
+            )
             return response.content[0].text
         except Exception as e:
             logger.error(f"Claude API error: {e}")
+            self._last_v4_usage = None
             raise
 
 
@@ -2668,6 +2738,8 @@ class ExtractionResultV4:
     extraction_time_seconds: float
     rp_universe_chars: int
     model_used: str
+    total_cost_usd: Optional[float] = None
+    cost_breakdown: Optional[Dict] = None
 
 
 # =============================================================================

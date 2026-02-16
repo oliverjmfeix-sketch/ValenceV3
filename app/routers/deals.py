@@ -1840,16 +1840,22 @@ This block MUST appear at the very end of your response."""
 
     # Step 6: Call Claude with system message + user message
     try:
+        import time as _time
+        from app.services.cost_tracker import extract_usage
+
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
         model_used = settings.claude_model
 
+        _qa_start = _time.time()
         response = client.messages.create(
             model=model_used,
             max_tokens=4000,
             system=system_rules,
             messages=[{"role": "user", "content": user_prompt}]
         )
+        _qa_duration = _time.time() - _qa_start
+        extract_usage(response, model_used, "qa", deal_id=deal_id, duration=_qa_duration)
 
         answer_text = response.content[0].text
 
