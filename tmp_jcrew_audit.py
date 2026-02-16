@@ -11,9 +11,9 @@ from app.config import settings
 
 def connect():
     addr = settings.normalized_typedb_address
-    cred = Credentials(settings.typedb_username, settings.typedb_password, True)
-    opts = DriverOptions(parallel=2)
-    driver = TypeDB.cloud_driver(addr, cred, opts)
+    cred = Credentials(settings.typedb_username, settings.typedb_password)
+    opts = DriverOptions()
+    driver = TypeDB.driver(addr, cred, opts)
     return driver
 
 
