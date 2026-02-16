@@ -3,6 +3,7 @@ from app.services.typedb_client import typedb_client
 from app.config import settings
 from typedb.driver import TransactionType
 
+typedb_client.connect()
 tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
 try:
     # RP provisions
