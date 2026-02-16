@@ -730,8 +730,9 @@ async def run_extraction(deal_id: str, pdf_path: str):
                         f"in {jcrew_result.get('elapsed_seconds', 0)}s"
                     )
             except Exception as jc_err:
-                logger.warning(
-                    f"J.Crew deep analysis failed for {deal_id} (non-blocking): {jc_err}"
+                logger.error(
+                    f"J.Crew deep analysis failed for {deal_id} (non-blocking): {jc_err}",
+                    exc_info=True
                 )
 
         # ── MFN Extraction (non-blocking) ─────────────────────────────
@@ -808,8 +809,9 @@ async def run_extraction(deal_id: str, pdf_path: str):
                         "no MFN provision found or extraction failed"
                     )
             except Exception as mfn_err:
-                logger.warning(
-                    f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}"
+                logger.error(
+                    f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}",
+                    exc_info=True
                 )
 
         # Compute MFN pattern flags from TypeDB functions
