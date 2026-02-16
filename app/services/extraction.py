@@ -1692,13 +1692,106 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             logger.error(f"MFN batch {cat_id} failed: {e}")
             return []
 
-    async def run_mfn_extraction(
+    async def run_mfn_extraction_consolidated(
+        self,
+        deal_id: str,
+        mfn_universe_text: str,
+        document_text: str,
+    ) -> dict:
+        """
+        Consolidated MFN extraction: 2 Claude calls instead of 6.
+
+        Batch A (MFN1-MFN4): Structural questions — factual extraction of MFN
+            existence, prongs, floor, yield mechanics, exclusions. Independent
+            questions that don't need prior answers.
+
+        Batch B (MFN5-MFN6): Pattern detection — loophole identification and
+            cross-reference analysis. Receives Batch A answers as prior context
+            so it can reason about patterns (e.g., "given the MFN floor is X
+            and OID is excluded, does this create a timing loophole?").
+
+        Stores answers via _store_mfn_answers (existing SSoT storage pattern).
+        """
+        # Load MFN questions from TypeDB (SSoT)
+        questions_by_cat = self.load_questions_by_category("MFN")
+        if not questions_by_cat:
+            logger.error("No MFN questions found in TypeDB")
+            return {"answers": [], "errors": ["No MFN questions in TypeDB"], "total_questions": 0, "answered": 0}
+
+        total_questions = sum(len(qs) for qs in questions_by_cat.values())
+        logger.info(
+            f"MFN consolidated extraction: {total_questions} questions in "
+            f"{len(questions_by_cat)} categories → 2 batches"
+        )
+
+        # Parse universe into sections for focused context
+        universe_sections = self._parse_mfn_universe_sections(mfn_universe_text)
+
+        # ── Batch A: Structural (MFN1-MFN4) ──────────────────────────────
+        batch_a_questions = []
+        for cat_id in ["MFN1", "MFN2", "MFN3", "MFN4"]:
+            cat_qs = questions_by_cat.get(cat_id, [])
+            cat_qs.sort(key=lambda q: q.get("display_order", 0))
+            batch_a_questions.extend(cat_qs)
+
+        batch_a_answers = []
+        if batch_a_questions:
+            logger.info(f"MFN Batch A (structural): {len(batch_a_questions)} questions")
+            batch_a_answers = self._extract_mfn_batch(
+                "MFN_structural",
+                batch_a_questions,
+                mfn_universe_text,
+                universe_sections,
+            )
+            logger.info(f"MFN Batch A complete: {len(batch_a_answers)} answers")
+
+        # ── Batch B: Patterns (MFN5-MFN6) with prior context ─────────────
+        batch_b_questions = []
+        for cat_id in ["MFN5", "MFN6"]:
+            cat_qs = questions_by_cat.get(cat_id, [])
+            cat_qs.sort(key=lambda q: q.get("display_order", 0))
+            batch_b_questions.extend(cat_qs)
+
+        batch_b_answers = []
+        if batch_b_questions:
+            # Build prior context from Batch A answers
+            entity_context = self._summarize_batch_answers("MFN_structural", batch_a_answers)
+            logger.info(
+                f"MFN Batch B (patterns): {len(batch_b_questions)} questions, "
+                f"prior context={len(entity_context)} chars"
+            )
+            batch_b_answers = self._extract_mfn_batch(
+                "MFN_patterns",
+                batch_b_questions,
+                mfn_universe_text,
+                universe_sections,
+                entity_context=entity_context if entity_context else None,
+            )
+            logger.info(f"MFN Batch B complete: {len(batch_b_answers)} answers")
+
+        all_answers = batch_a_answers + batch_b_answers
+        logger.info(f"MFN consolidated extraction complete: {len(all_answers)}/{total_questions} answers")
+
+        # Store answers
+        if all_answers:
+            self._store_mfn_answers(deal_id, all_answers)
+
+        return {
+            "answers": all_answers,
+            "errors": [],
+            "total_questions": total_questions,
+            "answered": len(all_answers),
+        }
+
+    async def _retired_run_mfn_extraction(
         self,
         deal_id: str,
         mfn_universe_text: str,
         document_text: str
     ) -> dict:
         """
+        RETIRED: Old 6-batch MFN extraction. Replaced by run_mfn_extraction_consolidated().
+
         Extract MFN provision data by answering 42 ontology questions.
 
         Splits into domain-driven batches by category (MFN1-MFN6).

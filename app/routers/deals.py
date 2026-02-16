@@ -768,14 +768,13 @@ async def run_extraction(deal_id: str, pdf_path: str):
                         f.write(mfn_universe_text)
                     logger.info(f"MFN universe saved: {len(mfn_universe_text)} chars")
 
-                    mfn_result = await extraction_svc.run_mfn_extraction(
+                    # Consolidated MFN extraction (2 calls instead of 6)
+                    # Stores answers internally via _store_mfn_answers
+                    mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
                         deal_id, mfn_universe_text, document_text
                     )
 
                     if mfn_result["answers"]:
-                        extraction_svc._store_mfn_answers(
-                            deal_id, mfn_result["answers"]
-                        )
                         logger.info(
                             f"MFN extraction complete: "
                             f"{mfn_result['answered']}/{mfn_result['total_questions']} answers"
