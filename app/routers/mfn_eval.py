@@ -12,7 +12,7 @@ Flow:
 import logging
 import os
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -339,4 +339,300 @@ async def run_mfn_eval(
         extraction_answers_count=answers_count,
         results=results,
         total_eval_seconds=total_time,
+    )
+
+
+# =============================================================================
+# AUTO-GENERATED MFN EVAL
+# =============================================================================
+
+class MFNAutoEvalRequest(BaseModel):
+    num_questions: int = 10
+    focus_areas: Optional[List[str]] = None
+
+
+class MFNAutoQuestionResult(BaseModel):
+    question: str
+    raw_answer: str
+    valence_answer: str
+    score: float
+    max_score: float
+    advantages: List[str]
+    gaps: List[str]
+    reasoning: str
+
+
+class MFNAutoEvalResult(BaseModel):
+    deal_id: str
+    covenant_type: str
+    num_questions: int
+    total_score: float
+    max_score: float
+    pct_score: float
+    questions: List[MFNAutoQuestionResult]
+    elapsed_seconds: float
+
+
+MFN_QUESTION_GENERATION_PROMPT = """You are a legal analyst testing an MFN (Most Favored Nation) analysis system.
+Given the following MFN provision text from a credit agreement,
+generate {num_questions} specific, testable questions that a leveraged finance lawyer would ask.
+
+RULES:
+1. Questions must be answerable from the text below
+2. Mix question types: yes/no, numeric thresholds, definition checks, cross-reference analysis
+3. Cover: freebie basket size, yield calculation mechanics, sunset provisions, exclusions from MFN,
+   incremental facility triggers, ratio prong interactions, floor treatment,
+   Incremental Equivalent Debt avoidance, and effective yield definition
+4. Questions should require specific factual answers, not opinions
+5. Make questions progressively harder (start with basic, end with analytical)
+{focus_instruction}
+
+## MFN UNIVERSE TEXT
+
+{mfn_text}
+
+## OUTPUT
+
+Return a JSON array of question strings:
+["question 1", "question 2", ...]
+
+Return ONLY the JSON array."""
+
+
+MFN_BASELINE_PROMPT = """You are a legal analyst answering a question about a credit agreement
+using the raw extracted MFN-relevant text below. Answer thoroughly and precisely,
+citing specific sections and page numbers where possible.
+
+## QUESTION
+
+{question}
+
+## MFN UNIVERSE TEXT
+
+{mfn_text}
+
+## INSTRUCTIONS
+
+- Answer based ONLY on the text provided
+- Cite specific sections and page numbers
+- If information is not found, say so explicitly
+- Be precise about thresholds, ratios, and dollar amounts
+- Mention qualifications and exceptions where relevant"""
+
+
+MFN_COMPARISON_PROMPT = """You are evaluating the quality of two answers to the same legal question
+about a credit agreement's MFN (Most Favored Nation) provision.
+
+## QUESTION
+{question}
+
+## ANSWER A (Raw Document Analysis — baseline)
+{raw_answer}
+
+## ANSWER B (Extraction Pipeline — Valence)
+{valence_answer}
+
+## SCORING INSTRUCTIONS
+
+Score Answer B (Valence) against Answer A (Raw) on these dimensions (1-5 each):
+
+1. **Completeness** — Does B cover all key points from A?
+2. **Accuracy** — Are B's factual claims correct compared to A?
+3. **Citations** — Does B provide section/page references?
+4. **Specificity** — Does B include specific thresholds, ratios, amounts?
+
+Also identify:
+- **advantages**: Things B does BETTER than A (e.g., better structured, more citations)
+- **gaps**: Things A covers that B misses or gets wrong
+
+## OUTPUT
+
+Return JSON:
+{{
+  "completeness": <1-5>,
+  "accuracy": <1-5>,
+  "citations": <1-5>,
+  "specificity": <1-5>,
+  "advantages": ["..."],
+  "gaps": ["..."],
+  "reasoning": "1-2 sentence summary"
+}}
+
+Return ONLY the JSON object."""
+
+
+def _get_mfn_universe_text(deal_id: str) -> str:
+    """Read cached MFN universe text from disk. No regeneration."""
+    mfn_path = os.path.join(UPLOADS_DIR, f"{deal_id}_mfn_universe.txt")
+    if not os.path.exists(mfn_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"MFN universe text not cached for {deal_id}. "
+                   f"Re-upload the PDF to generate it."
+        )
+    with open(mfn_path, "r", encoding="utf-8") as f:
+        text = f.read()
+    if not text.strip():
+        raise HTTPException(
+            status_code=404,
+            detail="MFN universe file is empty. Re-upload the PDF to generate it."
+        )
+    return text
+
+
+def _generate_mfn_questions(
+    mfn_text: str, num_questions: int, focus_areas: Optional[List[str]] = None
+) -> List[str]:
+    """Generate test questions from MFN universe text using Sonnet."""
+    import json
+
+    focus_instruction = ""
+    if focus_areas:
+        focus_instruction = f"6. Focus questions on these areas: {', '.join(focus_areas)}"
+
+    prompt = MFN_QUESTION_GENERATION_PROMPT.format(
+        num_questions=num_questions,
+        focus_instruction=focus_instruction,
+        mfn_text=mfn_text[:100000],
+    )
+
+    response_text = _call_claude(
+        system="You generate legal analysis questions about MFN provisions. Return ONLY a JSON array of strings.",
+        user=prompt,
+        max_tokens=2000,
+    )
+
+    start = response_text.find("[")
+    end = response_text.rfind("]") + 1
+    if start == -1 or end == 0:
+        raise HTTPException(status_code=500, detail="Failed to parse generated MFN questions")
+
+    questions = json.loads(response_text[start:end])
+    if not isinstance(questions, list) or not questions:
+        raise HTTPException(status_code=500, detail="No MFN questions generated")
+
+    return questions[:num_questions]
+
+
+def _generate_mfn_raw_answer(question: str, mfn_text: str) -> str:
+    """Generate a baseline answer from raw MFN universe text."""
+    prompt = MFN_BASELINE_PROMPT.format(
+        question=question,
+        mfn_text=mfn_text[:100000],
+    )
+    return _call_claude(
+        system="You are a legal analyst. Answer precisely using only the provided text.",
+        user=prompt,
+        max_tokens=3000,
+    )
+
+
+def _compare_mfn_answers(
+    question: str, raw_answer: str, valence_answer: str
+) -> Dict[str, Any]:
+    """Compare raw vs Valence MFN answers using Sonnet as judge."""
+    import json
+
+    prompt = MFN_COMPARISON_PROMPT.format(
+        question=question,
+        raw_answer=raw_answer,
+        valence_answer=valence_answer,
+    )
+
+    response_text = _call_claude(
+        system="You are an impartial judge comparing two legal analysis answers. Return ONLY JSON.",
+        user=prompt,
+        max_tokens=1500,
+    )
+
+    start = response_text.find("{")
+    end = response_text.rfind("}") + 1
+    if start == -1 or end == 0:
+        return {
+            "completeness": 3, "accuracy": 3, "citations": 3, "specificity": 3,
+            "advantages": [], "gaps": ["Could not parse comparison"],
+            "reasoning": "Comparison parse failed",
+        }
+
+    try:
+        return json.loads(response_text[start:end])
+    except json.JSONDecodeError:
+        return {
+            "completeness": 3, "accuracy": 3, "citations": 3, "specificity": 3,
+            "advantages": [], "gaps": ["Could not parse comparison"],
+            "reasoning": "Comparison JSON parse failed",
+        }
+
+
+@router.post("/{deal_id}/auto", response_model=MFNAutoEvalResult)
+async def run_mfn_eval_auto(
+    deal_id: str,
+    request: MFNAutoEvalRequest,
+) -> MFNAutoEvalResult:
+    """
+    Auto-generated MFN evaluation. No extraction.
+
+    1. Read cached MFN universe text
+    2. Auto-generate N questions from it
+    3. For each: raw answer (Claude + text) vs Valence answer (/ask)
+    4. Claude-as-judge scores each pair
+    5. Return verbatim questions + both answers + scores
+    """
+    start_time = time.time()
+
+    # Step 1: Load MFN universe text (cache only, no regeneration)
+    mfn_text = _get_mfn_universe_text(deal_id)
+    logger.info(f"MFN auto-eval: loaded universe ({len(mfn_text)} chars) for {deal_id}")
+
+    # Step 2: Generate questions
+    logger.info(f"MFN auto-eval: generating {request.num_questions} questions...")
+    questions = _generate_mfn_questions(mfn_text, request.num_questions, request.focus_areas)
+    logger.info(f"MFN auto-eval: generated {len(questions)} questions")
+
+    # Step 3: For each question, get raw + Valence answers, then compare
+    question_results: List[MFNAutoQuestionResult] = []
+    total_score = 0.0
+    max_score = 0.0
+
+    for i, question in enumerate(questions):
+        logger.info(f"MFN auto-eval: processing question {i+1}/{len(questions)}: {question[:80]}...")
+
+        raw_answer = _generate_mfn_raw_answer(question, mfn_text)
+
+        valence_answer = await _get_typedb_answer(deal_id, question)
+
+        comparison = _compare_mfn_answers(question, raw_answer, valence_answer)
+
+        dims = ["completeness", "accuracy", "citations", "specificity"]
+        score = sum(comparison.get(d, 3) for d in dims)
+        q_max = 20.0
+
+        total_score += score
+        max_score += q_max
+
+        question_results.append(MFNAutoQuestionResult(
+            question=question,
+            raw_answer=raw_answer,
+            valence_answer=valence_answer,
+            score=float(score),
+            max_score=q_max,
+            advantages=comparison.get("advantages", []),
+            gaps=comparison.get("gaps", []),
+            reasoning=comparison.get("reasoning", ""),
+        ))
+
+    elapsed = round(time.time() - start_time, 1)
+    pct = round((total_score / max_score * 100) if max_score > 0 else 0, 1)
+
+    logger.info(f"MFN auto-eval complete for {deal_id}: {pct}% ({total_score}/{max_score}) in {elapsed}s")
+
+    return MFNAutoEvalResult(
+        deal_id=deal_id,
+        covenant_type="MFN",
+        num_questions=len(questions),
+        total_score=total_score,
+        max_score=max_score,
+        pct_score=pct,
+        questions=question_results,
+        elapsed_seconds=elapsed,
     )

@@ -1326,6 +1326,20 @@ async def get_deal_mfn(deal_id: str) -> Dict[str, Any]:
         raise
 
 
+@router.get("/{deal_id}/rp-universe")
+async def get_rp_universe_text(deal_id: str):
+    """Serve the cached RP universe text. No regeneration."""
+    rp_path = Path(UPLOADS_DIR) / f"{deal_id}_rp_universe.txt"
+    if not rp_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"RP universe text not cached for deal {deal_id}. "
+                   f"Re-upload the PDF to generate it."
+        )
+    text = rp_path.read_text(encoding="utf-8")
+    return {"deal_id": deal_id, "text": text, "chars": len(text)}
+
+
 @router.get("/{deal_id}/mfn-universe")
 async def get_mfn_universe_text(deal_id: str):
     """Serve the cached MFN universe text for a deal (eval pipeline).
