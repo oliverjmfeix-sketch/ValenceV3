@@ -19,6 +19,7 @@ MODEL_PRICING = {
     "claude-sonnet-4-20250514": {"input": 0.003, "output": 0.015},
     "claude-sonnet-4-5-20250929": {"input": 0.003, "output": 0.015},
     "claude-opus-4-20250514": {"input": 0.015, "output": 0.075},
+    "claude-opus-4-5-20251101": {"input": 0.015, "output": 0.075},
     "claude-haiku-4-5-20251001": {"input": 0.0008, "output": 0.004},
 }
 
@@ -35,7 +36,14 @@ class ClaudeUsage:
 
     @property
     def cost_usd(self) -> float:
-        rates = MODEL_PRICING.get(self.model, {"input": 0.003, "output": 0.015})
+        rates = MODEL_PRICING.get(self.model)
+        if rates is None:
+            logger.warning(
+                f"COST_TRACKING_DEGRADED: Unknown model '{self.model}' — "
+                f"not in MODEL_PRICING. Cost reported as $0. "
+                f"Add this model to MODEL_PRICING in cost_tracker.py."
+            )
+            return 0.0
         return (
             (self.input_tokens / 1000) * rates["input"]
             + (self.output_tokens / 1000) * rates["output"]
@@ -115,3 +123,7 @@ def extract_usage(response, model: str, step: str, deal_id: str = None,
     )
     usage.log()
     return usage
+
+
+# TODO: Persist extraction cost summaries to TypeDB or local storage
+# so they survive log rotation. Current approach is log-only.

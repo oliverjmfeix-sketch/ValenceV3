@@ -465,9 +465,14 @@ CRITICAL:
             logger.info(f"Streaming complete: {chunk_count} chunks received")
             result = "".join(collected_text)
             logger.info(f"Response assembled: {len(result)} chars")
-            self._last_streaming_usage = extract_usage(
+            usage = extract_usage(
                 final_message, self.model, step, deal_id, duration
             )
+            self._last_streaming_usage = usage
+            # Accumulate all streaming usages for pipeline cost summaries
+            if not hasattr(self, '_streaming_usages'):
+                self._streaming_usages = []
+            self._streaming_usages.append(usage)
             return result
         except Exception as e:
             logger.error(f"Claude streaming error: {e}")
@@ -1728,6 +1733,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         universe_sections = self._parse_mfn_universe_sections(mfn_universe_text)
 
         # ── Batch A: Structural (MFN1-MFN4) ──────────────────────────────
+        self._mfn_batch_usages = []  # Accumulate per-batch usage for cost summary
         batch_a_questions = []
         for cat_id in ["MFN1", "MFN2", "MFN3", "MFN4"]:
             cat_qs = questions_by_cat.get(cat_id, [])
@@ -1743,6 +1749,8 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                 mfn_universe_text,
                 universe_sections,
             )
+            if getattr(self, '_last_mfn_batch_usage', None):
+                self._mfn_batch_usages.append(self._last_mfn_batch_usage)
             logger.info(f"MFN Batch A complete: {len(batch_a_answers)} answers")
 
         # ── Batch B: Patterns (MFN5-MFN6) with prior context ─────────────
@@ -1767,6 +1775,8 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                 universe_sections,
                 entity_context=entity_context if entity_context else None,
             )
+            if getattr(self, '_last_mfn_batch_usage', None):
+                self._mfn_batch_usages.append(self._last_mfn_batch_usage)
             logger.info(f"MFN Batch B complete: {len(batch_b_answers)} answers")
 
         all_answers = batch_a_answers + batch_b_answers
@@ -1775,6 +1785,20 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         # Store answers
         if all_answers:
             self._store_mfn_answers(deal_id, all_answers)
+
+        # Aggregate cost tracking for MFN pipeline
+        from app.services.cost_tracker import ExtractionCostSummary
+        cost_summary = ExtractionCostSummary(deal_id=deal_id)
+        # Add MFN universe streaming usage (if Claude-based extraction was used)
+        for usage in getattr(self, '_streaming_usages', []):
+            usage.deal_id = deal_id
+            cost_summary.add(usage)
+        self._streaming_usages = []
+        for usage in getattr(self, '_mfn_batch_usages', []):
+            usage.deal_id = deal_id
+            cost_summary.add(usage)
+        if cost_summary.steps:
+            cost_summary.log_summary()
 
         return {
             "answers": all_answers,
@@ -2170,6 +2194,8 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
 
         total_entities = 0
         errors = []
+        from app.services.cost_tracker import ExtractionCostSummary
+        cost_summary = ExtractionCostSummary(deal_id=deal_id)
 
         # 2. For each metadata entry, extract entities
         for meta in metadata_list:
@@ -2225,10 +2251,11 @@ If no entities of this type exist, return: {{"entities": []}}
                     messages=[{"role": "user", "content": user_prompt}],
                 )
                 duration = time.time() - start
-                extract_usage(
+                usage = extract_usage(
                     response, mfn_entity_model, "mfn_entity_extraction",
                     deal_id=deal_id, duration=duration
                 )
+                cost_summary.add(usage)
 
                 text = response.content[0].text.strip()
                 if text.startswith("```"):
@@ -2266,6 +2293,9 @@ If no entities of this type exist, return: {{"entities": []}}
             except Exception as e:
                 errors.append(f"{meta_id} extraction error: {e}")
                 logger.warning(f"  {meta_id}: extraction error: {e}")
+
+        if cost_summary.steps:
+            cost_summary.log_summary()
 
         logger.info(
             f"MFN entity extraction complete: {total_entities} entities stored"
@@ -2429,6 +2459,11 @@ If no entities of this type exist, return: {{"entities": []}}
         # Collect cost tracking
         from app.services.cost_tracker import ExtractionCostSummary
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
+        # Add segmentation streaming usage(s) from extract_rp_universe
+        for usage in getattr(self, '_streaming_usages', []):
+            usage.deal_id = deal_id
+            cost_summary.add(usage)
+        self._streaming_usages = []
         if getattr(self, '_last_v4_usage', None):
             self._last_v4_usage.deal_id = deal_id
             cost_summary.add(self._last_v4_usage)
@@ -2561,6 +2596,11 @@ RULES:
         # Collect cost tracking
         from app.services.cost_tracker import ExtractionCostSummary
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
+        # Add segmentation streaming usage(s) from extract_rp_universe
+        for usage in getattr(self, '_streaming_usages', []):
+            usage.deal_id = deal_id
+            cost_summary.add(usage)
+        self._streaming_usages = []
         if getattr(self, '_last_v4_usage', None):
             self._last_v4_usage.deal_id = deal_id
             cost_summary.add(self._last_v4_usage)
@@ -2591,9 +2631,10 @@ RULES:
             jc3_questions=jc3_questions,
         )
         if jc_result:
-            for step_usage in (getattr(self, '_last_qa_usage', None),):
-                if step_usage:
-                    cost_summary.add(step_usage)
+            if getattr(self, '_last_jc2_usage', None):
+                cost_summary.add(self._last_jc2_usage)
+            if getattr(self, '_last_jc3_usage', None):
+                cost_summary.add(self._last_jc3_usage)
 
         extraction_time = time.time() - start_time
         logger.info(f"Unified V4 extraction complete in {extraction_time:.1f}s")
@@ -2708,6 +2749,7 @@ RULES:
                 "J.Crew Tier 2 — Definition Quality",
                 system_instruction=_XREF_T2,
             )
+            self._last_jc2_usage = getattr(self, '_last_qa_usage', None)
             all_category_answers.append(CategoryAnswers(
                 category_id="JC2",
                 category_name="J.Crew Tier 2 — Definition Quality",
@@ -2741,6 +2783,7 @@ RULES:
                 "J.Crew Tier 3 — Cross-Reference Interactions",
                 system_instruction=_XREF_T3,
             )
+            self._last_jc3_usage = getattr(self, '_last_qa_usage', None)
             all_category_answers.append(CategoryAnswers(
                 category_id="JC3",
                 category_name="J.Crew Tier 3 — Cross-Reference Interactions",

@@ -1731,6 +1731,9 @@ This block MUST appear at the very end of your response."""
             messages=[{"role": "user", "content": user_prompt}]
         )
         _qa_duration = _time.time() - _qa_start
+        # QA cost is log-only (not aggregated into ExtractionCostSummary).
+        # Acceptable: QA is low-cost (~$0.02-0.05/question), logged to Railway.
+        # TODO: Persist QA cost to TypeDB or local storage if needed for billing.
         extract_usage(response, model_used, "qa", deal_id=deal_id, duration=_qa_duration)
 
         answer_text = response.content[0].text
