@@ -1,6 +1,7 @@
 """
 Deal endpoints - Simplified for V3 launch (TypeDB 3.x API)
 """
+import hashlib
 import os
 import asyncio
 import uuid
@@ -385,20 +386,56 @@ async def upload_deal(
     if not file.filename or not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
-    # Generate deal ID
-    deal_id = str(uuid.uuid4())[:8]
-    pdf_filename = f"{deal_id}.pdf"
-    pdf_path = os.path.join(UPLOADS_DIR, pdf_filename)
-
     try:
-        # Save PDF to disk
+        # Read file and compute SHA-256 hash for deduplication
         contents = await file.read()
+        pdf_hash = hashlib.sha256(contents).hexdigest()
+
+        # Check for duplicate: query TypeDB for existing document with same hash
+        existing_deal_id = None
+        try:
+            tx_read = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+            try:
+                dup_query = f"""
+                    match
+                        $doc isa document, has document_hash "{pdf_hash}";
+                        (deal: $deal, document: $doc) isa deal_has_document;
+                        $deal has deal_id $did;
+                    select $did;
+                """
+                result = tx_read.query(dup_query).resolve()
+                for row in result.as_concept_rows():
+                    existing_deal_id = _safe_get_value(row, "did")
+                    break
+            finally:
+                tx_read.close()
+        except Exception as e:
+            logger.warning(f"Dedup check failed (proceeding with upload): {e}")
+
+        if existing_deal_id:
+            logger.info(
+                f"Duplicate PDF detected (hash={pdf_hash[:12]}...). "
+                f"Returning existing deal_id={existing_deal_id}"
+            )
+            return UploadResponse(
+                deal_id=existing_deal_id,
+                deal_name=deal_name,
+                status="duplicate",
+                message=f"This PDF was already uploaded as deal {existing_deal_id}. No re-extraction needed."
+            )
+
+        # Not a duplicate — proceed with new deal
+        deal_id = str(uuid.uuid4())[:8]
+        pdf_filename = f"{deal_id}.pdf"
+        pdf_path = os.path.join(UPLOADS_DIR, pdf_filename)
+
+        # Save PDF to disk
         with open(pdf_path, "wb") as f:
             f.write(contents)
 
-        logger.info(f"Saved PDF: {pdf_path} ({len(contents)} bytes)")
+        logger.info(f"Saved PDF: {pdf_path} ({len(contents)} bytes, hash={pdf_hash[:12]}...)")
 
-        # Create deal in TypeDB (using same pattern as create_deal endpoint)
+        # Create deal + document in TypeDB, link via deal_has_document
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
             # Escape quotes in strings
@@ -408,6 +445,8 @@ async def upload_deal(
             from datetime import datetime, timezone
             now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
+            doc_url = f"/uploads/{pdf_filename}"
+
             query = f"""
                 insert
                     $d isa deal,
@@ -415,6 +454,11 @@ async def upload_deal(
                     has deal_name "{safe_name}",
                     has borrower_name "{safe_borrower}",
                     has created_at {now_iso};
+                    $doc isa document,
+                    has document_url "{doc_url}",
+                    has document_hash "{pdf_hash}",
+                    has created_at {now_iso};
+                    (deal: $d, document: $doc) isa deal_has_document;
             """
             tx.query(query).resolve()
             tx.commit()
@@ -422,7 +466,7 @@ async def upload_deal(
             tx.close()
             raise e
 
-        logger.info(f"Created deal in TypeDB: {deal_id}")
+        logger.info(f"Created deal in TypeDB: {deal_id} (with document hash)")
 
         # Initialize extraction status
         extraction_status[deal_id] = ExtractionStatus(
