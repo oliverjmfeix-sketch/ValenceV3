@@ -18,6 +18,7 @@ import anthropic
 
 from app.config import settings
 from app.routers.deals import ask_question, AskRequest, UPLOADS_DIR
+from app.eval.cc_questions import CC_QUESTIONS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/deals", tags=["Eval"])
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/api/deals", tags=["Eval"])
 class EvalRequest(BaseModel):
     num_questions: int = 5
     focus_areas: Optional[List[str]] = None
+    mode: Optional[str] = None  # "cc" for fixed credit committee questions
 
 
 class QuestionResult(BaseModel):
@@ -308,10 +310,14 @@ async def evaluate_deal(deal_id: str, request: EvalRequest) -> EvalResult:
     rp_text = _get_rp_universe_text(deal_id)
     logger.info(f"Eval: loaded RP universe ({len(rp_text)} chars) for deal {deal_id}")
 
-    # Step 2: Generate questions
-    logger.info(f"Eval: generating {request.num_questions} questions...")
-    questions = generate_questions(rp_text, request.num_questions, request.focus_areas)
-    logger.info(f"Eval: generated {len(questions)} questions")
+    # Step 2: Get questions (fixed CC set or generated)
+    if request.mode == "cc":
+        questions = CC_QUESTIONS
+        logger.info(f"Eval [cc]: using {len(questions)} fixed credit committee questions")
+    else:
+        logger.info(f"Eval: generating {request.num_questions} questions...")
+        questions = generate_questions(rp_text, request.num_questions, request.focus_areas)
+        logger.info(f"Eval: generated {len(questions)} questions")
 
     # Step 3: For each question, get raw + Valence answers, then compare
     question_results: List[QuestionResult] = []
