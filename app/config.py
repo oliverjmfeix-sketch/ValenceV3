@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = ""
     claude_model: str = "claude-opus-4-5-20251101"
+    synthesis_model: str = "claude-sonnet-4-6"
     
     # CORS - stored as string, parsed via property
     cors_origins_str: str = "http://localhost:5173"

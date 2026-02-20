@@ -1710,7 +1710,7 @@ This block MUST appear at the very end of your response."""
 
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-        model_used = settings.claude_model
+        model_used = settings.synthesis_model
 
         _qa_start = _time.time()
         response = client.messages.create(
