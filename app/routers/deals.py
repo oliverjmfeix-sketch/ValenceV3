@@ -92,6 +92,7 @@ def _load_provision_answers(tx, provision_id: str) -> Dict[str, Dict]:
 # Request/Response models for Q&A
 class AskRequest(BaseModel):
     question: str
+    show_reasoning: bool = False
 
 
 class AskResponse(BaseModel):
@@ -1688,6 +1689,20 @@ This block MUST appear at the very end of your response."""
 
 {context}"""
 
+    # Step 5b: If show_reasoning, swap prompts for structured reasoning mode
+    if request.show_reasoning:
+        from app.prompts.reasoning import (
+            REASONING_SYSTEM_PROMPT,
+            REASONING_FORMAT_INSTRUCTIONS,
+        )
+        active_system = REASONING_SYSTEM_PROMPT
+        active_user = user_prompt + "\n\n" + REASONING_FORMAT_INSTRUCTIONS
+        active_max_tokens = 6000
+    else:
+        active_system = system_rules
+        active_user = user_prompt
+        active_max_tokens = 4000
+
     # Step 6: Call Claude with system message + user message
     try:
         import time as _time
@@ -1700,9 +1715,9 @@ This block MUST appear at the very end of your response."""
         _qa_start = _time.time()
         response = client.messages.create(
             model=model_used,
-            max_tokens=4000,
-            system=system_rules,
-            messages=[{"role": "user", "content": user_prompt}]
+            max_tokens=active_max_tokens,
+            system=active_system,
+            messages=[{"role": "user", "content": active_user}]
         )
         _qa_duration = _time.time() - _qa_start
         # QA cost is log-only (not aggregated into ExtractionCostSummary).
@@ -1711,6 +1726,21 @@ This block MUST appear at the very end of your response."""
         extract_usage(response, model_used, "qa", deal_id=deal_id, duration=_qa_duration)
 
         answer_text = response.content[0].text
+
+        # Step 6b: If reasoning mode, parse JSON response
+        reasoning_dict = None
+        if request.show_reasoning:
+            try:
+                import json as _json
+                from app.prompts.reasoning import ReasoningChain
+
+                parsed = _json.loads(answer_text)
+                reasoning_obj = ReasoningChain.model_validate(parsed["reasoning"])
+                reasoning_dict = reasoning_obj.model_dump()
+                answer_text = parsed["answer"]
+            except Exception as e:
+                logger.warning("Failed to parse reasoning JSON, using raw response: %s", e)
+                reasoning_dict = None
 
         # Step 7: Parse evidence block and extract citations
         # Merge scalar answers from all loaded provisions for evidence lookup
@@ -1734,6 +1764,7 @@ This block MUST appear at the very end of your response."""
             "answer": clean_answer,
             "citations": citations,
             "evidence": evidence,
+            "reasoning": reasoning_dict,
             "covenant_type": covenant_type,
             "model": model_used,
             "data_source": {
