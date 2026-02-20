@@ -1734,12 +1734,26 @@ This block MUST appear at the very end of your response."""
                 import json as _json
                 from app.prompts.reasoning import ReasoningChain
 
-                parsed = _json.loads(answer_text)
+                raw = answer_text.strip()
+                # Strip markdown code fences (```json ... ``` or ``` ... ```)
+                if raw.startswith("```"):
+                    raw = re.sub(r'^```(?:json)?\s*\n?', '', raw)
+                    raw = re.sub(r'\n?```\s*$', '', raw)
+                # Find JSON object boundaries
+                start = raw.find('{')
+                end = raw.rfind('}')
+                if start != -1 and end != -1:
+                    raw = raw[start:end + 1]
+
+                parsed = _json.loads(raw)
                 reasoning_obj = ReasoningChain.model_validate(parsed["reasoning"])
                 reasoning_dict = reasoning_obj.model_dump()
                 answer_text = parsed["answer"]
             except Exception as e:
-                logger.warning("Failed to parse reasoning JSON, using raw response: %s", e)
+                logger.warning(
+                    "Failed to parse reasoning JSON, using raw response: %s — first 200 chars: %.200s",
+                    e, answer_text
+                )
                 reasoning_dict = None
 
         # Step 7: Parse evidence block and extract citations
