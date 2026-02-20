@@ -121,15 +121,14 @@ class TopicRouter:
         categories: Dict[str, CategoryMetadata] = {}
 
         with self._client.read_transaction() as tx:
-            # 1. Load all categories
+            # 1. Load all categories (covenant_type lives on questions, not categories)
             cat_query = """
                 match
                     $c isa ontology_category,
                         has category_id $cid,
-                        has name $cname,
-                        has covenant_type $ctype;
+                        has name $cname;
                     try { $c has description $cdesc; };
-                select $cid, $cname, $ctype, $cdesc;
+                select $cid, $cname, $cdesc;
             """
             cat_result = tx.query(cat_query).resolve()
             for row in cat_result.as_concept_rows():
@@ -138,7 +137,6 @@ class TopicRouter:
                     continue
                 cname = _safe_get_value(row, "cname", "")
                 cdesc = _safe_get_value(row, "cdesc", "")
-                ctype = _safe_get_value(row, "ctype", "RP")
 
                 # Build keyword set from name + description
                 keywords = _tokenize(cname) | _tokenize(cdesc)
@@ -147,24 +145,39 @@ class TopicRouter:
                     category_id=cid,
                     name=cname,
                     description=cdesc,
-                    covenant_type=ctype,
+                    covenant_type="RP",  # default; derived from questions below
                     keywords=keywords,
                 )
 
-            # 2. Load question → category mappings
+            # 2. Load question → category mappings WITH covenant_type from questions
             q_query = """
                 match
                     (category: $cat, question: $q) isa category_has_question;
                     $cat has category_id $cid;
-                    $q has question_id $qid;
-                select $cid, $qid;
+                    $q has question_id $qid, has covenant_type $qctype;
+                select $cid, $qid, $qctype;
             """
             q_result = tx.query(q_query).resolve()
+            # Track covenant types per category to derive category covenant_type
+            cat_covenant_types: Dict[str, set] = {}
             for row in q_result.as_concept_rows():
                 cid = _safe_get_value(row, "cid")
                 qid = _safe_get_value(row, "qid")
+                qctype = _safe_get_value(row, "qctype", "RP")
                 if cid and qid and cid in categories:
                     categories[cid].question_ids.append(qid)
+                    cat_covenant_types.setdefault(cid, set()).add(qctype)
+
+            # Derive covenant_type per category from its questions' covenant_types
+            for cid, ctypes in cat_covenant_types.items():
+                if cid in categories:
+                    if ctypes == {"MFN"}:
+                        categories[cid].covenant_type = "MFN"
+                    elif ctypes == {"RP"}:
+                        categories[cid].covenant_type = "RP"
+                    else:
+                        # Mixed — keep as RP (most categories are RP)
+                        categories[cid].covenant_type = "RP"
 
             # 3. Load question → target_field mappings (Channel 1: scalar)
             field_query = """
