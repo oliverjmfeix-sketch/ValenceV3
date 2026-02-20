@@ -17,6 +17,7 @@ import re
 from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
+from app.services.topic_router import get_topic_router
 from app.schemas.models import UploadResponse, ExtractionStatus
 from typedb.driver import TransactionType
 
@@ -103,46 +104,19 @@ extraction_status: Dict[str, ExtractionStatus] = {}
 
 
 def _detect_covenant_type(question: str) -> str:
-    """
-    Detect whether a question is about MFN, RP, or both.
+    """Detect whether a question is about MFN, RP, or both.
+
+    SSoT-compliant: delegates to TopicRouter which derives keyword
+    mappings from TypeDB category metadata at runtime.
 
     Returns: "mfn", "rp", or "both"
     """
-    q_lower = question.lower()
-
-    mfn_signals = [
-        "mfn", "most favored nation", "most-favored-nation",
-        "incremental", "yield protection", "pricing adjustment",
-        "effective yield", "all-in yield", "applicable rate",
-        "sunset", "oid", "original issue discount", "libor floor",
-        "sofr floor", "fee exclusion", "threshold",
-        "ratio debt", "reclassification",
-        "bridge financing", "bridge-to-term",
-        "carveout", "carve-out", "carve out",
-        "pari passu", "pari-passu",
-        "term loan", "freebie",
-        "incremental equivalent",
-    ]
-
-    rp_signals = [
-        "restricted payment", "dividend", "distribution",
-        "builder basket", "cumulative amount", "ratio basket",
-        "management equity", "tax distribution",
-        "j.crew", "jcrew", "j-crew", "blocker",
-        "unrestricted subsidiary", "investment pathway",
-        "holdco overhead", "equity award",
-        "general basket", "permitted payment",
-    ]
-
-    has_mfn = any(sig in q_lower for sig in mfn_signals)
-    has_rp = any(sig in q_lower for sig in rp_signals)
-
-    if has_mfn and has_rp:
+    try:
+        router = get_topic_router()
+        return router.detect_covenant_type(question)
+    except Exception as e:
+        logger.warning("TopicRouter unavailable, defaulting to 'both': %s", e)
         return "both"
-    elif has_mfn:
-        return "mfn"
-    else:
-        return "both"  # ambiguous questions get both contexts
 
 
 MFN_SYNTHESIS_RULES = """
@@ -1433,67 +1407,16 @@ async def get_mfn_universe_text(deal_id: str):
 @router.post("/{deal_id}/qa")
 async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Q&A endpoint for asking questions about a deal.
-    For MVP, returns extracted answers that match the question.
-    """
-    if not typedb_client.driver:
-        raise HTTPException(status_code=503, detail="Database not connected")
+    Q&A endpoint — DEPRECATED.  Redirects all questions to the Claude-powered
+    /ask endpoint which uses TopicRouter for SSoT-compliant routing.
 
+    Kept for backward compatibility; new clients should call POST /{deal_id}/ask.
+    """
     question = request.get("question", "")
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")
 
-    try:
-        # MFN questions → redirect to Claude-powered /ask endpoint
-        covenant_type = _detect_covenant_type(question)
-        if covenant_type in ("mfn", "both"):
-            return await ask_question(deal_id, AskRequest(question=question))
-
-        # Get all answers for context
-        answers_response = await get_deal_answers(deal_id)
-        answers = answers_response.get("answers", {})
-
-        # For MVP: return relevant answers based on keyword matching
-        # In production, this would use Claude for semantic Q&A
-        relevant = {}
-        question_lower = question.lower()
-
-        # Simple keyword matching for common RP queries
-        keyword_map = {
-            "dividend": ["general_dividend_prohibition_exists", "ratio_dividend_basket"],
-            "builder": ["builder_basket_exists", "builder_starter", "builder_uses_greater_of"],
-            "jcrew": ["jcrew_blocker_exists", "blocker_covers", "unsub_designation"],
-            "blocker": ["jcrew_blocker_exists", "blocker_covers", "blocker_binds", "blocker_is_sacred_right"],
-            "tax": ["tax_distribution_basket_exists", "tax_standalone_taxpayer_limit"],
-            "ip": ["blocker_covers_ip", "ip_transfers", "ip_licensing_restricted"],
-            "ratio": ["ratio_dividend_basket", "ratio_leverage_threshold", "ratio_interest_coverage"],
-            "management": ["mgmt_equity_basket_exists", "mgmt_equity_annual_cap"],
-        }
-
-        for keyword, fields in keyword_map.items():
-            if keyword in question_lower:
-                for field in fields:
-                    for answer_key, answer_val in answers.items():
-                        if field in answer_key:
-                            relevant[answer_key] = answer_val
-
-        # If no keyword match, return all answers
-        if not relevant:
-            relevant = answers
-
-        return {
-            "deal_id": deal_id,
-            "question": question,
-            "answer": "Based on the extracted data, here are the relevant findings:",
-            "relevant_fields": relevant,
-            "total_extracted": len(answers)
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Q&A error for deal {deal_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return await ask_question(deal_id, AskRequest(question=question))
 
 
 @router.post("/{deal_id}/ask")
@@ -1514,8 +1437,15 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
-    # Step 1: Detect covenant type from question
-    covenant_type = _detect_covenant_type(request.question)
+    # Step 1: Route question via TopicRouter (SSoT-compliant)
+    try:
+        topic_router = get_topic_router()
+        route_result = topic_router.route(request.question)
+        covenant_type = route_result.covenant_type
+    except Exception as e:
+        logger.warning("TopicRouter unavailable, defaulting to 'both': %s", e)
+        covenant_type = "both"
+        route_result = None
 
     # Step 2: Load provision data based on detected type
     rp_response = None
@@ -1799,7 +1729,7 @@ This block MUST appear at the very end of your response."""
         )
         citations = _extract_citations_from_answer(clean_answer)
 
-        return {
+        response_data = {
             "question": request.question,
             "answer": clean_answer,
             "citations": citations,
@@ -1809,9 +1739,15 @@ This block MUST appear at the very end of your response."""
             "data_source": {
                 "deal_id": deal_id,
                 "scalar_answers": total_scalar,
-                "multiselect_answers": total_multiselect
-            }
+                "multiselect_answers": total_multiselect,
+            },
         }
+        # Include routing metadata when available (helps debugging)
+        if route_result is not None:
+            response_data["routed_categories"] = [
+                c.category_id for c in route_result.matched_categories
+            ]
+        return response_data
 
     except anthropic.APIError as e:
         logger.error(f"Anthropic API error in Q&A: {e}")

@@ -416,7 +416,15 @@ async def debug_reload_ontology_expanded() -> Dict[str, Any]:
 
 @router.post("/api/debug/fix-target-fields")
 async def debug_fix_target_fields() -> Dict[str, Any]:
-    """Create missing target_field entities and question_targets_field relations."""
+    """Create missing target_field entities and question_targets_field relations.
+
+    ONE-TIME MIGRATION TOOL — NOT a pattern to follow.
+    The hardcoded target_fields dict below was used to seed question_targets_field
+    relations into TypeDB.  Once seeded, the TopicRouter in
+    app/services/topic_router.py reads these mappings at runtime from TypeDB.
+    Do NOT copy this pattern for new fields — instead add to the .tql seed files
+    and run init_schema.py.
+    """
     from app.config import settings
 
     driver = typedb_client.driver
