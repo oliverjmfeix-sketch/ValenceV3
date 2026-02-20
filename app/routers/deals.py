@@ -1802,6 +1802,217 @@ This block MUST appear at the very end of your response."""
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{deal_id}/ask-flat")
+async def ask_question_flat(deal_id: str, request: AskRequest) -> Dict[str, Any]:
+    """Answer a question using FLAT (unstructured) evidence format.
+
+    Identical to /ask except:
+    - Uses format_evidence_flat() instead of the structured formatter
+    - Always uses show_reasoning=true
+    - No covenant-specific synthesis rules in the system prompt
+    - Adds "format": "flat" to the response
+
+    Used for ablation testing to measure what TypeDB's structure adds.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Step 1: Route question (same as /ask)
+    try:
+        topic_router = get_topic_router()
+        route_result = topic_router.route(request.question)
+        covenant_type = route_result.covenant_type
+    except Exception as e:
+        logger.warning("TopicRouter unavailable, defaulting to 'both': %s", e)
+        covenant_type = "both"
+        route_result = None
+
+    # Step 2: Load provision data (same as /ask)
+    rp_response = None
+    mfn_response = None
+
+    if covenant_type in ("rp", "both"):
+        try:
+            rp_response = await get_rp_provision(deal_id)
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise
+
+    if covenant_type in ("mfn", "both"):
+        try:
+            mfn_response = await get_mfn_provision(deal_id)
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise
+
+    if covenant_type == "mfn" and not mfn_response:
+        try:
+            rp_response = await get_rp_provision(deal_id)
+            covenant_type = "rp"
+        except HTTPException:
+            pass
+
+    total_scalar = 0
+    total_multiselect = 0
+    if rp_response:
+        total_scalar += rp_response.get("scalar_count", 0)
+        total_multiselect += rp_response.get("multiselect_count", 0)
+    if mfn_response:
+        total_scalar += mfn_response.get("scalar_count", 0)
+        total_multiselect += mfn_response.get("multiselect_count", 0)
+
+    if total_scalar == 0 and total_multiselect == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No extracted data found. Please upload and extract a document first."
+        )
+
+    # Step 3: Format as FLAT context (no categories, no entity hierarchies)
+    context = _format_evidence_flat(rp_response, mfn_response)
+
+    # Step 4: Minimal system prompt — no covenant-specific synthesis rules
+    from app.prompts.reasoning import (
+        REASONING_SYSTEM_PROMPT,
+        REASONING_FORMAT_INSTRUCTIONS,
+    )
+
+    user_prompt = f"""## USER QUESTION
+
+{request.question}
+
+## EXTRACTED DATA FOR THIS DEAL
+
+{context}
+
+{REASONING_FORMAT_INSTRUCTIONS}"""
+
+    # Step 5: Call Claude
+    try:
+        import time as _time
+        from app.services.cost_tracker import extract_usage
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        model_used = settings.synthesis_model
+
+        _qa_start = _time.time()
+        response = client.messages.create(
+            model=model_used,
+            max_tokens=6000,
+            system=REASONING_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}]
+        )
+        _qa_duration = _time.time() - _qa_start
+        extract_usage(response, model_used, "qa", deal_id=deal_id, duration=_qa_duration)
+
+        answer_text = response.content[0].text
+
+        # Parse reasoning JSON (same code-fence stripping as /ask)
+        reasoning_dict = None
+        try:
+            import json as _json
+            from app.prompts.reasoning import ReasoningChain
+
+            raw = answer_text.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r'^```(?:json)?\s*\n?', '', raw)
+                raw = re.sub(r'\n?```\s*$', '', raw)
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end + 1]
+
+            parsed = _json.loads(raw)
+            reasoning_obj = ReasoningChain.model_validate(parsed["reasoning"])
+            reasoning_dict = reasoning_obj.model_dump()
+            answer_text = parsed["answer"]
+        except Exception as e:
+            logger.warning(
+                "Failed to parse flat reasoning JSON: %s — first 200 chars: %.200s",
+                e, answer_text
+            )
+            reasoning_dict = None
+
+        # Parse evidence and citations (same as /ask)
+        combined_response = {"scalar_answers": {}}
+        if rp_response:
+            combined_response["scalar_answers"].update(
+                rp_response.get("scalar_answers", {})
+            )
+        if mfn_response:
+            combined_response["scalar_answers"].update(
+                mfn_response.get("scalar_answers", {})
+            )
+
+        # Load question metadata for evidence resolution
+        question_meta = {}
+        try:
+            tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+            try:
+                covenant_types_to_load = []
+                if rp_response:
+                    covenant_types_to_load.append("RP")
+                if mfn_response:
+                    covenant_types_to_load.append("MFN")
+                for ct in covenant_types_to_load:
+                    meta_query = f"""
+                        match
+                            $q isa ontology_question,
+                                has covenant_type "{ct}",
+                                has question_id $qid,
+                                has question_text $qtext;
+                            (category: $cat, question: $q) isa category_has_question;
+                            $cat has category_id $cid, has name $cname;
+                        select $qid, $qtext, $cid, $cname;
+                    """
+                    meta_result = tx.query(meta_query).resolve()
+                    for row in meta_result.as_concept_rows():
+                        qid = _safe_get_value(row, "qid")
+                        qtext = _safe_get_value(row, "qtext")
+                        if qid and qtext:
+                            question_meta[qid] = {
+                                "question_text": qtext,
+                                "category_id": _safe_get_value(row, "cid") or "ZZ",
+                                "category_name": _safe_get_value(row, "cname") or "Other",
+                            }
+            finally:
+                tx.close()
+        except Exception:
+            pass
+
+        clean_answer, evidence = _parse_evidence_block(
+            answer_text, combined_response, question_meta
+        )
+        citations = _extract_citations_from_answer(clean_answer)
+
+        response_data = {
+            "question": request.question,
+            "answer": clean_answer,
+            "citations": citations,
+            "evidence": evidence,
+            "reasoning": reasoning_dict,
+            "format": "flat",
+            "covenant_type": covenant_type,
+            "model": model_used,
+            "data_source": {
+                "deal_id": deal_id,
+                "scalar_answers": total_scalar,
+                "multiselect_answers": total_multiselect,
+            },
+        }
+        if route_result is not None:
+            response_data["routed_categories"] = [
+                c.category_id for c in route_result.matched_categories
+            ]
+        return response_data
+
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error in flat Q&A: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in flat Q&A: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def _format_mfn_entities_as_context(deal_id: str, provision_id: str) -> str:
     """Load MFN Channel 3 entities from TypeDB and format as structured text."""
     logger.info(f"Loading MFN entities for {provision_id}")
@@ -2188,6 +2399,60 @@ def _format_rp_provision_as_context(
             )
             lines.append(f"- {label}: {', '.join(concept_names)}")
         lines.append("")
+
+    return "\n".join(lines)
+
+
+def _format_evidence_flat(
+    rp_response: Dict = None,
+    mfn_response: Dict = None,
+) -> str:
+    """Format extracted data as a flat unstructured list.
+
+    No category headers, no entity hierarchies, no SILENT applicability
+    states, no synthesis rules. Used for ablation testing to measure
+    what TypeDB's structure adds to analysis quality.
+    """
+    lines = []
+
+    for response in (rp_response, mfn_response):
+        if not response:
+            continue
+
+        # 1. Scalar answers — flat list, no category grouping
+        for qid, data in sorted(response.get("scalar_answers", {}).items()):
+            value = data.get("value")
+            if isinstance(value, bool):
+                value_str = "true" if value else "false"
+            elif isinstance(value, float) and value == int(value):
+                value_str = str(int(value))
+            else:
+                value_str = str(value)
+
+            page = data.get("source_page")
+            source = data.get("source_text", "")
+            parts = [f"{qid}: {value_str}"]
+            cite_parts = []
+            if page:
+                cite_parts.append(f"p.{page}")
+            if source:
+                cite_parts.append(f'"{source[:200]}"')
+            if cite_parts:
+                parts.append(f" ({', '.join(cite_parts)})")
+            lines.append("".join(parts))
+
+        # 2. Multiselect — convert to simple booleans, omit SILENT
+        for concept_type, concepts in sorted(
+            response.get("multiselect_answers", {}).items()
+        ):
+            for concept in concepts:
+                cid = concept.get("concept_id", "")
+                lines.append(f"{concept_type}/{cid}: true")
+
+        # 3. Pattern flags — flat booleans
+        for flag, value in sorted(response.get("pattern_flags", {}).items()):
+            if isinstance(value, bool):
+                lines.append(f"{flag}: {'true' if value else 'false'}")
 
     return "\n".join(lines)
 
