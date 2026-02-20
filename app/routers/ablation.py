@@ -9,13 +9,13 @@ Compares three evidence formats against gold standard answers:
 All three use show_reasoning=true so we can compare which facts Claude
 selected and which interactions it found.
 """
+import asyncio
 import json
 import logging
 import os
 import re
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -40,6 +40,7 @@ class AblationQuestion(BaseModel):
 
 class AblationRequest(BaseModel):
     questions: List[AblationQuestion]
+    max_questions: Optional[int] = None  # limit for timeout safety
 
 
 class AblationQuestionResult(BaseModel):
@@ -377,147 +378,219 @@ Return ONLY valid JSON with no markdown fencing:
 
 
 # =============================================================================
-# ENDPOINTS
+# PER-QUESTION HELPERS (concurrent A/B/C)
 # =============================================================================
 
-@router.post("/{deal_id}/ablation")
-async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationResult:
-    """Run the full ablation test comparing structured, flat, and raw PDF formats."""
-    overall_start = time.time()
+UPLOADS_DIR = settings.upload_dir
 
-    # Import here to avoid circular imports
-    from app.routers.deals import (
-        AskRequest,
-        ask_question,
-        ask_question_flat,
-        get_rp_provision,
-        get_mfn_provision,
-    )
+
+async def _run_raw_baseline(question: str, rp_text: str) -> dict:
+    """Run Format C: send raw RP universe text to Claude directly."""
     from app.prompts.reasoning import (
         REASONING_SYSTEM_PROMPT,
         REASONING_FORMAT_INSTRUCTIONS,
     )
 
-    # Load RP universe text for Format C
-    uploads_dir = settings.upload_dir
-    rp_path = Path(uploads_dir) / f"{deal_id}_rp_universe.txt"
-    rp_text = ""
-    if rp_path.exists():
-        rp_text = rp_path.read_text(encoding="utf-8")
-    else:
-        logger.warning(f"Ablation: RP universe text not found for {deal_id}")
+    raw_user_prompt = (
+        "You are a legal analyst answering a question about a credit "
+        "agreement using the raw text below. Answer thoroughly and "
+        "precisely, citing specific sections and page numbers.\n\n"
+        f"QUESTION: {question}\n\n"
+        f"RP UNIVERSE TEXT:\n{rp_text[:100000]}\n\n"
+        f"{REASONING_FORMAT_INSTRUCTIONS}"
+    )
 
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    model_used = settings.synthesis_model
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model=settings.synthesis_model,
+        max_tokens=6000,
+        system=REASONING_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": raw_user_prompt}],
+    )
+
+    raw_text = response.content[0].text
+    reasoning, answer = _parse_reasoning_response(raw_text)
+    return {"answer": answer, "reasoning": reasoning}
+
+
+async def _run_judge(
+    question: str,
+    gold_answer: str,
+    a_answer: str,
+    a_reasoning,
+    b_answer: str,
+    b_reasoning,
+    c_answer: str,
+    c_reasoning,
+) -> dict:
+    """Run the judge prompt comparing all three format answers."""
+    judge_prompt = ABLATION_JUDGE_PROMPT.format(
+        question=question,
+        gold_answer=gold_answer,
+        answer_a=a_answer,
+        reasoning_a_json=json.dumps(a_reasoning) if a_reasoning else "null",
+        answer_b=b_answer,
+        reasoning_b_json=json.dumps(b_reasoning) if b_reasoning else "null",
+        answer_c=c_answer,
+        reasoning_c_json=json.dumps(c_reasoning) if c_reasoning else "null",
+    )
+
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model=settings.synthesis_model,
+        max_tokens=4000,
+        messages=[{"role": "user", "content": judge_prompt}],
+    )
+
+    judge_text = response.content[0].text
+    judge_raw = _strip_json_fences(judge_text)
+    return json.loads(judge_raw)
+
+
+async def _run_single_question(
+    deal_id: str,
+    question: str,
+    gold_answer: str,
+    rp_text: str,
+) -> AblationQuestionResult:
+    """Process one ablation question with A/B/C run concurrently."""
+    from app.routers.deals import AskRequest, ask_question, ask_question_flat
+
+    logger.info(f"Ablation Q: {question[:80]}...")
+
+    # Run all three formats concurrently
+    async def run_format_a():
+        req = AskRequest(question=question, show_reasoning=True)
+        return await ask_question(deal_id, req)
+
+    async def run_format_b():
+        req = AskRequest(question=question, show_reasoning=True)
+        return await ask_question_flat(deal_id, req)
+
+    async def run_format_c():
+        return await _run_raw_baseline(question, rp_text)
+
+    results = await asyncio.gather(
+        run_format_a(),
+        run_format_b(),
+        run_format_c(),
+        return_exceptions=True,
+    )
+
+    # Handle any exceptions from individual formats
+    structured_result = results[0] if not isinstance(results[0], Exception) else None
+    flat_result = results[1] if not isinstance(results[1], Exception) else None
+    raw_result = results[2] if not isinstance(results[2], Exception) else None
+
+    if isinstance(results[0], Exception):
+        logger.error(f"Format A failed: {results[0]}")
+    if isinstance(results[1], Exception):
+        logger.error(f"Format B failed: {results[1]}")
+    if isinstance(results[2], Exception):
+        logger.error(f"Format C failed: {results[2]}")
+
+    # Extract answers and reasoning
+    a_answer = structured_result.get("answer", "") if structured_result else "[Format A failed]"
+    a_reasoning = structured_result.get("reasoning") if structured_result else None
+    b_answer = flat_result.get("answer", "") if flat_result else "[Format B failed]"
+    b_reasoning = flat_result.get("reasoning") if flat_result else None
+    c_answer = raw_result.get("answer", "") if raw_result else "[Format C failed]"
+    c_reasoning = raw_result.get("reasoning") if raw_result else None
+
+    # Run judge (serial — needs all three answers)
+    structured_scores = {}
+    flat_scores = {}
+    raw_scores = {}
+    structure_advantage = ""
+    judge_summary = ""
+
+    try:
+        judge_parsed = await _run_judge(
+            question, gold_answer,
+            a_answer, a_reasoning,
+            b_answer, b_reasoning,
+            c_answer, c_reasoning,
+        )
+        structured_scores = judge_parsed.get("structured", {})
+        flat_scores = judge_parsed.get("flat", {})
+        raw_scores = judge_parsed.get("raw", {})
+        structure_advantage = judge_parsed.get("structure_advantage", "")
+        judge_summary = judge_parsed.get("summary", "")
+    except Exception as e:
+        logger.error(f"Ablation judge failed: {e}")
+        judge_summary = f"[Judge error: {e}]"
+
+    return AblationQuestionResult(
+        question=question,
+        gold_answer=gold_answer,
+        structured_answer=a_answer,
+        structured_reasoning=a_reasoning,
+        structured_scores=structured_scores,
+        flat_answer=b_answer,
+        flat_reasoning=b_reasoning,
+        flat_scores=flat_scores,
+        raw_answer=c_answer,
+        raw_reasoning=c_reasoning,
+        raw_scores=raw_scores,
+        structure_advantage=structure_advantage,
+        judge_summary=judge_summary,
+    )
+
+
+# =============================================================================
+# ENDPOINTS
+# =============================================================================
+
+@router.post("/{deal_id}/ablation")
+async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationResult:
+    """Run the full ablation test comparing structured, flat, and raw PDF formats.
+
+    Expected duration: ~45s per question (3 concurrent formats + 1 judge).
+    With 6 questions: ~270s total.
+    """
+    overall_start = time.time()
+
+    # === PRE-FLIGHT: Verify RP universe text exists ===
+    uploads_dir = settings.upload_dir
+    rp_universe_path = os.path.join(uploads_dir, f"{deal_id}_rp_universe.txt")
+    if not os.path.exists(rp_universe_path):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"RP universe text not found at {rp_universe_path}. "
+                f"Cannot run ablation without Format C baseline. "
+                f"Either re-extract this deal or use a deal_id that "
+                f"has a cached RP universe file."
+            ),
+        )
+    with open(rp_universe_path, "r", encoding="utf-8") as f:
+        rp_text = f.read()
+    if len(rp_text) < 1000:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"RP universe text at {rp_universe_path} is only "
+                f"{len(rp_text)} chars — too short for meaningful "
+                f"analysis. Re-extract this deal."
+            ),
+        )
+    logger.info(
+        f"Ablation pre-flight PASS: RP universe loaded "
+        f"({len(rp_text)} chars) from {rp_universe_path}"
+    )
+
+    # Apply max_questions limit if set
+    questions_to_run = request.questions
+    if request.max_questions:
+        questions_to_run = questions_to_run[: request.max_questions]
 
     question_results = []
-
-    for aq in request.questions:
-        logger.info(f"Ablation: processing question: {aq.question[:80]}...")
-
-        # ── Format A: Structured (existing /ask) ──────────────────────
-        try:
-            a_request = AskRequest(question=aq.question, show_reasoning=True)
-            a_response = await ask_question(deal_id, a_request)
-            a_answer = a_response.get("answer", "")
-            a_reasoning = a_response.get("reasoning")
-        except Exception as e:
-            logger.error(f"Ablation Format A failed: {e}")
-            a_answer = f"[ERROR: {e}]"
-            a_reasoning = None
-
-        # ── Format B: Flat (/ask-flat) ────────────────────────────────
-        try:
-            b_request = AskRequest(question=aq.question, show_reasoning=True)
-            b_response = await ask_question_flat(deal_id, b_request)
-            b_answer = b_response.get("answer", "")
-            b_reasoning = b_response.get("reasoning")
-        except Exception as e:
-            logger.error(f"Ablation Format B failed: {e}")
-            b_answer = f"[ERROR: {e}]"
-            b_reasoning = None
-
-        # ── Format C: Raw PDF ─────────────────────────────────────────
-        c_answer = ""
-        c_reasoning = None
-        if rp_text:
-            try:
-                raw_user_prompt = f"""You are a legal analyst answering a question about a credit agreement using the raw text below. Answer thoroughly and precisely, citing specific sections and page numbers.
-
-QUESTION: {aq.question}
-
-RP UNIVERSE TEXT:
-{rp_text[:100000]}
-
-{REASONING_FORMAT_INSTRUCTIONS}"""
-
-                raw_response = client.messages.create(
-                    model=model_used,
-                    max_tokens=6000,
-                    system=REASONING_SYSTEM_PROMPT,
-                    messages=[{"role": "user", "content": raw_user_prompt}]
-                )
-                raw_text = raw_response.content[0].text
-                c_reasoning, c_answer = _parse_reasoning_response(raw_text)
-            except Exception as e:
-                logger.error(f"Ablation Format C failed: {e}")
-                c_answer = f"[ERROR: {e}]"
-                c_reasoning = None
-        else:
-            c_answer = "[RP universe text not available for this deal]"
-
-        # ── Judge all three against gold standard ─────────────────────
-        structured_scores = {}
-        flat_scores = {}
-        raw_scores = {}
-        structure_advantage = ""
-        judge_summary = ""
-
-        try:
-            judge_prompt = ABLATION_JUDGE_PROMPT.format(
-                question=aq.question,
-                gold_answer=aq.gold_answer,
-                answer_a=a_answer,
-                reasoning_a_json=json.dumps(a_reasoning) if a_reasoning else "null",
-                answer_b=b_answer,
-                reasoning_b_json=json.dumps(b_reasoning) if b_reasoning else "null",
-                answer_c=c_answer,
-                reasoning_c_json=json.dumps(c_reasoning) if c_reasoning else "null",
-            )
-
-            judge_response = client.messages.create(
-                model=model_used,
-                max_tokens=4000,
-                messages=[{"role": "user", "content": judge_prompt}]
-            )
-            judge_text = judge_response.content[0].text
-            judge_raw = _strip_json_fences(judge_text)
-            judge_parsed = json.loads(judge_raw)
-
-            structured_scores = judge_parsed.get("structured", {})
-            flat_scores = judge_parsed.get("flat", {})
-            raw_scores = judge_parsed.get("raw", {})
-            structure_advantage = judge_parsed.get("structure_advantage", "")
-            judge_summary = judge_parsed.get("summary", "")
-        except Exception as e:
-            logger.error(f"Ablation judge failed: {e}")
-            judge_summary = f"[Judge error: {e}]"
-
-        question_results.append(AblationQuestionResult(
-            question=aq.question,
-            gold_answer=aq.gold_answer,
-            structured_answer=a_answer,
-            structured_reasoning=a_reasoning,
-            structured_scores=structured_scores,
-            flat_answer=b_answer,
-            flat_reasoning=b_reasoning,
-            flat_scores=flat_scores,
-            raw_answer=c_answer,
-            raw_reasoning=c_reasoning,
-            raw_scores=raw_scores,
-            structure_advantage=structure_advantage,
-            judge_summary=judge_summary,
-        ))
+    for i, aq in enumerate(questions_to_run):
+        logger.info(f"Ablation question {i + 1}/{len(questions_to_run)}")
+        result = await _run_single_question(deal_id, aq.question, aq.gold_answer, rp_text)
+        question_results.append(result)
 
     # ── Build summary ─────────────────────────────────────────────────
     # Collect interactions across formats
@@ -574,8 +647,39 @@ RP UNIVERSE TEXT:
 
 @router.post("/{deal_id}/ablation/duck-creek")
 async def run_duck_creek_ablation(deal_id: str) -> AblationResult:
-    """Run the full Duck Creek ablation test with preset gold standard."""
+    """Run the full Duck Creek ablation test with preset gold standard.
+
+    If the provided deal_id doesn't have a cached RP universe, searches
+    /app/uploads/ for any *_rp_universe.txt file and uses the first match.
+    """
     from app.eval.duck_creek_ablation import DUCK_CREEK_ABLATION_QUESTIONS
+
+    rp_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
+    if not os.path.exists(rp_path):
+        logger.warning(
+            f"No RP universe for {deal_id}. "
+            f"Scanning {UPLOADS_DIR} for alternatives..."
+        )
+        try:
+            candidates = [
+                f.replace("_rp_universe.txt", "")
+                for f in os.listdir(UPLOADS_DIR)
+                if f.endswith("_rp_universe.txt")
+            ]
+        except FileNotFoundError:
+            candidates = []
+
+        if not candidates:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"No RP universe files found in {UPLOADS_DIR}. "
+                    f"Upload and extract a Duck Creek PDF first."
+                ),
+            )
+        logger.info(f"Found {len(candidates)} deals with RP universe: {candidates}")
+        deal_id = candidates[0]
+        logger.info(f"Using deal_id={deal_id} (has cached RP universe)")
 
     request = AblationRequest(
         questions=[AblationQuestion(**q) for q in DUCK_CREEK_ABLATION_QUESTIONS]
