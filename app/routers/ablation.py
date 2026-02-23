@@ -22,6 +22,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import anthropic
 
+from typedb.driver import TransactionType
+
 from app.config import settings
 from app.services.typedb_client import typedb_client
 
@@ -384,6 +386,48 @@ Return ONLY valid JSON with no markdown fencing:
 UPLOADS_DIR = settings.upload_dir
 
 
+def _find_duck_creek_deal_id() -> Optional[str]:
+    """Query TypeDB for a deal whose name contains 'Duck Creek'.
+
+    Returns the deal_id string or None if not found.
+    Uses the same connection pattern as deals.py.
+    """
+    if not typedb_client.driver:
+        logger.error("TypeDB not connected — cannot look up Duck Creek deal")
+        return None
+
+    try:
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            result = tx.query("""
+                match
+                    $d isa deal,
+                        has deal_id $did,
+                        has deal_name $dname;
+                select $did, $dname;
+            """).resolve()
+
+            for row in result.as_concept_rows():
+                try:
+                    dname = row.get("dname").as_attribute().get_value()
+                    if dname and "duck creek" in dname.lower():
+                        deal_id = row.get("did").as_attribute().get_value()
+                        logger.info(f"Found Duck Creek deal: {deal_id} ({dname})")
+                        return deal_id
+                except Exception:
+                    continue
+
+            logger.warning("No deal matching 'Duck Creek' in TypeDB")
+            return None
+        finally:
+            tx.close()
+    except Exception as e:
+        logger.error(f"TypeDB query failed looking for Duck Creek: {e}")
+        return None
+
+
 async def _run_raw_baseline(question: str, rp_text: str) -> dict:
     """Run Format C: send raw RP universe text to Claude directly."""
     from app.prompts.reasoning import (
@@ -576,9 +620,41 @@ async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationR
                 f"analysis. Re-extract this deal."
             ),
         )
+
+    # Content quality check: the RP universe MUST contain the actual
+    # restricted payments covenant, not just definitions that cross-
+    # reference it. Section numbers vary by deal (6.05, 6.06, etc.)
+    # so check for universal legal language.
+    covenant_markers = [
+        "Restricted Payment",
+        "Available Amount",
+        "dividends",
+    ]
+    marker_hits = sum(
+        1 for marker in covenant_markers
+        if marker.lower() in rp_text.lower()
+    )
+
+    # Definitions-only files typically have <10 mentions of
+    # "Restricted Payment"; a full RP universe has 30+.
+    rp_mentions = rp_text.lower().count("restricted payment")
+
+    if marker_hits < 2 or rp_mentions < 15:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"RP universe at {rp_universe_path} appears incomplete. "
+                f"Found {rp_mentions} mentions of 'Restricted Payment' "
+                f"(expected 30+) and {marker_hits}/3 content markers. "
+                f"File likely contains only definitions without the "
+                f"operative covenant text. Re-extract this deal."
+            ),
+        )
+
     logger.info(
         f"Ablation pre-flight PASS: RP universe loaded "
-        f"({len(rp_text)} chars) from {rp_universe_path}"
+        f"({len(rp_text)} chars, {rp_mentions} RP mentions) "
+        f"from {rp_universe_path}"
     )
 
     # Apply max_questions limit if set
@@ -649,39 +725,44 @@ async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationR
 async def run_duck_creek_ablation(deal_id: str) -> AblationResult:
     """Run the full Duck Creek ablation test with preset gold standard.
 
-    If the provided deal_id doesn't have a cached RP universe, searches
-    /app/uploads/ for any *_rp_universe.txt file and uses the first match.
+    If the provided deal_id doesn't have a cached RP universe, queries
+    TypeDB to find a deal whose name contains 'Duck Creek'. Hard fails
+    if no Duck Creek deal exists or if RP universe is missing/incomplete.
     """
     from app.eval.duck_creek_ablation import DUCK_CREEK_ABLATION_QUESTIONS
 
+    resolved_deal_id = deal_id
     rp_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
-    if not os.path.exists(rp_path):
-        logger.warning(
-            f"No RP universe for {deal_id}. "
-            f"Scanning {UPLOADS_DIR} for alternatives..."
-        )
-        try:
-            candidates = [
-                f.replace("_rp_universe.txt", "")
-                for f in os.listdir(UPLOADS_DIR)
-                if f.endswith("_rp_universe.txt")
-            ]
-        except FileNotFoundError:
-            candidates = []
 
-        if not candidates:
+    if not os.path.exists(rp_path):
+        logger.info(
+            f"No RP universe for {deal_id}, querying TypeDB for Duck Creek..."
+        )
+        resolved_deal_id = _find_duck_creek_deal_id()
+
+        if not resolved_deal_id:
             raise HTTPException(
                 status_code=404,
                 detail=(
-                    f"No RP universe files found in {UPLOADS_DIR}. "
-                    f"Upload and extract a Duck Creek PDF first."
+                    "No deal matching 'Duck Creek' found in TypeDB. "
+                    "Upload and extract the Duck Creek PDF first, then retry."
                 ),
             )
-        logger.info(f"Found {len(candidates)} deals with RP universe: {candidates}")
-        deal_id = candidates[0]
-        logger.info(f"Using deal_id={deal_id} (has cached RP universe)")
+
+        rp_path = os.path.join(UPLOADS_DIR, f"{resolved_deal_id}_rp_universe.txt")
+        if not os.path.exists(rp_path):
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"Duck Creek deal found in TypeDB (deal_id={resolved_deal_id}) "
+                    f"but no RP universe file at {rp_path}. "
+                    f"Re-extract this deal to generate the RP universe cache."
+                ),
+            )
+
+    logger.info(f"Duck Creek ablation using deal_id={resolved_deal_id}")
 
     request = AblationRequest(
         questions=[AblationQuestion(**q) for q in DUCK_CREEK_ABLATION_QUESTIONS]
     )
-    return await run_ablation_test(deal_id, request)
+    return await run_ablation_test(resolved_deal_id, request)
