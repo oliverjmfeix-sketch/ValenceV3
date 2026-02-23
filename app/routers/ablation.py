@@ -622,30 +622,45 @@ async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationR
         )
 
     # Content quality check: the RP universe MUST contain the actual
-    # restricted payments covenant, not just definitions that cross-
-    # reference it. Section numbers vary by deal (6.05, 6.06, etc.)
-    # so check for universal legal language.
-    covenant_markers = [
-        "Restricted Payment",
-        "Available Amount",
-        "dividends",
-    ]
-    marker_hits = sum(
-        1 for marker in covenant_markers
-        if marker.lower() in rp_text.lower()
+    # restricted payments covenant, not just definitions. Some deals
+    # title their RP covenant "Restricted Payments" (e.g. ACP Tara)
+    # while others use "Dividends" (e.g. Duck Creek). Check for both.
+    rp_text_lower = rp_text.lower()
+
+    # Count operative covenant terms — either terminology family
+    rp_mentions = rp_text_lower.count("restricted payment")
+    dividend_mentions = rp_text_lower.count("dividend")
+    covenant_term_count = max(rp_mentions, dividend_mentions)
+
+    # Check for section header patterns that indicate operative text
+    has_section_header = bool(
+        re.search(r"section\s+\d+\.\d+.*(?:restricted payment|dividend)", rp_text_lower)
+    )
+    has_basket_language = any(
+        term in rp_text_lower
+        for term in ["available amount", "cumulative amount", "builder basket",
+                     "general basket", "ratio basket"]
+    )
+    has_operative_language = any(
+        term in rp_text_lower
+        for term in ["shall not declare or pay", "shall not make any dividend",
+                     "shall not, and shall not permit"]
     )
 
-    # Definitions-only files typically have <10 mentions of
-    # "Restricted Payment"; a full RP universe has 30+.
-    rp_mentions = rp_text.lower().count("restricted payment")
+    # A complete RP universe needs: many covenant term mentions AND
+    # at least one structural indicator (section headers, basket
+    # language, or operative restrictions).
+    structural_hits = sum([has_section_header, has_basket_language, has_operative_language])
 
-    if marker_hits < 2 or rp_mentions < 15:
+    if covenant_term_count < 10 or structural_hits == 0:
         raise HTTPException(
             status_code=422,
             detail=(
                 f"RP universe at {rp_universe_path} appears incomplete. "
-                f"Found {rp_mentions} mentions of 'Restricted Payment' "
-                f"(expected 30+) and {marker_hits}/3 content markers. "
+                f"Found {rp_mentions} 'Restricted Payment' + "
+                f"{dividend_mentions} 'Dividend' mentions "
+                f"(best={covenant_term_count}, need 10+), "
+                f"structural indicators={structural_hits}/3. "
                 f"File likely contains only definitions without the "
                 f"operative covenant text. Re-extract this deal."
             ),
@@ -653,8 +668,9 @@ async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationR
 
     logger.info(
         f"Ablation pre-flight PASS: RP universe loaded "
-        f"({len(rp_text)} chars, {rp_mentions} RP mentions) "
-        f"from {rp_universe_path}"
+        f"({len(rp_text)} chars, {rp_mentions} RP + "
+        f"{dividend_mentions} Dividend mentions, "
+        f"{structural_hits}/3 structural) from {rp_universe_path}"
     )
 
     # Apply max_questions limit if set
