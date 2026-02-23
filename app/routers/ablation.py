@@ -766,3 +766,200 @@ async def run_duck_creek_ablation(deal_id: str) -> AblationResult:
         questions=[AblationQuestion(**q) for q in DUCK_CREEK_ABLATION_QUESTIONS]
     )
     return await run_ablation_test(resolved_deal_id, request)
+
+
+# =============================================================================
+# DIAGNOSTIC ENDPOINT
+# =============================================================================
+
+@router.get("/{deal_id}/debug-segmenter")
+async def debug_segmenter(deal_id: str):
+    """Run the segmenter on a deal's PDF and return detailed diagnostics.
+
+    Re-runs segmentation (~$0.76, ~30s) and traces every step from
+    PDF parse → segment_document → _build_rp_universe_from_segments
+    → _build_combined_context. Compares fresh result against cached file.
+
+    Does NOT re-extract or store anything. Read-only diagnostic.
+    """
+    import math
+
+    from app.services.extraction import get_extraction_service, RPUniverse
+    from app.services.pdf_parser import PDFParser
+    from app.services.segment_introspector import (
+        get_segment_types, get_rp_segment_mapping,
+    )
+
+    # ── Step 1: Load and parse the PDF ─────────────────────────────────
+    pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"PDF not found at {pdf_path}")
+
+    parser = PDFParser()
+    pages = parser.extract_pages(pdf_path)
+    document_text = ""
+    for page in pages:
+        document_text += f"\n[PAGE {page.page_number}]\n"
+        document_text += page.text
+
+    doc_chars = len(document_text)
+    doc_pages = len(pages)
+
+    # ── Step 2: Run segmentation (the expensive Claude call) ───────────
+    svc = get_extraction_service()
+    segment_map = svc.segment_document(document_text)
+
+    # ── Step 3: Diagnostics on every segment ───────────────────────────
+    rp_mapping = get_rp_segment_mapping()
+    all_segment_types = get_segment_types()
+
+    segments_by_id = {
+        s["segment_type_id"]: s
+        for s in segment_map.get("segments", [])
+    }
+
+    segment_diagnostics = []
+    for st in all_segment_types:
+        sid = st["segment_type_id"]
+        seg_result = segments_by_id.get(sid)
+        rp_field = rp_mapping.get(sid)
+
+        diag: Dict[str, Any] = {
+            "segment_type_id": sid,
+            "name": st["name"],
+            "rp_universe_field": rp_field,
+            "find_description_preview": st["find_description"][:100],
+        }
+
+        if seg_result is None:
+            diag["status"] = "NOT_IN_SEGMENT_MAP"
+            diag["note"] = "Segmenter did not return this ID at all"
+        elif not seg_result.get("found", True):
+            diag["status"] = "NOT_FOUND"
+            diag["note"] = "Segmenter explicitly marked found=false"
+        else:
+            start_page = seg_result.get("start_page")
+            end_page = seg_result.get("end_page")
+            diag["status"] = "FOUND"
+            diag["start_page"] = start_page
+            diag["end_page"] = end_page
+            diag["section_ref"] = seg_result.get("section_ref", "")
+
+            sliced = svc._slice_by_pages(document_text, start_page, end_page)
+            diag["sliced_chars"] = len(sliced) if sliced else 0
+            diag["slice_empty"] = len(sliced) == 0 if sliced is not None else True
+
+            if sliced:
+                diag["slice_preview"] = sliced[:200].replace("\n", " ")
+
+            start_marker = f"[PAGE {start_page}]"
+            end_marker = f"[PAGE {end_page + 1}]"
+            diag["start_marker_found"] = start_marker in document_text
+            diag["end_marker_found"] = end_marker in document_text
+
+        segment_diagnostics.append(diag)
+
+    # ── Step 4: Build RPUniverse and check each field ──────────────────
+    universe = svc._build_rp_universe_from_segments(document_text, segment_map)
+
+    universe_fields = {
+        "definitions": len(universe.definitions),
+        "dividend_covenant": len(universe.dividend_covenant),
+        "investment_covenant": len(universe.investment_covenant),
+        "asset_sale_covenant": len(universe.asset_sale_covenant),
+        "rdp_covenant": len(universe.rdp_covenant),
+        "unsub_mechanics": len(universe.unsub_mechanics),
+        "pro_forma_mechanics": len(universe.pro_forma_mechanics),
+        "raw_text": len(universe.raw_text),
+    }
+
+    raw_rp_mentions = universe.raw_text.lower().count("restricted payment")
+    dividend_rp_mentions = (
+        universe.dividend_covenant.lower().count("restricted payment")
+        if universe.dividend_covenant else 0
+    )
+
+    # ── Step 5: Compare against cached file ────────────────────────────
+    cached_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
+    if os.path.exists(cached_path):
+        cached_text = open(cached_path, "r", encoding="utf-8").read()
+        cached_comparison = {
+            "cached_chars": len(cached_text),
+            "cached_rp_mentions": cached_text.lower().count("restricted payment"),
+            "fresh_chars": len(universe.raw_text),
+            "fresh_rp_mentions": raw_rp_mentions,
+            "match": len(cached_text) == len(universe.raw_text),
+            "delta_chars": len(universe.raw_text) - len(cached_text),
+        }
+    else:
+        cached_comparison = {"cached_file": "NOT_FOUND"}
+
+    # ── Step 6: N-way split details ────────────────────────────────────
+    max_chunk = 400000
+    if doc_chars > max_chunk:
+        num_chunks = math.ceil(doc_chars / max_chunk)
+        chunk_size = doc_chars // num_chunks
+
+        boundaries = [0]
+        for i in range(1, num_chunks):
+            target = chunk_size * i
+            pb = document_text.rfind(
+                "[PAGE ", max(0, target - 5000), min(doc_chars, target + 5000)
+            )
+            if pb == -1:
+                pb = target
+            boundaries.append(pb)
+        boundaries.append(doc_chars)
+
+        chunk_details = []
+        for ci in range(len(boundaries) - 1):
+            chunk_text = document_text[boundaries[ci]:boundaries[ci + 1]]
+            page_markers = re.findall(r'\[PAGE (\d+)\]', chunk_text)
+            pages_in_chunk = [int(p) for p in page_markers] if page_markers else []
+
+            chunk_details.append({
+                "chunk_index": ci,
+                "char_start": boundaries[ci],
+                "char_end": boundaries[ci + 1],
+                "chars": boundaries[ci + 1] - boundaries[ci],
+                "first_page": min(pages_in_chunk) if pages_in_chunk else None,
+                "last_page": max(pages_in_chunk) if pages_in_chunk else None,
+                "page_count": len(pages_in_chunk),
+            })
+
+        n_way_info = {
+            "triggered": True,
+            "num_chunks": num_chunks,
+            "chunks": chunk_details,
+            "note": (
+                f"Document is {doc_chars} chars, split into "
+                f"{num_chunks} chunks at ~{chunk_size} chars each"
+            ),
+        }
+    else:
+        n_way_info = {
+            "triggered": False,
+            "note": f"Document is {doc_chars} chars, under {max_chunk} limit",
+        }
+
+    # ── Step 7: Assemble and return ────────────────────────────────────
+    return {
+        "deal_id": deal_id,
+        "document": {"pages": doc_pages, "chars": doc_chars},
+        "n_way_split": n_way_info,
+        "segment_map_raw": segment_map,
+        "segment_diagnostics": segment_diagnostics,
+        "rp_universe_fields": universe_fields,
+        "rp_content_check": {
+            "raw_text_rp_mentions": raw_rp_mentions,
+            "dividend_covenant_rp_mentions": dividend_rp_mentions,
+            "dividend_covenant_empty": len(universe.dividend_covenant) == 0,
+            "verdict": (
+                "COMPLETE" if raw_rp_mentions >= 15
+                else "DEFINITIONS_ONLY" if raw_rp_mentions < 5
+                else "PARTIAL"
+            ),
+        },
+        "cached_comparison": cached_comparison,
+        "rp_field_mapping": rp_mapping,
+    }
