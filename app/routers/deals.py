@@ -920,6 +920,56 @@ async def upload_pdf_for_deal(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{deal_id}/re-extract")
+async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
+    """
+    Re-run V4 entity extraction from cached RP universe text.
+
+    Skips PDF parsing and universe extraction (~$0.50).
+    Re-runs the Claude entity+answers call (~$0.10) and re-stores to TypeDB.
+    Useful when Channel 3 entities are missing but Channel 1 scalars exist.
+    """
+    from app.services.extraction import RPUniverse
+
+    # Check cached RP universe text exists
+    universe_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
+    if not os.path.exists(universe_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"No cached RP universe text at {universe_path}. Full re-extraction from PDF required."
+        )
+
+    with open(universe_path, "r", encoding="utf-8") as f:
+        raw_text = f.read()
+
+    if not raw_text or len(raw_text) < 100:
+        raise HTTPException(status_code=400, detail="Cached RP universe text is empty or too short")
+
+    rp_universe = RPUniverse(raw_text=raw_text)
+
+    extraction_svc = get_extraction_service()
+    try:
+        v4_result = await extraction_svc.extract_rp_v4_unified(
+            deal_id=deal_id,
+            document_text="",  # No full PDF text — JC tiers 2-3 will be skipped
+            rp_universe=rp_universe,
+            segment_map=None,
+        )
+
+        return {
+            "status": "success",
+            "deal_id": deal_id,
+            "universe_chars": len(raw_text),
+            "storage_result": v4_result.storage_result,
+            "extraction_time_seconds": v4_result.extraction_time_seconds,
+            "model_used": v4_result.model_used,
+            "total_cost_usd": v4_result.total_cost_usd,
+        }
+    except Exception as e:
+        logger.error(f"Re-extraction failed for {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{deal_id}/status", response_model=ExtractionStatus)
 async def get_extraction_status(deal_id: str) -> ExtractionStatus:
     """Get the extraction status for a deal."""
