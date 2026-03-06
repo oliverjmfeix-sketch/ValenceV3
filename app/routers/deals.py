@@ -929,6 +929,7 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
     Re-runs the Claude entity+answers call (~$0.10) and re-stores to TypeDB.
     Useful when Channel 3 entities are missing but Channel 1 scalars exist.
     """
+    logger.info(f"Re-extract requested for deal {deal_id}")
     from app.services.extraction import RPUniverse
 
     # Check cached RP universe text exists
