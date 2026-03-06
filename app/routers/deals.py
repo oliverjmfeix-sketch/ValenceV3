@@ -18,6 +18,7 @@ from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
 from app.services.topic_router import get_topic_router
+from app.services.graph_reader import get_rp_entities
 from app.schemas.models import UploadResponse, ExtractionStatus
 from typedb.driver import TransactionType
 
@@ -2010,6 +2011,137 @@ async def ask_question_flat(deal_id: str, request: AskRequest) -> Dict[str, Any]
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
     except Exception as e:
         logger.error(f"Error in flat Q&A: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{deal_id}/ask-graph")
+async def ask_question_graph(deal_id: str, request: AskRequest) -> Dict[str, Any]:
+    """
+    Answer a question using Channel 3 graph entities instead of Channel 1 scalars.
+
+    Same synthesis prompt as /ask, but data source is typed entities from TypeDB
+    (baskets, sources, blocker, pathways, etc.) instead of flat key-value answers.
+    """
+    if not typedb_client.driver:
+        raise HTTPException(status_code=503, detail="Database not connected")
+
+    # Fetch entity context
+    entity_context = get_rp_entities(deal_id)
+    if entity_context.startswith("("):
+        raise HTTPException(status_code=400, detail=entity_context)
+
+    # Build synthesis prompt — same rules as /ask
+    rp_specific_rules = """
+6. **JCREW BLOCKER ANALYSIS RULES**:
+   When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as follows:
+
+   **BLOCKER PROVISION** — State whether the blocker exists, quote it verbatim, and cite the page.
+
+   **WHAT IT COVERS** — State scope ONCE. What actions are prohibited, who is bound, what assets are protected.
+
+   **DEFINITION QUALITY** — For each key definition, state: defined inline, by cross-reference, or not defined at all?
+
+   **INVESTMENT PATHWAYS** — ALWAYS include if pathway data is available.
+
+   **AMENDMENT VULNERABILITY** — State the SPECIFIC amendment threshold.
+
+   **LIEN RELEASE INTERACTION** — CONNECT lien release to blocker.
+
+   **SYNTHESIS** — End with 2-3 sentences connecting findings with cause-and-effect relationships.
+
+7. **RATIO BASKET AND DIVIDEND CAPACITY RULES**:
+   (a) **CHECK ALL BASKETS** — Never answer based on one basket alone.
+   (b) **THE "NO WORSE" TEST IS CRITICAL** — If the data shows a "no worse" ratio test exists, ALWAYS analyze it.
+   (c) **PRO FORMA ANALYSIS** — Analyze pro forma impact on leverage ratio.
+   (d) **CITE SPECIFIC CLAUSES** — Reference specific subsections for each basket.
+   (e) **CAPACITY SUMMARY** — For complex questions, end with a table of available baskets.
+"""
+
+    system_rules = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted STRUCTURED ENTITY DATA from a knowledge graph.
+
+## DATA FORMAT
+
+The data below contains typed entities (baskets, sources, blockers, pathways, etc.) with their attributes and relationships. This is richer than flat key-value pairs — entities have types, relationships to other entities, and multiple attributes each.
+
+## STRICT RULES
+
+1. **CITATION REQUIRED**: Every factual claim must include a clause and page citation where available, formatted as [Section X.XX(y), p.XX].
+2. **ONLY USE PROVIDED DATA**: Never invent facts not present in the entity data below.
+3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it.
+4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
+5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
+{rp_specific_rules}
+## FORMATTING
+
+- Use **bold** for key terms and defined terms
+- Use bullet points for lists
+- Keep response concise but complete
+- State facts with citations. Do not editorialize.
+
+## EVIDENCE TRACING
+
+After your answer, on a new line, output an evidence block in this exact format:
+
+<!-- EVIDENCE: ["entity_type_1", "entity_type_2"] -->
+
+List the entity types you relied on (e.g., "builder_basket", "ratio_basket", "jcrew_blocker").
+This block MUST appear at the very end of your response."""
+
+    user_prompt = f"""## USER QUESTION
+
+{request.question}
+
+## EXTRACTED ENTITY DATA FOR THIS DEAL
+
+{entity_context}"""
+
+    try:
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        model_used = settings.claude_model
+
+        response = client.messages.create(
+            model=model_used,
+            max_tokens=4000,
+            system=system_rules,
+            messages=[{"role": "user", "content": user_prompt}]
+        )
+
+        answer_text = response.content[0].text
+
+        # Parse evidence block
+        evidence_match = re.search(
+            r'<!--\s*EVIDENCE:\s*\[([^\]]*)\]\s*-->',
+            answer_text,
+        )
+        clean_answer = answer_text
+        evidence_entities = []
+        if evidence_match:
+            clean_answer = answer_text[:evidence_match.start()].rstrip()
+            raw_ids = evidence_match.group(1)
+            evidence_entities = [
+                eid.strip().strip('"').strip("'")
+                for eid in raw_ids.split(",")
+                if eid.strip()
+            ]
+
+        citations = _extract_citations_from_answer(clean_answer)
+
+        return {
+            "question": request.question,
+            "answer": clean_answer,
+            "citations": citations,
+            "evidence_entities": evidence_entities,
+            "data_source": "graph_entities",
+            "entity_context_chars": len(entity_context),
+            "model": model_used,
+            "deal_id": deal_id,
+        }
+
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error in graph Q&A: {e}")
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in graph Q&A: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
