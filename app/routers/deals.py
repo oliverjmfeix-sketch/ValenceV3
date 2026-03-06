@@ -2066,7 +2066,7 @@ The data below contains typed entities (baskets, sources, blockers, pathways, et
 ## STRICT RULES
 
 1. **CITATION REQUIRED**: Every factual claim must include a clause and page citation where available, formatted as [Section X.XX(y), p.XX].
-2. **ONLY USE PROVIDED DATA**: Never invent facts not present in the entity data below.
+2. **ONLY USE PROVIDED DATA**: Answer ONLY using the data provided below. If information is not present in the extracted data, say "Not found in extracted data." Do not use general knowledge about credit agreements.
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it.
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
@@ -2132,6 +2132,7 @@ This block MUST appear at the very end of your response."""
             "citations": citations,
             "evidence_entities": evidence_entities,
             "data_source": "graph_entities",
+            "entity_context": entity_context,
             "entity_context_chars": len(entity_context),
             "model": model_used,
             "deal_id": deal_id,
