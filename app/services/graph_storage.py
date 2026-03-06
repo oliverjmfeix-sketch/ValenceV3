@@ -185,7 +185,7 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
     "ratio_type": "first_lien",
     "is_unlimited_if_met": true,
     "has_no_worse_test": true,
-    "no_worse_threshold": 99.0,
+    "no_worse_threshold": "uncapped",
     "provenance": {"section_reference": "6.06(n)", "source_page": 147}
   },
   "general_rp_basket": {
@@ -246,6 +246,16 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
     "permits_equity_dividend": true,
     "permits_asset_dividend": true,
     "provenance": {"section_reference": "5.15, 6.06(p)"}
+  },
+  "unsub_distribution_basket": {
+    "exists": true,
+    "covers_equity_interests": true,
+    "covers_indebtedness": true,
+    "covers_assets": true,
+    "covers_proceeds": true,
+    "is_categorical": true,
+    "requires_valid_designation": true,
+    "provenance": {"section_reference": "6.06(p)"}
   },
   "sweep_tiers": [
     {
@@ -350,16 +360,24 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
 
 ## FIELD DEFINITIONS
 
-### source_type values for builder_basket.sources:
-- "starter_amount": Base/starting amount (usually "greater of $X and Y% EBITDA")
-- "cni": Consolidated Net Income (usually 50%)
-- "ecf": Excess Cash Flow not applied to mandatory prepayment
-- "ebitda_fc": EBITDA minus Fixed Charges (note the fc_multiplier, e.g., 1.4 = 140%)
-- "equity_proceeds": Proceeds from equity issuances (usually 100%)
-- "asset_sale_proceeds": Retained asset sale proceeds
+### IMPORTANT: builder_basket.sources — Extract ALL source subtypes
+You MUST extract every source feeding the builder basket. Most agreements have 3-5 sources:
+- "starter_amount": Base/starting amount (usually "greater of $X and Y% EBITDA"). Include dollar_amount, ebitda_percentage, uses_greater_of.
+- "cni": Consolidated Net Income (usually 50%). Include percentage, is_primary_test.
+- "ecf": Excess Cash Flow not applied to mandatory prepayment. Include retained_ecf_formula (verbatim description of what retained ECF means), lookback_period.
+- "ebitda_fc": EBITDA minus Fixed Charges. Include fc_multiplier (e.g., 1.4 for 140% of Fixed Charges), is_primary_test.
+- "equity_proceeds": Proceeds from equity issuances (usually 100%). Include percentage, excludes_cure_contributions, excludes_disqualified_stock.
+- "asset_sale_proceeds": Retained asset sale proceeds that build the Cumulative Amount. Include sweep_section_reference (the section governing sweep tiers), has_ratio_disposition_basket (whether there's a ratio-based disposition basket), ratio_disposition_threshold.
 - "investment_returns": Returns/dividends received from investments
 - "declined_proceeds": Proceeds borrower elected not to accept
 - "debt_conversion": Debt converted to equity
+
+### no_worse_threshold for ratio_basket:
+- If the 'no worse' test has NO leverage cap (any ratio allowed as long as no worse), use: "uncapped"
+- If the 'no worse' test has a specific cap (e.g., 6.25x), use that number
+
+### unsub_distribution_basket:
+This is the Section 6.06(p) carve-out that permits dividending equity/assets of Unrestricted Subsidiaries — separate from unsub_designation which covers the DESIGNATION rules. Extract if a specific basket permits distributions of equity interests, indebtedness, assets, or proceeds of Unrestricted Subsidiaries.
 
 ### ratio_type values:
 - "first_lien" | "secured" | "total" | "senior_secured" | "net"
@@ -659,6 +677,14 @@ Each answer object has this schema:
                 except Exception as e:
                     results["errors"].append(f"Equity award basket: {str(e)[:100]}")
 
+            # Store unsub distribution basket (6.06(p) carve-out)
+            if getattr(extraction, 'unsub_distribution_basket', None) and extraction.unsub_distribution_basket.exists:
+                try:
+                    self._store_unsub_distribution_basket_v4(provision_id, extraction.unsub_distribution_basket)
+                    results["baskets_created"] += 1
+                except Exception as e:
+                    results["errors"].append(f"Unsub distribution basket: {str(e)[:100]}")
+
             # Store RDP baskets (separate hierarchy — provision_has_rdp_basket)
             if extraction.refinancing_rdp_basket and extraction.refinancing_rdp_basket.exists:
                 try:
@@ -843,124 +869,147 @@ Each answer object has this schema:
 
         Preserves the provision entity and deal_has_provision link.
         Called before re-extraction to ensure clean state.
+
+        Strategy: Delete entities directly (TypeDB cascades relation deletion).
+        Work bottom-up: leaf entities first, then parent entities.
+        If cascade fails, fall back to ID-pattern matching for orphaned entities.
         """
+        pid = provision_id  # shorthand for pattern matching
+
         cleanup_queries = [
-            # 1. Delete provision_has_answer relations
+            # ── Phase 1: Delete Channel 1 & 2 relations ─────────────────────
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_answer(provision: $p, question: $q);
+                $rel isa provision_has_answer, links (provision: $p);
             delete $rel;''',
-            # 2. Delete concept_applicability relations
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa concept_applicability(provision: $p, concept: $c);
+                $rel isa concept_applicability, links (provision: $p);
             delete $rel;''',
-            # 3. Delete blocker exceptions (must delete before blocker)
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                (provision: $p, blocker: $b) isa provision_has_blocker;
-                $exc_rel isa blocker_has_exception(blocker: $b, exception: $exc);
-            delete $exc_rel;''',
-            # 4. Delete blocker exception entities
+
+            # ── Phase 2: Delete leaf entities (sources, exceptions) ──────────
+            # Blocker exceptions — match through provision → blocker → exception
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, blocker: $b) isa provision_has_blocker;
                 (blocker: $b, exception: $exc) isa blocker_has_exception;
             delete $exc;''',
-            # 5. Delete builder sources (must delete before basket)
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                (provision: $p, basket: $b) isa provision_has_basket;
-                $src_rel isa basket_has_source(basket: $b, source: $src);
-            delete $src_rel;''',
-            # 6. Delete builder source entities
+            # Builder basket sources — match through provision → basket → source
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
                 (basket: $b, source: $src) isa basket_has_source;
             delete $src;''',
-            # 7a. Delete basket_reallocates_to relations (must delete before baskets)
+
+            # ── Phase 3: Delete basket_reallocates_to relations ──────────────
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
-                $rel isa basket_reallocates_to(source_basket: $b);
+                $rel isa basket_reallocates_to, links (source_basket: $b);
             delete $rel;''',
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
-                $rel isa basket_reallocates_to(target_basket: $b);
+                $rel isa basket_reallocates_to, links (target_basket: $b);
             delete $rel;''',
-            # 7b. Delete provision_has_basket relations + basket entities
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_basket(provision: $p, basket: $b);
-            delete $rel;''',
+
+            # ── Phase 4: Delete mid-level entities (cascades their relations) ─
+            # RP baskets — delete entity (cascades provision_has_basket)
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
             delete $b;''',
-            # 8. Delete provision_has_rdp_basket relations + entities
+            # RDP baskets
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_rdp_basket(provision: $p, basket: $b);
-            delete $rel;''',
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                (provision: $p, basket: $b) isa provision_has_rdp_basket;
+                (provision: $p, rdp_basket: $b) isa provision_has_rdp_basket;
             delete $b;''',
-            # 9. Delete provision_has_blocker relations + blocker entities
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_blocker(provision: $p, blocker: $b);
-            delete $rel;''',
+            # J.Crew blocker
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, blocker: $b) isa provision_has_blocker;
             delete $b;''',
-            # 10. Delete provision_has_unsub + unsub entities
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_unsub(provision: $p, designation: $u);
-            delete $rel;''',
+            # Unsub designation
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, designation: $u) isa provision_has_unsub;
             delete $u;''',
-            # 11. Delete sweep tiers
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_sweep_tier(provision: $p, tier: $t);
-            delete $rel;''',
+            # Sweep tiers
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, tier: $t) isa provision_has_sweep_tier;
             delete $t;''',
-            # 12. Delete de minimis thresholds
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_de_minimis(provision: $p, threshold: $t);
-            delete $rel;''',
+            # De minimis thresholds
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, threshold: $t) isa provision_has_de_minimis;
             delete $t;''',
-            # 13. Delete reallocations
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_reallocation(provision: $p, reallocation: $r);
-            delete $rel;''',
+            # Basket reallocations
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, reallocation: $r) isa provision_has_reallocation;
             delete $r;''',
-            # 14. Delete investment pathways
-            f'''match
-                $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_pathway(provision: $p, pathway: $pw);
-            delete $rel;''',
+            # Investment pathways
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, pathway: $pw) isa provision_has_pathway;
+            delete $pw;''',
+
+            # ── Phase 5: Fallback — delete orphaned entities by ID pattern ───
+            # If cascade didn't delete relations, entities survive Phase 4.
+            # Clean up remaining relations first, then retry entity deletion.
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_basket, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_rdp_basket, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_blocker, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_unsub, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_sweep_tier, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_de_minimis, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_reallocation, links (provision: $p);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                $rel isa provision_has_pathway, links (provision: $p);
+            delete $rel;''',
+            # Delete orphaned entities by ID pattern
+            f'''match $b isa rp_basket, has basket_id $bid; $bid like ".*_{pid}";
+            delete $b;''',
+            f'''match $b isa rdp_basket, has basket_id $bid; $bid like ".*_{pid}";
+            delete $b;''',
+            f'''match $s isa builder_basket_source, has source_id $sid; $sid like ".*_{pid}_.*";
+            delete $s;''',
+            f'''match $b isa jcrew_blocker, has blocker_id "jcrew_{pid}";
+            delete $b;''',
+            f'''match $e isa blocker_exception, has exception_id $eid; $eid like "jcrew_{pid}_.*";
+            delete $e;''',
+            f'''match $u isa unsub_designation, has designation_id "unsub_{pid}";
+            delete $u;''',
+            f'''match $t isa sweep_tier, has tier_id $tid; $tid like "sweep_{pid}_.*";
+            delete $t;''',
+            f'''match $t isa de_minimis_threshold, has threshold_id $tid; $tid like "deminimis_{pid}_.*";
+            delete $t;''',
+            f'''match $r isa basket_reallocation, has reallocation_id $rid; $rid like "realloc_{pid}_.*";
+            delete $r;''',
+            f'''match $pw isa investment_pathway, has pathway_id $pid2; $pid2 like "pathway_{pid}_.*";
             delete $pw;''',
         ]
 
@@ -1175,6 +1224,15 @@ Each answer object has this schema:
         if source.excludes_disqualified_stock is not None:
             attrs.append(f'has excludes_disqualified_stock {str(source.excludes_disqualified_stock).lower()}')
 
+        # Asset proceeds source enrichment (B2)
+        if source.source_type in ("asset_sale_proceeds", "asset_proceeds"):
+            if getattr(source, 'sweep_section_reference', None):
+                attrs.append(f'has sweep_section_reference "{self._escape(source.sweep_section_reference)}"')
+            if getattr(source, 'has_ratio_disposition_basket', None) is not None:
+                attrs.append(f'has has_ratio_disposition_basket {str(source.has_ratio_disposition_basket).lower()}')
+            if getattr(source, 'ratio_disposition_threshold', None) is not None:
+                attrs.append(f'has ratio_disposition_threshold {source.ratio_disposition_threshold}')
+
         # Provenance
         if source.provenance:
             if source.provenance.section_reference:
@@ -1210,7 +1268,15 @@ Each answer object has this schema:
         if basket.has_no_worse_test:
             attrs.append('has has_no_worse_test true')
         if basket.no_worse_threshold is not None:
-            attrs.append(f'has no_worse_threshold {basket.no_worse_threshold}')
+            nwt = basket.no_worse_threshold
+            if isinstance(nwt, str) and nwt.lower() == "uncapped":
+                attrs.append('has no_worse_is_uncapped true')
+            elif isinstance(nwt, (int, float)) and nwt > 50:
+                # Sentinel value (99.0) means uncapped
+                attrs.append('has no_worse_is_uncapped true')
+            else:
+                attrs.append(f'has no_worse_threshold {nwt}')
+                attrs.append('has no_worse_is_uncapped false')
         if basket.test_date_type:
             attrs.append(f'has test_date_type "{self._escape(basket.test_date_type)}"')
         if basket.lct_treatment_available is not None:
@@ -1402,6 +1468,43 @@ Each answer object has this schema:
                 $prov isa rp_provision, has provision_id "{provision_id}";
             insert
                 $basket isa equity_award_basket,
+                {attrs_str};
+                (provision: $prov, basket: $basket) isa provision_has_basket;
+        '''
+        self._execute_query(query)
+
+    def _store_unsub_distribution_basket_v4(self, provision_id: str, basket):
+        """Store unsub distribution basket (Section 6.06(p) carve-out)."""
+        basket_id = f"unsub_dist_{provision_id}"
+
+        attrs = [f'has basket_id "{basket_id}"']
+
+        if basket.covers_equity_interests is not None:
+            attrs.append(f'has covers_equity_interests {str(basket.covers_equity_interests).lower()}')
+        if basket.covers_indebtedness is not None:
+            attrs.append(f'has covers_indebtedness {str(basket.covers_indebtedness).lower()}')
+        if basket.covers_assets is not None:
+            attrs.append(f'has covers_assets {str(basket.covers_assets).lower()}')
+        if basket.covers_proceeds is not None:
+            attrs.append(f'has covers_proceeds {str(basket.covers_proceeds).lower()}')
+        if basket.is_categorical is not None:
+            attrs.append(f'has is_categorical {str(basket.is_categorical).lower()}')
+        if getattr(basket, 'requires_valid_designation', None) is not None:
+            attrs.append(f'has requires_valid_designation {str(basket.requires_valid_designation).lower()}')
+
+        # Provenance
+        if basket.provenance:
+            if basket.provenance.section_reference:
+                attrs.append(f'has section_reference "{self._escape(basket.provenance.section_reference)}"')
+            if basket.provenance.source_page is not None:
+                attrs.append(f'has source_page {basket.provenance.source_page}')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $basket isa unsub_distribution_basket,
                 {attrs_str};
                 (provision: $prov, basket: $basket) isa provision_has_basket;
         '''

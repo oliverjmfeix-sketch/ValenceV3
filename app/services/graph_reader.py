@@ -25,11 +25,18 @@ def _fmt_dollar(val) -> str:
 
 
 def _fmt_pct(val) -> str:
-    """Format a numeric value as X%."""
+    """Format a numeric value as X%.
+
+    Values stored as decimals (e.g., 1.0 = 100%, 0.5 = 50%) are converted.
+    Values > 1 are assumed to already be percentages.
+    """
     if val is None:
         return ""
     try:
-        return f"{val}%"
+        v = float(val)
+        if v <= 1.0:
+            return f"{v * 100:.0f}%"
+        return f"{v:.1f}%"
     except (TypeError, ValueError):
         return str(val)
 
@@ -183,6 +190,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has is_unlimited_if_met $ium; }};
             try {{ $b has has_no_worse_test $nwt; }};
             try {{ $b has no_worse_threshold $nwthr; }};
+            try {{ $b has no_worse_is_uncapped $nwu; }};
             try {{ $b has test_date_type $tdt; }};
             try {{ $b has lct_treatment_available $lct; }};
             try {{ $b has pro_forma_basis $pfb; }};
@@ -209,7 +217,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has covers_tax_withholding $ctw; }};
         select $b, $bid, $sec, $pg, $dc, $src, $conf,
                $sdl, $ugot,
-               $rt, $rty, $ium, $nwt, $nwthr, $tdt, $lct, $pfb,
+               $rt, $rty, $ium, $nwt, $nwthr, $nwu, $tdt, $lct, $pfb,
                $bau, $bgp, $ipa,
                $acu, $acpe, $cugo, $cfp, $cfmy, $eps,
                $stl, $htr, $tsp, $etp,
@@ -247,7 +255,8 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             _line("Ratio Type", _safe_val(row, "rty")),
             _line("Is Unlimited If Met", _safe_val(row, "ium")),
             _line("Has No Worse Test", _safe_val(row, "nwt")),
-            _line("No Worse Threshold", _safe_val(row, "nwthr")),
+            _line("No Worse Threshold",
+                  "uncapped" if _safe_val(row, "nwu") else _safe_val(row, "nwthr")),
             _line("Test Date Type", _safe_val(row, "tdt")),
             _line("LCT Treatment Available", _safe_val(row, "lct")),
             _line("Pro Forma Basis", _safe_val(row, "pfb")),
@@ -320,9 +329,13 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
             try {{ $s has fc_multiplier $fcm; }};
             try {{ $s has excludes_cure_contributions $ecc; }};
             try {{ $s has excludes_disqualified_stock $eds; }};
+            try {{ $s has sweep_section_reference $ssr; }};
+            try {{ $s has has_ratio_disposition_basket $hrdb; }};
+            try {{ $s has ratio_disposition_threshold $rdt; }};
         select $s, $sid, $sn, $sec, $pg, $noa,
                $da, $ep, $ugo, $pct, $ipt,
-               $recf, $lbp, $lbq, $fcm, $ecc, $eds;
+               $recf, $lbp, $lbq, $fcm, $ecc, $eds,
+               $ssr, $hrdb, $rdt;
     '''
     rows = _run_query(query)
     if not rows:
@@ -347,6 +360,9 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
             _line("Excludes Cure Contributions", _safe_val(row, "ecc")),
             _line("Excludes Disqualified Stock", _safe_val(row, "eds")),
             _line("Not Otherwise Applied", _safe_val(row, "noa")),
+            _line("Sweep Section Reference", _safe_val(row, "ssr")),
+            _line("Has Ratio Disposition Basket", _safe_val(row, "hrdb")),
+            _line("Ratio Disposition Threshold", _safe_val(row, "rdt")),
         ])
 
         sec = _safe_val(row, "sec")
@@ -360,6 +376,28 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
             lines.append(f"  {', '.join(loc)}")
 
     return lines
+
+
+def _fetch_basket_amounts(provision_id: str) -> Dict[str, float]:
+    """Fetch basket_amount_usd for all RP baskets, keyed by basket type short name."""
+    query = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b has basket_id $bid;
+            $b has basket_amount_usd $bau;
+        select $bid, $bau;
+    '''
+    rows = _run_query(query)
+    result = {}
+    for row in rows:
+        bid = _safe_val(row, "bid")
+        amt = _safe_val(row, "bau")
+        if bid and amt:
+            # basket_id is like "investment_87852625_rp" — extract type prefix
+            short = bid.replace(f"_{provision_id}", "").replace("_", " ")
+            result[short] = amt
+    return result
 
 
 def _fetch_reallocations(provision_id: str) -> List[str]:
@@ -383,14 +421,22 @@ def _fetch_reallocations(provision_id: str) -> List[str]:
     if not rows:
         return []
 
+    # Build a map of basket_id -> amount for inline display
+    basket_amt_map = _fetch_basket_amounts(provision_id)
+
     lines = ["## Reallocation Paths"]
     for row in rows:
         src = _safe_val(row, "rsrc") or "unknown"
         bidir = _safe_val(row, "bidir")
         sec = _safe_val(row, "sec") or ""
-        direction = "bidirectional" if bidir else "one-way"
+        direction = "↔ bidirectional" if bidir else "→ one-way"
         sec_str = f" via {sec}" if sec else ""
-        lines.append(f"  {src} -> RP covenant{sec_str}, {direction}")
+        # Try to find source basket amount from the reallocation_source string
+        # Format is "investment -> RP" so extract first part
+        src_name = src.split(" -> ")[0].strip() if " -> " in src else src
+        src_amt_val = basket_amt_map.get(src_name)
+        src_amt = f" ({_fmt_dollar(src_amt_val)})" if src_amt_val else ""
+        lines.append(f"  {src}{src_amt}{sec_str}, {direction}")
 
         _add_lines(lines, [
             _line("    Amount", _safe_val(row, "ramt"), _fmt_dollar),

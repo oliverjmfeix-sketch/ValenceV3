@@ -60,6 +60,19 @@ class BuilderSource(BaseModel):
         None,
         description="Source subject to 'not otherwise applied' limitation"
     )
+    # Asset proceeds source enrichment (B2)
+    sweep_section_reference: Optional[str] = Field(
+        None,
+        description="Section reference for sweep tiers governing this source"
+    )
+    has_ratio_disposition_basket: Optional[bool] = Field(
+        None,
+        description="Whether there's a ratio-based disposition basket"
+    )
+    ratio_disposition_threshold: Optional[float] = Field(
+        None,
+        description="Ratio threshold for disposition basket"
+    )
     provenance: Optional[Provenance] = None
 
 
@@ -114,9 +127,9 @@ class RatioBasket(BaseModel):
         False,
         description="CRITICAL: Can dividend if ratio not worse pro forma"
     )
-    no_worse_threshold: Optional[float] = Field(
+    no_worse_threshold: Optional[Any] = Field(
         None,
-        description="Max ratio for 'no worse' test (99.0 = unlimited)"
+        description="Max ratio for 'no worse' test. Use 'uncapped' if no cap, or a number (e.g. 6.25)"
     )
     test_date_type: Optional[str] = Field(
         None,
@@ -270,6 +283,22 @@ class HoldcoOverheadBasket(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 # EQUITY AWARD BASKET
 # ═══════════════════════════════════════════════════════════════════════════════
+
+class UnsubDistributionBasket(BaseModel):
+    """
+    Maps to TypeDB: unsub_distribution_basket entity (sub rp_basket)
+    Section 6.06(p) carve-out: permits dividending equity/assets of Unrestricted Subsidiaries.
+    Separate from unsub_designation which covers DESIGNATION rules.
+    """
+    exists: bool = False
+    covers_equity_interests: bool = Field(True, description="Permits distribution of equity interests")
+    covers_indebtedness: bool = Field(True, description="Permits distribution of indebtedness")
+    covers_assets: bool = Field(True, description="Permits distribution of assets")
+    covers_proceeds: bool = Field(True, description="Permits distribution of proceeds")
+    is_categorical: bool = Field(True, description="No dollar cap, no ratio test — categorical permission")
+    requires_valid_designation: bool = Field(True, description="Sub must be validly designated Unrestricted")
+    provenance: Optional[Provenance] = None
+
 
 class EquityAwardBasket(BaseModel):
     """
@@ -710,6 +739,7 @@ class RPExtractionV4(BaseModel):
     tax_distribution_basket: Optional[TaxDistributionBasket] = None
     holdco_overhead_basket: Optional[HoldcoOverheadBasket] = None
     equity_award_basket: Optional[EquityAwardBasket] = None
+    unsub_distribution_basket: Optional[UnsubDistributionBasket] = None
 
     # ─────────────────────────────────────────────────────────────────────────
     # BLOCKERS

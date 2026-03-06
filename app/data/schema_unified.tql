@@ -200,6 +200,7 @@ attribute ratio_type, value string;                # first_lien | senior_secured
 attribute is_unlimited_if_met, value boolean;
 attribute has_no_worse_test, value boolean;
 attribute no_worse_threshold, value double;
+attribute no_worse_is_uncapped, value boolean;
 attribute test_date_type, value string;            # declaration | payment | most_recent_fq
 attribute lct_treatment_available, value boolean;
 attribute pro_forma_basis, value boolean;
@@ -260,6 +261,19 @@ attribute requires_board_approval, value boolean;
 attribute dollar_cap_usd, value double;
 attribute pct_cap_assets, value double;
 attribute redesignation_permitted, value boolean;
+
+# ── Unsub distribution basket (Section 6.06(p) carve-out) ────────────────────
+attribute covers_equity_interests, value boolean;
+attribute covers_indebtedness, value boolean;
+attribute covers_assets, value boolean;
+attribute covers_proceeds, value boolean;
+attribute is_categorical, value boolean;
+attribute requires_valid_designation, value boolean;
+
+# ── Asset proceeds source enrichment ─────────────────────────────────────────
+attribute sweep_section_reference, value string;
+attribute has_ratio_disposition_basket, value boolean;
+attribute ratio_disposition_threshold, value double;
 
 # ── De minimis threshold ─────────────────────────────────────────────────────
 attribute threshold_type, value string;            # individual | annual
@@ -427,6 +441,7 @@ entity ratio_basket sub rp_basket,
     owns is_unlimited_if_met,
     owns has_no_worse_test,
     owns no_worse_threshold,
+    owns no_worse_is_uncapped,
     owns test_date_type,
     owns lct_treatment_available,
     owns pro_forma_basis;
@@ -464,6 +479,14 @@ entity equity_award_basket sub rp_basket,
     owns covers_cashless_exercise,
     owns covers_tax_withholding,
     owns carryforward_permitted;
+
+entity unsub_distribution_basket sub rp_basket,
+    owns covers_equity_interests,
+    owns covers_indebtedness,
+    owns covers_assets,
+    owns covers_proceeds,
+    owns is_categorical,
+    owns requires_valid_designation;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET SOURCES (polymorphic)
@@ -510,7 +533,10 @@ entity equity_proceeds_source sub builder_basket_source,
 entity investment_returns_source sub builder_basket_source;
 
 entity asset_proceeds_source sub builder_basket_source,
-    owns percentage;
+    owns percentage,
+    owns sweep_section_reference,
+    owns has_ratio_disposition_basket,
+    owns ratio_disposition_threshold;
 
 entity debt_conversion_source sub builder_basket_source;
 
