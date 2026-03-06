@@ -735,9 +735,9 @@ Each answer object has this schema:
                     results["errors"].append(f"Sweep exemption '{exemption_id}': {str(e)[:100]}")
 
             # Store reallocations (note: need basket IDs, may fail if baskets don't exist)
-            for realloc in extraction.reallocations:
+            for i, realloc in enumerate(extraction.reallocations):
                 try:
-                    self._store_reallocation_v4(provision_id, realloc)
+                    self._store_reallocation_v4(provision_id, realloc, index=i)
                     results["reallocations_created"] += 1
                 except Exception as e:
                     results["errors"].append(f"Reallocation: {str(e)[:100]}")
@@ -871,15 +871,26 @@ Each answer object has this schema:
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
-                $src_rel isa builder_has_source(builder: $b, source: $src);
+                $src_rel isa basket_has_source(basket: $b, source: $src);
             delete $src_rel;''',
             # 6. Delete builder source entities
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
-                (builder: $b, source: $src) isa builder_has_source;
+                (basket: $b, source: $src) isa basket_has_source;
             delete $src;''',
-            # 7. Delete provision_has_basket relations + basket entities
+            # 7a. Delete basket_reallocates_to relations (must delete before baskets)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_basket;
+                $rel isa basket_reallocates_to(source_basket: $b);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, basket: $b) isa provision_has_basket;
+                $rel isa basket_reallocates_to(target_basket: $b);
+            delete $rel;''',
+            # 7b. Delete provision_has_basket relations + basket entities
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 $rel isa provision_has_basket(provision: $p, basket: $b);
@@ -909,11 +920,11 @@ Each answer object has this schema:
             # 10. Delete provision_has_unsub + unsub entities
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
-                $rel isa provision_has_unsub(provision: $p, unsub: $u);
+                $rel isa provision_has_unsub(provision: $p, designation: $u);
             delete $rel;''',
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
-                (provision: $p, unsub: $u) isa provision_has_unsub;
+                (provision: $p, designation: $u) isa provision_has_unsub;
             delete $u;''',
             # 11. Delete sweep tiers
             f'''match
@@ -1089,8 +1100,6 @@ Each answer object has this schema:
         basket_id = f"builder_{provision_id}"
         attrs = [f'has basket_id "{basket_id}"']
 
-        if basket.basket_name:
-            attrs.append(f'has basket_name "{self._escape(basket.basket_name)}"')
         if basket.start_date_language:
             attrs.append(f'has start_date_language "{self._escape(basket.start_date_language)}"')
         if basket.uses_greatest_of_tests:
@@ -1137,12 +1146,12 @@ Each answer object has this schema:
             "ecf": "ecf_source",
             "ebitda_fc": "ebitda_fc_source",
             "equity_proceeds": "equity_proceeds_source",
-            "asset_sale_proceeds": "asset_sale_proceeds_source",
+            "asset_sale_proceeds": "asset_proceeds_source",
+            "asset_proceeds": "asset_proceeds_source",
             "investment_returns": "investment_returns_source",
-            "declined_proceeds": "declined_proceeds_source",
-            "debt_conversion": "builder_source"  # Fallback for new type
+            "debt_conversion": "debt_conversion_source",
         }
-        entity_type = type_map.get(source.source_type, "builder_source")
+        entity_type = type_map.get(source.source_type, "debt_conversion_source")
 
         attrs = [
             f'has source_id "{source_id}"',
@@ -1152,13 +1161,11 @@ Each answer object has this schema:
         if source.percentage is not None:
             attrs.append(f'has percentage {source.percentage}')
         if source.dollar_amount is not None:
-            attrs.append(f'has floor_amount {source.dollar_amount}')  # Use floor_amount for dollar amount
+            attrs.append(f'has dollar_amount {source.dollar_amount}')
         if source.ebitda_percentage is not None:
             attrs.append(f'has ebitda_percentage {source.ebitda_percentage}')
         if source.fc_multiplier is not None:
             attrs.append(f'has fc_multiplier {source.fc_multiplier}')
-        if source.floor_amount is not None:
-            attrs.append(f'has floor_amount {source.floor_amount}')
         if source.uses_greater_of:
             attrs.append('has uses_greater_of true')
         if source.not_otherwise_applied is not None:
@@ -1175,12 +1182,10 @@ Each answer object has this schema:
             if source.provenance.source_page is not None:
                 attrs.append(f'has source_page {source.provenance.source_page}')
 
-        attrs_str = ",\n                ".join(attrs)
-
-        # Relation attribute for is_primary_test
-        rel_attrs = ""
         if source.is_primary_test:
-            rel_attrs = ", has is_primary_test true"
+            attrs.append('has is_primary_test true')
+
+        attrs_str = ",\n                ".join(attrs)
 
         query = f'''
             match
@@ -1188,7 +1193,7 @@ Each answer object has this schema:
             insert
                 $src isa {entity_type},
                 {attrs_str};
-                (builder: $basket, source: $src) isa builder_has_source{rel_attrs};
+                (basket: $basket, source: $src) isa basket_has_source;
         '''
         self._execute_query(query)
 
@@ -1238,17 +1243,9 @@ Each answer object has this schema:
         attrs = [f'has basket_id "{basket_id}"']
 
         if basket.dollar_cap is not None:
-            attrs.append(f'has dollar_cap {basket.dollar_cap}')
+            attrs.append(f'has basket_amount_usd {basket.dollar_cap}')
         if basket.ebitda_percentage is not None:
-            attrs.append(f'has ebitda_percentage {basket.ebitda_percentage}')
-        if basket.uses_greater_of:
-            attrs.append('has uses_greater_of true')
-        if basket.requires_no_default:
-            attrs.append('has requires_no_default true')
-        if basket.requires_ratio_test:
-            attrs.append('has requires_ratio_test true')
-        if basket.ratio_threshold is not None:
-            attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
+            attrs.append(f'has basket_grower_pct {basket.ebitda_percentage}')
 
         # Provenance
         if basket.provenance:
@@ -1273,13 +1270,13 @@ Each answer object has this schema:
         attrs = [f'has basket_id "{basket_id}"']
 
         if basket.annual_cap is not None:
-            attrs.append(f'has annual_cap {basket.annual_cap}')
+            attrs.append(f'has annual_cap_usd {basket.annual_cap}')
         if basket.ebitda_percentage is not None:
-            attrs.append(f'has ebitda_percentage {basket.ebitda_percentage}')
+            attrs.append(f'has annual_cap_pct_ebitda {basket.ebitda_percentage}')
         if basket.uses_greater_of:
-            attrs.append('has uses_greater_of true')
+            attrs.append('has cap_uses_greater_of true')
         if basket.permits_carryforward:
-            attrs.append('has permits_carryforward true')
+            attrs.append('has carryforward_permitted true')
         if basket.eligible_person_scope:
             attrs.append(f'has eligible_person_scope "{self._escape(basket.eligible_person_scope)}"')
 
@@ -1729,23 +1726,13 @@ Each answer object has this schema:
         attrs = [f'has designation_id "{designation_id}"']
 
         if unsub.dollar_cap is not None:
-            attrs.append(f'has dollar_cap {unsub.dollar_cap}')
+            attrs.append(f'has dollar_cap_usd {unsub.dollar_cap}')
         if unsub.ebitda_percentage is not None:
-            attrs.append(f'has ebitda_percentage {unsub.ebitda_percentage}')
-        if unsub.uses_greater_of:
-            attrs.append('has uses_greater_of true')
+            attrs.append(f'has pct_cap_assets {unsub.ebitda_percentage}')
         if unsub.requires_no_default:
             attrs.append('has requires_no_default true')
         if unsub.requires_board_approval:
             attrs.append('has requires_board_approval true')
-        if unsub.requires_ratio_test:
-            attrs.append('has requires_ratio_test true')
-        if unsub.ratio_threshold is not None:
-            attrs.append(f'has ratio_threshold {unsub.ratio_threshold}')
-        if unsub.permits_equity_dividend:
-            attrs.append('has permits_equity_dividend true')
-        if unsub.permits_asset_dividend:
-            attrs.append('has permits_asset_dividend true')
 
         # Provenance
         if unsub.provenance:
@@ -1759,7 +1746,7 @@ Each answer object has this schema:
             insert
                 $unsub isa unsub_designation,
                 {attrs_str};
-                (provision: $prov, designation: $unsub) isa provision_has_unsub_designation;
+                (provision: $prov, designation: $unsub) isa provision_has_unsub;
         '''
         self._execute_query(query)
 
@@ -1799,15 +1786,8 @@ Each answer object has this schema:
         attrs = [
             f'has threshold_id "{threshold_id}"',
             f'has threshold_type "{threshold.threshold_type}"',
-            f'has dollar_amount {threshold.dollar_amount}'
+            f'has threshold_amount_usd {threshold.dollar_amount}'
         ]
-
-        if threshold.ebitda_percentage is not None:
-            attrs.append(f'has ebitda_percentage {threshold.ebitda_percentage}')
-        if threshold.uses_greater_of:
-            attrs.append('has uses_greater_of true')
-        if threshold.permits_carryforward:
-            attrs.append('has permits_carryforward true')
 
         attrs_str = ",\n                ".join(attrs)
         query = f'''
@@ -1820,9 +1800,40 @@ Each answer object has this schema:
         '''
         self._execute_query(query)
 
-    def _store_reallocation_v4(self, provision_id: str, realloc):
-        """Store basket reallocation relation."""
-        # Map basket names to expected IDs
+    def _store_reallocation_v4(self, provision_id: str, realloc, index: int = 0):
+        """Store basket reallocation entity + provision_has_reallocation relation."""
+        realloc_id = f"realloc_{provision_id}_{index}"
+
+        attrs = [
+            f'has reallocation_id "{realloc_id}"',
+            f'has reallocation_source "{self._escape(realloc.source_basket)} -> {self._escape(realloc.target_basket)}"'
+        ]
+
+        if realloc.reallocation_cap is not None:
+            attrs.append(f'has reallocation_amount_usd {realloc.reallocation_cap}')
+        if realloc.is_bidirectional:
+            attrs.append('has is_bidirectional true')
+        if realloc.reduces_source_basket is not None:
+            attrs.append(f'has reduces_source_basket {str(realloc.reduces_source_basket).lower()}')
+        if realloc.reduction_is_dollar_for_dollar is not None:
+            attrs.append(f'has reduction_is_dollar_for_dollar {str(realloc.reduction_is_dollar_for_dollar).lower()}')
+        if realloc.reduction_while_outstanding_only is not None:
+            attrs.append(f'has reduction_while_outstanding_only {str(realloc.reduction_while_outstanding_only).lower()}')
+        if realloc.provenance and realloc.provenance.section_reference:
+            attrs.append(f'has section_reference "{self._escape(realloc.provenance.section_reference)}"')
+
+        attrs_str = ",\n                ".join(attrs)
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $realloc isa basket_reallocation,
+                {attrs_str};
+                (provision: $prov, reallocation: $realloc) isa provision_has_reallocation;
+        '''
+        self._execute_query(query)
+
+        # Also try to create basket_reallocates_to relation if both baskets exist
         basket_map = {
             "investment": f"investment_{provision_id}",
             "rdp": f"rdp_{provision_id}",
@@ -1831,42 +1842,23 @@ Each answer object has this schema:
             "prepayment": f"prepayment_{provision_id}",
             "intercompany": f"intercompany_{provision_id}"
         }
-
         source_id = basket_map.get(realloc.source_basket)
         target_id = basket_map.get(realloc.target_basket)
-
-        if not source_id or not target_id:
-            logger.warning(f"Unknown basket in reallocation: {realloc.source_basket} -> {realloc.target_basket}")
-            return
-
-        rel_attrs = []
-        if realloc.reallocation_cap is not None:
-            rel_attrs.append(f'has reallocation_cap {realloc.reallocation_cap}')
-        if realloc.is_bidirectional:
-            rel_attrs.append('has is_bidirectional true')
-        if realloc.reduces_source_basket is not None:
-            rel_attrs.append(f'has reduces_source_basket {str(realloc.reduces_source_basket).lower()}')
-        if realloc.reduction_is_dollar_for_dollar is not None:
-            rel_attrs.append(f'has reduction_is_dollar_for_dollar {str(realloc.reduction_is_dollar_for_dollar).lower()}')
-        if realloc.reduction_while_outstanding_only is not None:
-            rel_attrs.append(f'has reduction_while_outstanding_only {str(realloc.reduction_while_outstanding_only).lower()}')
-        if realloc.provenance and realloc.provenance.section_reference:
-            rel_attrs.append(f'has reallocation_section "{self._escape(realloc.provenance.section_reference)}"')
-
-        rel_attrs_str = ""
-        if rel_attrs:
-            rel_attrs_str = ",\n                " + ",\n                ".join(rel_attrs)
-
-        # Note: This may fail if baskets don't exist (e.g., investment basket wasn't extracted)
-        # We handle this gracefully with try/except in the caller
-        query = f'''
-            match
-                $src isa basket, has basket_id "{source_id}";
-                $tgt isa basket, has basket_id "{target_id}";
-            insert
-                (source_basket: $src, target_basket: $tgt) isa basket_reallocates_to{rel_attrs_str};
-        '''
-        self._execute_query(query)
+        if source_id and target_id:
+            try:
+                rel_attrs = ""
+                if realloc.reallocation_cap is not None:
+                    rel_attrs = f",\n                has reallocation_amount_usd {realloc.reallocation_cap}"
+                rel_query = f'''
+                    match
+                        $src isa rp_basket, has basket_id "{source_id}";
+                        $tgt isa rp_basket, has basket_id "{target_id}";
+                    insert
+                        (source_basket: $src, target_basket: $tgt) isa basket_reallocates_to{rel_attrs};
+                '''
+                self._execute_query(rel_query)
+            except Exception as e:
+                logger.debug(f"Could not create basket_reallocates_to (baskets may not exist): {e}")
 
     # ═══════════════════════════════════════════════════════════════════════════
     # MFN ENTITY STORAGE (Channel 3)
@@ -2452,7 +2444,7 @@ Each answer object has this schema:
                 $builder isa builder_basket, has basket_id "{basket_id}";
                 $source isa builder_source, has source_id "{source_id}";
             insert
-                (builder: $builder, source: $source) isa builder_has_source{primary_attr};
+                (basket: $builder, source: $source) isa basket_has_source{primary_attr};
         '''
         self._execute_query(query)
 
