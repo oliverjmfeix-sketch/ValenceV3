@@ -172,19 +172,42 @@ def get_rp_entities(deal_id: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _fetch_rp_baskets(provision_id: str) -> List[str]:
-    """Fetch all RP basket subtypes."""
-    query = f'''
+    """Fetch all RP basket subtypes using per-subtype queries to avoid type inference issues."""
+    all_baskets = []
+
+    # Query 1: Builder basket
+    q_builder = f'''
         match
             $p isa rp_provision, has provision_id "{provision_id}";
             (provision: $p, basket: $b) isa provision_has_basket;
-            $b has basket_id $bid;
+            $b isa builder_basket, has basket_id $bid;
             try {{ $b has section_reference $sec; }};
             try {{ $b has source_page $pg; }};
-            try {{ $b has default_condition $dc; }};
-            try {{ $b has source_text $src; }};
-            try {{ $b has confidence $conf; }};
             try {{ $b has start_date_language $sdl; }};
             try {{ $b has uses_greatest_of_tests $ugot; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $sdl, $ugot, $dc;
+    '''
+    for row in _run_query(q_builder):
+        lines = ["### Builder Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
+        _add_lines(lines, [
+            _line("Uses Greatest Of Tests", _safe_val(row, "ugot")),
+            _line("Start Date Language", _safe_val(row, "sdl")),
+            _line("Default Condition", _safe_val(row, "dc")),
+        ])
+        all_baskets.append(lines)
+
+    # Query 2: Ratio basket
+    q_ratio = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa ratio_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
             try {{ $b has ratio_threshold $rt; }};
             try {{ $b has ratio_type $rty; }};
             try {{ $b has is_unlimited_if_met $ium; }};
@@ -193,62 +216,14 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has test_date_type $tdt; }};
             try {{ $b has lct_treatment_available $lct; }};
             try {{ $b has pro_forma_basis $pfb; }};
-            try {{ $b has basket_amount_usd $bau; }};
-            try {{ $b has basket_grower_pct $bgp; }};
-            try {{ $b has is_per_annum $ipa; }};
-            try {{ $b has annual_cap_usd $acu; }};
-            try {{ $b has annual_cap_pct_ebitda $acpe; }};
-            try {{ $b has cap_uses_greater_of $cugo; }};
-            try {{ $b has carryforward_permitted $cfp; }};
-            try {{ $b has carryforward_max_years $cfmy; }};
-            try {{ $b has eligible_person_scope $eps; }};
-            try {{ $b has standalone_taxpayer_limit $stl; }};
-            try {{ $b has hypothetical_tax_rate $htr; }};
-            try {{ $b has tax_sharing_permitted $tsp; }};
-            try {{ $b has estimated_taxes_permitted $etp; }};
-            try {{ $b has covers_management_fees $cmf; }};
-            try {{ $b has covers_admin_expenses $cae; }};
-            try {{ $b has covers_franchise_taxes $cft; }};
-            try {{ $b has management_fee_recipient_scope $mfrs; }};
-            try {{ $b has requires_arms_length $ral; }};
-            try {{ $b has requires_board_approval $rba; }};
-            try {{ $b has covers_cashless_exercise $cce; }};
-            try {{ $b has covers_tax_withholding $ctw; }};
-        select $b, $bid, $sec, $pg, $dc, $src, $conf,
-               $sdl, $ugot,
-               $rt, $rty, $ium, $nwt, $nwthr, $tdt, $lct, $pfb,
-               $bau, $bgp, $ipa,
-               $acu, $acpe, $cugo, $cfp, $cfmy, $eps,
-               $stl, $htr, $tsp, $etp,
-               $cmf, $cae, $cft, $mfrs, $ral, $rba,
-               $cce, $ctw;
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $rt, $rty, $ium, $nwt, $nwthr, $tdt, $lct, $pfb, $dc;
     '''
-    rows = _run_query(query)
-    if not rows:
-        return []
-
-    lines = ["## RP Baskets"]
-    for row in rows:
-        btype = _safe_type(row, "b") or "rp_basket"
-        label = btype.replace("_", " ").title()
-        lines.append(f"\n### {label}")
-
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
-        loc = []
-        if sec:
-            loc.append(f"Section: {sec}")
-        if pg is not None:
-            loc.append(f"Page: {pg}")
-        if loc:
-            lines.append(f"  {', '.join(loc)}")
-
-        # Builder basket attrs
-        _add_lines(lines, [
-            _line("Uses Greatest Of Tests", _safe_val(row, "ugot")),
-            _line("Start Date Language", _safe_val(row, "sdl")),
-        ])
-        # Ratio basket attrs
+    for row in _run_query(q_ratio):
+        lines = ["### Ratio Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Ratio Threshold", _safe_val(row, "rt")),
             _line("Ratio Type", _safe_val(row, "rty")),
@@ -258,14 +233,59 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             _line("Test Date Type", _safe_val(row, "tdt")),
             _line("LCT Treatment Available", _safe_val(row, "lct")),
             _line("Pro Forma Basis", _safe_val(row, "pfb")),
+            _line("Default Condition", _safe_val(row, "dc")),
         ])
-        # General basket attrs
+        all_baskets.append(lines)
+
+    # Query 3: General RP basket
+    q_general = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa general_rp_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has basket_amount_usd $bau; }};
+            try {{ $b has basket_grower_pct $bgp; }};
+            try {{ $b has is_per_annum $ipa; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $bau, $bgp, $ipa, $dc;
+    '''
+    for row in _run_query(q_general):
+        lines = ["### General Rp Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Basket Amount", _safe_val(row, "bau"), _fmt_dollar),
             _line("Grower Pct", _safe_val(row, "bgp"), _fmt_pct),
             _line("Is Per Annum", _safe_val(row, "ipa")),
+            _line("Default Condition", _safe_val(row, "dc")),
         ])
-        # Management equity / holdco / equity award shared attrs
+        all_baskets.append(lines)
+
+    # Query 4: Management equity basket
+    q_mgmt = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa management_equity_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has annual_cap_usd $acu; }};
+            try {{ $b has annual_cap_pct_ebitda $acpe; }};
+            try {{ $b has cap_uses_greater_of $cugo; }};
+            try {{ $b has carryforward_permitted $cfp; }};
+            try {{ $b has carryforward_max_years $cfmy; }};
+            try {{ $b has eligible_person_scope $eps; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $acu, $acpe, $cugo, $cfp, $cfmy, $eps, $dc;
+    '''
+    for row in _run_query(q_mgmt):
+        lines = ["### Management Equity Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Annual Cap", _safe_val(row, "acu"), _fmt_dollar),
             _line("Annual Cap Pct EBITDA", _safe_val(row, "acpe"), _fmt_pct),
@@ -273,15 +293,61 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             _line("Carryforward Permitted", _safe_val(row, "cfp")),
             _line("Carryforward Max Years", _safe_val(row, "cfmy")),
             _line("Eligible Person Scope", _safe_val(row, "eps")),
+            _line("Default Condition", _safe_val(row, "dc")),
         ])
-        # Tax distribution attrs
+        all_baskets.append(lines)
+
+    # Query 5: Tax distribution basket
+    q_tax = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa tax_distribution_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has standalone_taxpayer_limit $stl; }};
+            try {{ $b has hypothetical_tax_rate $htr; }};
+            try {{ $b has tax_sharing_permitted $tsp; }};
+            try {{ $b has estimated_taxes_permitted $etp; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $stl, $htr, $tsp, $etp, $dc;
+    '''
+    for row in _run_query(q_tax):
+        lines = ["### Tax Distribution Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Standalone Taxpayer Limit", _safe_val(row, "stl")),
             _line("Hypothetical Tax Rate", _safe_val(row, "htr")),
             _line("Tax Sharing Permitted", _safe_val(row, "tsp")),
             _line("Estimated Taxes Permitted", _safe_val(row, "etp")),
+            _line("Default Condition", _safe_val(row, "dc")),
         ])
-        # Holdco overhead attrs
+        all_baskets.append(lines)
+
+    # Query 6: Holdco overhead basket
+    q_holdco = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa holdco_overhead_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has covers_management_fees $cmf; }};
+            try {{ $b has covers_admin_expenses $cae; }};
+            try {{ $b has covers_franchise_taxes $cft; }};
+            try {{ $b has management_fee_recipient_scope $mfrs; }};
+            try {{ $b has requires_arms_length $ral; }};
+            try {{ $b has requires_board_approval $rba; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $cmf, $cae, $cft, $mfrs, $ral, $rba, $dc;
+    '''
+    for row in _run_query(q_holdco):
+        lines = ["### Holdco Overhead Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Covers Management Fees", _safe_val(row, "cmf")),
             _line("Covers Admin Expenses", _safe_val(row, "cae")),
@@ -289,18 +355,43 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             _line("Management Fee Recipient Scope", _safe_val(row, "mfrs")),
             _line("Requires Arms Length", _safe_val(row, "ral")),
             _line("Requires Board Approval", _safe_val(row, "rba")),
+            _line("Default Condition", _safe_val(row, "dc")),
         ])
-        # Equity award attrs
+        all_baskets.append(lines)
+
+    # Query 7: Equity award basket
+    q_eqaward = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa equity_award_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has covers_cashless_exercise $cce; }};
+            try {{ $b has covers_tax_withholding $ctw; }};
+            try {{ $b has default_condition $dc; }};
+        select $b, $bid, $sec, $pg, $cce, $ctw, $dc;
+    '''
+    for row in _run_query(q_eqaward):
+        lines = ["### Equity Award Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
             _line("Covers Cashless Exercise", _safe_val(row, "cce")),
             _line("Covers Tax Withholding", _safe_val(row, "ctw")),
-        ])
-        # Common
-        _add_lines(lines, [
             _line("Default Condition", _safe_val(row, "dc")),
         ])
+        all_baskets.append(lines)
 
-    return lines
+    if not all_baskets:
+        return []
+
+    result = ["## RP Baskets"]
+    for basket_lines in all_baskets:
+        result.append("")
+        result.extend(basket_lines)
+    return result
 
 
 def _fetch_builder_sources(provision_id: str) -> List[str]:
