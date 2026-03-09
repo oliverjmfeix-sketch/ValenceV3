@@ -948,6 +948,28 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
 
     rp_universe = RPUniverse(raw_text=raw_text)
 
+    # Ensure deal entity exists in TypeDB (may have been wiped by init_schema)
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            rows = list(tx.query(f'match $d isa deal, has deal_id "{deal_id}"; select $d;').resolve().as_concept_rows())
+            deal_exists = len(rows) > 0
+        finally:
+            tx.close()
+
+        if not deal_exists:
+            logger.info(f"Deal {deal_id} not in TypeDB — creating stub entity")
+            tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
+            try:
+                tx.query(f'insert $d isa deal, has deal_id "{deal_id}", has deal_name "re-extracted";').resolve()
+                tx.commit()
+            except Exception:
+                if tx.is_open():
+                    tx.close()
+                raise
+    except Exception as e:
+        logger.warning(f"Could not ensure deal entity: {e}")
+
     extraction_svc = get_extraction_service()
     try:
         v4_result = await extraction_svc.extract_rp_v4_unified(
