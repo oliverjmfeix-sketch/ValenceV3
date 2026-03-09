@@ -368,10 +368,7 @@ class JCrewBlocker(BaseModel):
         False,
         description="CRITICAL: Blocks DESIGNATION of IP-holding sub as Unrestricted"
     )
-    covered_ip_types: List[Literal[
-        "patents", "trademarks", "copyrights",
-        "trade_secrets", "licenses", "domain_names"
-    ]] = Field(default_factory=list)
+    covered_ip_types: List[str] = Field(default_factory=list)
     bound_parties: List[Literal[
         "borrower", "guarantors", "restricted_subs",
         "loan_parties", "holdings"
