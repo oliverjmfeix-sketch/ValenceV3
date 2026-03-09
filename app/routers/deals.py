@@ -972,66 +972,6 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{deal_id}/debug-entities")
-async def debug_entities(deal_id: str) -> Dict[str, Any]:
-    """Diagnostic: list all entities linked to a provision."""
-    provision_id = f"{deal_id}_rp"
-    results = {}
-
-    # Check RP baskets with minimal query
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            q = f'''
-                match
-                    $p isa rp_provision, has provision_id "{provision_id}";
-                    (provision: $p, basket: $b) isa provision_has_basket;
-                    $b has basket_id $bid;
-                select $bid;
-            '''
-            rows = list(tx.query(q).resolve().as_concept_rows())
-            results["rp_baskets"] = [r.get("bid").as_attribute().get_value() for r in rows]
-        finally:
-            tx.close()
-    except Exception as e:
-        results["rp_baskets_error"] = str(e)
-
-    # Check all basket entities by ID pattern
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            q = f'''
-                match
-                    $b isa rp_basket, has basket_id $bid;
-                    $bid like ".*{provision_id}.*";
-                select $bid;
-            '''
-            rows = list(tx.query(q).resolve().as_concept_rows())
-            results["all_baskets_by_pattern"] = [r.get("bid").as_attribute().get_value() for r in rows]
-        finally:
-            tx.close()
-    except Exception as e:
-        results["all_baskets_by_pattern_error"] = str(e)
-
-    # Check builder sources
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            q = f'''
-                match
-                    $s isa builder_basket_source, has source_id $sid;
-                    $sid like ".*{provision_id}.*";
-                select $sid;
-            '''
-            rows = list(tx.query(q).resolve().as_concept_rows())
-            results["builder_sources"] = [r.get("sid").as_attribute().get_value() for r in rows]
-        finally:
-            tx.close()
-    except Exception as e:
-        results["builder_sources_error"] = str(e)
-
-    return results
-
 
 @router.get("/{deal_id}/status", response_model=ExtractionStatus)
 async def get_extraction_status(deal_id: str) -> ExtractionStatus:

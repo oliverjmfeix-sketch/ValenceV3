@@ -213,11 +213,12 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has is_unlimited_if_met $ium; }};
             try {{ $b has has_no_worse_test $nwt; }};
             try {{ $b has no_worse_threshold $nwthr; }};
+            try {{ $b has no_worse_is_uncapped $nwu; }};
             try {{ $b has test_date_type $tdt; }};
             try {{ $b has lct_treatment_available $lct; }};
             try {{ $b has pro_forma_basis $pfb; }};
             try {{ $b has default_condition $dc; }};
-        select $b, $bid, $sec, $pg, $rt, $rty, $ium, $nwt, $nwthr, $tdt, $lct, $pfb, $dc;
+        select $b, $bid, $sec, $pg, $rt, $rty, $ium, $nwt, $nwthr, $nwu, $tdt, $lct, $pfb, $dc;
     '''
     for row in _run_query(q_ratio):
         lines = ["### Ratio Basket"]
@@ -229,7 +230,8 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             _line("Ratio Type", _safe_val(row, "rty")),
             _line("Is Unlimited If Met", _safe_val(row, "ium")),
             _line("Has No Worse Test", _safe_val(row, "nwt")),
-            _line("No Worse Threshold", _safe_val(row, "nwthr")),
+            _line("No Worse Threshold",
+                  "uncapped" if _safe_val(row, "nwu") else _safe_val(row, "nwthr")),
             _line("Test Date Type", _safe_val(row, "tdt")),
             _line("LCT Treatment Available", _safe_val(row, "lct")),
             _line("Pro Forma Basis", _safe_val(row, "pfb")),
@@ -418,9 +420,13 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
             try {{ $s has fc_multiplier $fcm; }};
             try {{ $s has excludes_cure_contributions $ecc; }};
             try {{ $s has excludes_disqualified_stock $eds; }};
+            try {{ $s has sweep_section_reference $ssr; }};
+            try {{ $s has has_ratio_disposition_basket $hrdb; }};
+            try {{ $s has ratio_disposition_threshold $rdt; }};
         select $s, $sid, $sn, $sec, $pg, $noa,
                $da, $ep, $ugo, $pct, $ipt,
-               $recf, $lbp, $lbq, $fcm, $ecc, $eds;
+               $recf, $lbp, $lbq, $fcm, $ecc, $eds,
+               $ssr, $hrdb, $rdt;
     '''
     rows = _run_query(query)
     if not rows:
@@ -445,6 +451,9 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
             _line("Excludes Cure Contributions", _safe_val(row, "ecc")),
             _line("Excludes Disqualified Stock", _safe_val(row, "eds")),
             _line("Not Otherwise Applied", _safe_val(row, "noa")),
+            _line("Sweep Section Reference", _safe_val(row, "ssr")),
+            _line("Has Ratio Disposition Basket", _safe_val(row, "hrdb")),
+            _line("Ratio Disposition Threshold", _safe_val(row, "rdt")),
         ])
 
         sec = _safe_val(row, "sec")
