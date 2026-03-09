@@ -1182,10 +1182,26 @@ Each answer object has this schema:
 
         return basket_id
 
-    def _store_builder_source_v4(self, basket_id: str, source, index: int):
-        """Store a builder source entity."""
-        from app.schemas.extraction_output_v4 import BuilderSource
+    # Attribute ownership per builder source subtype (from schema_unified.tql).
+    # Base builder_basket_source owns: source_id, source_name, section_reference,
+    #   source_page, source_text, confidence, not_otherwise_applied
+    _SOURCE_SUBTYPE_ATTRS = {
+        "starter_amount_source": {"dollar_amount", "ebitda_percentage", "uses_greater_of"},
+        "cni_source": {"percentage", "is_primary_test"},
+        "ecf_source": {"retained_ecf_formula", "lookback_period", "lookback_quarters"},
+        "ebitda_fc_source": {"fc_multiplier"},
+        "equity_proceeds_source": {"percentage", "excludes_cure_contributions", "excludes_disqualified_stock"},
+        "investment_returns_source": set(),
+        "asset_proceeds_source": {"percentage", "sweep_section_reference", "has_ratio_disposition_basket", "ratio_disposition_threshold"},
+        "debt_conversion_source": set(),
+    }
 
+    def _store_builder_source_v4(self, basket_id: str, source, index: int):
+        """Store a builder source entity.
+
+        Only sets attributes that the concrete subtype actually owns
+        in the TypeDB schema, avoiding type-inference errors.
+        """
         source_id = f"{basket_id}_src_{index}"
 
         # Map source_type to TypeDB entity
@@ -1201,47 +1217,53 @@ Each answer object has this schema:
             "debt_conversion": "debt_conversion_source",
         }
         entity_type = type_map.get(source.source_type, "debt_conversion_source")
+        allowed = self._SOURCE_SUBTYPE_ATTRS.get(entity_type, set())
 
+        # Base attributes (owned by all builder_basket_source subtypes)
         attrs = [
             f'has source_id "{source_id}"',
             f'has source_name "{source.source_type}"'
         ]
 
-        if source.percentage is not None:
-            attrs.append(f'has percentage {source.percentage}')
-        if source.dollar_amount is not None:
-            attrs.append(f'has dollar_amount {source.dollar_amount}')
-        if source.ebitda_percentage is not None:
-            attrs.append(f'has ebitda_percentage {source.ebitda_percentage}')
-        if source.fc_multiplier is not None:
-            attrs.append(f'has fc_multiplier {source.fc_multiplier}')
-        if source.uses_greater_of:
-            attrs.append('has uses_greater_of true')
         if source.not_otherwise_applied is not None:
             attrs.append(f'has not_otherwise_applied {str(source.not_otherwise_applied).lower()}')
-        if source.excludes_cure_contributions is not None:
+
+        # Subtype-specific attributes — only add if the subtype owns them
+        if "percentage" in allowed and source.percentage is not None:
+            attrs.append(f'has percentage {source.percentage}')
+        if "dollar_amount" in allowed and source.dollar_amount is not None:
+            attrs.append(f'has dollar_amount {source.dollar_amount}')
+        if "ebitda_percentage" in allowed and source.ebitda_percentage is not None:
+            attrs.append(f'has ebitda_percentage {source.ebitda_percentage}')
+        if "uses_greater_of" in allowed and source.uses_greater_of:
+            attrs.append('has uses_greater_of true')
+        if "fc_multiplier" in allowed and source.fc_multiplier is not None:
+            attrs.append(f'has fc_multiplier {source.fc_multiplier}')
+        if "is_primary_test" in allowed and source.is_primary_test:
+            attrs.append('has is_primary_test true')
+        if "retained_ecf_formula" in allowed and getattr(source, 'retained_ecf_formula', None):
+            attrs.append(f'has retained_ecf_formula "{self._escape(source.retained_ecf_formula)}"')
+        if "lookback_period" in allowed and getattr(source, 'lookback_period', None):
+            attrs.append(f'has lookback_period "{self._escape(source.lookback_period)}"')
+        if "lookback_quarters" in allowed and getattr(source, 'lookback_quarters', None) is not None:
+            attrs.append(f'has lookback_quarters {source.lookback_quarters}')
+        if "excludes_cure_contributions" in allowed and source.excludes_cure_contributions is not None:
             attrs.append(f'has excludes_cure_contributions {str(source.excludes_cure_contributions).lower()}')
-        if source.excludes_disqualified_stock is not None:
+        if "excludes_disqualified_stock" in allowed and source.excludes_disqualified_stock is not None:
             attrs.append(f'has excludes_disqualified_stock {str(source.excludes_disqualified_stock).lower()}')
+        if "sweep_section_reference" in allowed and getattr(source, 'sweep_section_reference', None):
+            attrs.append(f'has sweep_section_reference "{self._escape(source.sweep_section_reference)}"')
+        if "has_ratio_disposition_basket" in allowed and getattr(source, 'has_ratio_disposition_basket', None) is not None:
+            attrs.append(f'has has_ratio_disposition_basket {str(source.has_ratio_disposition_basket).lower()}')
+        if "ratio_disposition_threshold" in allowed and getattr(source, 'ratio_disposition_threshold', None) is not None:
+            attrs.append(f'has ratio_disposition_threshold {source.ratio_disposition_threshold}')
 
-        # Asset proceeds source enrichment (B2)
-        if source.source_type in ("asset_sale_proceeds", "asset_proceeds"):
-            if getattr(source, 'sweep_section_reference', None):
-                attrs.append(f'has sweep_section_reference "{self._escape(source.sweep_section_reference)}"')
-            if getattr(source, 'has_ratio_disposition_basket', None) is not None:
-                attrs.append(f'has has_ratio_disposition_basket {str(source.has_ratio_disposition_basket).lower()}')
-            if getattr(source, 'ratio_disposition_threshold', None) is not None:
-                attrs.append(f'has ratio_disposition_threshold {source.ratio_disposition_threshold}')
-
-        # Provenance
+        # Provenance (base type attrs)
         if source.provenance:
             if source.provenance.section_reference:
                 attrs.append(f'has section_reference "{self._escape(source.provenance.section_reference)}"')
             if source.provenance.source_page is not None:
                 attrs.append(f'has source_page {source.provenance.source_page}')
-
-        if source.is_primary_test:
-            attrs.append('has is_primary_test true')
 
         attrs_str = ",\n                ".join(attrs)
 
