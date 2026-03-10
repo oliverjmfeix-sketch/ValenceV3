@@ -44,6 +44,7 @@ QUESTIONS_FILE = DATA_DIR / "questions.tql"
 CATEGORIES_FILE = DATA_DIR / "categories.tql"
 ONTOLOGY_EXPANDED_FILE = DATA_DIR / "ontology_expanded.tql"
 CATEGORY_M_FILE = DATA_DIR / "ontology_category_m.tql"
+CATEGORY_P_FILE = DATA_DIR / "ontology_category_p.tql"
 
 # 7-10. Extraction metadata (multiple separate insert statements)
 SEED_METADATA_FILE = DATA_DIR / "seed_extraction_metadata.tql"
@@ -349,6 +350,11 @@ def init_database():
         logger.info("\n7. Loading ontology_category_m.tql...")
         if CATEGORY_M_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, CATEGORY_M_FILE)
+
+        # 7b. Load Category P ontology
+        logger.info("\n7b. Loading ontology_category_p.tql...")
+        if CATEGORY_P_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, CATEGORY_P_FILE)
 
         # 8. Load J.Crew questions (mixed insert + match-insert)
         logger.info("\n8. Loading jcrew_questions_seed.tql...")

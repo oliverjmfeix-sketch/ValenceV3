@@ -94,7 +94,7 @@ insert $q_f15 isa ontology_question,
 insert $q_f16 isa ontology_question,
     has question_id "rp_f16",
     has covenant_type "RP",
-    has question_text "Do Retained Asset Sale Proceeds build the Cumulative Amount?",
+    has question_text "Do asset sale proceeds that are not required for mandatory debt prepayment (Retained Asset Sale Proceeds) build the Cumulative Amount, creating a pathway from asset sales to dividend capacity via the builder basket?",
     has answer_type "boolean",
     has display_order 16,
     has extraction_prompt "Determine if asset sale proceeds that are not required to be applied to prepayment (Retained Asset Sale Proceeds, Declined Proceeds) are added to the Cumulative Amount.";
@@ -114,7 +114,7 @@ insert $q_f17 isa ontology_question,
 insert $q_g5 isa ontology_question,
     has question_id "rp_g5",
     has covenant_type "RP",
-    has question_text "Is there a 'no worse' ratio test for unlimited dividends?",
+    has question_text "Does the ratio basket include a 'no worse' test that permits the transaction even if leverage exceeds the absolute threshold, as long as pro forma leverage is no worse than immediately before the transaction?",
     has answer_type "boolean",
     has display_order 5,
     has extraction_prompt "Determine if dividends are permitted when the leverage ratio is 'no worse' than before giving effect to the dividend, even if above the normal threshold. Look for language like 'if the ratio would not be worse on a pro forma basis'.";
@@ -122,7 +122,7 @@ insert $q_g5 isa ontology_question,
 insert $q_g6 isa ontology_question,
     has question_id "rp_g6",
     has covenant_type "RP",
-    has question_text "What is the 'no worse' ratio threshold (if different from unlimited threshold)?",
+    has question_text "Is the no-worse test uncapped, meaning any leverage level is permitted as long as pro forma leverage does not exceed the pre-transaction level? If capped, what is the maximum leverage ratio permitted under the no-worse test?",
     has answer_type "number",
     has display_order 6,
     has extraction_prompt "If a 'no worse' test exists at a different threshold than the unlimited ratio basket, what is that threshold? For example, unlimited at 3.50x but 'no worse' permitted up to 6.25x.";
@@ -158,7 +158,7 @@ insert $q_i8 isa ontology_question,
 insert $q_i3 isa ontology_question,
     has question_id "rp_i3",
     has covenant_type "RP",
-    has question_text "What section governs reallocation to Restricted Payments?",
+    has question_text "Can amounts available for restricted debt payments be reallocated dollar-for-dollar to make dividends, adding to total quantifiable dividend capacity under the general RP basket?",
     has answer_type "string",
     has display_order 3,
     has extraction_prompt "Identify the specific section that permits reallocation from other baskets to Restricted Payments. Usually a lettered subsection like 6.06(j) or 6.06(k).";
@@ -166,7 +166,7 @@ insert $q_i3 isa ontology_question,
 insert $q_i4 isa ontology_question,
     has question_id "rp_i4",
     has covenant_type "RP",
-    has question_text "What is the Restricted Debt Payment basket amount available for reallocation?",
+    has question_text "What is the dollar amount of restricted debt payment capacity that can be reallocated to make dividends, adding to the general RP basket's dividend capacity?",
     has answer_type "currency",
     has display_order 4,
     has extraction_prompt "If the RDP basket (Section 6.09) can be reallocated to Restricted Payments, what is the dollar amount of that basket? Look for the general RDP basket amount, often structured as 'greater of $X and Y% of EBITDA'.";
@@ -174,7 +174,7 @@ insert $q_i4 isa ontology_question,
 insert $q_i5 isa ontology_question,
     has question_id "rp_i5",
     has covenant_type "RP",
-    has question_text "What is the Investment basket amount available for reallocation?",
+    has question_text "Can amounts available for permitted investments be reallocated dollar-for-dollar to make dividends, adding to total quantifiable dividend capacity under the general RP basket?",
     has answer_type "currency",
     has display_order 5,
     has extraction_prompt "If the Investment basket (Section 6.03) can be reallocated to Restricted Payments, what is the dollar amount? Look for the general Investment basket, often structured as 'greater of $X and Y% of EBITDA' or 'greater of $X and Y% of Total Assets'.";
@@ -182,7 +182,7 @@ insert $q_i5 isa ontology_question,
 insert $q_i6 isa ontology_question,
     has question_id "rp_i6",
     has covenant_type "RP",
-    has question_text "Is basket reallocation bidirectional (RP basket can also be used for Investments/RDP)?",
+    has question_text "What is the dollar amount of investment capacity that can be reallocated to make dividends, adding to the general RP basket's dividend capacity?",
     has answer_type "boolean",
     has display_order 6,
     has extraction_prompt "Determine if the Restricted Payment basket capacity can also be used for Investments or Restricted Debt Payments, not just the reverse.";
@@ -308,6 +308,26 @@ insert $q_n5 isa ontology_question,
     has extraction_prompt "Identify which Restricted Payment baskets require that no Event of Default exists. Some baskets may be available even during a default.";
 
 # ═══════════════════════════════════════════════════════════════════════════
+# J.CREW BLOCKER - ENHANCED (Category K, Questions K9-K10)
+# ═══════════════════════════════════════════════════════════════════════════
+
+insert $q_k9 isa ontology_question,
+    has question_id "rp_k9",
+    has covenant_type "RP",
+    has question_text "Does the J.Crew blocker restrict transfer of Material Intellectual Property to unrestricted subsidiaries at the point of designation? (This restriction governs what can be moved INTO an unrestricted subsidiary, not distribution of equity in already-designated unrestricted subsidiaries.)",
+    has answer_type "boolean",
+    has display_order 9,
+    has extraction_prompt "Determine if the J.Crew blocker restricts TRANSFER of Material IP to unrestricted subsidiaries. This is about moving assets INTO an unsub at the point of designation, NOT about distributing equity of an already-designated unsub. Look for language like 'shall not transfer, sell, or otherwise dispose of Material Intellectual Property to any Unrestricted Subsidiary'.";
+
+insert $q_k10 isa ontology_question,
+    has question_id "rp_k10",
+    has covenant_type "RP",
+    has question_text "Does the J.Crew blocker restrict designation of a subsidiary as unrestricted if it would own or hold an exclusive license to Material Intellectual Property? (This restriction applies at the moment of designation, not to subsequent distributions from already-designated unrestricted subsidiaries.)",
+    has answer_type "boolean",
+    has display_order 10,
+    has extraction_prompt "Determine if the J.Crew blocker prevents DESIGNATION of a subsidiary as unrestricted if that subsidiary owns or holds an exclusive license to Material IP. This is a condition on the act of designation itself, not on later distributions. Look for language like 'shall not designate any subsidiary as an Unrestricted Subsidiary if such subsidiary owns or holds an exclusive license to Material Intellectual Property'.";
+
+# ═══════════════════════════════════════════════════════════════════════════
 # CONCEPT INSTANCES (for multiselect options)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -359,6 +379,12 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f16";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category K (J.Crew Blocker) for K9-K10
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k10";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # Category G (Ratio) for G5-G7
@@ -500,6 +526,12 @@ insert (question: $q) isa question_targets_field, has target_field_name "general
 
 match $q isa ontology_question, has question_id "rp_n3";
 insert (question: $q) isa question_targets_field, has target_field_name "all_baskets_summary", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_k9";
+insert (question: $q) isa question_targets_field, has target_field_name "blocker_covers_transfer", has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_k10";
+insert (question: $q) isa question_targets_field, has target_field_name "blocker_covers_designation", has target_entity_type "rp_provision";
 
 # ═══════════════════════════════════════════════════════════════════════════
 # QUESTION → TARGET CONCEPT RELATIONS (multiselect questions)
