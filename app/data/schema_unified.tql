@@ -58,6 +58,7 @@ attribute citation_id, value string;
 # ─── Human-readable ──────────────────────────────────────────────────────────
 
 attribute name, value string;
+attribute display_name, value string;
 attribute description, value string;
 attribute display_order, value integer;
 
@@ -421,6 +422,7 @@ entity rp_provision sub provision,
 
 entity rp_basket @abstract,
     owns basket_id @key,
+    owns display_name,
     owns section_reference,
     owns source_page,
     owns source_text,
@@ -710,6 +712,7 @@ entity investment_pathway,
 
 entity rdp_basket @abstract,
     owns basket_id @key,
+    owns display_name,
     owns section_reference,
     owns source_page,
     owns source_text,

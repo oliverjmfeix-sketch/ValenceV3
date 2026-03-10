@@ -1165,7 +1165,10 @@ Each answer object has this schema:
         from app.schemas.extraction_output_v4 import BuilderBasket, BuilderSource
 
         basket_id = f"builder_{provision_id}"
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [
+            f'has basket_id "{basket_id}"',
+            'has display_name "Builder Starter"',
+        ]
 
         # Promote starter dollar_amount to basket_amount_usd for function access
         for src in basket.sources:
@@ -1305,7 +1308,7 @@ Each answer object has this schema:
         """Store ratio basket entity."""
         basket_id = f"ratio_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Ratio Basket"']
 
         if basket.ratio_threshold is not None:
             attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
@@ -1352,7 +1355,7 @@ Each answer object has this schema:
         """Store general RP basket entity."""
         basket_id = f"general_rp_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "General RP Basket"']
 
         if basket.dollar_cap is not None:
             attrs.append(f'has basket_amount_usd {basket.dollar_cap}')
@@ -1379,7 +1382,7 @@ Each answer object has this schema:
         """Store management equity basket."""
         basket_id = f"mgmt_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Management Equity Basket"']
 
         if basket.annual_cap is not None:
             attrs.append(f'has annual_cap_usd {basket.annual_cap}')
@@ -1412,7 +1415,7 @@ Each answer object has this schema:
         """Store tax distribution basket."""
         basket_id = f"tax_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Tax Distribution Basket"']
 
         if basket.standalone_taxpayer_limit:
             attrs.append('has standalone_taxpayer_limit true')
@@ -1447,7 +1450,7 @@ Each answer object has this schema:
         """Store holdco overhead basket."""
         basket_id = f"holdco_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Holdco Overhead Basket"']
 
         if basket.annual_cap_usd is not None:
             attrs.append(f'has annual_cap_usd {basket.annual_cap_usd}')
@@ -1488,7 +1491,7 @@ Each answer object has this schema:
         """Store equity award basket."""
         basket_id = f"eqaward_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Equity Award Basket"']
 
         if basket.annual_cap_usd is not None:
             attrs.append(f'has annual_cap_usd {basket.annual_cap_usd}')
@@ -1523,7 +1526,7 @@ Each answer object has this schema:
         """Store unsub distribution basket (Section 6.06(p) carve-out)."""
         basket_id = f"unsub_dist_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Unsub Distribution Basket"']
 
         if basket.covers_equity_interests is not None:
             attrs.append(f'has covers_equity_interests {str(basket.covers_equity_interests).lower()}')
@@ -1564,7 +1567,7 @@ Each answer object has this schema:
         """Store refinancing RDP basket."""
         basket_id = f"rdp_refi_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Refinancing RDP Basket"']
 
         if basket.requires_same_or_lower_priority is not None:
             attrs.append(f'has requires_same_or_lower_priority {str(basket.requires_same_or_lower_priority).lower()}')
@@ -1605,7 +1608,7 @@ Each answer object has this schema:
         """Store general RDP basket."""
         basket_id = f"rdp_general_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "General RDP Basket (via Reallocation)"']
 
         if basket.basket_amount_usd is not None:
             attrs.append(f'has basket_amount_usd {basket.basket_amount_usd}')
@@ -1636,7 +1639,7 @@ Each answer object has this schema:
         """Store ratio RDP basket."""
         basket_id = f"rdp_ratio_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Ratio RDP Basket"']
 
         if basket.ratio_threshold is not None:
             attrs.append(f'has ratio_threshold {basket.ratio_threshold}')
@@ -1675,7 +1678,7 @@ Each answer object has this schema:
         """Store builder RDP basket."""
         basket_id = f"rdp_builder_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Builder RDP Basket"']
 
         if basket.shares_with_rp_builder is not None:
             attrs.append(f'has shares_with_rp_builder {str(basket.shares_with_rp_builder).lower()}')
@@ -1706,7 +1709,7 @@ Each answer object has this schema:
         """Store equity-funded RDP basket."""
         basket_id = f"rdp_eqfund_{provision_id}"
 
-        attrs = [f'has basket_id "{basket_id}"']
+        attrs = [f'has basket_id "{basket_id}"', 'has display_name "Equity Funded RDP Basket"']
 
         if basket.requires_qualified_stock_only is not None:
             attrs.append(f'has requires_qualified_stock_only {str(basket.requires_qualified_stock_only).lower()}')
@@ -2002,6 +2005,7 @@ Each answer object has this schema:
             try:
                 stub_attrs = [
                     f'has basket_id "{source_id}"',
+                    'has display_name "Investment via Reallocation"',
                     f'has basket_amount_usd {realloc.reallocation_cap}',
                 ]
                 stub_query = f'''

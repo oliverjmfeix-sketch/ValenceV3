@@ -231,30 +231,47 @@ def get_rp_entities(deal_id: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _fetch_dividend_capacity(provision_id: str) -> List[str]:
-    """Call TypeDB function to get total fixed-floor dividend capacity."""
+    """Call TypeDB dividend_capacity_components function.
+
+    Traversal logic lives in TypeDB. Python only formats the output.
+    """
     query = f'''
         match
-            let $total = total_fixed_dividend_capacity("{provision_id}");
-        select $total;
+            let $dn, $amt in dividend_capacity_components("{provision_id}");
+        select $dn, $amt;
     '''
     rows = _run_query(query)
     if not rows:
         return []
-    try:
-        concept = rows[0].get("total")
-        # let-bound value variable: try as_value() first, fall back to as_attribute()
-        try:
-            total = concept.as_value().get()
-        except Exception:
-            total = concept.as_attribute().get_value()
-    except Exception:
+
+    components = []
+    total = 0.0
+    for row in rows:
+        dn = _safe_val(row, "dn")
+        amt = _safe_val(row, "amt")
+        if dn and amt and amt > 0:
+            components.append((dn, amt))
+            total += amt
+
+    if not components:
         return []
-    if not total or total <= 0:
-        return []
-    return [
+
+    lines = [
         "## Dividend Capacity Summary",
         f"  Total Fixed Floor: {_fmt_dollar(total)}",
+        '    \u2192 "What is the total quantifiable fixed-floor dividend capacity '
+        'from all independently-sectioned baskets plus reallocatable capacity?"',
+        "  Components (independently-sectioned baskets \u2014 additive):",
     ]
+    for name, amt in sorted(components, key=lambda x: -x[1]):
+        lines.append(f"    {name}: {_fmt_dollar(amt)}")
+    lines.append(
+        "  Methodology: Each component is from a separately-defined covenant "
+        "section. Reallocation capacity is additive \u2014 the source basket\u2019s "
+        "amount adds to the receiving basket\u2019s dividend capacity on a "
+        "dollar-for-dollar basis."
+    )
+    return lines
 
 
 def _fetch_rp_baskets(provision_id: str) -> List[str]:
