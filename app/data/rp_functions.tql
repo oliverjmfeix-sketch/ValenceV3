@@ -19,9 +19,10 @@
 #                        investment_rp ($130M stub via investment→general_rp edge)
 #   Total: $520M
 define
-fun total_fixed_dividend_capacity($pid: string) -> double:
+fun total_fixed_dividend_capacity($prov_id: string) -> double:
     match
         $p isa rp_provision, has provision_id $pid;
+        $pid == $prov_id;
         {
             (provision: $p, basket: $b) isa provision_has_basket;
             $b has basket_amount_usd $amt;
