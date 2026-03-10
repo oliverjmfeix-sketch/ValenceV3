@@ -10,8 +10,46 @@ from typedb.driver import TransactionType
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
+from app.data.attribute_glossary import ATTRIBUTE_GLOSSARY
 
 logger = logging.getLogger(__name__)
+
+# ── Lazy-loaded question text cache ─────────────────────────────────────────
+_question_texts: Optional[dict] = None
+
+
+def _get_question_texts() -> dict:
+    """Return question_id → question_text mapping, loading once from TypeDB."""
+    global _question_texts
+    if _question_texts is None:
+        _question_texts = _load_question_texts()
+    return _question_texts
+
+
+def _load_question_texts() -> dict:
+    """Load all ontology question texts from TypeDB."""
+    tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+    try:
+        query = """
+            match $q isa ontology_question,
+                has question_id $qid,
+                has question_text $qt;
+            select $qid, $qt;
+        """
+        results = list(tx.query(query).resolve().as_concept_rows())
+        texts = {}
+        for row in results:
+            qid = row.get("qid").as_attribute().get_value()
+            qt = row.get("qt").as_attribute().get_value()
+            texts[qid] = qt
+        logger.info(f"Loaded {len(texts)} question texts for entity annotation")
+        return texts
+    except Exception as e:
+        logger.warning(f"Failed to load question texts: {e}")
+        return {}
+    finally:
+        if tx.is_open():
+            tx.close()
 
 
 def _fmt_dollar(val) -> str:
@@ -63,16 +101,32 @@ def _safe_type(row, key: str) -> Optional[str]:
         return None
 
 
-def _line(label: str, value, formatter=None) -> Optional[str]:
-    """Return a formatted line if value is not None, else None."""
+def _line(label: str, value, formatter=None, *,
+          entity_type: str = None, attr_key: str = None) -> Optional[str]:
+    """Return a formatted line if value is not None, else None.
+
+    If entity_type and attr_key are provided, appends the source ontology
+    question text as an annotation line.
+    """
     if value is None:
         return None
     if formatter:
         formatted = formatter(value)
-        return f"  {label}: {formatted}"
-    if isinstance(value, bool):
-        return f"  {label}: {'true' if value else 'false'}"
-    return f"  {label}: {value}"
+        line = f"  {label}: {formatted}"
+    elif isinstance(value, bool):
+        line = f"  {label}: {'true' if value else 'false'}"
+    else:
+        line = f"  {label}: {value}"
+
+    # Append question annotation if available
+    if entity_type and attr_key:
+        qid = ATTRIBUTE_GLOSSARY.get(entity_type, {}).get(attr_key)
+        if qid:
+            qt = _get_question_texts().get(qid)
+            if qt:
+                line += f'\n    \u2192 "{qt}"'
+
+    return line
 
 
 def _add_lines(lines: list, items: list):
@@ -194,8 +248,10 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
-            _line("Uses Greatest Of Tests", _safe_val(row, "ugot")),
-            _line("Start Date Language", _safe_val(row, "sdl")),
+            _line("Uses Greatest Of Tests", _safe_val(row, "ugot"),
+                  entity_type="builder_basket", attr_key="uses_greatest_of_tests"),
+            _line("Start Date Language", _safe_val(row, "sdl"),
+                  entity_type="builder_basket", attr_key="start_date_language"),
             _line("Default Condition", _safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
@@ -226,12 +282,16 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
-            _line("Ratio Threshold", _safe_val(row, "rt")),
+            _line("Ratio Threshold", _safe_val(row, "rt"),
+                  entity_type="ratio_basket", attr_key="ratio_threshold"),
             _line("Ratio Type", _safe_val(row, "rty")),
-            _line("Is Unlimited If Met", _safe_val(row, "ium")),
-            _line("Has No Worse Test", _safe_val(row, "nwt")),
+            _line("Is Unlimited If Met", _safe_val(row, "ium"),
+                  entity_type="ratio_basket", attr_key="is_unlimited_if_met"),
+            _line("Has No Worse Test", _safe_val(row, "nwt"),
+                  entity_type="ratio_basket", attr_key="has_no_worse_test"),
             _line("No Worse Threshold",
-                  "uncapped" if _safe_val(row, "nwu") else _safe_val(row, "nwthr")),
+                  "uncapped" if _safe_val(row, "nwu") else _safe_val(row, "nwthr"),
+                  entity_type="ratio_basket", attr_key="no_worse_is_uncapped"),
             _line("Test Date Type", _safe_val(row, "tdt")),
             _line("LCT Treatment Available", _safe_val(row, "lct")),
             _line("Pro Forma Basis", _safe_val(row, "pfb")),
@@ -259,8 +319,10 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
-            _line("Basket Amount", _safe_val(row, "bau"), _fmt_dollar),
-            _line("Grower Pct", _safe_val(row, "bgp"), _fmt_pct),
+            _line("Basket Amount", _safe_val(row, "bau"), _fmt_dollar,
+                  entity_type="general_rp_basket", attr_key="basket_amount_usd"),
+            _line("Grower Pct", _safe_val(row, "bgp"), _fmt_pct,
+                  entity_type="general_rp_basket", attr_key="basket_grower_pct"),
             _line("Is Per Annum", _safe_val(row, "ipa")),
             _line("Default Condition", _safe_val(row, "dc")),
         ])
@@ -289,10 +351,14 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
         _add_lines(lines, [
-            _line("Annual Cap", _safe_val(row, "acu"), _fmt_dollar),
-            _line("Annual Cap Pct EBITDA", _safe_val(row, "acpe"), _fmt_pct),
-            _line("Cap Uses Greater Of", _safe_val(row, "cugo")),
-            _line("Carryforward Permitted", _safe_val(row, "cfp")),
+            _line("Annual Cap", _safe_val(row, "acu"), _fmt_dollar,
+                  entity_type="management_equity_basket", attr_key="annual_cap_usd"),
+            _line("Annual Cap Pct EBITDA", _safe_val(row, "acpe"), _fmt_pct,
+                  entity_type="management_equity_basket", attr_key="annual_cap_pct_ebitda"),
+            _line("Cap Uses Greater Of", _safe_val(row, "cugo"),
+                  entity_type="management_equity_basket", attr_key="cap_uses_greater_of"),
+            _line("Carryforward Permitted", _safe_val(row, "cfp"),
+                  entity_type="management_equity_basket", attr_key="carryforward_permitted"),
             _line("Carryforward Max Years", _safe_val(row, "cfmy")),
             _line("Eligible Person Scope", _safe_val(row, "eps")),
             _line("Default Condition", _safe_val(row, "dc")),
@@ -439,15 +505,21 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
         lines.append(f"\n### {sname}")
 
         _add_lines(lines, [
-            _line("Dollar Amount", _safe_val(row, "da"), _fmt_dollar),
-            _line("EBITDA Percentage", _safe_val(row, "ep"), _fmt_pct),
-            _line("Uses Greater Of", _safe_val(row, "ugo")),
-            _line("Percentage", _safe_val(row, "pct"), _fmt_pct),
+            _line("Dollar Amount", _safe_val(row, "da"), _fmt_dollar,
+                  entity_type=stype, attr_key="dollar_amount"),
+            _line("EBITDA Percentage", _safe_val(row, "ep"), _fmt_pct,
+                  entity_type=stype, attr_key="ebitda_percentage"),
+            _line("Uses Greater Of", _safe_val(row, "ugo"),
+                  entity_type=stype, attr_key="uses_greater_of"),
+            _line("Percentage", _safe_val(row, "pct"), _fmt_pct,
+                  entity_type=stype, attr_key="percentage"),
             _line("Is Primary Test", _safe_val(row, "ipt")),
-            _line("Retained ECF Formula", _safe_val(row, "recf")),
+            _line("Retained ECF Formula", _safe_val(row, "recf"),
+                  entity_type=stype, attr_key="retained_ecf_formula"),
             _line("Lookback Period", _safe_val(row, "lbp")),
             _line("Lookback Quarters", _safe_val(row, "lbq")),
-            _line("FC Multiplier", _safe_val(row, "fcm")),
+            _line("FC Multiplier", _safe_val(row, "fcm"),
+                  entity_type=stype, attr_key="fc_multiplier"),
             _line("Excludes Cure Contributions", _safe_val(row, "ecc")),
             _line("Excludes Disqualified Stock", _safe_val(row, "eds")),
             _line("Not Otherwise Applied", _safe_val(row, "noa")),
@@ -657,17 +729,22 @@ def _fetch_jcrew_blocker(provision_id: str) -> List[str]:
         lines.append(f"  {', '.join(loc)}")
 
     _add_lines(lines, [
-        _line("Covers Transfer", _safe_val(row, "ct")),
-        _line("Covers Designation", _safe_val(row, "cd")),
-        _line("Covers IP", _safe_val(row, "cip")),
-        _line("Covers Material Assets", _safe_val(row, "cma")),
+        _line("Covers Transfer", _safe_val(row, "ct"),
+              entity_type="jcrew_blocker", attr_key="covers_transfer"),
+        _line("Covers Designation", _safe_val(row, "cd"),
+              entity_type="jcrew_blocker", attr_key="covers_designation"),
+        _line("Covers IP", _safe_val(row, "cip"),
+              entity_type="jcrew_blocker", attr_key="covers_ip"),
+        _line("Covers Material Assets", _safe_val(row, "cma"),
+              entity_type="jcrew_blocker", attr_key="covers_material_assets"),
         _line("Covers Exclusive Licensing", _safe_val(row, "cel")),
         _line("Covers Non-Exclusive Licensing", _safe_val(row, "cnl")),
         _line("Covers Pledge", _safe_val(row, "cpledge")),
         _line("Covers Abandonment", _safe_val(row, "cab")),
         _line("Binds Loan Parties", _safe_val(row, "blp")),
         _line("Binds Restricted Subs", _safe_val(row, "brs")),
-        _line("Is Sacred Right", _safe_val(row, "isr")),
+        _line("Is Sacred Right", _safe_val(row, "isr"),
+              entity_type="jcrew_blocker", attr_key="is_sacred_right"),
     ])
 
     # Fetch exceptions
@@ -794,8 +871,10 @@ def _fetch_unsub_designation(provision_id: str) -> List[str]:
     _add_lines(lines, [
         _line("Requires No Default", _safe_val(row, "rnd")),
         _line("Requires Board Approval", _safe_val(row, "rba")),
-        _line("Dollar Cap", _safe_val(row, "dcu"), _fmt_dollar),
-        _line("Pct Cap Total Assets", _safe_val(row, "pca"), _fmt_pct),
+        _line("Dollar Cap", _safe_val(row, "dcu"), _fmt_dollar,
+              entity_type="unsub_designation", attr_key="dollar_cap_usd"),
+        _line("Pct Cap Total Assets", _safe_val(row, "pca"), _fmt_pct,
+              entity_type="unsub_designation", attr_key="pct_cap_assets"),
         _line("Redesignation Permitted", _safe_val(row, "rp")),
     ])
 
