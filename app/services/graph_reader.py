@@ -10,7 +10,7 @@ from typedb.driver import TransactionType
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
-from app.data.attribute_glossary import ATTRIBUTE_GLOSSARY
+from app.data.attribute_glossary import ATTRIBUTE_GLOSSARY, REALLOCATION_ANNOTATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -452,6 +452,40 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
         ])
         all_baskets.append(lines)
 
+    # Query 8: Unsub distribution basket (Section 6.06(p) carve-out)
+    q_unsub_dist = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b isa unsub_distribution_basket, has basket_id $bid;
+            try {{ $b has section_reference $sec; }};
+            try {{ $b has source_page $pg; }};
+            try {{ $b has covers_equity_interests $cei; }};
+            try {{ $b has covers_indebtedness $ci; }};
+            try {{ $b has covers_assets $ca; }};
+            try {{ $b has covers_proceeds $cp; }};
+            try {{ $b has is_categorical $ic; }};
+            try {{ $b has requires_valid_designation $rvd; }};
+        select $b, $bid, $sec, $pg, $cei, $ci, $ca, $cp, $ic, $rvd;
+    '''
+    for row in _run_query(q_unsub_dist):
+        lines = ["### Unsub Distribution Basket"]
+        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        if sec or pg is not None:
+            lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
+        _add_lines(lines, [
+            _line("Covers Equity Interests", _safe_val(row, "cei"),
+                  entity_type="unsub_distribution_basket", attr_key="covers_equity_interests"),
+            _line("Covers Indebtedness", _safe_val(row, "ci")),
+            _line("Covers Assets", _safe_val(row, "ca"),
+                  entity_type="unsub_distribution_basket", attr_key="covers_assets"),
+            _line("Covers Proceeds", _safe_val(row, "cp")),
+            _line("Is Categorical", _safe_val(row, "ic"),
+                  entity_type="unsub_distribution_basket", attr_key="is_categorical"),
+            _line("Requires Valid Designation", _safe_val(row, "rvd")),
+        ])
+        all_baskets.append(lines)
+
     if not all_baskets:
         return []
 
@@ -592,17 +626,23 @@ def _fetch_reallocations(provision_id: str) -> List[str]:
         src = _safe_val(row, "rsrc") or "unknown"
         bidir = _safe_val(row, "bidir")
         sec = _safe_val(row, "sec") or ""
+        ramt = _safe_val(row, "ramt")
         direction = "↔ bidirectional" if bidir else "→ one-way"
         sec_str = f" via {sec}" if sec else ""
-        # Try to find source basket amount from the reallocation_source string
-        # Format is "investment -> RP" so extract first part
+        # Use reallocation_amount_usd for inline display, fall back to basket lookup
         src_name = src.split(" -> ")[0].strip() if " -> " in src else src
-        src_amt_val = basket_amt_map.get(src_name)
-        src_amt = f" ({_fmt_dollar(src_amt_val)})" if src_amt_val else ""
-        lines.append(f"  {src}{src_amt}{sec_str}, {direction}")
+        amt_val = ramt or basket_amt_map.get(src_name)
+        amt_str = f" ({_fmt_dollar(amt_val)})" if amt_val else ""
+        lines.append(f"  {src}{amt_str}{sec_str}, {direction}")
+
+        # Annotate with source-specific question text
+        qid = REALLOCATION_ANNOTATIONS.get(src_name)
+        if qid:
+            qt = _get_question_texts().get(qid)
+            if qt:
+                lines.append(f'    \u2192 "{qt}"')
 
         _add_lines(lines, [
-            _line("    Amount", _safe_val(row, "ramt"), _fmt_dollar),
             _line("    Reduces Source Basket", _safe_val(row, "rsb")),
             _line("    Dollar-for-Dollar Reduction", _safe_val(row, "rdfd")),
             _line("    While Outstanding Only", _safe_val(row, "rwoo")),

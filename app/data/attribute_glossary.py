@@ -75,3 +75,9 @@ ATTRIBUTE_GLOSSARY: dict[str, dict[str, str]] = {
         "covers_assets": "rp_p3",
     },
 }
+
+# Maps reallocation source basket name → question_id for the reallocation path annotation.
+REALLOCATION_ANNOTATIONS: dict[str, str] = {
+    "rdp": "rp_i3",
+    "investment": "rp_i5",
+}
