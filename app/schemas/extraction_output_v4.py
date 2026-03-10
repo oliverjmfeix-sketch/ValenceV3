@@ -156,8 +156,8 @@ class GeneralRPBasket(BaseModel):
     Fixed dollar basket for general restricted payments.
     """
     exists: bool = False
-    dollar_cap: Optional[float] = Field(None, description="Fixed dollar amount")
-    ebitda_percentage: Optional[float] = Field(None, description="If 'greater of'")
+    basket_amount_usd: Optional[float] = Field(None, description="Fixed dollar amount")
+    basket_grower_pct: Optional[float] = Field(None, description="If 'greater of'")
     uses_greater_of: bool = False
     requires_no_default: bool = False
     requires_ratio_test: bool = False
@@ -175,10 +175,10 @@ class ManagementEquityBasket(BaseModel):
     For repurchasing management/employee equity.
     """
     exists: bool = False
-    annual_cap: Optional[float] = Field(None, description="Per-year limit")
-    ebitda_percentage: Optional[float] = None
+    annual_cap_usd: Optional[float] = Field(None, description="Per-year limit")
+    annual_cap_pct_ebitda: Optional[float] = None
     uses_greater_of: bool = False
-    permits_carryforward: bool = Field(
+    carryforward_permitted: bool = Field(
         False,
         description="Can unused amounts carry to next year"
     )
@@ -408,11 +408,11 @@ class UnsubDesignation(BaseModel):
     CRITICAL for J.Crew pathway analysis.
     """
     permitted: bool = Field(False, description="Can subs be designated Unrestricted")
-    dollar_cap: Optional[float] = Field(
+    dollar_cap_usd: Optional[float] = Field(
         None,
         description="Max aggregate value that can become Unrestricted"
     )
-    ebitda_percentage: Optional[float] = None
+    pct_cap_assets: Optional[float] = None
     uses_greater_of: bool = False
 
     # Conditions
@@ -824,8 +824,8 @@ class RPExtractionV4(BaseModel):
                 },
                 "general_rp_basket": {
                     "exists": True,
-                    "dollar_cap": 130000000,
-                    "ebitda_percentage": 1.0,
+                    "basket_amount_usd": 130000000,
+                    "basket_grower_pct": 1.0,
                     "uses_greater_of": True,
                     "provenance": {"section_reference": "6.06(j)"}
                 },
@@ -842,7 +842,7 @@ class RPExtractionV4(BaseModel):
                 },
                 "unsub_designation": {
                     "permitted": True,
-                    "dollar_cap": 40000000,
+                    "dollar_cap_usd": 40000000,
                     "requires_no_default": True,
                     "requires_board_approval": False,
                     "permits_equity_dividend": True,

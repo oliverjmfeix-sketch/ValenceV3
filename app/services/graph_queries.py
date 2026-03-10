@@ -255,7 +255,7 @@ class GraphQueries:
             match
                 $p isa provision, has provision_id "{provision_id}";
                 ($p, $th) isa provision_has_de_minimis;
-                $th has threshold_id $thid, has threshold_type $type, has dollar_cap $cap;
+                $th has threshold_id $thid, has threshold_type $type, has threshold_amount_usd $cap;
             select $thid, $type, $cap;
         '''
         try:

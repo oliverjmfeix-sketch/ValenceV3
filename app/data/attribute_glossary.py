@@ -81,3 +81,39 @@ REALLOCATION_ANNOTATIONS: dict[str, str] = {
     "rdp": "rp_i3",
     "investment": "rp_i5",
 }
+
+
+def validate_glossary() -> bool:
+    """Check that every question_id in the glossary exists in TypeDB.
+
+    Call at startup. Logs warnings for mismatches.
+    Does NOT fail — missing annotations degrade gracefully.
+    """
+    import logging
+    _logger = logging.getLogger(__name__)
+
+    try:
+        from app.services.graph_reader import _get_question_texts
+        question_texts = _get_question_texts()
+    except Exception as e:
+        _logger.warning(f"Cannot validate glossary — graph_reader unavailable: {e}")
+        return False
+
+    missing = []
+
+    for entity_type, attrs in ATTRIBUTE_GLOSSARY.items():
+        for attr_key, qid in attrs.items():
+            if qid and qid not in question_texts:
+                missing.append(f"  {entity_type}.{attr_key} -> {qid}")
+
+    for source_name, qid in REALLOCATION_ANNOTATIONS.items():
+        if qid and qid not in question_texts:
+            missing.append(f"  reallocation.{source_name} -> {qid}")
+
+    if missing:
+        _logger.warning(
+            f"ATTRIBUTE_GLOSSARY references {len(missing)} question_ids "
+            f"not found in TypeDB:\n" + "\n".join(missing)
+        )
+
+    return len(missing) == 0

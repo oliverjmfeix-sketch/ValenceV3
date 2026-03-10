@@ -190,15 +190,15 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
   },
   "general_rp_basket": {
     "exists": true,
-    "dollar_cap": 130000000,
-    "ebitda_percentage": 1.0,
+    "basket_amount_usd": 130000000,
+    "basket_grower_pct": 1.0,
     "uses_greater_of": true,
     "provenance": {"section_reference": "6.06(j)"}
   },
   "management_equity_basket": {
     "exists": true,
-    "annual_cap": 25000000,
-    "permits_carryforward": true,
+    "annual_cap_usd": 25000000,
+    "carryforward_permitted": true,
     "post_ipo_increase": 50000000
   },
   "tax_distribution_basket": {
@@ -240,7 +240,7 @@ Return a JSON object. Include ONLY fields where you found data. Example structur
   },
   "unsub_designation": {
     "permitted": true,
-    "dollar_cap": 40000000,
+    "dollar_cap_usd": 40000000,
     "requires_no_default": true,
     "requires_board_approval": false,
     "permits_equity_dividend": true,
@@ -1209,18 +1209,101 @@ Each answer object has this schema:
 
         return basket_id
 
-    # Attribute ownership per builder source subtype (from schema_unified.tql).
-    # Base builder_basket_source owns: source_id, source_name, section_reference,
-    #   source_page, source_text, confidence, not_otherwise_applied
-    _SOURCE_SUBTYPE_ATTRS = {
-        "starter_amount_source": {"dollar_amount", "ebitda_percentage", "uses_greater_of"},
-        "cni_source": {"percentage", "is_primary_test"},
-        "ecf_source": {"retained_ecf_formula", "lookback_period", "lookback_quarters"},
-        "ebitda_fc_source": {"fc_multiplier"},
-        "equity_proceeds_source": {"percentage", "excludes_cure_contributions", "excludes_disqualified_stock"},
-        "investment_returns_source": set(),
-        "asset_proceeds_source": {"percentage", "sweep_section_reference", "has_ratio_disposition_basket", "ratio_disposition_threshold"},
-        "debt_conversion_source": set(),
+    # ── Source subtype attribute ownership (SSoT: TypeDB schema) ─────────
+    # Loaded lazily from TypeDB on first use. See _load_source_subtype_attrs().
+    _source_subtype_attrs_cache = None
+
+    @classmethod
+    def _load_source_subtype_attrs(cls) -> dict:
+        """Query TypeDB for which attributes each builder source subtype owns.
+
+        SSoT: schema_unified.tql defines ownership. This method reads it.
+        No hardcoded attribute lists in Python.
+        """
+        driver = typedb_client.driver
+        if not driver:
+            logger.warning("No TypeDB driver — cannot load source subtype attrs")
+            return {}
+
+        tx = driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
+        try:
+            # In TypeDB 3.x, schema introspection uses SCHEMA transactions
+            query = """
+                match
+                    entity $sub sub builder_basket_source;
+                    $sub owns $attr;
+                select $sub, $attr;
+            """
+            results = list(tx.query(query).resolve().as_concept_rows())
+            subtype_attrs: dict[str, set] = {}
+            # Base attrs owned by all subtypes — filter these out
+            base_attrs = {
+                "source_id", "source_name", "section_reference",
+                "source_page", "source_text", "confidence",
+                "not_otherwise_applied", "verbatim_text",
+            }
+            for row in results:
+                sub_label = row.get("sub").as_entity_type().get_label()
+                attr_label = row.get("attr").as_attribute_type().get_label()
+                if sub_label == "builder_basket_source":
+                    continue  # Skip abstract base type
+                if attr_label in base_attrs:
+                    continue  # Skip attrs inherited from base
+                if sub_label not in subtype_attrs:
+                    subtype_attrs[sub_label] = set()
+                subtype_attrs[sub_label].add(attr_label)
+            logger.info(
+                f"Loaded source subtype attrs from TypeDB: "
+                f"{sum(len(v) for v in subtype_attrs.values())} attrs across "
+                f"{len(subtype_attrs)} subtypes"
+            )
+            return subtype_attrs
+        except Exception as e:
+            logger.error(f"Failed to load source subtype attrs from TypeDB: {e}")
+            return {}
+        finally:
+            if tx.is_open():
+                tx.close()
+
+    @classmethod
+    def _get_source_subtype_attrs(cls) -> dict:
+        if cls._source_subtype_attrs_cache is None:
+            cls._source_subtype_attrs_cache = cls._load_source_subtype_attrs()
+        return cls._source_subtype_attrs_cache
+
+    # ── Canonical type maps (single copy, must match schema_unified.tql) ──
+    _BUILDER_SOURCE_TYPE_MAP = {
+        "starter_amount": "starter_amount_source",
+        "cni": "cni_source",
+        "ecf": "ecf_source",
+        "ebitda_fc": "ebitda_fc_source",
+        "equity_proceeds": "equity_proceeds_source",
+        "asset_sale_proceeds": "asset_proceeds_source",
+        "asset_proceeds": "asset_proceeds_source",
+        "investment_returns": "investment_returns_source",
+        "debt_conversion": "debt_conversion_source",
+        "declined_proceeds": "declined_proceeds_source",
+    }
+
+    _BASKET_TYPE_MAP = {
+        "builder": "builder_basket",
+        "ratio": "ratio_basket",
+        "general_rp": "general_rp_basket",
+        "management_equity": "management_equity_basket",
+        "tax_distribution": "tax_distribution_basket",
+        "holdco_overhead": "holdco_overhead_basket",
+        "equity_award": "equity_award_basket",
+        "unsub_distribution": "unsub_distribution_basket",
+    }
+
+    _BLOCKER_EXCEPTION_TYPE_MAP = {
+        "nonexclusive_license": "nonexclusive_license_exception",
+        "ordinary_course": "ordinary_course_exception",
+        "intercompany": "intercompany_exception",
+        "fair_value": "fair_value_exception",
+        "license_back": "license_back_exception",
+        "immaterial_ip": "immaterial_ip_exception",
+        "required_by_law": "blocker_exception",
     }
 
     def _store_builder_source_v4(self, basket_id: str, source, index: int):
@@ -1231,20 +1314,8 @@ Each answer object has this schema:
         """
         source_id = f"{basket_id}_src_{index}"
 
-        # Map source_type to TypeDB entity
-        type_map = {
-            "starter_amount": "starter_amount_source",
-            "cni": "cni_source",
-            "ecf": "ecf_source",
-            "ebitda_fc": "ebitda_fc_source",
-            "equity_proceeds": "equity_proceeds_source",
-            "asset_sale_proceeds": "asset_proceeds_source",
-            "asset_proceeds": "asset_proceeds_source",
-            "investment_returns": "investment_returns_source",
-            "debt_conversion": "debt_conversion_source",
-        }
-        entity_type = type_map.get(source.source_type, "debt_conversion_source")
-        allowed = self._SOURCE_SUBTYPE_ATTRS.get(entity_type, set())
+        entity_type = self._BUILDER_SOURCE_TYPE_MAP.get(source.source_type, "debt_conversion_source")
+        allowed = self._get_source_subtype_attrs().get(entity_type, set())
 
         # Base attributes (owned by all builder_basket_source subtypes)
         attrs = [
@@ -1357,10 +1428,10 @@ Each answer object has this schema:
 
         attrs = [f'has basket_id "{basket_id}"', 'has display_name "General RP Basket"']
 
-        if basket.dollar_cap is not None:
-            attrs.append(f'has basket_amount_usd {basket.dollar_cap}')
-        if basket.ebitda_percentage is not None:
-            attrs.append(f'has basket_grower_pct {basket.ebitda_percentage}')
+        if basket.basket_amount_usd is not None:
+            attrs.append(f'has basket_amount_usd {basket.basket_amount_usd}')
+        if basket.basket_grower_pct is not None:
+            attrs.append(f'has basket_grower_pct {basket.basket_grower_pct}')
 
         # Provenance
         if basket.provenance:
@@ -1384,13 +1455,13 @@ Each answer object has this schema:
 
         attrs = [f'has basket_id "{basket_id}"', 'has display_name "Management Equity Basket"']
 
-        if basket.annual_cap is not None:
-            attrs.append(f'has annual_cap_usd {basket.annual_cap}')
-        if basket.ebitda_percentage is not None:
-            attrs.append(f'has annual_cap_pct_ebitda {basket.ebitda_percentage}')
+        if basket.annual_cap_usd is not None:
+            attrs.append(f'has annual_cap_usd {basket.annual_cap_usd}')
+        if basket.annual_cap_pct_ebitda is not None:
+            attrs.append(f'has annual_cap_pct_ebitda {basket.annual_cap_pct_ebitda}')
         if basket.uses_greater_of:
             attrs.append('has cap_uses_greater_of true')
-        if basket.permits_carryforward:
+        if basket.carryforward_permitted:
             attrs.append('has carryforward_permitted true')
         if basket.eligible_person_scope:
             attrs.append(f'has eligible_person_scope "{self._escape(basket.eligible_person_scope)}"')
@@ -1840,17 +1911,7 @@ Each answer object has this schema:
     def _store_blocker_exception_v4(self, blocker_id: str, exc, index: int):
         """Store blocker exception."""
         exc_id = f"{blocker_id}_exc_{index}"
-
-        type_map = {
-            "nonexclusive_license": "nonexclusive_license_exception",
-            "ordinary_course": "ordinary_course_exception",
-            "intercompany": "intercompany_exception",
-            "fair_value": "fair_value_exception",
-            "license_back": "license_back_exception",
-            "immaterial_ip": "immaterial_ip_exception",
-            "required_by_law": "blocker_exception"  # Fallback
-        }
-        entity_type = type_map.get(exc.exception_type, "blocker_exception")
+        entity_type = self._BLOCKER_EXCEPTION_TYPE_MAP.get(exc.exception_type, "blocker_exception")
 
         attrs = [
             f'has exception_id "{exc_id}"',
@@ -1877,10 +1938,10 @@ Each answer object has this schema:
 
         attrs = [f'has designation_id "{designation_id}"']
 
-        if unsub.dollar_cap is not None:
-            attrs.append(f'has dollar_cap_usd {unsub.dollar_cap}')
-        if unsub.ebitda_percentage is not None:
-            attrs.append(f'has pct_cap_assets {unsub.ebitda_percentage}')
+        if unsub.dollar_cap_usd is not None:
+            attrs.append(f'has dollar_cap_usd {unsub.dollar_cap_usd}')
+        if unsub.pct_cap_assets is not None:
+            attrs.append(f'has pct_cap_assets {unsub.pct_cap_assets}')
         if unsub.requires_no_default:
             attrs.append('has requires_no_default true')
         if unsub.requires_board_approval:
@@ -2278,7 +2339,7 @@ Each answer object has this schema:
             parts.append(f"jcrew({designation}, {len(extraction.jcrew_blocker.exceptions)} exc)")
 
         if extraction.unsub_designation and extraction.unsub_designation.permitted:
-            cap = extraction.unsub_designation.dollar_cap
+            cap = extraction.unsub_designation.dollar_cap_usd
             cap_str = f"${cap/1e6:.0f}M" if cap else "uncapped"
             parts.append(f"unsub({cap_str})")
 
@@ -2310,131 +2371,9 @@ Each answer object has this schema:
 
         return ", ".join(parts) or "empty"
 
-    def store_extraction(self, extraction: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Store extracted covenant data as graph entities and relations.
-
-        Args:
-            extraction: Nested dict from extraction service with structure:
-                {
-                    "provision_type": "RP",
-                    "section_reference": "6.06",
-                    "baskets": [...],
-                    "blockers": [...],
-                    "sweep_config": {...},
-                    ...
-                }
-
-        Returns:
-            Dict with counts of created entities/relations
-        """
-        results = {
-            "provision_id": None,
-            "baskets_created": 0,
-            "sources_created": 0,
-            "blockers_created": 0,
-            "exceptions_created": 0,
-            "sweep_tiers_created": 0,
-            "relations_created": 0,
-            "errors": []
-        }
-
-        try:
-            # 1. Create the provision entity
-            provision_id = self._create_provision(extraction)
-            results["provision_id"] = provision_id
-
-            # 2. Link provision to deal
-            self._link_provision_to_deal(provision_id)
-            results["relations_created"] += 1
-
-            # 3. Create baskets and link to provision
-            baskets = extraction.get("baskets", [])
-            for basket_data in baskets:
-                try:
-                    basket_id = self._create_basket(basket_data)
-                    self._link_basket_to_provision(provision_id, basket_id)
-                    results["baskets_created"] += 1
-                    results["relations_created"] += 1
-
-                    # If builder basket, create sources
-                    if basket_data.get("type") == "builder":
-                        sources = basket_data.get("sources", [])
-                        for source_data in sources:
-                            source_id = self._create_builder_source(source_data)
-                            self._link_source_to_builder(basket_id, source_id)
-                            results["sources_created"] += 1
-                            results["relations_created"] += 1
-                except Exception as e:
-                    results["errors"].append(f"Basket error: {str(e)[:100]}")
-
-            # 4. Create blockers and link to provision
-            blockers = extraction.get("blockers", [])
-            for blocker_data in blockers:
-                try:
-                    blocker_id = self._create_blocker(blocker_data)
-                    self._link_blocker_to_provision(provision_id, blocker_id)
-                    results["blockers_created"] += 1
-                    results["relations_created"] += 1
-
-                    # Create blocker exceptions
-                    exceptions = blocker_data.get("exceptions", [])
-                    for exc_data in exceptions:
-                        exc_id = self._create_blocker_exception(exc_data)
-                        self._link_exception_to_blocker(blocker_id, exc_id)
-                        results["exceptions_created"] += 1
-                        results["relations_created"] += 1
-
-                    # Link to IP types covered
-                    ip_types = blocker_data.get("ip_types_covered", [])
-                    for ip_type_id in ip_types:
-                        self._link_blocker_to_ip_type(blocker_id, ip_type_id)
-                        results["relations_created"] += 1
-
-                except Exception as e:
-                    results["errors"].append(f"Blocker error: {str(e)[:100]}")
-
-            # 5. Create sweep configuration
-            sweep_config = extraction.get("sweep_config", {})
-            if sweep_config:
-                try:
-                    # Sweep tiers
-                    tiers = sweep_config.get("tiers", [])
-                    for tier_data in tiers:
-                        tier_id = self._create_sweep_tier(tier_data)
-                        self._link_tier_to_provision(provision_id, tier_id)
-                        results["sweep_tiers_created"] += 1
-                        results["relations_created"] += 1
-
-                    # De minimis thresholds
-                    thresholds = sweep_config.get("de_minimis", [])
-                    for thresh_data in thresholds:
-                        thresh_id = self._create_de_minimis(thresh_data)
-                        self._link_threshold_to_provision(provision_id, thresh_id)
-                        results["relations_created"] += 1
-
-                    # Sweep exemptions
-                    exemptions = sweep_config.get("exemptions", [])
-                    for exemption_id in exemptions:
-                        self._link_exemption_to_provision(provision_id, exemption_id)
-                        results["relations_created"] += 1
-                except Exception as e:
-                    results["errors"].append(f"Sweep config error: {str(e)[:100]}")
-
-            # 6. Create reallocation relations
-            reallocations = extraction.get("reallocations", [])
-            for realloc_data in reallocations:
-                try:
-                    self._create_reallocation_relation(realloc_data)
-                    results["relations_created"] += 1
-                except Exception as e:
-                    results["errors"].append(f"Reallocation error: {str(e)[:100]}")
-
-        except Exception as e:
-            results["errors"].append(f"Top-level error: {str(e)[:200]}")
-            logger.exception(f"Error storing graph extraction for deal {self.deal_id}")
-
-        return results
+    # ═══════════════════════════════════════════════════════════════════════════
+    # UTILITIES
+    # ═══════════════════════════════════════════════════════════════════════════
 
     def _gen_id(self, prefix: str) -> str:
         """Generate a unique ID with prefix."""
@@ -2454,282 +2393,8 @@ Each answer object has this schema:
             tx.close()
             raise
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # PROVISION
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_provision(self, data: Dict[str, Any]) -> str:
-        """Create an RP provision entity."""
-        provision_id = self._gen_id("prov")
-        prov_type = data.get("provision_type", "RP").lower()
-        entity_type = f"{prov_type}_provision"
-
-        section_ref = data.get("section_reference", "")
-        source_page = data.get("source_page", 0)
-
-        query = f'''
-            insert $p isa {entity_type},
-                has provision_id "{provision_id}",
-                has section_reference "{section_ref}",
-                has source_page {source_page};
-        '''
-        self._execute_query(query)
-        return provision_id
-
-    def _link_provision_to_deal(self, provision_id: str):
-        """Link provision to deal."""
-        query = f'''
-            match
-                $deal isa deal, has deal_id "{self.deal_id}";
-                $prov isa provision, has provision_id "{provision_id}";
-            insert
-                (deal: $deal, provision: $prov) isa deal_has_provision;
-        '''
-        self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # BASKETS
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_basket(self, data: Dict[str, Any]) -> str:
-        """Create a basket entity of the appropriate subtype."""
-        basket_id = self._gen_id("basket")
-        basket_type = data.get("type", "general_rp")
-
-        # Map to entity type
-        type_map = {
-            "builder": "builder_basket",
-            "ratio": "ratio_basket",
-            "general_rp": "general_rp_basket",
-            "management_equity": "management_equity_basket",
-            "tax_distribution": "tax_distribution_basket",
-            "rdp": "rdp_basket",
-            "investment": "investment_basket",
-            "unsub": "unsub_basket",
-        }
-        entity_type = type_map.get(basket_type, "basket")
-
-        # Build attribute list
-        attrs = [
-            f'has basket_id "{basket_id}"',
-            f'has basket_name "{self._escape(data.get("name", ""))}"',
-        ]
-
-        if data.get("section_reference"):
-            attrs.append(f'has section_reference "{data["section_reference"]}"')
-        if data.get("dollar_cap") is not None:
-            attrs.append(f'has dollar_cap {data["dollar_cap"]}')
-        if data.get("ebitda_percentage") is not None:
-            attrs.append(f'has ebitda_percentage {data["ebitda_percentage"]}')
-        if data.get("uses_greater_of") is not None:
-            attrs.append(f'has uses_greater_of {str(data["uses_greater_of"]).lower()}')
-        if data.get("requires_no_default") is not None:
-            attrs.append(f'has requires_no_default {str(data["requires_no_default"]).lower()}')
-        if data.get("requires_ratio_test") is not None:
-            attrs.append(f'has requires_ratio_test {str(data["requires_ratio_test"]).lower()}')
-        if data.get("ratio_threshold") is not None:
-            attrs.append(f'has ratio_threshold {data["ratio_threshold"]}')
-        if data.get("verbatim_text"):
-            attrs.append(f'has verbatim_text "{self._escape(data["verbatim_text"][:2000])}"')
-
-        # Builder-specific
-        if basket_type == "builder":
-            if data.get("start_date_language"):
-                attrs.append(f'has start_date_language "{self._escape(data["start_date_language"])}"')
-            if data.get("uses_greatest_of_tests") is not None:
-                attrs.append(f'has uses_greatest_of_tests {str(data["uses_greatest_of_tests"]).lower()}')
-
-        # Ratio-specific
-        if basket_type == "ratio":
-            if data.get("is_unlimited_if_met") is not None:
-                attrs.append(f'has is_unlimited_if_met {str(data["is_unlimited_if_met"]).lower()}')
-            if data.get("has_no_worse_test") is not None:
-                attrs.append(f'has has_no_worse_test {str(data["has_no_worse_test"]).lower()}')
-            if data.get("no_worse_threshold") is not None:
-                attrs.append(f'has no_worse_threshold {data["no_worse_threshold"]}')
-
-        # Management equity specific
-        if basket_type == "management_equity":
-            if data.get("annual_cap") is not None:
-                attrs.append(f'has annual_cap {data["annual_cap"]}')
-            if data.get("permits_carryforward") is not None:
-                attrs.append(f'has permits_carryforward {str(data["permits_carryforward"]).lower()}')
-
-        query = f'''
-            insert $b isa {entity_type},
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return basket_id
-
-    def _link_basket_to_provision(self, provision_id: str, basket_id: str):
-        """Link basket to provision."""
-        query = f'''
-            match
-                $prov isa provision, has provision_id "{provision_id}";
-                $basket isa basket, has basket_id "{basket_id}";
-            insert
-                (provision: $prov, basket: $basket) isa provision_has_basket;
-        '''
-        self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # BUILDER SOURCES
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_builder_source(self, data: Dict[str, Any]) -> str:
-        """Create a builder source entity."""
-        source_id = self._gen_id("src")
-        source_type = data.get("type", "builder_source")
-
-        # Map to entity type
-        type_map = {
-            "cni": "cni_source",
-            "ecf": "ecf_source",
-            "ebitda_fc": "ebitda_fc_source",
-            "equity_proceeds": "equity_proceeds_source",
-            "asset_sale_proceeds": "asset_sale_proceeds_source",
-            "investment_returns": "investment_returns_source",
-            "declined_proceeds": "declined_proceeds_source",
-            "starter_amount": "starter_amount_source",
-        }
-        entity_type = type_map.get(source_type, "builder_source")
-
-        attrs = [
-            f'has source_id "{source_id}"',
-            f'has source_name "{self._escape(data.get("name", source_type))}"',
-        ]
-
-        if data.get("percentage") is not None:
-            attrs.append(f'has percentage {data["percentage"]}')
-        if data.get("floor_amount") is not None:
-            attrs.append(f'has floor_amount {data["floor_amount"]}')
-        if data.get("verbatim_text"):
-            attrs.append(f'has verbatim_text "{self._escape(data["verbatim_text"][:1000])}"')
-        if source_type == "ebitda_fc" and data.get("fc_multiplier") is not None:
-            attrs.append(f'has fc_multiplier {data["fc_multiplier"]}')
-
-        query = f'''
-            insert $s isa {entity_type},
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return source_id
-
-    def _link_source_to_builder(self, basket_id: str, source_id: str, is_primary: bool = False):
-        """Link builder source to builder basket."""
-        primary_attr = f', has is_primary_test {str(is_primary).lower()}' if is_primary else ''
-        query = f'''
-            match
-                $builder isa builder_basket, has basket_id "{basket_id}";
-                $source isa builder_source, has source_id "{source_id}";
-            insert
-                (basket: $builder, source: $source) isa basket_has_source{primary_attr};
-        '''
-        self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # BLOCKERS
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_blocker(self, data: Dict[str, Any]) -> str:
-        """Create a blocker entity."""
-        blocker_id = self._gen_id("blocker")
-        blocker_type = data.get("type", "blocker")
-
-        type_map = {
-            "jcrew": "jcrew_blocker",
-            "serta": "serta_blocker",
-        }
-        entity_type = type_map.get(blocker_type, "blocker")
-
-        attrs = [
-            f'has blocker_id "{blocker_id}"',
-        ]
-
-        if data.get("section_reference"):
-            attrs.append(f'has section_reference "{data["section_reference"]}"')
-        if data.get("verbatim_text"):
-            attrs.append(f'has verbatim_text "{self._escape(data["verbatim_text"][:2000])}"')
-        if data.get("source_page") is not None:
-            attrs.append(f'has source_page {data["source_page"]}')
-
-        # J.Crew specific
-        if blocker_type == "jcrew":
-            if data.get("covers_transfer") is not None:
-                attrs.append(f'has covers_transfer {str(data["covers_transfer"]).lower()}')
-            if data.get("covers_designation") is not None:
-                attrs.append(f'has covers_designation {str(data["covers_designation"]).lower()}')
-
-        query = f'''
-            insert $b isa {entity_type},
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return blocker_id
-
-    def _link_blocker_to_provision(self, provision_id: str, blocker_id: str):
-        """Link blocker to provision."""
-        query = f'''
-            match
-                $prov isa provision, has provision_id "{provision_id}";
-                $blocker isa blocker, has blocker_id "{blocker_id}";
-            insert
-                (provision: $prov, blocker: $blocker) isa provision_has_blocker;
-        '''
-        self._execute_query(query)
-
-    def _create_blocker_exception(self, data: Dict[str, Any]) -> str:
-        """Create a blocker exception entity."""
-        exc_id = self._gen_id("exc")
-        exc_type = data.get("type", "blocker_exception")
-
-        type_map = {
-            "nonexclusive_license": "nonexclusive_license_exception",
-            "ordinary_course": "ordinary_course_exception",
-            "intercompany": "intercompany_exception",
-            "fair_value": "fair_value_exception",
-            "license_back": "license_back_exception",
-            "immaterial_ip": "immaterial_ip_exception",
-        }
-        entity_type = type_map.get(exc_type, "blocker_exception")
-
-        attrs = [
-            f'has exception_id "{exc_id}"',
-            f'has exception_name "{self._escape(data.get("name", exc_type))}"',
-        ]
-
-        if data.get("scope_limitation"):
-            attrs.append(f'has scope_limitation "{self._escape(data["scope_limitation"])}"')
-        if data.get("verbatim_text"):
-            attrs.append(f'has verbatim_text "{self._escape(data["verbatim_text"][:1000])}"')
-
-        query = f'''
-            insert $e isa {entity_type},
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return exc_id
-
-    def _link_exception_to_blocker(self, blocker_id: str, exception_id: str):
-        """Link exception to blocker."""
-        query = f'''
-            match
-                $blocker isa blocker, has blocker_id "{blocker_id}";
-                $exc isa blocker_exception, has exception_id "{exception_id}";
-            insert
-                (blocker: $blocker, exception: $exc) isa blocker_has_exception;
-        '''
-        self._execute_query(query)
-
     def _link_blocker_to_ip_type(self, blocker_id: str, ip_type_concept_id: str, scope: str = "full"):
-        """Link blocker to IP type it covers.
-
-        Fixed from legacy version:
-        - concept_id (not ip_type_id): ip_type sub concept inherits concept_id @key
-        - blocker_covers_ip_type (not blocker_covers): per schema_unified.tql
-        - jcrew_blocker (not blocker): V4 path creates jcrew_blocker instances
-        """
+        """Link blocker to IP type it covers."""
         query = f'''
             match
                 $blocker isa jcrew_blocker, has blocker_id "{blocker_id}";
@@ -2737,79 +2402,6 @@ Each answer object has this schema:
             insert
                 (blocker: $blocker, ip_type: $ip) isa blocker_covers_ip_type,
                     has coverage_scope "{scope}";
-        '''
-        self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # SWEEP CONFIG
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_sweep_tier(self, data: Dict[str, Any]) -> str:
-        """Create a sweep tier entity."""
-        tier_id = self._gen_id("tier")
-
-        attrs = [
-            f'has tier_id "{tier_id}"',
-        ]
-
-        if data.get("leverage_threshold") is not None:
-            attrs.append(f'has leverage_threshold {data["leverage_threshold"]}')
-        if data.get("sweep_percentage") is not None:
-            attrs.append(f'has sweep_percentage {data["sweep_percentage"]}')
-        if data.get("is_highest_tier") is not None:
-            attrs.append(f'has is_highest_tier {str(data["is_highest_tier"]).lower()}')
-
-        query = f'''
-            insert $t isa sweep_tier,
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return tier_id
-
-    def _link_tier_to_provision(self, provision_id: str, tier_id: str):
-        """Link sweep tier to provision."""
-        query = f'''
-            match
-                $prov isa provision, has provision_id "{provision_id}";
-                $tier isa sweep_tier, has tier_id "{tier_id}";
-            insert
-                (provision: $prov, tier: $tier) isa provision_has_sweep_tier;
-        '''
-        self._execute_query(query)
-
-    def _create_de_minimis(self, data: Dict[str, Any]) -> str:
-        """Create a de minimis threshold entity."""
-        thresh_id = self._gen_id("thresh")
-
-        attrs = [
-            f'has threshold_id "{thresh_id}"',
-            f'has threshold_type "{data.get("type", "individual")}"',
-        ]
-
-        if data.get("dollar_amount") is not None:
-            attrs.append(f'has dollar_cap {data["dollar_amount"]}')
-        if data.get("ebitda_percentage") is not None:
-            attrs.append(f'has ebitda_percentage {data["ebitda_percentage"]}')
-        if data.get("uses_greater_of") is not None:
-            attrs.append(f'has uses_greater_of {str(data["uses_greater_of"]).lower()}')
-        if data.get("permits_carryforward") is not None:
-            attrs.append(f'has permits_carryforward {str(data["permits_carryforward"]).lower()}')
-
-        query = f'''
-            insert $th isa de_minimis_threshold,
-                {", ".join(attrs)};
-        '''
-        self._execute_query(query)
-        return thresh_id
-
-    def _link_threshold_to_provision(self, provision_id: str, threshold_id: str):
-        """Link de minimis threshold to provision."""
-        query = f'''
-            match
-                $prov isa provision, has provision_id "{provision_id}";
-                $thresh isa de_minimis_threshold, has threshold_id "{threshold_id}";
-            insert
-                (provision: $prov, threshold: $thresh) isa provision_has_de_minimis;
         '''
         self._execute_query(query)
 
@@ -2823,41 +2415,6 @@ Each answer object has this schema:
                 (provision: $prov, exemption: $ex) isa provision_has_sweep_exemption;
         '''
         self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # REALLOCATIONS
-    # ═══════════════════════════════════════════════════════════════════════════
-
-    def _create_reallocation_relation(self, data: Dict[str, Any]):
-        """Create basket reallocation relation."""
-        source_basket = data.get("source_basket_id")
-        target_basket = data.get("target_basket_id")
-
-        if not source_basket or not target_basket:
-            return
-
-        attrs = []
-        if data.get("section_reference"):
-            attrs.append(f'has reallocation_section "{data["section_reference"]}"')
-        if data.get("cap") is not None:
-            attrs.append(f'has reallocation_cap {data["cap"]}')
-        if data.get("is_bidirectional") is not None:
-            attrs.append(f'has is_bidirectional {str(data["is_bidirectional"]).lower()}')
-
-        attr_str = f', {", ".join(attrs)}' if attrs else ''
-
-        query = f'''
-            match
-                $src isa basket, has basket_id "{source_basket}";
-                $tgt isa basket, has basket_id "{target_basket}";
-            insert
-                (source_basket: $src, target_basket: $tgt) isa basket_reallocates_to{attr_str};
-        '''
-        self._execute_query(query)
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # UTILITIES
-    # ═══════════════════════════════════════════════════════════════════════════
 
     def _escape(self, text: str) -> str:
         """Escape text for TypeQL string."""
