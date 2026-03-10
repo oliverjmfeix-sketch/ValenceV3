@@ -575,25 +575,48 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_basket_amounts(provision_id: str) -> Dict[str, float]:
-    """Fetch basket_amount_usd for all RP baskets, keyed by basket type short name."""
-    query = f'''
+def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
+    """Fetch basket_amount_usd and grower_pct for RP + RDP baskets.
+
+    Returns dict of short_name -> (amount_usd, grower_pct_or_None).
+    """
+    result: Dict[str, tuple] = {}
+    # RP baskets
+    q_rp = f'''
         match
             $p isa rp_provision, has provision_id "{provision_id}";
             (provision: $p, basket: $b) isa provision_has_basket;
             $b has basket_id $bid;
             $b has basket_amount_usd $bau;
-        select $bid, $bau;
+            try {{ $b has basket_grower_pct $bgp; }};
+        select $bid, $bau, $bgp;
     '''
-    rows = _run_query(query)
-    result = {}
-    for row in rows:
+    for row in _run_query(q_rp):
         bid = _safe_val(row, "bid")
         amt = _safe_val(row, "bau")
+        gp = _safe_val(row, "bgp")
         if bid and amt:
-            # basket_id is like "investment_87852625_rp" — extract type prefix
             short = bid.replace(f"_{provision_id}", "").replace("_", " ")
-            result[short] = amt
+            result[short] = (amt, gp)
+    # RDP baskets (for reallocation source lookup — "rdp" maps to general_rdp)
+    q_rdp = f'''
+        match
+            $p isa rp_provision, has provision_id "{provision_id}";
+            (provision: $p, rdp_basket: $rb) isa provision_has_rdp_basket;
+            $rb has basket_id $bid;
+            $rb has basket_amount_usd $bau;
+            try {{ $rb has basket_grower_pct $bgp; }};
+        select $bid, $bau, $bgp;
+    '''
+    for row in _run_query(q_rdp):
+        bid = _safe_val(row, "bid")
+        amt = _safe_val(row, "bau")
+        gp = _safe_val(row, "bgp")
+        if bid and amt:
+            short = bid.replace(f"_{provision_id}", "").replace("_", " ")
+            result[short] = (amt, gp)
+            if short.startswith("general rdp"):
+                result["rdp"] = (amt, gp)
     return result
 
 
@@ -631,8 +654,16 @@ def _fetch_reallocations(provision_id: str) -> List[str]:
         sec_str = f" via {sec}" if sec else ""
         # Use reallocation_amount_usd for inline display, fall back to basket lookup
         src_name = src.split(" -> ")[0].strip() if " -> " in src else src
-        amt_val = ramt or basket_amt_map.get(src_name)
-        amt_str = f" ({_fmt_dollar(amt_val)})" if amt_val else ""
+        basket_info = basket_amt_map.get(src_name)
+        amt_val = ramt or (basket_info[0] if basket_info else None)
+        grower_pct = basket_info[1] if basket_info else None
+        if amt_val and grower_pct:
+            pct_display = f"{int(grower_pct * 100)}%" if grower_pct <= 1 else f"{grower_pct}%"
+            amt_str = f" ({_fmt_dollar(amt_val)} / {pct_display} EBITDA)"
+        elif amt_val:
+            amt_str = f" ({_fmt_dollar(amt_val)})"
+        else:
+            amt_str = ""
         lines.append(f"  {src}{amt_str}{sec_str}, {direction}")
 
         # Annotate with source-specific question text

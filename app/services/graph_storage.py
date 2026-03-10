@@ -372,9 +372,15 @@ You MUST extract every source feeding the builder basket. Most agreements have 3
 - "declined_proceeds": Proceeds borrower elected not to accept
 - "debt_conversion": Debt converted to equity
 
+### CRITICAL — ratio_basket.has_no_worse_test:
+Most ratio baskets include a "no worse" (or "no worse than") pro forma test. This permits a restricted payment even if leverage EXCEEDS the absolute threshold, as long as the pro forma ratio is no worse than immediately before the transaction. Look for language like "or (y) the First Lien Leverage Ratio ... is no greater than ... immediately prior to such Restricted Payment." If ANY such fallback exists, set has_no_worse_test: true. This field is essential for correct analysis — do NOT omit it.
+
 ### no_worse_threshold for ratio_basket:
 - If the 'no worse' test has NO leverage cap (any ratio allowed as long as no worse), use: "uncapped"
 - If the 'no worse' test has a specific cap (e.g., 6.25x), use that number
+
+### CRITICAL — reallocations.reallocation_cap:
+For each reallocation, ALWAYS extract the dollar amount of the SOURCE basket being reallocated. The "reallocation_cap" is the capacity of the source basket (e.g., the investment basket's "greater of $130M and 100% EBITDA" means reallocation_cap = 130000000). If the source basket has a dollar cap or greater-of amount, use the dollar figure. Do NOT leave reallocation_cap null — the source basket dollar amount is essential for quantifying total dividend capacity.
 
 ### unsub_distribution_basket:
 This is the Section 6.06(p) carve-out that permits dividending equity/assets of Unrestricted Subsidiaries — separate from unsub_designation which covers the DESIGNATION rules. Extract if a specific basket permits distributions of equity interests, indebtedness, assets, or proceeds of Unrestricted Subsidiaries.
