@@ -647,7 +647,7 @@ def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
         if bid and amt:
             short = bid.replace(f"_{provision_id}", "").replace("_", " ")
             result[short] = (amt, gp)
-            if short.startswith("general rdp"):
+            if "rdp" in short and "general" in short:
                 result["rdp"] = (amt, gp)
     return result
 

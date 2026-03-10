@@ -1987,7 +1987,7 @@ Each answer object has this schema:
         # (the investment covenant is a separate provision, but the function needs
         # a basket entity to traverse).
         basket_map = {
-            "rdp": f"general_rdp_{provision_id}",
+            "rdp": f"rdp_general_{provision_id}",
             "builder": f"builder_{provision_id}",
             "general_rp": f"general_rp_{provision_id}",
             "prepayment": f"prepayment_{provision_id}",
