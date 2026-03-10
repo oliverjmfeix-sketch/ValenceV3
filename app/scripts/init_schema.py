@@ -69,6 +69,9 @@ MFN_METADATA_FILE = DATA_DIR / "mfn_extraction_metadata.tql"
 # 18. MFN inference functions
 MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
 
+# 19. RP covenant functions
+RP_FUNCTIONS_FILE = DATA_DIR / "rp_functions.tql"
+
 # 16. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
@@ -429,6 +432,21 @@ def init_database():
                     tx.close()
                 logger.warning(f"   MFN functions: {e}")
                 logger.warning("   MFN pattern detection functions not available.")
+
+        # 19. Load RP covenant functions (SCHEMA transaction)
+        logger.info("\n19. Loading rp_functions.tql...")
+        if RP_FUNCTIONS_FILE.exists():
+            rp_func_tql = load_tql_file(RP_FUNCTIONS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(rp_func_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded RP functions ({len(rp_func_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   RP functions: {e}")
+                logger.warning("   RP dividend capacity function not available.")
 
         # ═══════════════════════════════════════════════════════════════
         # Verification

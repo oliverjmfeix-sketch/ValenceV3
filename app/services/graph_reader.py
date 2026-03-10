@@ -215,6 +215,11 @@ def get_rp_entities(deal_id: str) -> str:
     if dm_lines:
         sections.append("\n".join(dm_lines))
 
+    # ── Dividend Capacity Summary (TypeDB function, prepended) ───────
+    cap_lines = _fetch_dividend_capacity(provision_id)
+    if cap_lines:
+        sections.insert(0, "\n".join(cap_lines))
+
     if not sections:
         return "(No Channel 3 entities found for this provision)"
 
@@ -224,6 +229,33 @@ def get_rp_entities(deal_id: str) -> str:
 # ═════════════════════════════════════════════════════════════════════════════
 # INDIVIDUAL ENTITY FETCHERS
 # ═════════════════════════════════════════════════════════════════════════════
+
+def _fetch_dividend_capacity(provision_id: str) -> List[str]:
+    """Call TypeDB function to get total fixed-floor dividend capacity."""
+    query = f'''
+        match
+            let $total = total_fixed_dividend_capacity("{provision_id}");
+        select $total;
+    '''
+    rows = _run_query(query)
+    if not rows:
+        return []
+    try:
+        concept = rows[0].get("total")
+        # let-bound value variable: try as_value() first, fall back to as_attribute()
+        try:
+            total = concept.as_value().get()
+        except Exception:
+            total = concept.as_attribute().get_value()
+    except Exception:
+        return []
+    if not total or total <= 0:
+        return []
+    return [
+        "## Dividend Capacity Summary",
+        f"  Total Fixed Floor: {_fmt_dollar(total)}",
+    ]
+
 
 def _fetch_rp_baskets(provision_id: str) -> List[str]:
     """Fetch all RP basket subtypes using per-subtype queries to avoid type inference issues."""

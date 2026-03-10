@@ -431,6 +431,7 @@ entity rp_basket @abstract,
     plays basket_reallocates_to:target_basket;
 
 entity builder_basket sub rp_basket,
+    owns basket_amount_usd,
     owns start_date_language,
     owns uses_greatest_of_tests,
     plays basket_has_source:basket;
@@ -487,6 +488,13 @@ entity unsub_distribution_basket sub rp_basket,
     owns covers_proceeds,
     owns is_categorical,
     owns requires_valid_designation;
+
+# Stub entity for investment baskets referenced by reallocation edges.
+# The investment covenant is a separate provision, but its basket amount
+# is relevant for computing total RP dividend capacity via reallocation.
+entity investment_rp_basket sub rp_basket,
+    owns basket_amount_usd,
+    owns basket_grower_pct;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET SOURCES (polymorphic)
@@ -707,7 +715,9 @@ entity rdp_basket @abstract,
     owns source_text,
     owns confidence,
     owns default_condition,
-    plays provision_has_rdp_basket:rdp_basket;
+    plays provision_has_rdp_basket:rdp_basket,
+    plays basket_reallocates_to:source_basket,
+    plays basket_reallocates_to:target_basket;
 
 # T2/T3: Refinancing — prepay junior debt with new debt at same/lower priority
 entity refinancing_rdp_basket sub rdp_basket,

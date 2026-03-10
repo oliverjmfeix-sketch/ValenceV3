@@ -908,6 +908,7 @@ Each answer object has this schema:
             delete $src;''',
 
             # ── Phase 3: Delete basket_reallocates_to relations ──────────────
+            # RP baskets as source/target
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
@@ -916,6 +917,17 @@ Each answer object has this schema:
             f'''match
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, basket: $b) isa provision_has_basket;
+                $rel isa basket_reallocates_to, links (target_basket: $b);
+            delete $rel;''',
+            # RDP baskets as source/target
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, rdp_basket: $b) isa provision_has_rdp_basket;
+                $rel isa basket_reallocates_to, links (source_basket: $b);
+            delete $rel;''',
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, rdp_basket: $b) isa provision_has_rdp_basket;
                 $rel isa basket_reallocates_to, links (target_basket: $b);
             delete $rel;''',
 
@@ -1154,6 +1166,12 @@ Each answer object has this schema:
 
         basket_id = f"builder_{provision_id}"
         attrs = [f'has basket_id "{basket_id}"']
+
+        # Promote starter dollar_amount to basket_amount_usd for function access
+        for src in basket.sources:
+            if src.source_type == "starter_amount" and src.dollar_amount is not None:
+                attrs.append(f'has basket_amount_usd {src.dollar_amount}')
+                break
 
         if basket.start_date_language:
             attrs.append(f'has start_date_language "{self._escape(basket.start_date_language)}"')
@@ -1964,26 +1982,50 @@ Each answer object has this schema:
         '''
         self._execute_query(query)
 
-        # Also try to create basket_reallocates_to relation if both baskets exist
+        # Create basket_reallocates_to relation linking source and target baskets.
+        # For "investment" source, create a stub investment_rp_basket entity first
+        # (the investment covenant is a separate provision, but the function needs
+        # a basket entity to traverse).
         basket_map = {
-            "investment": f"investment_{provision_id}",
-            "rdp": f"rdp_{provision_id}",
+            "rdp": f"general_rdp_{provision_id}",
             "builder": f"builder_{provision_id}",
             "general_rp": f"general_rp_{provision_id}",
             "prepayment": f"prepayment_{provision_id}",
-            "intercompany": f"intercompany_{provision_id}"
+            "intercompany": f"intercompany_{provision_id}",
+            "investment": f"investment_rp_{provision_id}",
         }
         source_id = basket_map.get(realloc.source_basket)
         target_id = basket_map.get(realloc.target_basket)
+
+        # Create stub investment_rp_basket if source is "investment" and we have a cap
+        if realloc.source_basket == "investment" and realloc.reallocation_cap is not None:
+            try:
+                stub_attrs = [
+                    f'has basket_id "{source_id}"',
+                    f'has basket_amount_usd {realloc.reallocation_cap}',
+                ]
+                stub_query = f'''
+                    match
+                        $prov isa rp_provision, has provision_id "{provision_id}";
+                    insert
+                        $stub isa investment_rp_basket, {", ".join(stub_attrs)};
+                        (provision: $prov, basket: $stub) isa provision_has_basket;
+                '''
+                self._execute_query(stub_query)
+            except Exception as e:
+                logger.debug(f"Could not create investment_rp_basket stub: {e}")
+
         if source_id and target_id:
             try:
                 rel_attrs = ""
                 if realloc.reallocation_cap is not None:
                     rel_attrs = f",\n                has reallocation_amount_usd {realloc.reallocation_cap}"
+                # Use basket_id match without explicit type — both rp_basket and
+                # rdp_basket now play basket_reallocates_to roles.
                 rel_query = f'''
                     match
-                        $src isa rp_basket, has basket_id "{source_id}";
-                        $tgt isa rp_basket, has basket_id "{target_id}";
+                        $src has basket_id "{source_id}";
+                        $tgt has basket_id "{target_id}";
                     insert
                         (source_basket: $src, target_basket: $tgt) isa basket_reallocates_to{rel_attrs};
                 '''

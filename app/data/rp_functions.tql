@@ -1,0 +1,33 @@
+################################################################################
+# RP COVENANT FUNCTIONS
+#
+# TypeDB 3.x schema functions for Restricted Payments analysis.
+# Loaded in a SCHEMA transaction by init_schema.py.
+################################################################################
+
+# Total fixed-floor dividend capacity: sums basket_amount_usd from all unique
+# basket entities reachable from an RP provision — either directly owned via
+# provision_has_basket, or reachable as a reallocation source via
+# basket_reallocates_to from a directly-owned target basket.
+#
+# Deduplication: $b is the same variable across both or-branches. If the same
+# basket entity matches through both paths, TypeDB set semantics count it once.
+#
+# Expected baskets for a typical deal (e.g., 87852625):
+#   Branch 1 (direct):  general_rp ($130M), builder ($130M starter promoted)
+#   Branch 2 (realloc): general_rdp ($130M via rdp→general_rp edge),
+#                        investment_rp ($130M stub via investment→general_rp edge)
+#   Total: $520M
+define
+fun total_fixed_dividend_capacity($pid: string) -> double:
+    match
+        $p isa rp_provision, has provision_id $pid;
+        {
+            (provision: $p, basket: $b) isa provision_has_basket;
+            $b has basket_amount_usd $amt;
+        } or {
+            (provision: $p, basket: $tgt) isa provision_has_basket;
+            (source_basket: $b, target_basket: $tgt) isa basket_reallocates_to;
+            $b has basket_amount_usd $amt;
+        };
+    return sum($amt);
