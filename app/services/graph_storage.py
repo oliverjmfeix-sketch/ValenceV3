@@ -2000,7 +2000,8 @@ Each answer object has this schema:
         source_id = basket_map.get(realloc.source_basket)
         target_id = basket_map.get(realloc.target_basket)
 
-        # Create stub investment_rp_basket if source is "investment" and we have a cap
+        # Create stub investment_rp_basket if source is "investment" and we have a cap.
+        # Use not-exists to avoid duplicate stubs if multiple reallocations reference investment.
         if realloc.source_basket == "investment" and realloc.reallocation_cap is not None:
             try:
                 stub_attrs = [
@@ -2008,9 +2009,11 @@ Each answer object has this schema:
                     'has display_name "Investment via Reallocation"',
                     f'has basket_amount_usd {realloc.reallocation_cap}',
                 ]
+                # Only create if stub doesn't already exist
                 stub_query = f'''
                     match
                         $prov isa rp_provision, has provision_id "{provision_id}";
+                        not {{ $existing isa investment_rp_basket, has basket_id "{source_id}"; }};
                     insert
                         $stub isa investment_rp_basket, {", ".join(stub_attrs)};
                         (provision: $prov, basket: $stub) isa provision_has_basket;
