@@ -1029,6 +1029,15 @@ Each answer object has this schema:
             delete $r;''',
             f'''match $pw isa investment_pathway, has pathway_id $pid2; $pid2 like "pathway_{pid}_.*";
             delete $pw;''',
+
+            # ── Phase 6: Delete investment provision + baskets (separate provision) ─
+            f'''match
+                $inv_prov isa investment_provision, has provision_id "investment_{self.deal_id}";
+                (provision: $inv_prov, basket: $b) isa provision_has_basket;
+            delete $b;''',
+            f'''match
+                $inv_prov isa investment_provision, has provision_id "investment_{self.deal_id}";
+            delete $inv_prov;''',
         ]
 
         for query in cleanup_queries:
@@ -2047,9 +2056,11 @@ Each answer object has this schema:
         self._execute_query(query)
 
         # Create basket_reallocates_to relation linking source and target baskets.
-        # For "investment" source, create a stub investment_rp_basket entity first
-        # (the investment covenant is a separate provision, but the function needs
-        # a basket entity to traverse).
+        # For "investment" source, create a real investment provision + basket
+        # under a SEPARATE provision (not the RP provision). This prevents the
+        # dividend_capacity_components function from double-counting: Branch 1
+        # finds direct RP baskets, Branch 2 follows reallocation edges to find
+        # the investment basket. No overlap.
         basket_map = {
             "rdp": f"rdp_general_{provision_id}",
             "builder": f"builder_{provision_id}",
@@ -2061,27 +2072,36 @@ Each answer object has this schema:
         source_id = basket_map.get(realloc.source_basket)
         target_id = basket_map.get(realloc.target_basket)
 
-        # Create stub investment_rp_basket if source is "investment" and we have a cap.
-        # Use not-exists to avoid duplicate stubs if multiple reallocations reference investment.
+        # Create investment provision + basket under its own provision (Section 6.03).
         if realloc.source_basket == "investment" and realloc.reallocation_cap is not None:
+            inv_provision_id = f"investment_{self.deal_id}"
             try:
-                stub_attrs = [
-                    f'has basket_id "{source_id}"',
-                    'has display_name "Investment via Reallocation"',
-                    f'has basket_amount_usd {realloc.reallocation_cap}',
-                ]
-                # Only create if stub doesn't already exist
-                stub_query = f'''
+                self._execute_query(f'''
                     match
-                        $prov isa rp_provision, has provision_id "{provision_id}";
-                        not {{ $existing isa investment_rp_basket, has basket_id "{source_id}"; }};
+                        $deal isa deal, has deal_id "{self.deal_id}";
+                        not {{ $existing isa investment_provision, has provision_id "{inv_provision_id}"; }};
                     insert
-                        $stub isa investment_rp_basket, {", ".join(stub_attrs)};
-                        (provision: $prov, basket: $stub) isa provision_has_basket;
-                '''
-                self._execute_query(stub_query)
+                        $inv_prov isa investment_provision,
+                            has provision_id "{inv_provision_id}";
+                        (deal: $deal, provision: $inv_prov) isa deal_has_provision;
+                ''')
             except Exception as e:
-                logger.debug(f"Could not create investment_rp_basket stub: {e}")
+                logger.debug(f"Investment provision may already exist: {e}")
+
+            try:
+                self._execute_query(f'''
+                    match
+                        $inv_prov isa investment_provision, has provision_id "{inv_provision_id}";
+                        not {{ $existing isa general_investment_basket, has basket_id "{source_id}"; }};
+                    insert
+                        $basket isa general_investment_basket,
+                            has basket_id "{source_id}",
+                            has display_name "Investment via Reallocation",
+                            has basket_amount_usd {realloc.reallocation_cap};
+                        (provision: $inv_prov, basket: $basket) isa provision_has_basket;
+                ''')
+            except Exception as e:
+                logger.debug(f"Investment basket may already exist: {e}")
 
         if source_id and target_id:
             try:

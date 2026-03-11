@@ -491,12 +491,19 @@ entity unsub_distribution_basket sub rp_basket,
     owns is_categorical,
     owns requires_valid_designation;
 
-# Stub entity for investment baskets referenced by reallocation edges.
-# The investment covenant is a separate provision, but its basket amount
-# is relevant for computing total RP dividend capacity via reallocation.
-entity investment_rp_basket sub rp_basket,
+# Investment basket — real entity under its own provision (Section 6.03).
+# Connected to RP provision ONLY via basket_reallocates_to edges, NOT
+# via provision_has_basket on the RP provision. This prevents the
+# dividend_capacity_components function from double-counting it
+# (Branch 1 = direct baskets, Branch 2 = reallocation sources).
+entity general_investment_basket sub rp_basket,
     owns basket_amount_usd,
     owns basket_grower_pct;
+
+# Investment provision — lightweight provision for the investment covenant.
+# Its baskets are separate from RP baskets but reachable via reallocation.
+entity investment_provision sub provision,
+    plays provision_has_basket:provision;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET SOURCES (polymorphic)
