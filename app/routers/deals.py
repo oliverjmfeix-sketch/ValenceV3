@@ -2090,18 +2090,59 @@ async def ask_question_flat(deal_id: str, request: AskRequest) -> Dict[str, Any]
 
 
 @router.post("/{deal_id}/ask-graph")
-async def ask_question_graph(deal_id: str, request: AskRequest) -> Dict[str, Any]:
+async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = False) -> Dict[str, Any]:
     """
     Answer a question using Channel 3 graph entities instead of Channel 1 scalars.
 
     Same synthesis prompt as /ask, but data source is typed entities from TypeDB
     (baskets, sources, blocker, pathways, etc.) instead of flat key-value answers.
+
+    Pass ?trace=true to include the full pipeline trace in the response.
     """
+    import time as _time
+    from app.services.trace_collector import TraceCollector
+
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
-    # Fetch entity context
-    entity_context = get_rp_entities(deal_id)
+    collector = TraceCollector() if trace else None
+
+    if collector:
+        collector.question = request.question
+        collector.deal_id = deal_id
+
+    # Step 1: Covenant type routing
+    start = _time.time()
+    covenant_type = "rp"
+    try:
+        topic_router = get_topic_router()
+        route_result = topic_router.route(request.question)
+        covenant_type = route_result.covenant_type
+        if collector:
+            collector.covenant_type = covenant_type
+            collector.matched_categories = [
+                {"id": cat.category_id, "name": cat.name, "covenant_type": cat.covenant_type}
+                for cat in route_result.matched_categories
+            ]
+    except Exception as e:
+        logger.warning("TopicRouter unavailable, defaulting to 'rp': %s", e)
+        if collector:
+            collector.covenant_type = "rp"
+            collector.routing_fallback = "TopicRouter unavailable"
+    if collector:
+        collector.routing_duration_ms = (_time.time() - start) * 1000
+
+    if covenant_type == "mfn":
+        covenant_type = "rp"
+        logger.warning(f"MFN graph entities not available, falling back to RP for deal {deal_id}")
+        if collector:
+            collector.routing_fallback = "mfn_graph_not_available"
+
+    # Step 2+3+4: Fetch entity context
+    start = _time.time()
+    entity_context = get_rp_entities(deal_id, trace=collector)
+    if collector:
+        collector.provision_lookup_ms = (_time.time() - start) * 1000
     if entity_context.startswith("("):
         raise HTTPException(status_code=400, detail=entity_context)
 
@@ -2174,12 +2215,14 @@ This block MUST appear at the very end of your response."""
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         model_used = settings.claude_model
 
+        claude_start = _time.time()
         response = client.messages.create(
             model=model_used,
             max_tokens=4000,
             system=system_rules,
             messages=[{"role": "user", "content": user_prompt}]
         )
+        claude_duration_ms = (_time.time() - claude_start) * 1000
 
         answer_text = response.content[0].text
 
@@ -2201,7 +2244,22 @@ This block MUST appear at the very end of your response."""
 
         citations = _extract_citations_from_answer(clean_answer)
 
-        return {
+        # Capture trace data for Claude synthesis
+        if collector:
+            collector.claude_system_prompt = system_rules
+            collector.claude_user_prompt = user_prompt
+            collector.claude_model = model_used
+            collector.claude_input_tokens = response.usage.input_tokens
+            collector.claude_output_tokens = response.usage.output_tokens
+            # Cost estimate: Sonnet input=$3/MTok, output=$15/MTok
+            collector.claude_cost_usd = (
+                response.usage.input_tokens * 3.0 / 1_000_000
+                + response.usage.output_tokens * 15.0 / 1_000_000
+            )
+            collector.claude_duration_ms = claude_duration_ms
+            collector.claude_answer = answer_text
+
+        response_data = {
             "question": request.question,
             "answer": clean_answer,
             "citations": citations,
@@ -2212,6 +2270,11 @@ This block MUST appear at the very end of your response."""
             "model": model_used,
             "deal_id": deal_id,
         }
+
+        if collector:
+            response_data["trace"] = collector.to_dict()
+
+        return response_data
 
     except anthropic.APIError as e:
         logger.error(f"Anthropic API error in graph Q&A: {e}")

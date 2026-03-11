@@ -4,12 +4,15 @@ Graph Reader — reads Channel 3 typed entities from TypeDB for a provision.
 Returns formatted text suitable for Claude synthesis prompts.
 """
 import logging
+import re as _re
+import time as _time
 from typing import Dict, List, Any, Optional
 
 from typedb.driver import TransactionType
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
+from app.services.trace_collector import TraceCollector
 from app.data.attribute_glossary import ATTRIBUTE_GLOSSARY, REALLOCATION_ANNOTATIONS
 
 logger = logging.getLogger(__name__)
@@ -136,20 +139,44 @@ def _add_lines(lines: list, items: list):
             lines.append(item)
 
 
-def _run_query(query: str) -> list:
-    """Execute a read query and return rows."""
+def _get_variable_names(query: str) -> List[str]:
+    """Extract $variable names from the select clause of a TQL query."""
+    select_match = _re.search(r'select\s+(.+?);', query, _re.IGNORECASE | _re.DOTALL)
+    if select_match:
+        return _re.findall(r'\$(\w+)', select_match.group(1))
+    return []
+
+
+def _run_query(query: str, trace: TraceCollector = None, trace_name: str = "") -> list:
+    """Execute a read query and return rows. Optionally trace."""
+    start = _time.time()
     tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
     try:
         result = list(tx.query(query).resolve().as_concept_rows())
+        duration_ms = (_time.time() - start) * 1000
+
+        if trace and trace_name:
+            sample = []
+            for row in result[:5]:
+                row_dict = {}
+                for var_name in _get_variable_names(query):
+                    val = _safe_val(row, var_name)
+                    if val is not None:
+                        row_dict[var_name] = val
+                sample.append(row_dict)
+            trace.add_query(trace_name, query, len(result), duration_ms, sample)
+
         return result
     except Exception as e:
         logger.debug(f"Query failed: {e}")
+        if trace and trace_name:
+            trace.add_query(trace_name, query, 0, (_time.time() - start) * 1000)
         return []
     finally:
         tx.close()
 
 
-def get_rp_entities(deal_id: str) -> str:
+def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
     """
     Fetch ALL Channel 3 entities for an RP provision and format as labeled text.
 
@@ -168,69 +195,79 @@ def get_rp_entities(deal_id: str) -> str:
         return "(TypeDB not connected)"
 
     provision_id = f"{deal_id}_rp"
+
+    if trace:
+        trace.provision_id = provision_id
+
     sections = []
 
     # ── RP Baskets ────────────────────────────────────────────────────
-    basket_lines = _fetch_rp_baskets(provision_id)
+    basket_lines = _fetch_rp_baskets(provision_id, trace=trace)
     if basket_lines:
         sections.append("\n".join(basket_lines))
 
     # ── Builder Sources ───────────────────────────────────────────────
-    source_lines = _fetch_builder_sources(provision_id)
+    source_lines = _fetch_builder_sources(provision_id, trace=trace)
     if source_lines:
         sections.append("\n".join(source_lines))
 
     # ── Reallocations ─────────────────────────────────────────────────
-    realloc_lines = _fetch_reallocations(provision_id)
+    realloc_lines = _fetch_reallocations(provision_id, trace=trace)
     if realloc_lines:
         sections.append("\n".join(realloc_lines))
 
     # ── RDP Baskets ───────────────────────────────────────────────────
-    rdp_lines = _fetch_rdp_baskets(provision_id)
+    rdp_lines = _fetch_rdp_baskets(provision_id, trace=trace)
     if rdp_lines:
         sections.append("\n".join(rdp_lines))
 
     # ── J.Crew Blocker ────────────────────────────────────────────────
-    blocker_lines = _fetch_jcrew_blocker(provision_id)
+    blocker_lines = _fetch_jcrew_blocker(provision_id, trace=trace)
     if blocker_lines:
         sections.append("\n".join(blocker_lines))
 
     # ── Investment Pathways ───────────────────────────────────────────
-    pathway_lines = _fetch_investment_pathways(provision_id)
+    pathway_lines = _fetch_investment_pathways(provision_id, trace=trace)
     if pathway_lines:
         sections.append("\n".join(pathway_lines))
 
     # ── Unsub Designation ─────────────────────────────────────────────
-    unsub_lines = _fetch_unsub_designation(provision_id)
+    unsub_lines = _fetch_unsub_designation(provision_id, trace=trace)
     if unsub_lines:
         sections.append("\n".join(unsub_lines))
 
     # ── Sweep Tiers ───────────────────────────────────────────────────
-    sweep_lines = _fetch_sweep_tiers(provision_id)
+    sweep_lines = _fetch_sweep_tiers(provision_id, trace=trace)
     if sweep_lines:
         sections.append("\n".join(sweep_lines))
 
     # ── De Minimis Thresholds ─────────────────────────────────────────
-    dm_lines = _fetch_de_minimis(provision_id)
+    dm_lines = _fetch_de_minimis(provision_id, trace=trace)
     if dm_lines:
         sections.append("\n".join(dm_lines))
 
     # ── Dividend Capacity Summary (TypeDB function, prepended) ───────
-    cap_lines = _fetch_dividend_capacity(provision_id)
+    cap_lines = _fetch_dividend_capacity(provision_id, trace=trace)
     if cap_lines:
         sections.insert(0, "\n".join(cap_lines))
 
     if not sections:
         return "(No Channel 3 entities found for this provision)"
 
-    return "\n\n".join(sections)
+    entity_context = "\n\n".join(sections)
+
+    if trace:
+        trace.entity_context = entity_context
+        trace.entity_context_chars = len(entity_context)
+
+    return entity_context
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # INDIVIDUAL ENTITY FETCHERS
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _fetch_dividend_capacity(provision_id: str) -> List[str]:
+def _fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Call TypeDB dividend_capacity_components function.
 
     Traversal logic lives in TypeDB. Python only formats the output.
@@ -240,7 +277,7 @@ def _fetch_dividend_capacity(provision_id: str) -> List[str]:
             let $dn, $amt in dividend_capacity_components("{provision_id}");
         select $dn, $amt;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="dividend_capacity_components")
     if not rows:
         return []
 
@@ -255,6 +292,12 @@ def _fetch_dividend_capacity(provision_id: str) -> List[str]:
 
     if not components:
         return []
+
+    if trace:
+        trace.capacity_total = total
+        trace.capacity_components = [
+            {"name": name, "amount": amt} for name, amt in components
+        ]
 
     lines = [
         "## Dividend Capacity Summary",
@@ -274,7 +317,7 @@ def _fetch_dividend_capacity(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_rp_baskets(provision_id: str) -> List[str]:
+def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch all RP basket subtypes using per-subtype queries to avoid type inference issues."""
     all_baskets = []
 
@@ -291,7 +334,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $sdl, $ugot, $dc;
     '''
-    for row in _run_query(q_builder):
+    for row in _run_query(q_builder, trace=trace, trace_name="rp_basket_builder"):
         lines = ["### Builder Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -325,7 +368,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $rt, $rty, $ium, $nwt, $nwthr, $nwu, $tdt, $lct, $pfb, $dc;
     '''
-    for row in _run_query(q_ratio):
+    for row in _run_query(q_ratio, trace=trace, trace_name="rp_basket_ratio"):
         lines = ["### Ratio Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -362,7 +405,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $bau, $bgp, $ipa, $dc;
     '''
-    for row in _run_query(q_general):
+    for row in _run_query(q_general, trace=trace, trace_name="rp_basket_general"):
         lines = ["### General Rp Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -394,7 +437,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $acu, $acpe, $cugo, $cfp, $cfmy, $eps, $dc;
     '''
-    for row in _run_query(q_mgmt):
+    for row in _run_query(q_mgmt, trace=trace, trace_name="rp_basket_management"):
         lines = ["### Management Equity Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -429,7 +472,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $stl, $htr, $tsp, $etp, $dc;
     '''
-    for row in _run_query(q_tax):
+    for row in _run_query(q_tax, trace=trace, trace_name="rp_basket_tax"):
         lines = ["### Tax Distribution Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -460,7 +503,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $cmf, $cae, $cft, $mfrs, $ral, $rba, $dc;
     '''
-    for row in _run_query(q_holdco):
+    for row in _run_query(q_holdco, trace=trace, trace_name="rp_basket_holdco"):
         lines = ["### Holdco Overhead Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -489,7 +532,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $cce, $ctw, $dc;
     '''
-    for row in _run_query(q_eqaward):
+    for row in _run_query(q_eqaward, trace=trace, trace_name="rp_basket_equity_award"):
         lines = ["### Equity Award Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -517,7 +560,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
             try {{ $b has requires_valid_designation $rvd; }};
         select $b, $bid, $sec, $pg, $cei, $ci, $ca, $cp, $ic, $rvd;
     '''
-    for row in _run_query(q_unsub_dist):
+    for row in _run_query(q_unsub_dist, trace=trace, trace_name="rp_basket_unsub_dist"):
         lines = ["### Unsub Distribution Basket"]
         sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
         if sec or pg is not None:
@@ -545,7 +588,7 @@ def _fetch_rp_baskets(provision_id: str) -> List[str]:
     return result
 
 
-def _fetch_builder_sources(provision_id: str) -> List[str]:
+def _fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch builder basket sources."""
     query = f'''
         match
@@ -577,7 +620,7 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
                $recf, $lbp, $lbq, $fcm, $ecc, $eds,
                $ssr, $hrdb, $rdt;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="builder_sources")
     if not rows:
         return []
 
@@ -624,7 +667,7 @@ def _fetch_builder_sources(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
+def _fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Dict[str, tuple]:
     """Fetch basket_amount_usd and grower_pct for RP + RDP baskets.
 
     Returns dict of short_name -> (amount_usd, grower_pct_or_None).
@@ -640,7 +683,7 @@ def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
             try {{ $b has basket_grower_pct $bgp; }};
         select $bid, $bau, $bgp;
     '''
-    for row in _run_query(q_rp):
+    for row in _run_query(q_rp, trace=trace, trace_name="basket_amounts_rp"):
         bid = _safe_val(row, "bid")
         amt = _safe_val(row, "bau")
         gp = _safe_val(row, "bgp")
@@ -657,7 +700,7 @@ def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
             try {{ $rb has basket_grower_pct $bgp; }};
         select $bid, $bau, $bgp;
     '''
-    for row in _run_query(q_rdp):
+    for row in _run_query(q_rdp, trace=trace, trace_name="basket_amounts_rdp"):
         bid = _safe_val(row, "bid")
         amt = _safe_val(row, "bau")
         gp = _safe_val(row, "bgp")
@@ -669,7 +712,7 @@ def _fetch_basket_amounts(provision_id: str) -> Dict[str, tuple]:
     return result
 
 
-def _fetch_reallocations(provision_id: str) -> List[str]:
+def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch basket reallocation entities."""
     query = f'''
         match
@@ -686,12 +729,12 @@ def _fetch_reallocations(provision_id: str) -> List[str]:
             try {{ $r has source_page $pg; }};
         select $rid, $rsrc, $ramt, $bidir, $rsb, $rdfd, $rwoo, $sec, $pg;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="reallocations")
     if not rows:
         return []
 
     # Build a map of basket_id -> amount for inline display
-    basket_amt_map = _fetch_basket_amounts(provision_id)
+    basket_amt_map = _fetch_basket_amounts(provision_id, trace=trace)
 
     lines = ["## Reallocation Paths"]
     for row in rows:
@@ -731,7 +774,7 @@ def _fetch_reallocations(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_rdp_baskets(provision_id: str) -> List[str]:
+def _fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch all RDP basket subtypes."""
     query = f'''
         match
@@ -764,7 +807,7 @@ def _fetch_rdp_baskets(provision_id: str) -> List[str]:
                $swrp, $sti,
                $rslp, $rslm, $rnip, $prwe, $rqso, $rcce, $noa;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="rdp_baskets")
     if not rows:
         return []
 
@@ -808,7 +851,7 @@ def _fetch_rdp_baskets(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_jcrew_blocker(provision_id: str) -> List[str]:
+def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch J.Crew blocker + exceptions."""
     blocker_query = f'''
         match
@@ -831,7 +874,7 @@ def _fetch_jcrew_blocker(provision_id: str) -> List[str]:
         select $b, $bid, $ct, $cd, $cip, $cma, $cel, $cnl, $cpledge, $cab,
                $blp, $brs, $isr, $sec, $pg;
     '''
-    rows = _run_query(blocker_query)
+    rows = _run_query(blocker_query, trace=trace, trace_name="jcrew_blocker")
     if not rows:
         return []
 
@@ -881,7 +924,7 @@ def _fetch_jcrew_blocker(provision_id: str) -> List[str]:
                 try {{ $e has source_page $epg; }};
             select $e, $eid, $en, $sl, $esec, $epg;
         '''
-        exc_rows = _run_query(exc_query)
+        exc_rows = _run_query(exc_query, trace=trace, trace_name="blocker_exceptions")
         if exc_rows:
             lines.append("")
             lines.append("### Exceptions")
@@ -906,7 +949,7 @@ def _fetch_jcrew_blocker(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_investment_pathways(provision_id: str) -> List[str]:
+def _fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch investment pathways."""
     query = f'''
         match
@@ -924,7 +967,7 @@ def _fetch_investment_pathways(provision_id: str) -> List[str]:
             try {{ $pw has source_page $pg; }};
         select $pid, $pst, $ptt, $cdu, $cpta, $cugo, $iu, $csob, $sec, $pg;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="investment_pathways")
     if not rows:
         return []
 
@@ -955,7 +998,7 @@ def _fetch_investment_pathways(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_unsub_designation(provision_id: str) -> List[str]:
+def _fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch unsub designation entity."""
     query = f'''
         match
@@ -971,7 +1014,7 @@ def _fetch_unsub_designation(provision_id: str) -> List[str]:
             try {{ $d has source_page $pg; }};
         select $did, $rnd, $rba, $dcu, $pca, $rp, $sec, $pg;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="unsub_designation")
     if not rows:
         return []
 
@@ -1001,7 +1044,7 @@ def _fetch_unsub_designation(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_sweep_tiers(provision_id: str) -> List[str]:
+def _fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch sweep tiers."""
     query = f'''
         match
@@ -1015,7 +1058,7 @@ def _fetch_sweep_tiers(provision_id: str) -> List[str]:
             try {{ $t has source_page $pg; }};
         select $tid, $lt, $sp, $iht, $sec, $pg;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="sweep_tiers")
     if not rows:
         return []
 
@@ -1040,7 +1083,7 @@ def _fetch_sweep_tiers(provision_id: str) -> List[str]:
     return lines
 
 
-def _fetch_de_minimis(provision_id: str) -> List[str]:
+def _fetch_de_minimis(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch de minimis thresholds."""
     query = f'''
         match
@@ -1053,7 +1096,7 @@ def _fetch_de_minimis(provision_id: str) -> List[str]:
             try {{ $t has source_page $pg; }};
         select $tid, $ttype, $tamt, $sec, $pg;
     '''
-    rows = _run_query(query)
+    rows = _run_query(query, trace=trace, trace_name="de_minimis_thresholds")
     if not rows:
         return []
 
