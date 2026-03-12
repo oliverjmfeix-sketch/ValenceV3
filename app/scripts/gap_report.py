@@ -64,9 +64,9 @@ def _parse_entity_attrs_from_schema(entity_types: set, skip_attrs: set) -> dict:
 
     result = {}
     # Match entity blocks: "entity <name> [sub <parent>],\n    owns ...,\n    ..."
-    # Entity definitions end at a blank line or next entity/relation
+    # Body lines must start with space/tab (not newline), stops at blank line
     entity_pattern = re.compile(
-        r'^entity\s+(\w+)(?:\s+sub\s+\w+)?(?:\s+@\w+)?\s*,\s*\n((?:\s+.*\n)*)',
+        r'^entity\s+(\w+)(?:\s+sub\s+\w+)?(?:\s+@\w+)?\s*,\s*\n((?:[ \t]+.*\n)*)',
         re.MULTILINE
     )
     owns_pattern = re.compile(r'owns\s+(\w+)')
