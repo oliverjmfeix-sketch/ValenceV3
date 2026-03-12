@@ -13,12 +13,16 @@ from typedb.driver import TransactionType
 from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.trace_collector import TraceCollector
-from app.data.attribute_glossary import ATTRIBUTE_GLOSSARY, REALLOCATION_ANNOTATIONS
 
 logger = logging.getLogger(__name__)
 
 # ── Lazy-loaded question text cache ─────────────────────────────────────────
 _question_texts: Optional[dict] = None
+
+# ── Lazy-loaded attribute annotation cache (replaces attribute_glossary.py) ──
+_annotation_cache: Optional[Dict[str, Dict[str, str]]] = None
+_annotation_cache_time: float = 0
+_ANNOTATION_CACHE_TTL = 600  # 10 minutes
 
 
 def _get_question_texts() -> dict:
@@ -53,6 +57,68 @@ def _load_question_texts() -> dict:
     finally:
         if tx.is_open():
             tx.close()
+
+
+def _get_annotation_map() -> Dict[str, Dict[str, str]]:
+    """Load attribute → question_id mapping from TypeDB.
+
+    Returns dict[entity_type][attribute_name] → question_id.
+    Replaces ATTRIBUTE_GLOSSARY and REALLOCATION_ANNOTATIONS from attribute_glossary.py.
+    """
+    global _annotation_cache, _annotation_cache_time
+    now = _time.time()
+    if _annotation_cache is not None and (now - _annotation_cache_time) < _ANNOTATION_CACHE_TTL:
+        return _annotation_cache
+
+    query = """
+        match
+            (question: $q) isa question_annotates_attribute,
+                has target_entity_type $et,
+                has target_attribute_name $an;
+            $q has question_id $qid;
+        select $qid, $et, $an;
+    """
+    result_map: Dict[str, Dict[str, str]] = {}
+    tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+    try:
+        results = list(tx.query(query).resolve().as_concept_rows())
+        for row in results:
+            qid = row.get("qid").as_attribute().get_value()
+            et = row.get("et").as_attribute().get_value()
+            an = row.get("an").as_attribute().get_value()
+            if qid and et and an:
+                result_map.setdefault(et, {})[an] = qid
+        logger.info(f"Loaded {sum(len(v) for v in result_map.values())} attribute annotations from TypeDB")
+    except Exception as e:
+        logger.error(f"Failed to load attribute annotations from TypeDB: {e}")
+        result_map = {}
+    finally:
+        if tx.is_open():
+            tx.close()
+
+    _annotation_cache = result_map
+    _annotation_cache_time = now
+    return result_map
+
+
+def validate_annotations() -> bool:
+    """Validate that question_annotates_attribute data in TypeDB is consistent."""
+    annotations = _get_annotation_map()
+    question_texts = _get_question_texts()
+
+    total = sum(len(v) for v in annotations.values())
+    missing = []
+    for et, attrs in annotations.items():
+        for attr_name, qid in attrs.items():
+            if qid not in question_texts:
+                missing.append(f"  {et}.{attr_name} -> {qid}")
+
+    if missing:
+        logger.warning(f"Annotation references {len(missing)} missing question_ids:\n" + "\n".join(missing))
+    else:
+        logger.info(f"Annotation validation passed: {total} annotations, all question_ids found")
+
+    return len(missing) == 0
 
 
 def _fmt_dollar(val) -> str:
@@ -123,7 +189,7 @@ def _line(label: str, value, formatter=None, *,
 
     # Append question annotation if available
     if entity_type and attr_key:
-        qid = ATTRIBUTE_GLOSSARY.get(entity_type, {}).get(attr_key)
+        qid = _get_annotation_map().get(entity_type, {}).get(attr_key)
         if qid:
             qt = _get_question_texts().get(qid)
             if qt:
@@ -759,7 +825,7 @@ def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> Lis
         lines.append(f"  {src}{amt_str}{sec_str}, {direction}")
 
         # Annotate with source-specific question text
-        qid = REALLOCATION_ANNOTATIONS.get(src_name)
+        qid = _get_annotation_map().get("reallocation", {}).get(src_name)
         if qid:
             qt = _get_question_texts().get(qid)
             if qt:

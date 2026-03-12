@@ -61,12 +61,12 @@ async def lifespan(app: FastAPI):
             logger.info("TypeDB connected")
             _ensure_db_ready()
 
-            # Validate SSoT glossary at startup
+            # Validate attribute annotations from TypeDB at startup
             try:
-                from app.data.attribute_glossary import validate_glossary
-                validate_glossary()
+                from app.services.graph_reader import validate_annotations
+                validate_annotations()
             except Exception as e:
-                logger.warning(f"Glossary validation skipped: {e}")
+                logger.warning(f"Annotation validation skipped: {e}")
         logger.info(f"Driver after startup: {typedb_client.driver}, "
                     f"is_connected: {typedb_client.is_connected}")
     except Exception as e:

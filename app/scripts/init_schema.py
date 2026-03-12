@@ -75,6 +75,9 @@ RP_FUNCTIONS_FILE = DATA_DIR / "rp_functions.tql"
 # 16. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
+# 17b. Attribute annotations (replaces attribute_glossary.py)
+ATTRIBUTE_ANNOTATIONS_FILE = DATA_DIR / "seed_attribute_annotations.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -418,6 +421,11 @@ def init_database():
         if MFN_METADATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_METADATA_FILE)
 
+        # 17b. Load attribute annotations (replaces attribute_glossary.py)
+        logger.info("\n17b. Loading seed_attribute_annotations.tql...")
+        if ATTRIBUTE_ANNOTATIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, ATTRIBUTE_ANNOTATIONS_FILE)
+
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
         if MFN_FUNCTIONS_FILE.exists():
@@ -466,6 +474,7 @@ def init_database():
                 ("MFN extraction metadata", 'match $em isa extraction_metadata, has metadata_id $id; $id like "mfn_.*"; select $id;', 4),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),
+                ("Attribute annotations", "match $r isa question_annotates_attribute; select $r;", 32),
             ]
             for label, query, min_expected in checks:
                 try:
