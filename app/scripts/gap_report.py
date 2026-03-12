@@ -56,6 +56,41 @@ def _run_query(driver, query):
             tx.close()
 
 
+def _parse_entity_attrs_from_schema(entity_types: set, skip_attrs: set) -> dict:
+    """Parse schema_unified.tql to extract owns attributes for target entity types."""
+    import re
+    schema_path = Path(__file__).parent.parent / "data" / "schema_unified.tql"
+    text = schema_path.read_text()
+
+    result = {}
+    # Match entity blocks: "entity <name> [sub <parent>],\n    owns ...,\n    ..."
+    # Entity definitions end at a blank line or next entity/relation
+    entity_pattern = re.compile(
+        r'^entity\s+(\w+)(?:\s+sub\s+\w+)?(?:\s+@\w+)?\s*,\s*\n((?:\s+.*\n)*)',
+        re.MULTILINE
+    )
+    owns_pattern = re.compile(r'owns\s+(\w+)')
+
+    for m in entity_pattern.finditer(text):
+        name = m.group(1)
+        if name not in entity_types:
+            continue
+        body = m.group(2)
+        attrs = []
+        for owns_match in owns_pattern.finditer(body):
+            attr = owns_match.group(1)
+            if attr not in skip_attrs:
+                attrs.append(attr)
+        result[name] = sorted(attrs)
+
+    # Report any entity types not found
+    missing = entity_types - set(result.keys())
+    if missing:
+        logger.warning(f"  Entity types not found in schema: {missing}")
+
+    return result
+
+
 def main():
     driver = get_driver()
     lines = []
@@ -110,9 +145,9 @@ def main():
             annotated_attrs.add((et, an))
     logger.info(f"  Found {len(annotations)} annotations")
 
-    # ── Query 3: Channel 3 entity attributes via introspection ───
-    logger.info("Query 3: Channel 3 entity attributes...")
-    ENTITY_TYPES = [
+    # ── Query 3: Channel 3 entity attributes from schema file ────
+    logger.info("Query 3: Channel 3 entity attributes (from schema_unified.tql)...")
+    ENTITY_TYPES = {
         "builder_basket", "ratio_basket", "general_rp_basket",
         "management_equity_basket", "tax_distribution_basket",
         "holdco_overhead_basket", "equity_award_basket",
@@ -129,7 +164,7 @@ def main():
         "investment_pathway",
         "general_rdp_basket", "ratio_rdp_basket", "builder_rdp_basket",
         "equity_funded_rdp_basket", "refinancing_rdp_basket",
-    ]
+    }
 
     SKIP_ATTRS = {
         "basket_id", "source_id", "tier_id", "blocker_id", "exception_id",
@@ -137,26 +172,12 @@ def main():
         "qualification_id", "citation_id",
         "display_name", "section_reference", "source_page", "source_text",
         "confidence", "source_section", "source_name", "exception_name",
+        "not_otherwise_applied",
     }
 
-    all_entity_attrs = {}  # entity_type → [attr_name, ...]
-    for et in ENTITY_TYPES:
-        try:
-            q = f"match entity $t type {et}; $t owns $attr; select $attr;"
-            attrs = []
-            for row in _run_query(driver, q):
-                try:
-                    attr_label = row.get("attr").as_attribute_type().get_label()
-                    if attr_label not in SKIP_ATTRS:
-                        attrs.append(attr_label)
-                except Exception:
-                    pass
-            all_entity_attrs[et] = sorted(attrs)
-        except Exception as e:
-            logger.warning(f"  Could not introspect {et}: {e}")
-            all_entity_attrs[et] = []
+    all_entity_attrs = _parse_entity_attrs_from_schema(ENTITY_TYPES, SKIP_ATTRS)
     total_attrs = sum(len(v) for v in all_entity_attrs.values())
-    logger.info(f"  Found {total_attrs} attributes across {len(ENTITY_TYPES)} entity types")
+    logger.info(f"  Found {total_attrs} attributes across {len(all_entity_attrs)} entity types")
 
     # ── Query 4: question_targets_field (Channel 1) ──────────────
     logger.info("Query 4: Channel 1 scalar field mappings...")
