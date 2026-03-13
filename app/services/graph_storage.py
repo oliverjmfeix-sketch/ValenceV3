@@ -368,6 +368,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         counts = {"boolean": 0, "number": 0, "string": 0, "multiselect": 0, "entity_list": 0}
 
         for raw in raw_answers:
+            logger.info(
+                f"  Parsing answer: qid={raw.get('question_id')}, "
+                f"type={raw.get('answer_type')}, "
+                f"value_type={type(raw.get('value')).__name__}, "
+                f"value_len={len(str(raw.get('value')))}"
+            )
             try:
                 answer = Answer(
                     question_id=raw.get("question_id", ""),

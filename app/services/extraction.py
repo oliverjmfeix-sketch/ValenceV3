@@ -2483,10 +2483,20 @@ RULES:
         )
         logger.info(f"Unified prompt built: {len(prompt)} chars")
 
+        # DEBUG: Write prompt to file for inspection
+        with open("/app/uploads/debug_prompt.txt", "w") as f:
+            f.write(prompt)
+        logger.info(f"Prompt written to debug_prompt.txt: {len(prompt)} chars")
+
         # Step 4: Call Claude (single call for all answers)
         logger.info(f"Calling Claude ({model}) for unified extraction...")
         response_text = self._call_claude_v4_unified(prompt, model, deal_id)
         logger.info(f"Response received: {len(response_text)} chars")
+
+        # DEBUG: Write response to file for inspection
+        with open("/app/uploads/debug_response.txt", "w") as f:
+            f.write(response_text)
+        logger.info(f"Response written to debug_response.txt: {len(response_text)} chars")
 
         # Collect cost tracking
         from app.services.cost_tracker import ExtractionCostSummary
