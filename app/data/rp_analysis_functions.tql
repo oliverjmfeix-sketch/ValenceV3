@@ -1,0 +1,183 @@
+################################################################################
+# RP COVENANT ANALYSIS FUNCTIONS
+#
+# TypeDB 3.x schema functions for Restricted Payments gap/evidence analysis.
+# Loaded in a SCHEMA transaction by init_schema.py.
+#
+# 4 functions:
+#   1. blocker_binding_gap_evidence  — J.Crew blocker coverage gaps
+#   2. blocker_exception_swallow_evidence — exceptions that neutralize blockers
+#   3. unsub_distribution_evidence — distribution basket permissiveness
+#   4. pathway_chain_summary — investment pathway chain with capacity
+################################################################################
+
+define
+
+# ─── 1. BLOCKER BINDING GAP EVIDENCE ─────────────────────────────────────────
+# Returns each blocker boolean that is false (= gap in coverage).
+# Each row = (gap_category, gap_name).
+
+fun blocker_binding_gap_evidence($prov_id: string) -> { gap_category, gap_name }:
+    match
+        $p isa rp_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, blocker: $b) isa provision_has_blocker;
+        {
+            $b has covers_transfer false;
+            let $gc = "core_coverage";
+            let $gn = "covers_transfer";
+        } or {
+            $b has covers_designation false;
+            let $gc = "core_coverage";
+            let $gn = "covers_designation";
+        } or {
+            $b has covers_ip false;
+            let $gc = "core_coverage";
+            let $gn = "covers_ip";
+        } or {
+            $b has covers_material_assets false;
+            let $gc = "core_coverage";
+            let $gn = "covers_material_assets";
+        } or {
+            $b has covers_exclusive_licensing false;
+            let $gc = "licensing";
+            let $gn = "covers_exclusive_licensing";
+        } or {
+            $b has covers_nonexclusive_licensing false;
+            let $gc = "licensing";
+            let $gn = "covers_nonexclusive_licensing";
+        } or {
+            $b has covers_pledge false;
+            let $gc = "disposition";
+            let $gn = "covers_pledge";
+        } or {
+            $b has covers_abandonment false;
+            let $gc = "disposition";
+            let $gn = "covers_abandonment";
+        } or {
+            $b has binds_loan_parties false;
+            let $gc = "binding";
+            let $gn = "binds_loan_parties";
+        } or {
+            $b has binds_restricted_subs false;
+            let $gc = "binding";
+            let $gn = "binds_restricted_subs";
+        } or {
+            $b has is_sacred_right false;
+            let $gc = "amendment";
+            let $gn = "is_sacred_right";
+        } or {
+            $b has covers_patents false;
+            let $gc = "ip_type";
+            let $gn = "covers_patents";
+        } or {
+            $b has covers_trademarks false;
+            let $gc = "ip_type";
+            let $gn = "covers_trademarks";
+        } or {
+            $b has covers_copyrights false;
+            let $gc = "ip_type";
+            let $gn = "covers_copyrights";
+        } or {
+            $b has covers_trade_secrets false;
+            let $gc = "ip_type";
+            let $gn = "covers_trade_secrets";
+        } or {
+            $b has covers_software false;
+            let $gc = "ip_type";
+            let $gn = "covers_software";
+        } or {
+            $b has covers_assignment false;
+            let $gc = "transfer_type";
+            let $gn = "covers_assignment";
+        } or {
+            $b has covers_sale false;
+            let $gc = "transfer_type";
+            let $gn = "covers_sale";
+        } or {
+            $b has covers_contribution_to_capital false;
+            let $gc = "transfer_type";
+            let $gn = "covers_contribution_to_capital";
+        } or {
+            $b has covers_non_renewal false;
+            let $gc = "transfer_type";
+            let $gn = "covers_non_renewal";
+        };
+    return { $gc, $gn };
+
+# ─── 2. BLOCKER EXCEPTION SWALLOW EVIDENCE ───────────────────────────────────
+# Returns each exception attached to the blocker.
+# Each row = (exception_type, exception_name, scope_limitation).
+
+fun blocker_exception_swallow_evidence($prov_id: string) -> { exception_type, ename, scope }:
+    match
+        $p isa rp_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, blocker: $b) isa provision_has_blocker;
+        (blocker: $b, exception: $ex) isa blocker_has_exception;
+        $ex has exception_name $ename;
+        try { $ex has scope_limitation $scope; };
+        {
+            $ex isa nonexclusive_license_exception;
+            let $et = "nonexclusive_license";
+        } or {
+            $ex isa intercompany_exception;
+            let $et = "intercompany";
+        } or {
+            $ex isa immaterial_ip_exception;
+            let $et = "immaterial_ip";
+        } or {
+            $ex isa fair_value_exception;
+            let $et = "fair_value";
+        } or {
+            $ex isa ordinary_course_exception;
+            let $et = "ordinary_course";
+        } or {
+            $ex isa license_back_exception;
+            let $et = "license_back";
+        };
+    return { $et, $ename, $scope };
+
+# ─── 3. UNSUB DISTRIBUTION EVIDENCE ──────────────────────────────────────────
+# Returns key boolean attributes from the unsub distribution basket.
+# Each row = (attr_name, attr_value).
+
+fun unsub_distribution_evidence($prov_id: string) -> { attr_name, attr_value }:
+    match
+        $p isa rp_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, basket: $b) isa provision_has_basket;
+        $b isa unsub_distribution_basket;
+        {
+            $b has is_categorical $v; let $an = "is_categorical";
+        } or {
+            $b has covers_equity_interests $v; let $an = "covers_equity_interests";
+        } or {
+            $b has covers_assets $v; let $an = "covers_assets";
+        } or {
+            $b has rebuilds_builder_basket $v; let $an = "rebuilds_builder_basket";
+        } or {
+            $b has reduces_investment_basket $v; let $an = "reduces_investment_basket";
+        } or {
+            $b has distributions_can_cascade $v; let $an = "distributions_can_cascade";
+        } or {
+            $b has has_anti_duplication $v; let $an = "has_anti_duplication";
+        } or {
+            $b has requires_valid_designation $v; let $an = "requires_valid_designation";
+        };
+    return { $an, $v };
+
+# ─── 4. PATHWAY CHAIN SUMMARY ────────────────────────────────────────────────
+# Returns all investment pathways: source → target with capacity info.
+# Each row = (source_type, target_type, cap_usd, is_uncapped).
+
+fun pathway_chain_summary($prov_id: string) -> { source_type, target_type, cap_usd, uncapped }:
+    match
+        $p isa rp_provision, has provision_id $pid;
+        $pid == $prov_id;
+        (provision: $p, pathway: $pw) isa provision_has_pathway;
+        $pw has pathway_source_type $src;
+        $pw has pathway_target_type $tgt;
+        try { $pw has cap_dollar_usd $cap; };
+        try { $pw has is_uncapped $unc; };
+    return { $src, $tgt, $cap, $unc };

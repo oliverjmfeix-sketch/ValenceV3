@@ -75,6 +75,9 @@ MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
 # 19. RP covenant functions
 RP_FUNCTIONS_FILE = DATA_DIR / "rp_functions.tql"
 
+# 20. RP analysis functions
+RP_ANALYSIS_FUNCTIONS_FILE = DATA_DIR / "rp_analysis_functions.tql"
+
 # 16. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
@@ -487,6 +490,21 @@ def init_database():
                     tx.close()
                 logger.warning(f"   RP functions: {e}")
                 logger.warning("   RP dividend capacity function not available.")
+
+        # 20. Load RP analysis functions (SCHEMA transaction)
+        logger.info("\n20. Loading rp_analysis_functions.tql...")
+        if RP_ANALYSIS_FUNCTIONS_FILE.exists():
+            rp_analysis_tql = load_tql_file(RP_ANALYSIS_FUNCTIONS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(rp_analysis_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded RP analysis functions ({len(rp_analysis_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   RP analysis functions: {e}")
+                logger.warning("   RP analysis functions not available.")
 
         # ═══════════════════════════════════════════════════════════════
         # Verification
