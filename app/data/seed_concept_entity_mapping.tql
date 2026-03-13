@@ -129,12 +129,13 @@ insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "c
 match $c isa blocker_timing, has concept_id "bt_at_transfer";
 insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
 
-# bt_at_both: sets BOTH covers_transfer and covers_designation.
-# Single concept → single target_entity_attribute limitation.
-# Map to covers_transfer; storage layer must also set covers_designation
-# when bt_at_both is selected.
+# bt_at_both: sets BOTH covers_transfer AND covers_designation.
+# Concept routing loader handles one-to-many via list (no Python special-casing).
 match $c isa blocker_timing, has concept_id "bt_at_both";
 insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
+
+match $c isa blocker_timing, has concept_id "bt_at_both";
+insert $c has target_entity_attribute "covers_designation";
 
 # bt_ongoing: continuous covenant, not event-triggered.
 # Maps to covers_post_designation (ongoing implies post-designation coverage).

@@ -413,10 +413,246 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         return ExtractionResponse(answers=answers)
 
     # ═══════════════════════════════════════════════════════════════════════════
+    # ROUTING TABLE LOADERS — cached TypeDB lookups for entity storage
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _load_question_to_entity_map(self) -> Dict[str, tuple]:
+        """Load question_id → (entity_type, attr_name) from TypeDB.
+
+        Reverse of graph_reader._get_annotation_map().
+        Source: question_annotates_attribute relations (Phase 2b/2c).
+        """
+        if hasattr(self, '_q_to_entity_cache') and self._q_to_entity_cache:
+            return self._q_to_entity_cache
+
+        query = """
+            match
+                (question: $q) isa question_annotates_attribute,
+                    has target_entity_type $et,
+                    has target_attribute_name $an;
+                $q has question_id $qid;
+            select $qid, $et, $an;
+        """
+        result = {}
+        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        try:
+            for row in tx.query(query).resolve().as_concept_rows():
+                qid = self._get_attr(row, "qid")
+                et = self._get_attr(row, "et")
+                an = self._get_attr(row, "an")
+                if qid and et and an:
+                    result[qid] = (et, an)
+        finally:
+            tx.close()
+
+        self._q_to_entity_cache = result
+        logger.info(f"Loaded {len(result)} question->entity annotations")
+        return result
+
+    def _load_concept_routing_map(self) -> Dict[str, List]:
+        """Load concept_id → [(entity_type, attribute_name), ...] from TypeDB.
+
+        One-to-many: a concept can set multiple booleans (e.g. bt_at_both → 2 attrs).
+        Source: concept instances with target_entity_type + target_entity_attribute (Phase 2a).
+        """
+        if hasattr(self, '_concept_routing_cache') and self._concept_routing_cache:
+            return self._concept_routing_cache
+
+        query = """
+            match
+                $c isa concept,
+                    has concept_id $cid,
+                    has target_entity_type $et,
+                    has target_entity_attribute $ea;
+            select $cid, $et, $ea;
+        """
+        result: Dict[str, List] = {}
+        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        try:
+            for row in tx.query(query).resolve().as_concept_rows():
+                cid = self._get_attr(row, "cid")
+                et = self._get_attr(row, "et")
+                ea = self._get_attr(row, "ea")
+                if cid and et and ea:
+                    result.setdefault(cid, []).append((et, ea))
+        finally:
+            tx.close()
+
+        self._concept_routing_cache = result
+        total = sum(len(v) for v in result.values())
+        logger.info(f"Loaded {total} concept->entity boolean mappings ({len(result)} concepts)")
+        return result
+
+    def _load_entity_list_types(self) -> set:
+        """Load entity types created by entity_list questions. Skip these for _exists creation.
+
+        Expands abstract types to include subtypes (e.g. builder_basket_source → ecf_source, etc.).
+        """
+        if hasattr(self, '_entity_list_types_cache') and self._entity_list_types_cache:
+            return self._entity_list_types_cache
+
+        query = """
+            match
+                $q isa ontology_question,
+                    has answer_type "entity_list",
+                    has target_entity_type $et;
+            select $et;
+        """
+        types = set()
+        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        try:
+            for row in tx.query(query).resolve().as_concept_rows():
+                et = self._get_attr(row, "et")
+                if et:
+                    types.add(et)
+        finally:
+            tx.close()
+
+        # Expand with subtypes for abstract entity types
+        expanded = set(types)
+        for et in types:
+            schema_info = self.get_entity_fields_from_schema(et)
+            if schema_info.get("is_abstract"):
+                for sub in schema_info.get("subtypes", {}).keys():
+                    expanded.add(sub)
+
+        self._entity_list_types_cache = expanded
+        logger.info(f"Entity list types ({len(expanded)}): {sorted(expanded)}")
+        return expanded
+
+    def _load_entity_relation_map(self) -> Dict[str, tuple]:
+        """Discover entity→provision relation from TypeDB schema introspection. Cached.
+
+        For each single-instance entity type (from _exists annotations, minus entity_list types),
+        queries the SCHEMA to find which relation links it to rp_provision, including
+        inherited plays declarations.
+
+        Returns: {entity_type: (relation_type, provision_role, entity_role)}
+        """
+        if hasattr(self, '_entity_relation_cache') and self._entity_relation_cache:
+            return self._entity_relation_cache
+
+        q_to_entity = self._load_question_to_entity_map()
+        entity_list_types = self._load_entity_list_types()
+
+        # Collect entity types from _exists annotations, minus entity_list types and rp_provision
+        target_types = set()
+        for qid, (et, attr) in q_to_entity.items():
+            if attr == "_exists" and et not in entity_list_types and et != "rp_provision":
+                target_types.add(et)
+
+        result = {}
+        tx = self.driver.transaction(self.db_name, TransactionType.SCHEMA)
+        try:
+            for et in sorted(target_types):
+                query = f"""
+                    match
+                        $et1 label {et}; $et1 plays $role1;
+                        $et2 label rp_provision; $et2 plays $role2;
+                        relation $rt; $rt relates $role1; $rt relates $role2;
+                    select $rt, $role1, $role2;
+                """
+                try:
+                    rows = list(tx.query(query).resolve().as_concept_rows())
+                    if rows:
+                        row = rows[0]
+                        rt = row.get("rt").as_relation_type().get_label()
+                        role1 = row.get("role1").get_label()  # entity's role
+                        role2 = row.get("role2").get_label()  # provision's role
+                        result[et] = (rt, role2, role1)
+                        logger.debug(f"Schema: {et} -> {rt} ({role2}, {role1})")
+                    else:
+                        logger.warning(f"No provision relation found for {et}")
+                except Exception as e:
+                    logger.warning(f"Schema introspection failed for {et}: {e}")
+        finally:
+            if tx.is_open():
+                tx.close()
+
+        self._entity_relation_cache = result
+        logger.info(f"Loaded entity->relation map for {len(result)} types: {sorted(result.keys())}")
+        return result
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SINGLE-INSTANCE ENTITY CREATION + ATTRIBUTE POPULATION
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _create_single_instance_entity(self, provision_id: str, entity_type: str):
+        """Create a single-instance entity and link to provision via schema-introspected relation.
+
+        Called when an _exists answer is True (e.g., rp_k1=true → create jcrew_blocker).
+        """
+        entity_relation_map = self._load_entity_relation_map()
+        relation_info = entity_relation_map.get(entity_type)
+        if not relation_info:
+            logger.warning(f"No relation mapping for single-instance entity: {entity_type}")
+            return
+
+        relation_type, prov_role, entity_role = relation_info
+        key_attr = self.get_key_attr_for_entity(entity_type)
+        if not key_attr:
+            logger.warning(f"No @key attribute found for {entity_type}")
+            return
+
+        entity_id = f"{provision_id}_{entity_type}"
+
+        query = f'''
+            match
+                $prov isa rp_provision, has provision_id "{provision_id}";
+            insert
+                $entity isa {entity_type},
+                    has {key_attr} "{entity_id}";
+                ({prov_role}: $prov, {entity_role}: $entity) isa {relation_type};
+        '''
+        try:
+            self._execute_query(query)
+            logger.info(f"Created {entity_type}: {entity_id}")
+        except Exception as e:
+            logger.warning(f"Failed to create {entity_type}: {e}")
+
+    def _set_entity_attribute(self, provision_id: str, entity_type: str, attr_name: str, value):
+        """Set an attribute on an existing single-instance entity.
+
+        For single-instance entities: entity_id is {provision_id}_{entity_type}.
+        Silently no-ops if entity doesn't exist (match returns nothing).
+        """
+        if value is None:
+            return
+
+        key_attr = self.get_key_attr_for_entity(entity_type)
+        if not key_attr:
+            return
+
+        entity_id = f"{provision_id}_{entity_type}"
+
+        # Format value for TypeQL
+        if isinstance(value, bool):
+            tql_value = str(value).lower()
+        elif isinstance(value, (int, float)):
+            tql_value = str(value)
+        elif isinstance(value, str):
+            tql_value = f'"{self._escape(value[:2000])}"'
+        else:
+            logger.warning(f"Unsupported value type for {entity_type}.{attr_name}: {type(value)}")
+            return
+
+        query = f'''
+            match
+                $entity isa {entity_type}, has {key_attr} "{entity_id}";
+            insert
+                $entity has {attr_name} {tql_value};
+        '''
+        try:
+            self._execute_query(query)
+        except Exception as e:
+            logger.debug(f"Could not set {entity_type}.{attr_name}: {e}")
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # UNIFIED STORAGE — store_extraction()
     # ═══════════════════════════════════════════════════════════════════════════
 
     # Parent resolution: relation_type → (parent_match_template, role_names)
+    # Used by _store_entity_list for multi-instance entities with complex parent chains
     _RELATION_CONFIG = {
         "provision_has_sweep_tier": {
             "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
@@ -469,7 +705,13 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         self, deal_id: str, provision_id: str, response: ExtractionResponse
     ) -> Dict[str, Any]:
         """
-        Store unified extraction response — entity_list + scalar/multiselect.
+        Store extraction response with ordered processing.
+
+        Processing order matters:
+        1. _exists=True → create single-instance entities (must exist before attributes)
+        2. entity_list → create multi-instance entities (Phase 2d-ii)
+        3. scalar → store flat answer + populate entity attributes via annotations
+        4. multiselect → store flat answer + set entity booleans via concept routing
 
         Args:
             deal_id: The deal ID
@@ -486,24 +728,89 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             "errors": [],
         }
 
+        # Load routing tables (cached after first call)
+        q_to_entity = self._load_question_to_entity_map()
+        concept_routing = self._load_concept_routing_map()
+        entity_list_types = self._load_entity_list_types()
+
+        # Classify answers into processing groups
+        exists_answers = []       # _exists=True for single-instance types
+        entity_list_answers = []  # entity_list answers
+        scalar_answers = []       # boolean/number/string (including _exists for flat storage)
+        multiselect_answers = []  # multiselect arrays
+
         for answer in response.answers:
+            if answer.value is None:
+                continue
+            if answer.answer_type == "entity_list":
+                entity_list_answers.append(answer)
+            elif answer.answer_type == "multiselect":
+                multiselect_answers.append(answer)
+            else:
+                routing = q_to_entity.get(answer.question_id)
+                if routing and routing[1] == "_exists" and answer.value is True:
+                    if routing[0] not in entity_list_types and routing[0] != "rp_provision":
+                        exists_answers.append(answer)
+                scalar_answers.append(answer)
+
+        logger.info(
+            f"Classified {len(response.answers)} answers: "
+            f"{len(exists_answers)} _exists, {len(entity_list_answers)} entity_list, "
+            f"{len(scalar_answers)} scalar, {len(multiselect_answers)} multiselect"
+        )
+
+        # Phase 1: Create single-instance entities from _exists=True
+        for answer in exists_answers:
             try:
-                if answer.value is None:
-                    continue
-                if answer.answer_type == "entity_list":
-                    count = self._store_entity_list(provision_id, answer)
-                    results["entities_created"] += count
-                else:
-                    self._store_flat_answer(provision_id, answer)
-                    results["answers_stored"] += 1
+                entity_type = q_to_entity[answer.question_id][0]
+                self._create_single_instance_entity(provision_id, entity_type)
+                results["entities_created"] += 1
+            except Exception as e:
+                et = q_to_entity.get(answer.question_id, ("?",))[0]
+                results["errors"].append(f"create_{et}: {str(e)[:100]}")
+
+        # Phase 2: Create multi-instance entities from entity_list
+        for answer in entity_list_answers:
+            try:
+                count = self._store_entity_list(provision_id, answer)
+                results["entities_created"] += count
+            except Exception as e:
+                results["errors"].append(f"{answer.question_id}: {str(e)[:100]}")
+
+        # Phase 3: Store scalar answers (flat + entity attribute if annotated)
+        for answer in scalar_answers:
+            try:
+                self._store_flat_answer(provision_id, answer)
+                results["answers_stored"] += 1
+                # Also populate entity attribute if annotation exists & single-instance type
+                routing = q_to_entity.get(answer.question_id)
+                if routing:
+                    entity_type, attr_name = routing
+                    if attr_name not in ("_exists", "_entity_list") and entity_type not in entity_list_types:
+                        self._set_entity_attribute(provision_id, entity_type, attr_name, answer.value)
+            except Exception as e:
+                results["errors"].append(f"{answer.question_id}: {str(e)[:100]}")
+
+        # Phase 4: Store multiselect answers (flat + entity booleans via concept routing)
+        for answer in multiselect_answers:
+            try:
+                self._store_flat_answer(provision_id, answer)
+                results["answers_stored"] += 1
+                if isinstance(answer.value, list):
+                    for concept_id in answer.value:
+                        routings = concept_routing.get(concept_id, [])
+                        for entity_type, attr_name in routings:
+                            self._set_entity_attribute(provision_id, entity_type, attr_name, True)
             except Exception as e:
                 results["errors"].append(f"{answer.question_id}: {str(e)[:100]}")
 
         logger.info(
-            f"Extraction stored for {self.deal_id}: "
+            f"Extraction stored for {deal_id}: "
             f"{results['entities_created']} entities, "
             f"{results['answers_stored']} answers"
         )
+        if results["errors"]:
+            logger.warning(f"Storage errors: {results['errors'][:5]}")
         return results
 
     def _store_entity_list(self, provision_id: str, answer: Answer) -> int:
@@ -834,6 +1141,26 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 $p isa rp_provision, has provision_id "{provision_id}";
                 (provision: $p, pathway: $pw) isa provision_has_pathway;
             delete $pw;''',
+            # Lien release mechanics (Phase 1)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, lien_release: $lr) isa provision_has_lien_release;
+            delete $lr;''',
+            # Intercompany dividend permission (Phase 1)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, permission: $perm) isa provision_has_intercompany_permission;
+            delete $perm;''',
+            # Definition analysis subtypes (Phase 1)
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, definition: $def) isa provision_has_definition;
+            delete $def;''',
+            # Sweep exemptions
+            f'''match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                (provision: $p, exemption: $ex) isa provision_has_sweep_exemption;
+            delete $ex;''',
 
             # ── Phase 5: Fallback — delete orphaned entities by ID pattern ───
             # If cascade didn't delete relations, entities survive Phase 4.
