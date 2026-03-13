@@ -171,24 +171,9 @@ class GraphStorage:
             return default
 
     @classmethod
-    def build_claude_prompt(
-        cls,
-        questions_by_cat: Dict[str, List],
-        entity_list_questions: List[Dict],
-        document_text: str,
-    ) -> str:
-        """
-        Build Claude extraction prompt — unified format.
-
-        Args:
-            questions_by_cat: Dict of {category_id: [question_dicts]} for scalar/multiselect
-            entity_list_questions: List of entity_list question dicts with schema fields
-            document_text: The covenant document text to analyze
-
-        Returns:
-            Formatted prompt string for Claude
-        """
-        prompt = """You are extracting Restricted Payment covenant data from a credit agreement.
+    def _prompt_header(cls) -> str:
+        """Common response format header shared by entity_list and scalar prompts."""
+        return """You are extracting Restricted Payment covenant data from a credit agreement.
 
 Return a single JSON object with one key: `"answers"` — an array of answer objects.
 
@@ -229,17 +214,69 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
 ### General rules:
 - source_text MUST be exact verbatim quote, not a paraphrase or "See Section X"
 - confidence: "high" (explicit), "medium" (inferred), "low" (uncertain)
-- Omit questions you cannot answer from the document
 - For entity_list answers: include section_reference, source_page, source_text, confidence on EACH entity object
 - For percentages use decimals (50% = 0.5, 140% = 1.4)
 - For dollar amounts use raw numbers (130000000 not "130M")
 - DEFINITIONS: Cross-references ARE definitions. When asked if defined, answer true for both inline and cross-reference.
 
-## QUESTIONS
-
 """
 
-        # Scalar/multiselect questions grouped by category
+    @classmethod
+    def _prompt_footer(cls, document_text: str) -> str:
+        """Common document text + response footer."""
+        return f"""
+## DOCUMENT TEXT
+
+{document_text}
+
+## RESPONSE
+
+Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanation."""
+
+    @classmethod
+    def build_entity_list_prompt(
+        cls,
+        entity_list_questions: List[Dict],
+        document_text: str,
+    ) -> str:
+        """Build prompt for entity_list extraction only.
+
+        Sends only entity extraction questions (sweep_tiers, de_minimis, etc.)
+        to get full coverage of structured entities in a dedicated call.
+        """
+        prompt = cls._prompt_header()
+
+        prompt += "You MUST return an answer for ALL entity_list questions below. "
+        prompt += "If no entities of that type exist, return the question with value: []\n\n"
+
+        prompt += "## ENTITY EXTRACTION\n\n"
+        prompt += "For each entity_list question below, return an array of entity objects.\n"
+        prompt += "Each entity object should include the listed fields plus provenance (section_reference, source_page, source_text, confidence).\n\n"
+
+        for q in sorted(entity_list_questions, key=lambda x: x.get("display_order", 0)):
+            prompt += cls._format_entity_list_question(q)
+
+        prompt += cls._prompt_footer(document_text)
+        return prompt
+
+    @classmethod
+    def build_scalar_prompt(
+        cls,
+        questions_by_cat: Dict[str, List],
+        document_text: str,
+    ) -> str:
+        """Build prompt for scalar/multiselect questions only.
+
+        Sends a batch of categorized questions. Used in batched extraction
+        to stay within output token limits.
+        """
+        prompt = cls._prompt_header()
+
+        prompt += "You MUST answer ALL questions listed below. "
+        prompt += 'For questions where the answer cannot be found in the document, respond with confidence: "not_found" and value: null.\n\n'
+
+        prompt += "## QUESTIONS\n\n"
+
         for cat_id in sorted(questions_by_cat.keys()):
             cat_questions = questions_by_cat[cat_id]
             if not cat_questions:
@@ -267,24 +304,7 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
 
             prompt += "\n"
 
-        # Entity extraction section
-        if entity_list_questions:
-            prompt += "## ENTITY EXTRACTION\n\n"
-            prompt += "For each entity_list question below, return an array of entity objects.\n"
-            prompt += "Each entity object should include the listed fields plus provenance (section_reference, source_page, source_text, confidence).\n\n"
-
-            for q in sorted(entity_list_questions, key=lambda x: x.get("display_order", 0)):
-                prompt += cls._format_entity_list_question(q)
-
-        prompt += f"""
-## DOCUMENT TEXT
-
-{document_text}
-
-## RESPONSE
-
-Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanation."""
-
+        prompt += cls._prompt_footer(document_text)
         return prompt
 
     @classmethod
@@ -368,12 +388,6 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         counts = {"boolean": 0, "number": 0, "string": 0, "multiselect": 0, "entity_list": 0}
 
         for raw in raw_answers:
-            logger.info(
-                f"  Parsing answer: qid={raw.get('question_id')}, "
-                f"type={raw.get('answer_type')}, "
-                f"value_type={type(raw.get('value')).__name__}, "
-                f"value_len={len(str(raw.get('value')))}"
-            )
             try:
                 answer = Answer(
                     question_id=raw.get("question_id", ""),

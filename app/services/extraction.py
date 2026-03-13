@@ -2432,13 +2432,15 @@ RULES:
         model: Optional[str] = None,
     ) -> 'ExtractionResultV4':
         """
-        V4 Unified extraction pipeline — single Claude call, unified answer format.
+        V4 Batched extraction pipeline — multiple Claude calls, unified answer format.
 
-        ALL answers (scalar, multiselect, entity_list) flow through one
-        {"answers": [...]} response format. Entity field lists come from
-        TypeDB schema introspection.
+        Splits extraction into batched calls sharing the same document text:
+        - Call 0: Entity list extraction (dedicated call for full entity coverage)
+        - Calls 1-N: Scalar/multiselect questions in category-grouped batches
+        - JC2/JC3: Separate calls (different context needed)
 
-        After the main call, runs JC Tiers 2 & 3 separately (different context needed).
+        ALL answers flow through {"answers": [...]} response format.
+        Entity field lists come from TypeDB schema introspection.
 
         Args:
             deal_id: The deal being extracted
@@ -2477,46 +2479,86 @@ RULES:
             f"JC2={len(jc2_questions)}, JC3={len(jc3_questions)} deferred"
         )
 
-        # Step 3: Build unified prompt (scalar + entity_list questions)
-        prompt = GraphStorage.build_claude_prompt(
-            all_questions, entity_list_questions, rp_universe.raw_text
-        )
-        logger.info(f"Unified prompt built: {len(prompt)} chars")
-
-        # DEBUG: Write prompt to file for inspection
-        with open("/app/uploads/debug_prompt.txt", "w") as f:
-            f.write(prompt)
-        logger.info(f"Prompt written to debug_prompt.txt: {len(prompt)} chars")
-
-        # Step 4: Call Claude (single call for all answers)
-        logger.info(f"Calling Claude ({model}) for unified extraction...")
-        response_text = self._call_claude_v4_unified(prompt, model, deal_id)
-        logger.info(f"Response received: {len(response_text)} chars")
-
-        # DEBUG: Write response to file for inspection
-        with open("/app/uploads/debug_response.txt", "w") as f:
-            f.write(response_text)
-        logger.info(f"Response written to debug_response.txt: {len(response_text)} chars")
-
         # Collect cost tracking
         from app.services.cost_tracker import ExtractionCostSummary
+        from app.schemas.extraction_response import ExtractionResponse
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
         for usage in getattr(self, '_streaming_usages', []):
             usage.deal_id = deal_id
             cost_summary.add(usage)
         self._streaming_usages = []
-        if getattr(self, '_last_v4_usage', None):
-            self._last_v4_usage.deal_id = deal_id
-            cost_summary.add(self._last_v4_usage)
 
-        # Step 5: Parse response into ExtractionResponse
-        logger.info("Parsing unified response...")
-        extraction = GraphStorage.parse_extraction_response(response_text)
+        all_answers = []
 
-        # Count answer types for logging
+        # Step 3: Call 0 — Entity list extraction (dedicated call)
+        if entity_list_questions:
+            entity_prompt = GraphStorage.build_entity_list_prompt(
+                entity_list_questions, rp_universe.raw_text
+            )
+            logger.info(f"Entity list prompt built: {len(entity_prompt)} chars")
+
+            # DEBUG: Write entity prompt to file for inspection
+            try:
+                with open("/app/uploads/debug_prompt.txt", "w") as f:
+                    f.write(entity_prompt)
+            except Exception:
+                pass
+
+            entity_response = self._call_claude_v4_unified(
+                entity_prompt, model, deal_id, step_name="rp_entity_list"
+            )
+            logger.info(f"Entity list response: {len(entity_response)} chars")
+
+            # DEBUG: Write entity response to file for inspection
+            try:
+                with open("/app/uploads/debug_response.txt", "w") as f:
+                    f.write(entity_response)
+            except Exception:
+                pass
+
+            if getattr(self, '_last_v4_usage', None):
+                self._last_v4_usage.deal_id = deal_id
+                cost_summary.add(self._last_v4_usage)
+
+            entity_extraction = GraphStorage.parse_extraction_response(entity_response)
+            all_answers.extend(entity_extraction.answers)
+            logger.info(f"Call 0 (entity_list): {len(entity_extraction.answers)} answers")
+
+        # Step 4: Calls 1-N — Scalar/multiselect in batches
+        batches = self._batch_questions_by_category(all_questions)
+        logger.info(f"Scalar extraction: {len(batches)} batches from {total_scalar} questions")
+
+        for i, batch_questions in enumerate(batches):
+            batch_prompt = GraphStorage.build_scalar_prompt(
+                batch_questions, rp_universe.raw_text
+            )
+            batch_q_count = sum(len(qs) for qs in batch_questions.values())
+            batch_cats = sorted(batch_questions.keys())
+            logger.info(
+                f"Batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
+                f"{batch_q_count} questions, {len(batch_prompt)} chars prompt"
+            )
+
+            batch_response = self._call_claude_v4_unified(
+                batch_prompt, model, deal_id, step_name=f"rp_scalar_batch_{i+1}"
+            )
+
+            if getattr(self, '_last_v4_usage', None):
+                self._last_v4_usage.deal_id = deal_id
+                cost_summary.add(self._last_v4_usage)
+
+            batch_extraction = GraphStorage.parse_extraction_response(batch_response)
+            all_answers.extend(batch_extraction.answers)
+            logger.info(
+                f"Batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
+                f"{len(batch_extraction.answers)}/{batch_q_count} answers"
+            )
+
+        # Merge all answers
+        extraction = ExtractionResponse(answers=all_answers)
         entity_count = sum(1 for a in extraction.answers if a.answer_type == "entity_list")
         scalar_count = len(extraction.answers) - entity_count
-        logger.info(f"Parsed: {scalar_count} scalar/multiselect, {entity_count} entity_list answers")
+        logger.info(f"Total: {scalar_count} scalar/multiselect, {entity_count} entity_list answers from {1 + len(batches)} calls")
 
         # Step 6: Ensure provision exists, then store
         storage = GraphStorage(deal_id)
@@ -2564,11 +2606,53 @@ RULES:
             },
         )
 
-    def _call_claude_v4_unified(self, prompt: str, model: str, deal_id: Optional[str] = None) -> str:
-        """Call Claude API for V4 unified extraction (entities + answers).
+    def _batch_questions_by_category(self, questions_by_cat: Dict[str, List], max_tokens_budget: int = 10000) -> List[Dict[str, List]]:
+        """Split scalar/multiselect questions into batches that fit within output token budget.
 
-        Uses higher max_tokens (16384) and longer timeout (600s) than
-        entity-only extraction since the response includes both entities and answers.
+        Keeps entire categories together (never splits a category across batches).
+        Estimates output tokens based on ~600 chars per answer at ~3.5 chars per token.
+
+        Args:
+            questions_by_cat: Dict of {category_id: [question_dicts]}
+            max_tokens_budget: Max estimated output tokens per batch
+
+        Returns:
+            List of question_by_cat dicts, each fitting within the budget
+        """
+        CHARS_PER_ANSWER = 600
+        CHARS_PER_TOKEN = 3.5
+
+        batches = []
+        current_batch = {}
+        current_est_tokens = 0
+
+        for cat_id in sorted(questions_by_cat.keys()):
+            cat_questions = questions_by_cat[cat_id]
+            est_tokens = len(cat_questions) * CHARS_PER_ANSWER / CHARS_PER_TOKEN
+
+            if current_est_tokens + est_tokens > max_tokens_budget and current_batch:
+                batches.append(current_batch)
+                current_batch = {}
+                current_est_tokens = 0
+
+            current_batch[cat_id] = cat_questions
+            current_est_tokens += est_tokens
+
+        if current_batch:
+            batches.append(current_batch)
+
+        return batches
+
+    def _call_claude_v4_unified(self, prompt: str, model: str, deal_id: Optional[str] = None, step_name: str = "rp_unified_v4") -> str:
+        """Call Claude API for V4 extraction (entities or scalar batch).
+
+        Uses max_tokens=16384 and 10-minute timeout.
+
+        Args:
+            prompt: The formatted extraction prompt
+            model: Claude model to use
+            deal_id: Deal being extracted (for cost tracking)
+            step_name: Label for cost tracking (e.g. "rp_entity_list", "rp_scalar_batch_1")
         """
         from app.services.cost_tracker import extract_usage
         try:
@@ -2578,15 +2662,15 @@ RULES:
                 max_tokens=16384,
                 system=self._V4_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
-                timeout=600.0  # 10 minute timeout for unified extraction
+                timeout=600.0  # 10 minute timeout
             )
             duration = time.time() - start
             self._last_v4_usage = extract_usage(
-                response, model, "rp_unified_v4", deal_id=deal_id, duration=duration
+                response, model, step_name, deal_id=deal_id, duration=duration
             )
             return response.content[0].text
         except Exception as e:
-            logger.error(f"Claude API error (unified): {e}")
+            logger.error(f"Claude API error ({step_name}): {e}")
             self._last_v4_usage = None
             raise
 
