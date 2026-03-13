@@ -89,6 +89,17 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
+@router.get("/api/debug/file/{filename}")
+async def debug_read_file(filename: str):
+    """Temporary: read debug files from uploads."""
+    from fastapi.responses import PlainTextResponse
+    try:
+        with open(f"/app/uploads/{filename}", "r") as f:
+            return PlainTextResponse(f.read())
+    except FileNotFoundError:
+        return PlainTextResponse("File not found", status_code=404)
+
+
 @router.get("/api/health")
 async def api_health_check() -> Dict[str, Any]:
     """API health check (with /api prefix)."""
