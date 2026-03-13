@@ -318,6 +318,171 @@ attribute sunset_tied_to_maturity, value boolean;
 attribute sunset_resets_on_refi, value boolean;
 attribute sunset_timing_loophole, value boolean;
 
+# ── New boolean attributes for Channel 2 elimination ─────────────────────────
+
+# Covenant scope (on rp_provision)
+attribute restricts_borrower, value boolean;
+attribute restricts_guarantors, value boolean;
+attribute restricts_restricted_subs, value boolean;
+attribute restricts_holdings, value boolean;
+
+# RP definition scope (on rp_provision)
+attribute includes_cash_dividends, value boolean;
+attribute includes_share_buybacks, value boolean;
+attribute includes_distributions, value boolean;
+attribute includes_debt_prepayments, value boolean;
+attribute includes_investments, value boolean;
+attribute includes_guarantees, value boolean;
+
+# RDP definition scope (on rp_provision)
+attribute rdp_includes_voluntary_payments, value boolean;
+attribute rdp_includes_optional_payments, value boolean;
+attribute rdp_includes_prepayments, value boolean;
+attribute rdp_includes_redemptions, value boolean;
+attribute rdp_includes_defeasance, value boolean;
+attribute rdp_includes_open_market_purchases, value boolean;
+
+# Management equity — covered persons (on management_equity_basket)
+attribute covers_employees, value boolean;
+attribute covers_officers, value boolean;
+attribute covers_directors, value boolean;
+attribute covers_consultants, value boolean;
+attribute covers_estates, value boolean;
+attribute covers_sponsor_employees, value boolean;
+
+# Management equity — triggers (on management_equity_basket)
+attribute trigger_death, value boolean;
+attribute trigger_disability, value boolean;
+attribute trigger_termination, value boolean;
+attribute trigger_retirement, value boolean;
+attribute trigger_change_of_control, value boolean;
+
+# Tax distribution — group types (on tax_distribution_basket)
+attribute covers_consolidated_group, value boolean;
+attribute covers_combined_group, value boolean;
+attribute covers_similar_groups, value boolean;
+attribute covers_disregarded_entities, value boolean;
+
+# Equity award — additional types (on equity_award_basket)
+attribute covers_net_settlement, value boolean;
+attribute covers_clawback, value boolean;
+attribute covers_forfeiture, value boolean;
+
+# Holdco overhead — additional costs (on holdco_overhead_basket)
+attribute covers_insurance_premiums, value boolean;
+attribute covers_director_fees, value boolean;
+attribute covers_audit_fees, value boolean;
+attribute covers_legal_fees, value boolean;
+
+# J.Crew blocker — IP type coverage booleans (on jcrew_blocker)
+attribute covers_patents, value boolean;
+attribute covers_trademarks, value boolean;
+attribute covers_copyrights, value boolean;
+attribute covers_trade_secrets, value boolean;
+attribute covers_software, value boolean;
+attribute covers_domain_names, value boolean;
+attribute covers_know_how, value boolean;
+attribute covers_customer_data, value boolean;
+attribute covers_licenses_granted, value boolean;
+attribute covers_licenses_received, value boolean;
+
+# J.Crew blocker — additional transfer types (on jcrew_blocker)
+attribute covers_assignment, value boolean;
+attribute covers_sale, value boolean;
+attribute covers_contribution_to_capital, value boolean;
+attribute covers_non_renewal, value boolean;
+
+# J.Crew blocker — additional binding/timing (on jcrew_blocker)
+attribute binds_holdings, value boolean;
+attribute binds_borrower_only, value boolean;
+attribute covers_post_designation, value boolean;
+
+# Builder basket — reduction tracking (on builder_basket)
+attribute reduced_by_rp_usage, value boolean;
+attribute reduced_by_rdp_usage, value boolean;
+attribute reduced_by_investment_usage, value boolean;
+attribute reduced_by_designation, value boolean;
+
+# Unsub distribution basket — mechanics (on unsub_distribution_basket)
+attribute rebuilds_builder_basket, value boolean;
+attribute includes_noncash_at_fmv, value boolean;
+attribute reduces_investment_basket, value boolean;
+attribute rebuild_is_capped, value boolean;
+attribute rebuild_cap_formula, value string;
+attribute redesignation_returns_investment, value boolean;
+attribute redesignation_valuation_method, value string;
+attribute distributions_can_cascade, value boolean;
+attribute has_anti_duplication, value boolean;
+
+# Ratio basket — gap closure (on ratio_basket)
+attribute interest_coverage_threshold, value double;
+attribute has_multiple_tiers, value boolean;
+
+# Sweep — gap closure
+attribute ratio_basket_avoids_sweep, value boolean;
+attribute sweep_exempt_ratio_threshold, value double;
+
+# Investment pathway — rebuild (on investment_pathway)
+attribute basket_can_rebuild, value boolean;
+
+# Abstract rp_basket — cross-cutting condition
+attribute requires_ratio_test, value boolean;
+
+# ── New attributes for cross-document entity types ───────────────────────────
+
+# Intercompany dividend permission
+attribute permission_id, value string;
+attribute permits_to_borrower, value boolean;
+attribute permits_to_guarantors, value boolean;
+attribute permits_to_holdings, value boolean;
+attribute permits_to_non_guarantor_subs, value boolean;
+
+# Definition analysis
+attribute definition_id, value string;
+attribute has_standalone_definition, value boolean;
+attribute definition_source, value string;
+attribute verbatim_text, value string;
+
+# IP definition
+attribute excludes_trade_secrets, value boolean;
+attribute excludes_know_how, value boolean;
+attribute excludes_software, value boolean;
+attribute excludes_inbound_licenses, value boolean;
+attribute excludes_customer_data, value boolean;
+
+# Transfer definition
+attribute excludes_exclusive_licensing, value boolean;
+attribute excludes_any_licensing, value boolean;
+attribute excludes_pledge, value boolean;
+attribute excludes_abandonment, value boolean;
+
+# Materiality definition
+attribute is_subjective, value boolean;
+attribute has_dollar_threshold, value boolean;
+attribute has_percentage_threshold, value boolean;
+attribute determined_by_board, value boolean;
+attribute enumerated_on_schedule, value boolean;
+attribute defined_negatively, value boolean;
+attribute can_be_manipulated, value boolean;
+
+# Lien release mechanics
+attribute release_id, value string;
+attribute auto_release_on_transfer, value boolean;
+attribute requires_agent_consent, value boolean;
+attribute requires_lender_consent, value boolean;
+attribute requires_all_lender_consent_for_ip, value boolean;
+
+# Amendment threshold
+attribute amendment_id, value string;
+attribute provision_type, value string;
+attribute requires_all_lender_consent, value boolean;
+attribute requires_supermajority, value boolean;
+attribute supermajority_threshold, value double;
+attribute required_lenders_sufficient, value boolean;
+
+# Concept metadata (on abstract concept entity)
+attribute target_entity_attribute, value string;
+
 
 ################################################################################
 # §2  CORE ENTITIES
@@ -383,12 +548,29 @@ entity mfn_provision sub provision,
     plays provision_has_exclusion:provision,
     plays provision_has_yield_def:provision,
     plays provision_has_sunset:provision,
-    plays provision_has_freebie:provision;
+    plays provision_has_freebie:provision,
+    plays has_amendment_threshold:entity_with_threshold;
 
 entity rp_provision sub provision,
     owns jcrew_pattern_detected,
     owns serta_pattern_detected,
     owns collateral_leakage_pattern_detected,
+    owns restricts_borrower,
+    owns restricts_guarantors,
+    owns restricts_restricted_subs,
+    owns restricts_holdings,
+    owns includes_cash_dividends,
+    owns includes_share_buybacks,
+    owns includes_distributions,
+    owns includes_debt_prepayments,
+    owns includes_investments,
+    owns includes_guarantees,
+    owns rdp_includes_voluntary_payments,
+    owns rdp_includes_optional_payments,
+    owns rdp_includes_prepayments,
+    owns rdp_includes_redemptions,
+    owns rdp_includes_defeasance,
+    owns rdp_includes_open_market_purchases,
     plays provision_has_basket:provision,
     plays provision_has_rdp_basket:provision,
     plays provision_has_blocker:provision,
@@ -397,7 +579,11 @@ entity rp_provision sub provision,
     plays provision_has_sweep_exemption:provision,
     plays provision_has_de_minimis:provision,
     plays provision_has_reallocation:provision,
-    plays provision_has_pathway:provision;
+    plays provision_has_pathway:provision,
+    plays provision_has_intercompany_permission:provision,
+    plays provision_has_definition:provision,
+    plays provision_has_lien_release:provision,
+    plays has_amendment_threshold:entity_with_threshold;
 
 
 ################################################################################
@@ -429,6 +615,7 @@ entity rp_basket @abstract,
     owns source_text,
     owns confidence,
     owns default_condition,
+    owns requires_ratio_test,
     plays provision_has_basket:basket,
     plays basket_reallocates_to:source_basket,
     plays basket_reallocates_to:target_basket;
@@ -437,6 +624,10 @@ entity builder_basket sub rp_basket,
     owns basket_amount_usd,
     owns start_date_language,
     owns uses_greatest_of_tests,
+    owns reduced_by_rp_usage,
+    owns reduced_by_rdp_usage,
+    owns reduced_by_investment_usage,
+    owns reduced_by_designation,
     plays basket_has_source:basket;
 
 entity ratio_basket sub rp_basket,
@@ -448,7 +639,9 @@ entity ratio_basket sub rp_basket,
     owns no_worse_is_uncapped,
     owns test_date_type,
     owns lct_treatment_available,
-    owns pro_forma_basis;
+    owns pro_forma_basis,
+    owns interest_coverage_threshold,
+    owns has_multiple_tiers;
 
 entity general_rp_basket sub rp_basket,
     owns basket_amount_usd,
@@ -461,13 +654,28 @@ entity management_equity_basket sub rp_basket,
     owns cap_uses_greater_of,
     owns carryforward_permitted,
     owns carryforward_max_years,
-    owns eligible_person_scope;
+    owns eligible_person_scope,
+    owns covers_employees,
+    owns covers_officers,
+    owns covers_directors,
+    owns covers_consultants,
+    owns covers_estates,
+    owns covers_sponsor_employees,
+    owns trigger_death,
+    owns trigger_disability,
+    owns trigger_termination,
+    owns trigger_retirement,
+    owns trigger_change_of_control;
 
 entity tax_distribution_basket sub rp_basket,
     owns standalone_taxpayer_limit,
     owns hypothetical_tax_rate,
     owns tax_sharing_permitted,
-    owns estimated_taxes_permitted;
+    owns estimated_taxes_permitted,
+    owns covers_consolidated_group,
+    owns covers_combined_group,
+    owns covers_similar_groups,
+    owns covers_disregarded_entities;
 
 entity holdco_overhead_basket sub rp_basket,
     owns annual_cap_usd,
@@ -476,13 +684,20 @@ entity holdco_overhead_basket sub rp_basket,
     owns covers_franchise_taxes,
     owns management_fee_recipient_scope,
     owns requires_arms_length,
-    owns requires_board_approval;
+    owns requires_board_approval,
+    owns covers_insurance_premiums,
+    owns covers_director_fees,
+    owns covers_audit_fees,
+    owns covers_legal_fees;
 
 entity equity_award_basket sub rp_basket,
     owns annual_cap_usd,
     owns covers_cashless_exercise,
     owns covers_tax_withholding,
-    owns carryforward_permitted;
+    owns carryforward_permitted,
+    owns covers_net_settlement,
+    owns covers_clawback,
+    owns covers_forfeiture;
 
 entity unsub_distribution_basket sub rp_basket,
     owns covers_equity_interests,
@@ -490,7 +705,16 @@ entity unsub_distribution_basket sub rp_basket,
     owns covers_assets,
     owns covers_proceeds,
     owns is_categorical,
-    owns requires_valid_designation;
+    owns requires_valid_designation,
+    owns rebuilds_builder_basket,
+    owns includes_noncash_at_fmv,
+    owns reduces_investment_basket,
+    owns rebuild_is_capped,
+    owns rebuild_cap_formula,
+    owns redesignation_returns_investment,
+    owns redesignation_valuation_method,
+    owns distributions_can_cascade,
+    owns has_anti_duplication;
 
 # Investment basket — real entity under its own provision (Section 6.03).
 # Connected to RP provision ONLY via basket_reallocates_to edges, NOT
@@ -570,6 +794,8 @@ entity sweep_tier,
     owns leverage_threshold,
     owns sweep_percentage,
     owns is_highest_tier,
+    owns ratio_basket_avoids_sweep,
+    owns sweep_exempt_ratio_threshold,
     owns section_reference,
     owns source_page,
     owns source_text,
@@ -596,13 +822,31 @@ entity jcrew_blocker,
     owns binds_loan_parties,
     owns binds_restricted_subs,
     owns is_sacred_right,
+    owns covers_patents,
+    owns covers_trademarks,
+    owns covers_copyrights,
+    owns covers_trade_secrets,
+    owns covers_software,
+    owns covers_domain_names,
+    owns covers_know_how,
+    owns covers_customer_data,
+    owns covers_licenses_granted,
+    owns covers_licenses_received,
+    owns covers_assignment,
+    owns covers_sale,
+    owns covers_contribution_to_capital,
+    owns covers_non_renewal,
+    owns binds_holdings,
+    owns binds_borrower_only,
+    owns covers_post_designation,
     owns section_reference,
     owns source_page,
     owns source_text,
     owns confidence,
     plays provision_has_blocker:blocker,
     plays blocker_has_exception:blocker,
-    plays blocker_covers_ip_type:blocker;
+    plays blocker_covers_ip_type:blocker,
+    plays has_amendment_threshold:entity_with_threshold;
 
 attribute exception_name, value string;
 
@@ -700,6 +944,7 @@ entity investment_pathway,
     owns cap_uses_greater_of,
     owns is_uncapped,
     owns can_stack_with_other_baskets,
+    owns basket_can_rebuild,
     owns section_reference,
     owns source_page,
     owns source_text,
@@ -764,6 +1009,97 @@ entity equity_funded_rdp_basket sub rdp_basket,
     owns requires_qualified_stock_only,
     owns requires_cash_common_equity,
     owns not_otherwise_applied;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTERCOMPANY DIVIDEND PERMISSION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity intercompany_dividend_permission,
+    owns permission_id @key,
+    owns permits_to_borrower,
+    owns permits_to_guarantors,
+    owns permits_to_holdings,
+    owns permits_to_non_guarantor_subs,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_intercompany_permission:permission;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEFINITION ANALYSIS (cross-document applicable)
+#
+#   Quality analysis of defined terms. Subtypes per term type.
+#   Applicable across RP, MFN, Investments, Asset Sales.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity definition_analysis @abstract,
+    owns definition_id @key,
+    owns defined_term,
+    owns has_standalone_definition,
+    owns definition_source,
+    owns verbatim_text,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_definition:definition;
+
+entity ip_definition sub definition_analysis,
+    owns excludes_trade_secrets,
+    owns excludes_know_how,
+    owns excludes_software,
+    owns excludes_inbound_licenses,
+    owns excludes_customer_data;
+
+entity transfer_definition sub definition_analysis,
+    owns excludes_exclusive_licensing,
+    owns excludes_any_licensing,
+    owns excludes_pledge,
+    owns excludes_abandonment;
+
+entity materiality_definition sub definition_analysis,
+    owns is_subjective,
+    owns has_dollar_threshold,
+    owns has_percentage_threshold,
+    owns determined_by_board,
+    owns enumerated_on_schedule,
+    owns defined_negatively,
+    owns can_be_manipulated,
+    owns uses_greater_of;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LIEN RELEASE MECHANICS (cross-document applicable)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity lien_release_mechanics,
+    owns release_id @key,
+    owns auto_release_on_transfer,
+    owns requires_agent_consent,
+    owns requires_lender_consent,
+    owns requires_all_lender_consent_for_ip,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays provision_has_lien_release:lien_release;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMENDMENT THRESHOLD (cross-document applicable)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+entity amendment_threshold,
+    owns amendment_id @key,
+    owns provision_type,
+    owns requires_all_lender_consent,
+    owns requires_supermajority,
+    owns supermajority_threshold,
+    owns required_lenders_sufficient,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    plays has_amendment_threshold:threshold;
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -909,6 +1245,8 @@ entity concept @abstract,
     owns name,
     owns description,
     owns display_order,
+    owns target_entity_type,
+    owns target_entity_attribute,
     plays concept_applicability:concept,
     plays concept_hierarchy:parent,
     plays concept_hierarchy:child;
@@ -1240,6 +1578,24 @@ relation basket_reallocates_to,
     relates source_basket,
     relates target_basket,
     owns reallocation_amount_usd;
+
+# ─── New cross-document relations ──────────────────────────────────────────────
+
+relation provision_has_intercompany_permission,
+    relates provision,
+    relates permission;
+
+relation provision_has_definition,
+    relates provision,
+    relates definition;
+
+relation provision_has_lien_release,
+    relates provision,
+    relates lien_release;
+
+relation has_amendment_threshold,
+    relates entity_with_threshold,
+    relates threshold;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXTRACTION METADATA (SSoT for Claude prompts)
