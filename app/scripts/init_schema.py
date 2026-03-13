@@ -87,6 +87,9 @@ COMPLETE_ANNOTATIONS_FILE = DATA_DIR / "seed_complete_annotations.tql"
 # 17d. New questions for unannotated attributes (Phase 2c)
 NEW_QUESTIONS_FILE = DATA_DIR / "seed_new_questions.tql"
 
+# 17e. Entity-list questions (Phase 2d-i — replaces extraction_metadata for RP entities)
+ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_entity_list_questions.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -450,6 +453,11 @@ def init_database():
         if NEW_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_FILE)
 
+        # 17e. Load entity-list questions (Phase 2d-i)
+        logger.info("\n17e. Loading seed_entity_list_questions.tql...")
+        if ENTITY_LIST_QUESTIONS_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, ENTITY_LIST_QUESTIONS_FILE)
+
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
         if MFN_FUNCTIONS_FILE.exists():
@@ -492,9 +500,9 @@ def init_database():
         try:
             checks = [
                 ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
-                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 270),
+                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 279),
                 ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
-                ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 24),
+                ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 4),
                 ("MFN extraction metadata", 'match $em isa extraction_metadata, has metadata_id $id; $id like "mfn_.*"; select $id;', 4),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),

@@ -1,0 +1,249 @@
+################################################################################
+# VALENCE V4 - ENTITY LIST QUESTIONS (Phase 2d-i)
+#
+# Replaces extraction_metadata for RP entities.
+# Each question has answer_type "entity_list" — Claude returns a JSON array
+# of entity instances. Field lists come from schema introspection at runtime.
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP TIERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_sweep_tiers",
+    has question_text "Extract all leverage-based sweep tiers for asset sale proceeds.",
+    has answer_type "entity_list",
+    has target_entity_type "sweep_tier",
+    has target_relation_type "provision_has_sweep_tier",
+    has extraction_prompt "Extract ALL leverage-based sweep tiers for asset sale proceeds.
+
+Look in mandatory prepayment section for tiered percentages:
+- 'If First Lien Leverage Ratio > X, 100% of Net Cash Proceeds'
+- 'If First Lien Leverage Ratio <= Y, 50% of Net Cash Proceeds'
+- 'If First Lien Leverage Ratio <= Z, 0% (100% retained)'
+
+Create SEPARATE entity for each tier with:
+- leverage_threshold (the ratio)
+- sweep_percentage (what % is swept to prepay debt)
+- is_highest_tier (true for the first/strictest tier)",
+    has covenant_type "RP",
+    has display_order 100;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DE MINIMIS THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_de_minimis",
+    has question_text "Extract all de minimis thresholds for asset sales (individual and annual aggregate).",
+    has answer_type "entity_list",
+    has target_entity_type "de_minimis_threshold",
+    has target_relation_type "provision_has_de_minimis",
+    has extraction_prompt "Extract de minimis thresholds for BOTH individual and annual aggregate asset sales.
+
+Individual threshold: 'Net Cash Proceeds in excess of $X individually' or 'excluding Asset Sales with proceeds less than $X'. Often structured as 'greater of $X and Y% of EBITDA'.
+
+Annual aggregate threshold: 'in the aggregate in any fiscal year' or 'aggregate Net Cash Proceeds exceeding $X during any fiscal year'. Usually ~2x the individual threshold. Check for CARRYFORWARD: 'unused amounts may be carried forward'.
+
+For EACH threshold extract:
+- threshold_type: 'individual' or 'annual'
+- dollar_amount: the fixed dollar floor
+- ebitda_percentage: the EBITDA percentage (if 'greater of')
+- uses_greater_of: true/false
+- permits_carryforward: true/false (annual only)",
+    has covenant_type "RP",
+    has display_order 101;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INVESTMENT PATHWAYS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_pathways",
+    has question_text "Extract all investment pathways that could enable J.Crew-style asset stripping.",
+    has answer_type "entity_list",
+    has target_entity_type "investment_pathway",
+    has target_relation_type "provision_has_pathway",
+    has extraction_prompt "Extract ALL investment pathways that could enable a J.Crew-style asset stripping chain.
+
+Each pathway is a SINGLE HOP in the investment covenant — a permitted investment from one entity type to another. The full chain is built by linking pathways together.
+
+Common entity types (pathway_source_type / pathway_target_type):
+- loan_party: Borrower or Guarantor (inside the credit group)
+- non_guarantor_rs: Non-Guarantor Restricted Subsidiary (inside restricted group but no guarantee)
+- unrestricted_sub: Unrestricted Subsidiary (outside the credit group entirely)
+- holdco: Parent holding company
+- foreign_sub: Foreign subsidiary
+
+KEY PATHWAYS TO LOOK FOR (in order of J.Crew chain):
+1. loan_party → non_guarantor_rs (Section 6.03 investment basket)
+2. non_guarantor_rs → unrestricted_sub (designation + investment)
+3. loan_party → unrestricted_sub (direct investment, if permitted)
+
+For EACH pathway extract:
+- pathway_source_type and pathway_target_type
+- cap_dollar_usd: Fixed dollar cap (e.g., $200M)
+- cap_pct_total_assets: Percentage cap (e.g., 0.15 = 15% of total assets)
+- cap_uses_greater_of: true if 'greater of $X and Y% of total assets'
+- is_uncapped: true if NO cap on this pathway
+- can_stack_with_other_baskets: true if this basket can be combined with other baskets
+
+Look in the Investments covenant and the Unrestricted Subsidiary Designation mechanics section.",
+    has covenant_type "RP",
+    has display_order 102;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BASKET REALLOCATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_reallocations",
+    has question_text "Extract all basket reallocation paths that can fund Restricted Payments.",
+    has answer_type "entity_list",
+    has target_entity_type "basket_reallocation",
+    has target_relation_type "provision_has_reallocation",
+    has extraction_prompt "Identify baskets that can be REALLOCATED to fund Restricted Payments.
+
+Look in the Restricted Payments covenant for cross-references like:
+- 'amounts available under Section 6.03(y)' (Investment basket)
+- 'amounts available under Section 6.09(a)' (RDP basket)
+- 'plus any amounts not used under...'
+
+For EACH reallocation path extract:
+- Source basket (what's being reallocated FROM)
+- Target basket (what it reallocates TO - usually general RP)
+- Section reference
+- Dollar cap (if different from source basket cap)
+- Is bidirectional? (can capacity flow both ways?)
+
+This is critical for total dividend capacity calculation.",
+    has covenant_type "RP",
+    has display_order 103;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOCKER EXCEPTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_exceptions",
+    has question_text "Extract all exceptions to the J.Crew blocker provision.",
+    has answer_type "entity_list",
+    has target_entity_type "blocker_exception",
+    has target_relation_type "blocker_has_exception",
+    has extraction_prompt "Identify ALL exceptions to the J.Crew blocker. Common exceptions:
+
+- Non-exclusive licenses (often 'in ordinary course')
+- Intercompany transfers within restricted group
+- Fair market value consideration
+- Immaterial IP
+- Licenses back to Credit Parties
+- Required by law
+
+Each exception is a potential loophole. Extract as SEPARATE entity with scope limitation.",
+    has covenant_type "RP",
+    has display_order 104;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER BASKET SOURCES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_builder_sources",
+    has question_text "Extract all sources that feed the builder basket (Available Amount).",
+    has answer_type "entity_list",
+    has target_entity_type "builder_basket_source",
+    has target_relation_type "basket_has_source",
+    has extraction_prompt "Identify ALL sources that feed the builder basket. For EACH source extract:
+
+1. CNI (Consolidated Net Income): What percentage? (usually 50%)
+2. ECF (Excess Cash Flow): Retained amounts not applied to prepayment
+3. EBITDA minus Fixed Charges: What FC multiplier? (e.g., 140%)
+4. Equity proceeds: What percentage? (usually 100%)
+5. Asset sale proceeds: Retained amounts
+6. Investment returns: Returns/dividends from investments
+7. Declined proceeds: Proceeds borrower chose not to use
+
+Look for 'greatest of' language indicating multiple tests.
+Extract each source as SEPARATE entity.",
+    has covenant_type "RP",
+    has display_order 105;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RDP BASKETS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_rdp_baskets",
+    has question_text "Extract all Restricted Debt Payment baskets (refinancing, general, ratio, builder, equity-funded).",
+    has answer_type "entity_list",
+    has target_entity_type "rdp_basket",
+    has target_relation_type "provision_has_rdp_basket",
+    has extraction_prompt "Extract ALL Restricted Debt Payment (RDP) baskets. There are typically 5 types:
+
+1. REFINANCING RDP BASKET: Permits prepayment/refinancing of junior debt with new debt at same or lower priority. Look for: 'refinancing... Restricted Debt Payments', 'Refinancing Indebtedness'.
+
+2. GENERAL RDP BASKET: Fixed dollar amount catch-all, often 'greater of $X and Y% of EBITDA'. Look for: 'Restricted Debt Payments in an aggregate amount not to exceed...'
+
+3. RATIO RDP BASKET: Unlimited/increased RDP if leverage ratio test satisfied. Look for: 'Restricted Debt Payments if First Lien Leverage Ratio <= X:1.00'.
+
+4. BUILDER RDP BASKET: Capacity from Available Amount/builder basket. Key: does it SHARE capacity with RP builder basket? Look for: 'Available Amount' in the RDP section.
+
+5. EQUITY FUNDED RDP BASKET: RDPs funded by fresh equity contributions. Look for: 'funded with proceeds of equity contributions'.
+
+Extract EACH basket as a separate entity with its specific attributes.",
+    has covenant_type "RP",
+    has display_order 106;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SWEEP EXEMPTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_sweep_exemptions",
+    has question_text "Extract all exemptions from mandatory excess cash flow sweeps.",
+    has answer_type "entity_list",
+    has target_entity_type "sweep_exemption",
+    has target_relation_type "provision_has_sweep_exemption",
+    has extraction_prompt "Extract ALL exemptions from mandatory excess cash flow sweeps.
+
+Look for carve-outs from the ECF sweep definition or prepayment section:
+- Voluntary prepayments credited against sweep obligation
+- Capital expenditure reinvestment carve-outs
+- Acquisition spend deductions
+- Debt repayment credits
+- Working capital adjustments
+
+For EACH exemption extract:
+- exemption_type: the category of exemption
+- description: what is exempted
+- has_time_limit: whether there's a reinvestment period
+- time_limit_months: duration of reinvestment period (if applicable)",
+    has covenant_type "RP",
+    has display_order 107;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMENDMENT THRESHOLDS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_el_amendment_thresholds",
+    has question_text "Extract all amendment and waiver voting thresholds.",
+    has answer_type "entity_list",
+    has target_entity_type "amendment_threshold",
+    has target_relation_type "has_amendment_threshold",
+    has extraction_prompt "Extract ALL amendment and waiver voting thresholds.
+
+Look in the Amendment/Waiver/Consent section for tiered approval requirements:
+- Required Lenders threshold (usually simple majority, 50.1%)
+- Supermajority requirements (e.g., 66.67% or 75%)
+- Unanimous consent items (100% of affected lenders)
+- Sacred rights (items that cannot be amended without each affected lender)
+
+For EACH threshold extract:
+- threshold_type: 'required_lenders', 'supermajority', 'unanimous', 'sacred_right'
+- voting_percentage: the required percentage (e.g., 0.501, 0.6667, 1.0)
+- description: what amendments/waivers require this threshold
+- applies_to: which provisions or terms this threshold covers",
+    has covenant_type "RP",
+    has display_order 108;
