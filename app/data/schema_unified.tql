@@ -1281,7 +1281,6 @@ entity ip_type sub concept,
 entity transfer_type sub concept;
 entity blocker_binding_entity sub concept;
 entity blocker_timing sub concept;
-redefine blocker_timing owns target_entity_attribute @card(0..);
 entity investment_basket sub concept;
 entity default_type sub concept;
 entity reallocation_target sub concept;

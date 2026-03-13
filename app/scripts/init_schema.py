@@ -315,6 +315,19 @@ def init_database():
             raise
         logger.info(f"   Loaded schema ({len(schema_tql)} chars)")
 
+        # 1b. Schema redefines (must be separate transaction from define)
+        logger.info("\n1b. Applying schema redefines...")
+        redefine_tql = "redefine blocker_timing owns target_entity_attribute @card(0..);"
+        tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+        try:
+            tx.query(redefine_tql).resolve()
+            tx.commit()
+            logger.info("   Applied blocker_timing @card(0..) redefine")
+        except Exception as e:
+            if tx.is_open():
+                tx.close()
+            logger.warning(f"   Redefine failed: {e}")
+
         # 2. Load concepts
         logger.info("\n2. Loading concepts.tql...")
         if CONCEPTS_FILE.exists():
