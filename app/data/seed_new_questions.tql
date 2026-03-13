@@ -1,0 +1,1487 @@
+################################################################################
+# PHASE 2c: NEW ONTOLOGY QUESTIONS FOR UNANNOTATED ENTITY ATTRIBUTES
+#
+# Creates ~66 new ontology questions for RP entity attributes that have no
+# existing question. Each gets: ontology_question entity, question_targets_field
+# (Channel 1 scalar), and question_annotates_attribute (entity annotation).
+#
+# Also adds ~55 annotation catch-ups linking existing multiselect questions
+# to entity boolean attributes they drive.
+#
+# After this file loads, every RP entity attribute has an annotation.
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — RATIO BASKET (Category G)
+# Existing: rp_g1-g7. New: rp_g8-g12.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_g8 isa ontology_question,
+    has question_id "rp_g8",
+    has question_text "What ratio type is used for the unlimited dividend basket?",
+    has description "First lien, total, secured, or net leverage ratio",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 68,
+    has covenant_type "RP";
+(question: $q_g8) isa question_targets_field,
+    has target_field_name "ratio_basket_type",
+    has target_entity_type "rp_provision";
+(question: $q_g8) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "ratio_type";
+
+insert $q_g9 isa ontology_question,
+    has question_id "rp_g9",
+    has question_text "Is the ratio tested on a pro forma basis?",
+    has description "Whether leverage is measured after giving effect to the dividend",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 69,
+    has covenant_type "RP";
+(question: $q_g9) isa question_targets_field,
+    has target_field_name "ratio_pro_forma_basis",
+    has target_entity_type "rp_provision";
+(question: $q_g9) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "pro_forma_basis";
+
+insert $q_g10 isa ontology_question,
+    has question_id "rp_g10",
+    has question_text "When is the ratio tested?",
+    has description "Declaration date, payment date, or most recent fiscal quarter",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 70,
+    has covenant_type "RP";
+(question: $q_g10) isa question_targets_field,
+    has target_field_name "ratio_test_date_type",
+    has target_entity_type "rp_provision";
+(question: $q_g10) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "test_date_type";
+
+insert $q_g11 isa ontology_question,
+    has question_id "rp_g11",
+    has question_text "Is Limited Condition Transaction treatment available for the ratio basket?",
+    has description "Whether LCT election freezes the test date for ratio compliance",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 71,
+    has covenant_type "RP";
+(question: $q_g11) isa question_targets_field,
+    has target_field_name "ratio_lct_treatment_available",
+    has target_entity_type "rp_provision";
+(question: $q_g11) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "lct_treatment_available";
+
+insert $q_g12 isa ontology_question,
+    has question_id "rp_g12",
+    has question_text "What is the no-worse leverage threshold?",
+    has description "Maximum ratio permitted under the no-worse test if different from unlimited threshold",
+    has answer_type "number",
+    has ui_display_type "number_input",
+    has is_required false,
+    has display_order 72,
+    has covenant_type "RP";
+(question: $q_g12) isa question_targets_field,
+    has target_field_name "ratio_no_worse_threshold",
+    has target_entity_type "rp_provision";
+(question: $q_g12) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "no_worse_threshold";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — HOLDCO OVERHEAD BASKET (Category H)
+# Existing: rp_h1 (multiselect), rp_h2 (multiselect). New: rp_h3-h14.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_h3 isa ontology_question,
+    has question_id "rp_h3",
+    has question_text "Is there a holdco overhead basket permitting dividends for holding company expenses?",
+    has description "Whether a specific basket exists for holdco overhead distributions",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 73,
+    has covenant_type "RP";
+(question: $q_h3) isa question_targets_field,
+    has target_field_name "holdco_overhead_basket_exists",
+    has target_entity_type "rp_provision";
+(question: $q_h3) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "_exists";
+
+insert $q_h4 isa ontology_question,
+    has question_id "rp_h4",
+    has question_text "What is the annual cap on holdco overhead distributions?",
+    has description "Maximum annual amount in USD for holding company expenses",
+    has answer_type "currency",
+    has ui_display_type "currency",
+    has is_required false,
+    has display_order 74,
+    has covenant_type "RP";
+(question: $q_h4) isa question_targets_field,
+    has target_field_name "holdco_annual_cap_usd",
+    has target_entity_type "rp_provision";
+(question: $q_h4) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "annual_cap_usd";
+
+insert $q_h5 isa ontology_question,
+    has question_id "rp_h5",
+    has question_text "Does the holdco overhead basket cover management or advisory fees?",
+    has description "Whether management fees paid to sponsors or advisors are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 75,
+    has covenant_type "RP";
+(question: $q_h5) isa question_targets_field,
+    has target_field_name "holdco_covers_management_fees",
+    has target_entity_type "rp_provision";
+(question: $q_h5) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_management_fees";
+
+insert $q_h6 isa ontology_question,
+    has question_id "rp_h6",
+    has question_text "Does the holdco overhead basket cover administrative expenses?",
+    has description "Whether general administrative and corporate expenses are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 76,
+    has covenant_type "RP";
+(question: $q_h6) isa question_targets_field,
+    has target_field_name "holdco_covers_admin_expenses",
+    has target_entity_type "rp_provision";
+(question: $q_h6) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_admin_expenses";
+
+insert $q_h7 isa ontology_question,
+    has question_id "rp_h7",
+    has question_text "Does the holdco overhead basket cover franchise taxes?",
+    has description "Whether state franchise taxes and similar taxes are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 77,
+    has covenant_type "RP";
+(question: $q_h7) isa question_targets_field,
+    has target_field_name "holdco_covers_franchise_taxes",
+    has target_entity_type "rp_provision";
+(question: $q_h7) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_franchise_taxes";
+
+insert $q_h8 isa ontology_question,
+    has question_id "rp_h8",
+    has question_text "Does the holdco overhead basket require arm's length terms?",
+    has description "Whether overhead fees must be on arm's length or market terms",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 78,
+    has covenant_type "RP";
+(question: $q_h8) isa question_targets_field,
+    has target_field_name "holdco_requires_arms_length",
+    has target_entity_type "rp_provision";
+(question: $q_h8) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "requires_arms_length";
+
+insert $q_h9 isa ontology_question,
+    has question_id "rp_h9",
+    has question_text "Does the holdco overhead basket require board approval?",
+    has description "Whether board resolution is needed for holdco overhead distributions",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 79,
+    has covenant_type "RP";
+(question: $q_h9) isa question_targets_field,
+    has target_field_name "holdco_requires_board_approval",
+    has target_entity_type "rp_provision";
+(question: $q_h9) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "requires_board_approval";
+
+insert $q_h10 isa ontology_question,
+    has question_id "rp_h10",
+    has question_text "Does the holdco overhead basket cover insurance premiums?",
+    has description "Whether D&O or other insurance premiums are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 80,
+    has covenant_type "RP";
+(question: $q_h10) isa question_targets_field,
+    has target_field_name "holdco_covers_insurance_premiums",
+    has target_entity_type "rp_provision";
+(question: $q_h10) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_insurance_premiums";
+
+insert $q_h11 isa ontology_question,
+    has question_id "rp_h11",
+    has question_text "Does the holdco overhead basket cover director fees?",
+    has description "Whether board of directors compensation is included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 81,
+    has covenant_type "RP";
+(question: $q_h11) isa question_targets_field,
+    has target_field_name "holdco_covers_director_fees",
+    has target_entity_type "rp_provision";
+(question: $q_h11) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_director_fees";
+
+insert $q_h12 isa ontology_question,
+    has question_id "rp_h12",
+    has question_text "Does the holdco overhead basket cover audit or accounting fees?",
+    has description "Whether audit, accounting, and financial reporting costs are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 82,
+    has covenant_type "RP";
+(question: $q_h12) isa question_targets_field,
+    has target_field_name "holdco_covers_audit_fees",
+    has target_entity_type "rp_provision";
+(question: $q_h12) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_audit_fees";
+
+insert $q_h13 isa ontology_question,
+    has question_id "rp_h13",
+    has question_text "Does the holdco overhead basket cover legal fees?",
+    has description "Whether legal counsel and compliance costs are included",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 83,
+    has covenant_type "RP";
+(question: $q_h13) isa question_targets_field,
+    has target_field_name "holdco_covers_legal_fees",
+    has target_entity_type "rp_provision";
+(question: $q_h13) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_legal_fees";
+
+insert $q_h14 isa ontology_question,
+    has question_id "rp_h14",
+    has question_text "What is the scope of management fee recipients?",
+    has description "Whether management fees are limited to sponsor or include broader affiliates",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 84,
+    has covenant_type "RP";
+(question: $q_h14) isa question_targets_field,
+    has target_field_name "holdco_mgmt_fee_recipient_scope",
+    has target_entity_type "rp_provision";
+(question: $q_h14) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "management_fee_recipient_scope";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — EQUITY AWARD BASKET (Category E)
+# Existing: rp_e1 (multiselect). New: rp_e2-e9.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_e2 isa ontology_question,
+    has question_id "rp_e2",
+    has question_text "Is there an equity award basket permitting deemed repurchases?",
+    has description "Whether a specific basket exists for equity award related repurchases",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 41,
+    has covenant_type "RP";
+(question: $q_e2) isa question_targets_field,
+    has target_field_name "equity_award_basket_exists",
+    has target_entity_type "rp_provision";
+(question: $q_e2) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "_exists";
+
+insert $q_e3 isa ontology_question,
+    has question_id "rp_e3",
+    has question_text "What is the annual cap on equity award repurchases?",
+    has description "Maximum annual amount in USD for equity award basket",
+    has answer_type "currency",
+    has ui_display_type "currency",
+    has is_required false,
+    has display_order 42,
+    has covenant_type "RP";
+(question: $q_e3) isa question_targets_field,
+    has target_field_name "equity_award_annual_cap_usd",
+    has target_entity_type "rp_provision";
+(question: $q_e3) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "annual_cap_usd";
+
+insert $q_e4 isa ontology_question,
+    has question_id "rp_e4",
+    has question_text "Is unused equity award basket capacity carried forward?",
+    has description "Whether unused annual equity award capacity rolls over",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 43,
+    has covenant_type "RP";
+(question: $q_e4) isa question_targets_field,
+    has target_field_name "equity_award_carryforward_permitted",
+    has target_entity_type "rp_provision";
+(question: $q_e4) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "carryforward_permitted";
+
+insert $q_e5 isa ontology_question,
+    has question_id "rp_e5",
+    has question_text "Does the equity award basket cover cashless exercise?",
+    has description "Whether cashless exercise of options counts as a permitted repurchase",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 44,
+    has covenant_type "RP";
+(question: $q_e5) isa question_targets_field,
+    has target_field_name "equity_award_covers_cashless_exercise",
+    has target_entity_type "rp_provision";
+(question: $q_e5) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_cashless_exercise";
+
+insert $q_e6 isa ontology_question,
+    has question_id "rp_e6",
+    has question_text "Does the equity award basket cover tax withholding?",
+    has description "Whether deemed repurchases for tax withholding obligations are covered",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 45,
+    has covenant_type "RP";
+(question: $q_e6) isa question_targets_field,
+    has target_field_name "equity_award_covers_tax_withholding",
+    has target_entity_type "rp_provision";
+(question: $q_e6) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_tax_withholding";
+
+insert $q_e7 isa ontology_question,
+    has question_id "rp_e7",
+    has question_text "Does the equity award basket cover net settlement?",
+    has description "Whether net settlement of equity awards is a permitted repurchase",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 46,
+    has covenant_type "RP";
+(question: $q_e7) isa question_targets_field,
+    has target_field_name "equity_award_covers_net_settlement",
+    has target_entity_type "rp_provision";
+(question: $q_e7) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_net_settlement";
+
+insert $q_e8 isa ontology_question,
+    has question_id "rp_e8",
+    has question_text "Does the equity award basket cover clawback provisions?",
+    has description "Whether equity clawbacks are treated as permitted repurchases",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 47,
+    has covenant_type "RP";
+(question: $q_e8) isa question_targets_field,
+    has target_field_name "equity_award_covers_clawback",
+    has target_entity_type "rp_provision";
+(question: $q_e8) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_clawback";
+
+insert $q_e9 isa ontology_question,
+    has question_id "rp_e9",
+    has question_text "Does the equity award basket cover forfeiture?",
+    has description "Whether equity forfeitures are treated as permitted repurchases",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 48,
+    has covenant_type "RP";
+(question: $q_e9) isa question_targets_field,
+    has target_field_name "equity_award_covers_forfeiture",
+    has target_entity_type "rp_provision";
+(question: $q_e9) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_forfeiture";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — MANAGEMENT EQUITY BASKET (Category C)
+# Existing: rp_c1-c7. New: rp_c8-c9.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_c8 isa ontology_question,
+    has question_id "rp_c8",
+    has question_text "What is the maximum carryforward period in years?",
+    has description "Number of years unused management equity capacity can carry forward",
+    has answer_type "integer",
+    has ui_display_type "number_input",
+    has is_required false,
+    has display_order 27,
+    has covenant_type "RP";
+(question: $q_c8) isa question_targets_field,
+    has target_field_name "mgmt_equity_carryforward_max_years",
+    has target_entity_type "rp_provision";
+(question: $q_c8) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "carryforward_max_years";
+
+insert $q_c9 isa ontology_question,
+    has question_id "rp_c9",
+    has question_text "What is the eligible person scope for the management equity basket?",
+    has description "Whether limited to current employees or includes former employees, family members, etc.",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 28,
+    has covenant_type "RP";
+(question: $q_c9) isa question_targets_field,
+    has target_field_name "mgmt_equity_eligible_person_scope",
+    has target_entity_type "rp_provision";
+(question: $q_c9) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "eligible_person_scope";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — TAX DISTRIBUTION BASKET (Category D)
+# Existing: rp_d1-d3. New: rp_d4-d6.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_d4 isa ontology_question,
+    has question_id "rp_d4",
+    has question_text "What is the hypothetical tax rate used for tax distributions?",
+    has description "The assumed combined rate for calculating tax distribution amounts",
+    has answer_type "number",
+    has ui_display_type "number_input",
+    has is_required false,
+    has display_order 33,
+    has covenant_type "RP";
+(question: $q_d4) isa question_targets_field,
+    has target_field_name "tax_hypothetical_tax_rate",
+    has target_entity_type "rp_provision";
+(question: $q_d4) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "hypothetical_tax_rate";
+
+insert $q_d5 isa ontology_question,
+    has question_id "rp_d5",
+    has question_text "Are tax sharing agreement payments permitted?",
+    has description "Whether distributions under tax sharing agreements are permitted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 34,
+    has covenant_type "RP";
+(question: $q_d5) isa question_targets_field,
+    has target_field_name "tax_sharing_permitted",
+    has target_entity_type "rp_provision";
+(question: $q_d5) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "tax_sharing_permitted";
+
+insert $q_d6 isa ontology_question,
+    has question_id "rp_d6",
+    has question_text "Are estimated tax payments permitted?",
+    has description "Whether distributions for estimated or quarterly tax payments are covered",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 35,
+    has covenant_type "RP";
+(question: $q_d6) isa question_targets_field,
+    has target_field_name "tax_estimated_taxes_permitted",
+    has target_entity_type "rp_provision";
+(question: $q_d6) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "estimated_taxes_permitted";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — BUILDER BASKET (Category F)
+# Existing: rp_f1-f17. New: rp_f18-f21.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_f18 isa ontology_question,
+    has question_id "rp_f18",
+    has question_text "Is the builder basket reduced by Restricted Payment usage?",
+    has description "Whether RP draws reduce the Cumulative Amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 58,
+    has covenant_type "RP";
+(question: $q_f18) isa question_targets_field,
+    has target_field_name "builder_reduced_by_rp_usage",
+    has target_entity_type "rp_provision";
+(question: $q_f18) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_rp_usage";
+
+insert $q_f19 isa ontology_question,
+    has question_id "rp_f19",
+    has question_text "Is the builder basket reduced by Restricted Debt Payment usage?",
+    has description "Whether RDP draws reduce the Cumulative Amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 59,
+    has covenant_type "RP";
+(question: $q_f19) isa question_targets_field,
+    has target_field_name "builder_reduced_by_rdp_usage",
+    has target_entity_type "rp_provision";
+(question: $q_f19) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_rdp_usage";
+
+insert $q_f20 isa ontology_question,
+    has question_id "rp_f20",
+    has question_text "Is the builder basket reduced by Investment usage?",
+    has description "Whether Investment draws reduce the Cumulative Amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 60,
+    has covenant_type "RP";
+(question: $q_f20) isa question_targets_field,
+    has target_field_name "builder_reduced_by_investment_usage",
+    has target_entity_type "rp_provision";
+(question: $q_f20) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_investment_usage";
+
+insert $q_f21 isa ontology_question,
+    has question_id "rp_f21",
+    has question_text "Is the builder basket reduced by Unrestricted Subsidiary designations?",
+    has description "Whether unsub designations reduce the Cumulative Amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 61,
+    has covenant_type "RP";
+(question: $q_f21) isa question_targets_field,
+    has target_field_name "builder_reduced_by_designation",
+    has target_entity_type "rp_provision";
+(question: $q_f21) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_designation";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — UNSUB DISTRIBUTION BASKET (Category P)
+# Existing: rp_p1-p4. New: rp_p5-p7.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_p5 isa ontology_question,
+    has question_id "rp_p5",
+    has question_text "Does the unrestricted subsidiary distribution carve-out cover intercompany indebtedness?",
+    has description "Whether distribution of intercompany debt owed by unsubs is permitted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 5,
+    has covenant_type "RP";
+(question: $q_p5) isa question_targets_field,
+    has target_field_name "unsub_dist_covers_indebtedness",
+    has target_entity_type "rp_provision";
+(question: $q_p5) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_indebtedness";
+
+insert $q_p6 isa ontology_question,
+    has question_id "rp_p6",
+    has question_text "Does the unrestricted subsidiary distribution carve-out cover proceeds?",
+    has description "Whether proceeds from unsub distributions are covered",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 6,
+    has covenant_type "RP";
+(question: $q_p6) isa question_targets_field,
+    has target_field_name "unsub_dist_covers_proceeds",
+    has target_entity_type "rp_provision";
+(question: $q_p6) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_proceeds";
+
+insert $q_p7 isa ontology_question,
+    has question_id "rp_p7",
+    has question_text "Does the unrestricted subsidiary distribution basket require valid designation?",
+    has description "Whether the unsub must have been validly designated for distributions to be permitted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 7,
+    has covenant_type "RP";
+(question: $q_p7) isa question_targets_field,
+    has target_field_name "unsub_dist_requires_valid_designation",
+    has target_entity_type "rp_provision";
+(question: $q_p7) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "requires_valid_designation";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — REFINANCING RDP BASKET (Category T)
+# Existing: rp_t1 (multiselect). New: rp_t2-t8.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_t2 isa ontology_question,
+    has question_id "rp_t2",
+    has question_text "Does the refinancing RDP basket require same or lower priority?",
+    has description "Whether refinancing debt must be pari passu or junior to existing debt",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 131,
+    has covenant_type "RP";
+(question: $q_t2) isa question_targets_field,
+    has target_field_name "refi_rdp_requires_same_or_lower_priority",
+    has target_entity_type "rp_provision";
+(question: $q_t2) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_same_or_lower_priority";
+
+insert $q_t3 isa ontology_question,
+    has question_id "rp_t3",
+    has question_text "Does the refinancing RDP basket require same or later maturity?",
+    has description "Whether refinancing debt must mature on or after the existing maturity",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 132,
+    has covenant_type "RP";
+(question: $q_t3) isa question_targets_field,
+    has target_field_name "refi_rdp_requires_same_or_later_maturity",
+    has target_entity_type "rp_provision";
+(question: $q_t3) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_same_or_later_maturity";
+
+insert $q_t4 isa ontology_question,
+    has question_id "rp_t4",
+    has question_text "Does the refinancing RDP basket prohibit increases in principal?",
+    has description "Whether refinancing is limited to the outstanding principal amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 133,
+    has covenant_type "RP";
+(question: $q_t4) isa question_targets_field,
+    has target_field_name "refi_rdp_requires_no_increase_in_principal",
+    has target_entity_type "rp_provision";
+(question: $q_t4) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_no_increase_in_principal";
+
+insert $q_t5 isa ontology_question,
+    has question_id "rp_t5",
+    has question_text "Does the refinancing RDP basket permit refinancing with equity proceeds?",
+    has description "Whether equity issuance proceeds can fund the refinancing",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 134,
+    has covenant_type "RP";
+(question: $q_t5) isa question_targets_field,
+    has target_field_name "refi_rdp_permits_refinancing_with_equity",
+    has target_entity_type "rp_provision";
+(question: $q_t5) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "permits_refinancing_with_equity";
+
+insert $q_t6 isa ontology_question,
+    has question_id "rp_t6",
+    has question_text "Does the refinancing RDP basket require qualified stock only?",
+    has description "Whether only qualified equity interests can be used",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 135,
+    has covenant_type "RP";
+(question: $q_t6) isa question_targets_field,
+    has target_field_name "refi_rdp_requires_qualified_stock_only",
+    has target_entity_type "rp_provision";
+(question: $q_t6) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_qualified_stock_only";
+
+insert $q_t7 isa ontology_question,
+    has question_id "rp_t7",
+    has question_text "Is the refinancing RDP basket subject to an intercreditor agreement?",
+    has description "Whether an ICA governs the refinancing debt",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 136,
+    has covenant_type "RP";
+(question: $q_t7) isa question_targets_field,
+    has target_field_name "refi_rdp_subject_to_intercreditor",
+    has target_entity_type "rp_provision";
+(question: $q_t7) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "subject_to_intercreditor";
+
+insert $q_t8 isa ontology_question,
+    has question_id "rp_t8",
+    has question_text "Must the refinancing proceeds not have been otherwise applied?",
+    has description "Whether a not-otherwise-applied condition limits the refinancing basket",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 137,
+    has covenant_type "RP";
+(question: $q_t8) isa question_targets_field,
+    has target_field_name "refi_rdp_not_otherwise_applied",
+    has target_entity_type "rp_provision";
+(question: $q_t8) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "not_otherwise_applied";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — RATIO RDP BASKET (Category T)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_t9 isa ontology_question,
+    has question_id "rp_t9",
+    has question_text "What is the ratio threshold for the RDP ratio basket?",
+    has description "Leverage ratio at or below which restricted debt payments are permitted",
+    has answer_type "number",
+    has ui_display_type "number_input",
+    has is_required false,
+    has display_order 138,
+    has covenant_type "RP";
+(question: $q_t9) isa question_targets_field,
+    has target_field_name "ratio_rdp_threshold",
+    has target_entity_type "rp_provision";
+(question: $q_t9) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "ratio_threshold";
+
+insert $q_t10 isa ontology_question,
+    has question_id "rp_t10",
+    has question_text "What ratio type is used for the RDP ratio basket?",
+    has description "First lien, total, secured, or net leverage ratio for RDP",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 139,
+    has covenant_type "RP";
+(question: $q_t10) isa question_targets_field,
+    has target_field_name "ratio_rdp_type",
+    has target_entity_type "rp_provision";
+(question: $q_t10) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "ratio_type";
+
+insert $q_t11 isa ontology_question,
+    has question_id "rp_t11",
+    has question_text "Are restricted debt payments unlimited if the RDP ratio is met?",
+    has description "Whether there is any cap once the RDP ratio test passes",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 140,
+    has covenant_type "RP";
+(question: $q_t11) isa question_targets_field,
+    has target_field_name "ratio_rdp_is_unlimited_if_met",
+    has target_entity_type "rp_provision";
+(question: $q_t11) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "is_unlimited_if_met";
+
+insert $q_t12 isa ontology_question,
+    has question_id "rp_t12",
+    has question_text "Is the RDP ratio tested on a pro forma basis?",
+    has description "Whether leverage is measured after giving effect to the debt payment",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 141,
+    has covenant_type "RP";
+(question: $q_t12) isa question_targets_field,
+    has target_field_name "ratio_rdp_pro_forma_basis",
+    has target_entity_type "rp_provision";
+(question: $q_t12) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "pro_forma_basis";
+
+insert $q_t13 isa ontology_question,
+    has question_id "rp_t13",
+    has question_text "When is the RDP ratio tested?",
+    has description "Declaration date, payment date, or most recent fiscal quarter for RDP",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 142,
+    has covenant_type "RP";
+(question: $q_t13) isa question_targets_field,
+    has target_field_name "ratio_rdp_test_date_type",
+    has target_entity_type "rp_provision";
+(question: $q_t13) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "test_date_type";
+
+insert $q_t14 isa ontology_question,
+    has question_id "rp_t14",
+    has question_text "Does the RDP ratio basket use a closing ratio alternative?",
+    has description "Whether the ratio test can be met using the closing date leverage ratio",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 143,
+    has covenant_type "RP";
+(question: $q_t14) isa question_targets_field,
+    has target_field_name "ratio_rdp_uses_closing_ratio_alternative",
+    has target_entity_type "rp_provision";
+(question: $q_t14) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "uses_closing_ratio_alternative";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — BUILDER RDP BASKET (Category T)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_t15 isa ontology_question,
+    has question_id "rp_t15",
+    has question_text "Does the builder RDP basket share capacity with the RP builder basket?",
+    has description "Whether RDP builder and RP builder draw from the same Cumulative Amount",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 144,
+    has covenant_type "RP";
+(question: $q_t15) isa question_targets_field,
+    has target_field_name "builder_rdp_shares_with_rp_builder",
+    has target_entity_type "rp_provision";
+(question: $q_t15) isa question_annotates_attribute,
+    has target_entity_type "builder_rdp_basket",
+    has target_attribute_name "shares_with_rp_builder";
+
+insert $q_t16 isa ontology_question,
+    has question_id "rp_t16",
+    has question_text "Is the builder RDP basket subject to an intercreditor agreement?",
+    has description "Whether an ICA governs builder-sourced debt payments",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 145,
+    has covenant_type "RP";
+(question: $q_t16) isa question_targets_field,
+    has target_field_name "builder_rdp_subject_to_intercreditor",
+    has target_entity_type "rp_provision";
+(question: $q_t16) isa question_annotates_attribute,
+    has target_entity_type "builder_rdp_basket",
+    has target_attribute_name "subject_to_intercreditor";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — EQUITY FUNDED RDP BASKET (Category T)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_t17 isa ontology_question,
+    has question_id "rp_t17",
+    has question_text "Does the equity-funded RDP basket require cash common equity?",
+    has description "Whether only cash proceeds from common equity qualify",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 146,
+    has covenant_type "RP";
+(question: $q_t17) isa question_targets_field,
+    has target_field_name "equity_rdp_requires_cash_common_equity",
+    has target_entity_type "rp_provision";
+(question: $q_t17) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "requires_cash_common_equity";
+
+insert $q_t18 isa ontology_question,
+    has question_id "rp_t18",
+    has question_text "Must the equity proceeds for the equity-funded RDP basket not have been otherwise applied?",
+    has description "Whether a not-otherwise-applied condition limits the equity-funded basket",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 147,
+    has covenant_type "RP";
+(question: $q_t18) isa question_targets_field,
+    has target_field_name "equity_rdp_not_otherwise_applied",
+    has target_entity_type "rp_provision";
+(question: $q_t18) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "not_otherwise_applied";
+
+insert $q_t19 isa ontology_question,
+    has question_id "rp_t19",
+    has question_text "Does the equity-funded RDP basket require qualified stock only?",
+    has description "Whether only qualified equity interests can fund RDP",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 148,
+    has covenant_type "RP";
+(question: $q_t19) isa question_targets_field,
+    has target_field_name "equity_rdp_requires_qualified_stock_only",
+    has target_entity_type "rp_provision";
+(question: $q_t19) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "requires_qualified_stock_only";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — GENERAL RDP BASKET (Category T)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_t20 isa ontology_question,
+    has question_id "rp_t20",
+    has question_text "What is the general RDP basket dollar amount?",
+    has description "Fixed dollar cap for the general restricted debt payment basket",
+    has answer_type "currency",
+    has ui_display_type "currency",
+    has is_required false,
+    has display_order 149,
+    has covenant_type "RP";
+(question: $q_t20) isa question_targets_field,
+    has target_field_name "general_rdp_basket_amount_usd",
+    has target_entity_type "rp_provision";
+(question: $q_t20) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "basket_amount_usd";
+
+insert $q_t21 isa ontology_question,
+    has question_id "rp_t21",
+    has question_text "What is the grower percentage for the general RDP basket?",
+    has description "EBITDA or Total Assets percentage for the general RDP basket grower",
+    has answer_type "percentage",
+    has ui_display_type "percentage",
+    has is_required false,
+    has display_order 150,
+    has covenant_type "RP";
+(question: $q_t21) isa question_targets_field,
+    has target_field_name "general_rdp_basket_grower_pct",
+    has target_entity_type "rp_provision";
+(question: $q_t21) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "basket_grower_pct";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — SWEEP TIER (Category L)
+# Existing: rp_l1-l9. New: rp_l10-l12.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_l10 isa ontology_question,
+    has question_id "rp_l10",
+    has question_text "What is the leverage threshold for this sweep tier?",
+    has description "The ratio at which this tier's sweep percentage applies",
+    has answer_type "number",
+    has ui_display_type "number_input",
+    has is_required false,
+    has display_order 10,
+    has covenant_type "RP";
+(question: $q_l10) isa question_targets_field,
+    has target_field_name "sweep_leverage_threshold",
+    has target_entity_type "rp_provision";
+(question: $q_l10) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "leverage_threshold";
+
+insert $q_l11 isa ontology_question,
+    has question_id "rp_l11",
+    has question_text "What is the sweep percentage for this tier?",
+    has description "Percentage of asset sale proceeds required for prepayment at this tier",
+    has answer_type "percentage",
+    has ui_display_type "percentage",
+    has is_required false,
+    has display_order 11,
+    has covenant_type "RP";
+(question: $q_l11) isa question_targets_field,
+    has target_field_name "sweep_percentage",
+    has target_entity_type "rp_provision";
+(question: $q_l11) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "sweep_percentage";
+
+insert $q_l12 isa ontology_question,
+    has question_id "rp_l12",
+    has question_text "Is this the highest sweep tier?",
+    has description "Whether this tier represents the highest leverage / strictest sweep level",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 12,
+    has covenant_type "RP";
+(question: $q_l12) isa question_targets_field,
+    has target_field_name "sweep_is_highest_tier",
+    has target_entity_type "rp_provision";
+(question: $q_l12) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "is_highest_tier";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — BASKET REALLOCATION (Category I)
+# Existing: rp_i1-i8. New: rp_i9-i12.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_i9 isa ontology_question,
+    has question_id "rp_i9",
+    has question_text "What is the source basket for this reallocation?",
+    has description "Which basket provides the capacity being reallocated",
+    has answer_type "string",
+    has ui_display_type "text_input",
+    has is_required false,
+    has display_order 82,
+    has covenant_type "RP";
+(question: $q_i9) isa question_targets_field,
+    has target_field_name "realloc_source_basket",
+    has target_entity_type "rp_provision";
+(question: $q_i9) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reallocation_source";
+
+insert $q_i10 isa ontology_question,
+    has question_id "rp_i10",
+    has question_text "Does the reallocation reduce the source basket?",
+    has description "Whether reallocated amounts reduce available capacity in the source basket",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 83,
+    has covenant_type "RP";
+(question: $q_i10) isa question_targets_field,
+    has target_field_name "realloc_reduces_source_basket",
+    has target_entity_type "rp_provision";
+(question: $q_i10) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduces_source_basket";
+
+insert $q_i11 isa ontology_question,
+    has question_id "rp_i11",
+    has question_text "Is the source basket reduction dollar-for-dollar?",
+    has description "Whether each dollar reallocated reduces the source by exactly one dollar",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 84,
+    has covenant_type "RP";
+(question: $q_i11) isa question_targets_field,
+    has target_field_name "realloc_reduction_is_dollar_for_dollar",
+    has target_entity_type "rp_provision";
+(question: $q_i11) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduction_is_dollar_for_dollar";
+
+insert $q_i12 isa ontology_question,
+    has question_id "rp_i12",
+    has question_text "Is the source reduction only while the reallocation is outstanding?",
+    has description "Whether capacity returns when the reallocated amount is repaid",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 85,
+    has covenant_type "RP";
+(question: $q_i12) isa question_targets_field,
+    has target_field_name "realloc_reduction_while_outstanding_only",
+    has target_entity_type "rp_provision";
+(question: $q_i12) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduction_while_outstanding_only";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — GENERAL RP BASKET (Category N)
+# Existing: rp_n1-n5. New: rp_n6.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_n6 isa ontology_question,
+    has question_id "rp_n6",
+    has question_text "Is the general RP basket per annum?",
+    has description "Whether the basket amount is an annual limit vs. lifetime aggregate",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 6,
+    has covenant_type "RP";
+(question: $q_n6) isa question_targets_field,
+    has target_field_name "general_rp_is_per_annum",
+    has target_entity_type "rp_provision";
+(question: $q_n6) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "is_per_annum";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 1: NEW QUESTIONS — J.CREW BLOCKER (Category K)
+# Existing: rp_k1-k10. New: rp_k11-k13.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q_k11 isa ontology_question,
+    has question_id "rp_k11",
+    has question_text "Does the blocker cover licenses granted by loan parties?",
+    has description "Whether outbound licensing to unrestricted subs is restricted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 108,
+    has covenant_type "RP";
+(question: $q_k11) isa question_targets_field,
+    has target_field_name "blocker_covers_licenses_granted",
+    has target_entity_type "rp_provision";
+(question: $q_k11) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_licenses_granted";
+
+insert $q_k12 isa ontology_question,
+    has question_id "rp_k12",
+    has question_text "Does the blocker cover licenses received from unrestricted subs?",
+    has description "Whether inbound licensing from unrestricted subs is restricted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 109,
+    has covenant_type "RP";
+(question: $q_k12) isa question_targets_field,
+    has target_field_name "blocker_covers_licenses_received",
+    has target_entity_type "rp_provision";
+(question: $q_k12) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_licenses_received";
+
+insert $q_k13 isa ontology_question,
+    has question_id "rp_k13",
+    has question_text "Does the blocker apply to post-designation transfers?",
+    has description "Whether the restriction covers transfers after initial designation as unrestricted",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 110,
+    has covenant_type "RP";
+(question: $q_k13) isa question_targets_field,
+    has target_field_name "blocker_covers_post_designation",
+    has target_entity_type "rp_provision";
+(question: $q_k13) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_post_designation";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 2: CATEGORY ASSIGNMENTS FOR ALL NEW QUESTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Category C (Management Equity) — c8, c9
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_c8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_c9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category D (Tax Distribution) — d4, d5, d6
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_d6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category E (Equity Awards) — e2 through e9
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_e9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category F (Builder Basket) — f18 through f21
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f18";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f19";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f20";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f21";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category G (Ratio Basket) — g8 through g12
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category H (Holdco Overhead) — h3 through h14
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_h14";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category I (Reallocation) — i9 through i12
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category K (J.Crew Blocker) — k11 through k13
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k13";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category L (Sweeps) — l10 through l12
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category N (Capacity) — n6
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category P (Unsub Distributions) — p5 through p7
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Category T (RDP Baskets) — t2 through t21
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t15";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t16";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t17";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t18";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t19";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t20";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t21";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 3: ANNOTATION CATCH-UPS
+#
+# These link EXISTING multiselect questions to the entity boolean attributes
+# they drive. No new questions — only new question_annotates_attribute relations.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── rp_a2 → rp_provision scope booleans ──────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "restricts_borrower";
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "restricts_guarantors";
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "restricts_restricted_subs";
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "restricts_holdings";
+
+# ── rp_a3 → rp_provision dividend definition booleans ────────────────────────
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_cash_dividends";
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_share_buybacks";
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_distributions";
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_debt_prepayments";
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_investments";
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "includes_guarantees";
+
+# ── rp_s1 → rp_provision RDP definition booleans ─────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_voluntary_payments";
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_optional_payments";
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_prepayments";
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_redemptions";
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_defeasance";
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "rp_provision", has target_attribute_name "rdp_includes_open_market_purchases";
+
+# ── rp_b1 → intercompany_dividend_permission booleans ────────────────────────
+
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "intercompany_dividend_permission", has target_attribute_name "permits_to_borrower";
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "intercompany_dividend_permission", has target_attribute_name "permits_to_guarantors";
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "intercompany_dividend_permission", has target_attribute_name "permits_to_holdings";
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "intercompany_dividend_permission", has target_attribute_name "permits_to_non_guarantor_subs";
+
+# ── rp_c2 → management_equity_basket covered person booleans ─────────────────
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_employees";
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_officers";
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_directors";
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_consultants";
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_estates";
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "covers_sponsor_employees";
+
+# ── rp_c3 → management_equity_basket trigger booleans ────────────────────────
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "trigger_death";
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "trigger_disability";
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "trigger_termination";
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "trigger_retirement";
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "trigger_change_of_control";
+
+# ── rp_d2 → tax_distribution_basket group type booleans ──────────────────────
+
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "covers_consolidated_group";
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "covers_combined_group";
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "covers_similar_groups";
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "covers_disregarded_entities";
+
+# ── rp_k4 → jcrew_blocker binding booleans ───────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "binds_loan_parties";
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "binds_restricted_subs";
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "binds_holdings";
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "binds_borrower_only";
+
+# ── rp_k6 → jcrew_blocker IP type booleans ───────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_patents";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_trademarks";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_copyrights";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_trade_secrets";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_software";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_domain_names";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_know_how";
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_customer_data";
+
+# ── rp_k7 → jcrew_blocker transfer type booleans ─────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_exclusive_licensing";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_nonexclusive_licensing";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_pledge";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_abandonment";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_assignment";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_sale";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_contribution_to_capital";
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_non_renewal";

@@ -84,6 +84,9 @@ ATTRIBUTE_ANNOTATIONS_FILE = DATA_DIR / "seed_attribute_annotations.tql"
 # 17c. Complete attribute annotations (Phase 2b — all remaining RP entity annotations)
 COMPLETE_ANNOTATIONS_FILE = DATA_DIR / "seed_complete_annotations.tql"
 
+# 17d. New questions for unannotated attributes (Phase 2c)
+NEW_QUESTIONS_FILE = DATA_DIR / "seed_new_questions.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -442,6 +445,11 @@ def init_database():
         if COMPLETE_ANNOTATIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, COMPLETE_ANNOTATIONS_FILE)
 
+        # 17d. Load new questions for unannotated attributes (Phase 2c)
+        logger.info("\n17d. Loading seed_new_questions.tql...")
+        if NEW_QUESTIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_FILE)
+
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
         if MFN_FUNCTIONS_FILE.exists():
@@ -484,13 +492,13 @@ def init_database():
         try:
             checks = [
                 ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
-                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 190),
+                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 270),
                 ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
                 ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 24),
                 ("MFN extraction metadata", 'match $em isa extraction_metadata, has metadata_id $id; $id like "mfn_.*"; select $id;', 4),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),
-                ("Attribute annotations", "match $r isa question_annotates_attribute; select $r;", 92),
+                ("Attribute annotations", "match $r isa question_annotates_attribute; select $r;", 210),
             ]
             for label, query, min_expected in checks:
                 try:
