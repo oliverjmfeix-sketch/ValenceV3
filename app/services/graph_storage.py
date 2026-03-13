@@ -557,8 +557,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     if rows:
                         row = rows[0]
                         rt = row.get("rt").as_relation_type().get_label()
-                        role1 = row.get("role1").get_label()  # entity's role
-                        role2 = row.get("role2").get_label()  # provision's role
+                        # TypeDB 3.x role labels are scoped: "relation_type:role_name"
+                        # Strip scope prefix to get just the role name for use in queries
+                        role1_raw = row.get("role1").get_label()
+                        role2_raw = row.get("role2").get_label()
+                        role1 = role1_raw.split(":")[-1] if ":" in role1_raw else role1_raw
+                        role2 = role2_raw.split(":")[-1] if ":" in role2_raw else role2_raw
                         result[et] = (rt, role2, role1)
                         logger.debug(f"Schema: {et} -> {rt} ({role2}, {role1})")
                     else:
