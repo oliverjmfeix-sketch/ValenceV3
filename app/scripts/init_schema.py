@@ -317,7 +317,7 @@ def init_database():
 
         # 1b. Schema redefines (must be separate transaction from define)
         logger.info("\n1b. Applying schema redefines...")
-        redefine_tql = "redefine blocker_timing owns target_entity_attribute @card(0..);"
+        redefine_tql = "define blocker_timing owns target_entity_attribute @card(0..);"
         tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
         try:
             tx.query(redefine_tql).resolve()
