@@ -55,6 +55,9 @@ INVESTMENT_PATHWAY_METADATA_FILE = DATA_DIR / "investment_pathway_metadata.tql"
 # 11. V4 seed data (IP types, party types — multiple separate inserts)
 SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
 
+# 13b. Concept → entity boolean mapping (must load after concepts + jcrew_concepts + ontology_expanded)
+CONCEPT_ENTITY_MAPPING_FILE = DATA_DIR / "seed_concept_entity_mapping.tql"
+
 # 12-13. J.Crew deep analysis (concepts, questions)
 JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
 JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
@@ -391,6 +394,11 @@ def init_database():
         logger.info("\n13. Loading seed_v4_data.tql...")
         if SEED_V4_DATA_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_V4_DATA_FILE)
+
+        # 13b. Load concept → entity boolean mapping
+        logger.info("\n13b. Loading seed_concept_entity_mapping.tql...")
+        if CONCEPT_ENTITY_MAPPING_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, CONCEPT_ENTITY_MAPPING_FILE)
 
         # 14. Load MFN extended concepts (after concepts.tql)
         logger.info("\n14. Loading mfn_concepts_extended.tql...")

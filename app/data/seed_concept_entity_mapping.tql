@@ -1,0 +1,566 @@
+################################################################################
+# CONCEPT → ENTITY BOOLEAN MAPPING
+#
+# Maps each concept instance to the entity attribute it should set.
+# graph_storage.py reads this at startup to route multiselect answers
+# to entity booleans instead of writing concept_applicability.
+#
+# Pattern: concept_id → (target_entity_type, target_entity_attribute)
+# When Claude selects concept_id "X" for question "Y", the storage layer
+# sets target_entity_attribute = true on the target_entity_type entity.
+#
+# Concepts that are SKIPPED (with rationale):
+#   - MFN concepts: not part of this migration phase
+#   - reallocation_reduction_type: superseded by basket_reallocation entity
+#   - reallocation_target: superseded by basket_reallocation entity
+#   - exempt_sale_type: superseded by sweep_exemption entity subtypes
+#   - investment_basket: maps to entity existence (investment_pathway), not booleans
+#   - investment_basket_type (J.Crew): same — entity existence IS the answer
+#   - blocker_carveout_type (J.Crew): maps to blocker_exception entity subtypes (already Channel 3)
+#   - default_type: no direct entity boolean mapping
+#   - loophole_type: no direct entity boolean mapping
+#   - protection_type: no direct entity boolean mapping
+#   - unsub_distribution_condition: no instances exist yet
+#   - ratio_required_basket: maps to basket-level requires_ratio_test, handled differently
+#   - no_default_basket: maps to basket-level default_condition, handled differently
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOCKER_BINDING_ENTITY → jcrew_blocker booleans
+# Question: rp_k4 "Which entities are bound by the J.Crew blocker?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa blocker_binding_entity, has concept_id "loan_parties";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_loan_parties";
+
+match $c isa blocker_binding_entity, has concept_id "borrower";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_borrower_only";
+
+match $c isa blocker_binding_entity, has concept_id "guarantors";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_loan_parties";
+
+match $c isa blocker_binding_entity, has concept_id "restricted_subsidiaries";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_restricted_subs";
+
+match $c isa blocker_binding_entity, has concept_id "all_restricted_subs";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_restricted_subs";
+
+match $c isa blocker_binding_entity, has concept_id "non_guarantor_restricted_subs";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_restricted_subs";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IP_TYPE → jcrew_blocker booleans
+# Question: rp_k6 "Which types of IP are included in the blocker definition?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa ip_type, has concept_id "patents";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_patents";
+
+match $c isa ip_type, has concept_id "patent_applications";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_patents";
+
+match $c isa ip_type, has concept_id "trademarks";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_trademarks";
+
+match $c isa ip_type, has concept_id "service_marks";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_trademarks";
+
+match $c isa ip_type, has concept_id "copyrights";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_copyrights";
+
+match $c isa ip_type, has concept_id "trade_secrets";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_trade_secrets";
+
+match $c isa ip_type, has concept_id "know_how";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_know_how";
+
+match $c isa ip_type, has concept_id "software";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_software";
+
+match $c isa ip_type, has concept_id "domain_names";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_domain_names";
+
+match $c isa ip_type, has concept_id "licenses_received";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_licenses_received";
+
+match $c isa ip_type, has concept_id "customer_lists";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_customer_data";
+
+match $c isa ip_type, has concept_id "databases";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_customer_data";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRANSFER_TYPE → jcrew_blocker booleans
+# Question: rp_k7 "Which types of transfers are restricted by the blocker?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa transfer_type, has concept_id "assignment";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_assignment";
+
+match $c isa transfer_type, has concept_id "sale";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_sale";
+
+match $c isa transfer_type, has concept_id "contribution_to_capital";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_contribution_to_capital";
+
+match $c isa transfer_type, has concept_id "exclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_exclusive_licensing";
+
+match $c isa transfer_type, has concept_id "non_exclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_nonexclusive_licensing";
+
+match $c isa transfer_type, has concept_id "pledge";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_pledge";
+
+match $c isa transfer_type, has concept_id "abandonment";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_abandonment";
+
+match $c isa transfer_type, has concept_id "non_renewal";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_non_renewal";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOCKER_TIMING → jcrew_blocker booleans
+# Question: rp_k5 "When does the J.Crew blocker apply?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa blocker_timing, has concept_id "bt_at_designation";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_designation";
+
+match $c isa blocker_timing, has concept_id "bt_at_transfer";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
+
+# bt_at_both: sets BOTH covers_transfer and covers_designation.
+# Single concept → single target_entity_attribute limitation.
+# Map to covers_transfer; storage layer must also set covers_designation
+# when bt_at_both is selected.
+match $c isa blocker_timing, has concept_id "bt_at_both";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
+
+# bt_ongoing: continuous covenant, not event-triggered.
+# Maps to covers_post_designation (ongoing implies post-designation coverage).
+match $c isa blocker_timing, has concept_id "bt_ongoing";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_post_designation";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COVERED_PERSON → management_equity_basket booleans
+# Question: rp_c2 "Which persons are covered by the management equity basket?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa covered_person, has concept_id "current_officers";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_officers";
+
+match $c isa covered_person, has concept_id "former_officers";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_officers";
+
+match $c isa covered_person, has concept_id "current_directors";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_directors";
+
+match $c isa covered_person, has concept_id "former_directors";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_directors";
+
+match $c isa covered_person, has concept_id "current_employees";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_employees";
+
+match $c isa covered_person, has concept_id "former_employees";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_employees";
+
+match $c isa covered_person, has concept_id "consultants";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_consultants";
+
+match $c isa covered_person, has concept_id "estates";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "covers_estates";
+
+# spouses, ex_spouses, heirs, beneficiaries, transferees, family_members:
+# No direct entity boolean — these are sub-categories of covered persons
+# that don't have dedicated booleans on management_equity_basket.
+# They remain as Channel 2 concept_applicability selections.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REPURCHASE_TRIGGER → management_equity_basket booleans
+# Question: rp_c3 "Which events trigger management equity repurchase rights?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa repurchase_trigger, has concept_id "death";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "trigger_death";
+
+match $c isa repurchase_trigger, has concept_id "disability";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "trigger_disability";
+
+match $c isa repurchase_trigger, has concept_id "retirement";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "trigger_retirement";
+
+match $c isa repurchase_trigger, has concept_id "severance";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "trigger_termination";
+
+match $c isa repurchase_trigger, has concept_id "termination_of_employment";
+insert $c has target_entity_type "management_equity_basket", has target_entity_attribute "trigger_termination";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DIVIDEND_DEFINITION_ELEMENT → rp_provision booleans
+# Question: rp_a3 "What actions are included in the definition of 'Dividend'?"
+#
+# Concept instances are granular actions; entity booleans are broader categories.
+# Multiple concepts map to the same boolean.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa dividend_definition_element, has concept_id "dde_declaring";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_cash_dividends";
+
+match $c isa dividend_definition_element, has concept_id "dde_authorizing";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_distributions";
+
+match $c isa dividend_definition_element, has concept_id "dde_returning_capital";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_distributions";
+
+match $c isa dividend_definition_element, has concept_id "dde_redemptions";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_share_buybacks";
+
+match $c isa dividend_definition_element, has concept_id "dde_retirements";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_share_buybacks";
+
+match $c isa dividend_definition_element, has concept_id "dde_purchases";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_share_buybacks";
+
+match $c isa dividend_definition_element, has concept_id "dde_acquisitions";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_share_buybacks";
+
+match $c isa dividend_definition_element, has concept_id "dde_options_warrants";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_share_buybacks";
+
+match $c isa dividend_definition_element, has concept_id "dde_property_delivery";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "includes_distributions";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAX_GROUP_TYPE → tax_distribution_basket booleans
+# Question: rp_d2 "Which types of tax groups are covered?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa tax_group_type, has concept_id "tgt_consolidated";
+insert $c has target_entity_type "tax_distribution_basket", has target_entity_attribute "covers_consolidated_group";
+
+match $c isa tax_group_type, has concept_id "tgt_combined";
+insert $c has target_entity_type "tax_distribution_basket", has target_entity_attribute "covers_combined_group";
+
+match $c isa tax_group_type, has concept_id "tgt_similar";
+insert $c has target_entity_type "tax_distribution_basket", has target_entity_attribute "covers_similar_groups";
+
+match $c isa tax_group_type, has concept_id "tgt_disregarded";
+insert $c has target_entity_type "tax_distribution_basket", has target_entity_attribute "covers_disregarded_entities";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OVERHEAD_COST_TYPE → holdco_overhead_basket booleans
+# Question: rp_h1 "Which holding company overhead costs may be funded?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa overhead_cost_type, has concept_id "oct_general_admin";
+insert $c has target_entity_type "holdco_overhead_basket", has target_entity_attribute "covers_admin_expenses";
+
+match $c isa overhead_cost_type, has concept_id "oct_legal";
+insert $c has target_entity_type "holdco_overhead_basket", has target_entity_attribute "covers_legal_fees";
+
+match $c isa overhead_cost_type, has concept_id "oct_accounting";
+insert $c has target_entity_type "holdco_overhead_basket", has target_entity_attribute "covers_audit_fees";
+
+match $c isa overhead_cost_type, has concept_id "oct_insurance";
+insert $c has target_entity_type "holdco_overhead_basket", has target_entity_attribute "covers_insurance_premiums";
+
+match $c isa overhead_cost_type, has concept_id "oct_franchise_taxes";
+insert $c has target_entity_type "holdco_overhead_basket", has target_entity_attribute "covers_franchise_taxes";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EQUITY_AWARD_TYPE → equity_award_basket booleans
+# Question: rp_e1 "Which types of equity awards are covered?"
+#
+# The concept instances describe award types (stock_options, restricted_stock, etc.)
+# while entity booleans describe mechanisms (cashless_exercise, tax_withholding,
+# net_settlement, clawback, forfeiture). These are orthogonal dimensions.
+# No direct 1:1 mapping exists — these concepts remain as Channel 2
+# concept_applicability selections. No entity boolean mapping needed.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# SKIPPED: eat_stock_options, eat_restricted_stock, eat_rsus, eat_phantom
+# These describe WHAT awards exist, not WHICH mechanisms are permitted.
+# The covers_cashless_exercise, covers_tax_withholding, covers_net_settlement,
+# covers_clawback, covers_forfeiture booleans are set by separate scalar questions.
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RDP_PAYMENT_TYPE → rp_provision booleans
+# Question: rp_s1 "Which types of payments constitute Restricted Debt Payments?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa rdp_payment_type, has concept_id "rdp_voluntary";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_voluntary_payments";
+
+match $c isa rdp_payment_type, has concept_id "rdp_optional";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_optional_payments";
+
+match $c isa rdp_payment_type, has concept_id "rdp_prepayments";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_prepayments";
+
+match $c isa rdp_payment_type, has concept_id "rdp_repurchases";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_open_market_purchases";
+
+match $c isa rdp_payment_type, has concept_id "rdp_redemptions";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_redemptions";
+
+match $c isa rdp_payment_type, has concept_id "rdp_acquisitions";
+insert $c has target_entity_type "rp_provision", has target_entity_attribute "rdp_includes_defeasance";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INTERCOMPANY_RECIPIENT_TYPE → intercompany_dividend_permission booleans
+# Question: rp_b1 "Which entities may receive unrestricted intercompany dividends?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa intercompany_recipient_type, has concept_id "icr_borrower";
+insert $c has target_entity_type "intercompany_dividend_permission", has target_entity_attribute "permits_to_borrower";
+
+match $c isa intercompany_recipient_type, has concept_id "icr_guarantor";
+insert $c has target_entity_type "intercompany_dividend_permission", has target_entity_attribute "permits_to_guarantors";
+
+match $c isa intercompany_recipient_type, has concept_id "icr_holdings";
+insert $c has target_entity_type "intercompany_dividend_permission", has target_entity_attribute "permits_to_holdings";
+
+match $c isa intercompany_recipient_type, has concept_id "icr_non_guarantor_sub";
+insert $c has target_entity_type "intercompany_dividend_permission", has target_entity_attribute "permits_to_non_guarantor_subs";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUILDER_REDUCTION_TYPE → builder_basket booleans
+# Question: rp_f8 "Which uses reduce the Cumulative Amount?"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $c isa builder_reduction_type, has concept_id "br_investments";
+insert $c has target_entity_type "builder_basket", has target_entity_attribute "reduced_by_investment_usage";
+
+match $c isa builder_reduction_type, has concept_id "br_dividends";
+insert $c has target_entity_type "builder_basket", has target_entity_attribute "reduced_by_rp_usage";
+
+match $c isa builder_reduction_type, has concept_id "br_rdp";
+insert $c has target_entity_type "builder_basket", has target_entity_attribute "reduced_by_rdp_usage";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRANSACTION_COST_TYPE — no direct entity boolean mapping
+# These describe categories of permitted transaction costs (acquisition, disposition,
+# financing, IPO) that don't map to booleans on any entity.
+# Remain as Channel 2 concept_applicability selections.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# SKIPPED: tct_acquisition, tct_disposition, tct_financing, tct_ipo
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# J.CREW CONCEPT TYPES (from jcrew_concepts_seed.tql)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── BLOCKER_PROHIBITION_TYPE → jcrew_blocker booleans ────────────────────────
+# Question: jc_t1_3 "What specific types of transactions are prohibited?"
+
+match $c isa blocker_prohibition_type, has concept_id "bp_transfer";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_sale";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_sale";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_contribution";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_contribution_to_capital";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_ownership";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_transfer";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_exclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_exclusive_licensing";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_nonexclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_nonexclusive_licensing";
+
+# bp_any_license covers both exclusive and nonexclusive — map to exclusive
+# (stronger prohibition). Storage layer should also set covers_nonexclusive_licensing.
+match $c isa blocker_prohibition_type, has concept_id "bp_any_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_exclusive_licensing";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_pledge";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_pledge";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_abandonment";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_abandonment";
+
+match $c isa blocker_prohibition_type, has concept_id "bp_sublicense_grant";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_licenses_granted";
+
+# ── BLOCKER_CARVEOUT_TYPE — SKIPPED ──────────────────────────────────────────
+# These map to blocker_exception entity subtypes (already Channel 3).
+# Entity existence IS the answer — no boolean mapping needed.
+# co_ordinary_course, co_fair_value, co_arms_length, co_tax_planning,
+# co_intercompany_reorg, co_permitted_asset_sale, co_permitted_investment,
+# co_de_minimis, co_non_material_assets, co_non_material
+
+# ── COVERED_ENTITY_TYPE → jcrew_blocker booleans ────────────────────────────
+# Question: jc_t1_29 "Which entities are covered by the blocker?"
+# Overlaps with blocker_binding_entity but uses different concept_ids.
+
+match $c isa covered_entity_type, has concept_id "ce_loan_parties";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_loan_parties";
+
+match $c isa covered_entity_type, has concept_id "ce_borrower_only";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_borrower_only";
+
+match $c isa covered_entity_type, has concept_id "ce_guarantors";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_loan_parties";
+
+match $c isa covered_entity_type, has concept_id "ce_all_restricted_subs";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_restricted_subs";
+
+match $c isa covered_entity_type, has concept_id "ce_all_group_members";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "binds_holdings";
+
+# ── PROTECTED_ASSET_TYPE → jcrew_blocker booleans ────────────────────────────
+# Question: jc_t1_30 "What types of assets are protected?"
+
+match $c isa protected_asset_type, has concept_id "at_registered_ip";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_ip";
+
+match $c isa protected_asset_type, has concept_id "at_all_ip";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_ip";
+
+match $c isa protected_asset_type, has concept_id "at_material_ip";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_material_assets";
+
+match $c isa protected_asset_type, has concept_id "at_material_assets";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_material_assets";
+
+# at_collateral: no direct boolean on jcrew_blocker — remains Channel 2 only.
+# SKIPPED: at_collateral
+
+# ── INVESTMENT_BASKET_TYPE — SKIPPED ─────────────────────────────────────────
+# These map to entity existence (investment_pathway subtypes), not booleans.
+# ib_dedicated_unsub, ib_general_investment, ib_builder_available,
+# ib_ratio_based, ib_catch_all
+
+# ── DESIGNATION_CONDITION_TYPE → unsub_designation booleans ──────────────────
+# Question: jc_t1_32 "What conditions are required for unsub designation?"
+
+match $c isa designation_condition_type, has concept_id "dc_no_default";
+insert $c has target_entity_type "unsub_designation", has target_entity_attribute "requires_no_default";
+
+match $c isa designation_condition_type, has concept_id "dc_board_resolution";
+insert $c has target_entity_type "unsub_designation", has target_entity_attribute "requires_board_approval";
+
+# dc_dollar_cap and dc_ebitda_pct_cap map to numeric attributes (dollar_cap_usd,
+# pct_cap_assets) not booleans. The concept selection indicates the condition
+# EXISTS, but the actual value is captured separately. Map to the attribute
+# name for the storage layer to interpret as "this attribute should be populated".
+match $c isa designation_condition_type, has concept_id "dc_dollar_cap";
+insert $c has target_entity_type "unsub_designation", has target_entity_attribute "dollar_cap_usd";
+
+match $c isa designation_condition_type, has concept_id "dc_ebitda_pct_cap";
+insert $c has target_entity_type "unsub_designation", has target_entity_attribute "pct_cap_assets";
+
+# dc_pro_forma_ratio: no direct entity boolean on unsub_designation.
+# dc_no_material_ip: no direct entity boolean on unsub_designation.
+# These remain as Channel 2 concept_applicability selections for now.
+# SKIPPED: dc_pro_forma_ratio, dc_no_material_ip
+
+# ── IP_INCLUSION_TYPE → jcrew_blocker booleans ───────────────────────────────
+# Question: jc_t2_2 "Which IP types are included in the definition?"
+# Same target entity as ip_type but different concept_ids.
+
+match $c isa ip_inclusion_type, has concept_id "ipi_patents";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_patents";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_trademarks";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_trademarks";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_copyrights";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_copyrights";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_trade_secrets";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_trade_secrets";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_know_how";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_know_how";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_software";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_software";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_domain_names";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_domain_names";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_licenses_in";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_licenses_received";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_customer_data";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_customer_data";
+
+match $c isa ip_inclusion_type, has concept_id "ipi_databases";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_customer_data";
+
+# ── TRANSFER_INCLUSION_TYPE → jcrew_blocker booleans ─────────────────────────
+# Question: jc_t2_8 "Which transfer types are included in the definition?"
+# Same target entity as transfer_type but different concept_ids.
+
+match $c isa transfer_inclusion_type, has concept_id "tri_assignment";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_assignment";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_sale";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_sale";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_contribution";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_contribution_to_capital";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_exclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_exclusive_licensing";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_nonexclusive_license";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_nonexclusive_licensing";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_pledge";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_pledge";
+
+match $c isa transfer_inclusion_type, has concept_id "tri_abandonment";
+insert $c has target_entity_type "jcrew_blocker", has target_entity_attribute "covers_abandonment";
+
+# ── MATERIAL_DEFINITION_METHOD → materiality_definition booleans ─────────────
+# Question: jc_t2_14 "How is 'Material' defined?"
+
+match $c isa material_definition_method, has concept_id "mdm_dollar_threshold";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_dollar_threshold";
+
+match $c isa material_definition_method, has concept_id "mdm_pct_revenue";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_percentage_threshold";
+
+match $c isa material_definition_method, has concept_id "mdm_board_determination";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "determined_by_board";
+
+match $c isa material_definition_method, has concept_id "mdm_scheduled_list";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "enumerated_on_schedule";
+
+match $c isa material_definition_method, has concept_id "mdm_subjective_good_faith";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "is_subjective";
+
+match $c isa material_definition_method, has concept_id "mdm_negative_definition";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "defined_negatively";
+
+# ── MATERIAL_THRESHOLD_BASIS → materiality_definition booleans ───────────────
+# Question: jc_t2_15 "What basis is used for the materiality threshold?"
+
+match $c isa material_threshold_basis, has concept_id "tb_book_value";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_dollar_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_fair_market_value";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_dollar_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_pct_total_assets";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_percentage_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_revenue";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_percentage_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_ebitda";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_percentage_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_replacement_cost";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_dollar_threshold";
+
+match $c isa material_threshold_basis, has concept_id "tb_board_good_faith";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "determined_by_board";
+
+match $c isa material_threshold_basis, has concept_id "tb_independent_appraisal";
+insert $c has target_entity_type "materiality_definition", has target_entity_attribute "has_dollar_threshold";
