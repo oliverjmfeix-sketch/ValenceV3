@@ -4,6 +4,10 @@
 # TypeDB 3.x schema functions for Restricted Payments gap/evidence analysis.
 # Loaded in a SCHEMA transaction by init_schema.py.
 #
+# Return types use generic analysis_* attributes defined in schema_unified.tql
+# (analysis_category, analysis_detail, analysis_value, analysis_flag) plus
+# real entity attributes where applicable (pathway_source_type, etc.).
+#
 # 4 functions:
 #   1. blocker_binding_gap_evidence  — J.Crew blocker coverage gaps
 #   2. blocker_exception_swallow_evidence — exceptions that neutralize blockers
@@ -15,9 +19,9 @@ define
 
 # ─── 1. BLOCKER BINDING GAP EVIDENCE ─────────────────────────────────────────
 # Returns each blocker boolean that is false (= gap in coverage).
-# Each row = (gap_category, gap_name).
+# Each row = (analysis_category, analysis_detail).
 
-fun blocker_binding_gap_evidence($prov_id: string) -> { gap_category, gap_name }:
+fun blocker_binding_gap_evidence($prov_id: string) -> { analysis_category, analysis_detail }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
@@ -107,9 +111,9 @@ fun blocker_binding_gap_evidence($prov_id: string) -> { gap_category, gap_name }
 
 # ─── 2. BLOCKER EXCEPTION SWALLOW EVIDENCE ───────────────────────────────────
 # Returns each exception attached to the blocker.
-# Each row = (exception_type, exception_name, scope_limitation).
+# Each row = (analysis_category, exception_name, scope_limitation).
 
-fun blocker_exception_swallow_evidence($prov_id: string) -> { exception_type, ename, scope }:
+fun blocker_exception_swallow_evidence($prov_id: string) -> { analysis_category, exception_name, scope_limitation }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
@@ -140,9 +144,9 @@ fun blocker_exception_swallow_evidence($prov_id: string) -> { exception_type, en
 
 # ─── 3. UNSUB DISTRIBUTION EVIDENCE ──────────────────────────────────────────
 # Returns key boolean attributes from the unsub distribution basket.
-# Each row = (attr_name, attr_value).
+# Each row = (analysis_detail, analysis_flag).
 
-fun unsub_distribution_evidence($prov_id: string) -> { attr_name, attr_value }:
+fun unsub_distribution_evidence($prov_id: string) -> { analysis_detail, analysis_flag }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
@@ -169,9 +173,9 @@ fun unsub_distribution_evidence($prov_id: string) -> { attr_name, attr_value }:
 
 # ─── 4. PATHWAY CHAIN SUMMARY ────────────────────────────────────────────────
 # Returns all investment pathways: source → target with capacity info.
-# Each row = (source_type, target_type, cap_usd, is_uncapped).
+# Each row = (pathway_source_type, pathway_target_type, cap_dollar_usd, is_uncapped).
 
-fun pathway_chain_summary($prov_id: string) -> { source_type, target_type, cap_usd, uncapped }:
+fun pathway_chain_summary($prov_id: string) -> { pathway_source_type, pathway_target_type, cap_dollar_usd, is_uncapped }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;

@@ -76,6 +76,15 @@ attribute source_section, value string;
 attribute section_reference, value string;
 attribute confidence, value string;              # high | medium | low
 
+# ─── Analysis function return types ──────────────────────────────────────────
+# Generic attributes used as return columns in rp_analysis_functions.tql.
+# Not owned by any entity — exist solely for function return type declarations.
+
+attribute analysis_category, value string;
+attribute analysis_detail, value string;
+attribute analysis_value, value string;
+attribute analysis_flag, value boolean;
+
 # ─── Question metadata ───────────────────────────────────────────────────────
 
 attribute question_text, value string;
@@ -1272,6 +1281,7 @@ entity ip_type sub concept,
 entity transfer_type sub concept;
 entity blocker_binding_entity sub concept;
 entity blocker_timing sub concept;
+redefine blocker_timing owns target_entity_attribute @card(0..);
 entity investment_basket sub concept;
 entity default_type sub concept;
 entity reallocation_target sub concept;
