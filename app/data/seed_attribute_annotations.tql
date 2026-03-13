@@ -160,15 +160,15 @@ insert (question: $q) isa question_annotates_attribute,
 
 # ── Reallocation Annotations ───────────────────────────────────────────────
 # These annotate reallocation paths, keyed by source basket name.
-# target_entity_type = "reallocation" (pseudo-type for the graph_reader)
+# target_entity_type = "basket_reallocation"
 # target_attribute_name = the source basket identifier (e.g., "rdp", "investment")
 
 match $q isa ontology_question, has question_id "rp_i3";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "reallocation",
+    has target_entity_type "basket_reallocation",
     has target_attribute_name "rdp";
 
 match $q isa ontology_question, has question_id "rp_i5";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "reallocation",
+    has target_entity_type "basket_reallocation",
     has target_attribute_name "investment";

@@ -159,6 +159,47 @@ class GraphStorage:
 
         return None
 
+    _attr_value_type_cache: Dict[str, Dict[str, str]] = {}
+
+    @classmethod
+    def get_attr_value_types(cls, entity_type: str) -> Dict[str, str]:
+        """Get {attr_name: value_type} for all attributes owned by an entity type. Cached.
+
+        Returns value types like 'string', 'boolean', 'long', 'double', 'datetime'.
+        Used to coerce Claude's output to match schema expectations.
+        """
+        if entity_type in cls._attr_value_type_cache:
+            return cls._attr_value_type_cache[entity_type]
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        db_name = settings.typedb_database
+        result = {}
+        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        try:
+            query = f"""
+                match $et label {entity_type}; $et owns $attr;
+                select $attr;
+            """
+            for row in tx.query(query).resolve().as_concept_rows():
+                attr_type = row.get("attr").as_attribute_type()
+                attr_name = attr_type.get_label()
+                try:
+                    vt = attr_type.get_value_type()
+                    result[attr_name] = str(vt).lower() if vt else "string"
+                except Exception:
+                    result[attr_name] = "string"
+        except Exception as e:
+            logger.error(f"Failed to get attr value types for {entity_type}: {e}")
+        finally:
+            if tx.is_open():
+                tx.close()
+
+        cls._attr_value_type_cache[entity_type] = result
+        return result
+
     @staticmethod
     def _get_attr(row, key: str, default=None):
         """Safely get attribute value from TypeDB row."""
@@ -948,6 +989,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         # Add provenance attrs to allowed set
         allowed_fields |= self.PROVENANCE_ATTRS
 
+        # Get expected value types from schema for type coercion
+        attr_types = self.get_attr_value_types(actual_type)
+
         for field_name, value in item.items():
             if field_name == "type":
                 continue  # Discriminator, not an attribute
@@ -956,12 +1000,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             if value is None:
                 continue
 
-            if isinstance(value, bool):
-                attrs.append(f'has {field_name} {str(value).lower()}')
-            elif isinstance(value, (int, float)):
-                attrs.append(f'has {field_name} {value}')
-            elif isinstance(value, str):
-                attrs.append(f'has {field_name} "{self._escape(value[:2000])}"')
+            formatted = self._format_tql_value(value, attr_types.get(field_name))
+            if formatted is not None:
+                attrs.append(f'has {field_name} {formatted}')
 
         attrs_str = ",\n                ".join(attrs)
 
@@ -1607,6 +1648,48 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 (provision: $prov, exemption: $ex) isa provision_has_sweep_exemption;
         '''
         self._execute_query(query)
+
+    def _format_tql_value(self, value, schema_type: Optional[str] = None) -> Optional[str]:
+        """Format a Python value as a TypeQL literal, coercing to match schema type.
+
+        If schema_type is known, coerces mismatches (e.g., bool→string, int→double).
+        Returns the formatted string or None if the value can't be represented.
+        """
+        if value is None:
+            return None
+
+        # Schema-aware coercion
+        if schema_type:
+            st = schema_type.lower()
+            if st == "string":
+                # Coerce any type to string
+                if isinstance(value, bool):
+                    return f'"{str(value).lower()}"'
+                return f'"{self._escape(str(value)[:2000])}"'
+            elif st == "boolean":
+                if isinstance(value, str):
+                    return value.lower() in ("true", "yes", "1") and "true" or "false"
+                return str(bool(value)).lower()
+            elif st in ("double", "long"):
+                if isinstance(value, bool):
+                    return str(int(value))
+                if isinstance(value, str):
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        return None
+                if st == "double" and isinstance(value, int):
+                    return str(float(value))
+                return str(value)
+
+        # No schema type — use Python type inference
+        if isinstance(value, bool):
+            return str(value).lower()
+        elif isinstance(value, (int, float)):
+            return str(value)
+        elif isinstance(value, str):
+            return f'"{self._escape(value[:2000])}"'
+        return None
 
     def _escape(self, text: str) -> str:
         """Escape text for TypeQL string."""
