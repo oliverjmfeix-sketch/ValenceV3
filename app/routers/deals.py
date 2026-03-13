@@ -746,11 +746,11 @@ async def run_extraction(deal_id: str, pdf_path: str):
         )
 
         answers_stored = v4_result.storage_result.get("answers_stored", 0)
-        entities_stored = v4_result.storage_result.get("baskets_created", 0)
+        entities_stored = v4_result.storage_result.get("entities_created", 0)
 
         logger.info(
             f"V4 unified extraction for {deal_id}: "
-            f"{answers_stored} answers, {entities_stored} baskets "
+            f"{answers_stored} answers, {entities_stored} entities "
             f"in {v4_result.extraction_time_seconds:.1f}s"
         )
 

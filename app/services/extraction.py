@@ -2400,113 +2400,6 @@ If no entities of this type exist, return: {{"entities": []}}
         )
 
     # =========================================================================
-    # V4 GRAPH-NATIVE EXTRACTION
-    # =========================================================================
-
-    async def extract_rp_v4(
-        self,
-        pdf_path: str,
-        deal_id: str,
-        model: Optional[str] = None
-    ) -> 'ExtractionResultV4':
-        """
-        V4 Graph-Native RP extraction pipeline.
-
-        1. Parse PDF
-        2. Extract RP Universe (same as V3)
-        3. Load extraction metadata from TypeDB (SSoT)
-        4. Build Claude prompt with metadata + JSON schema
-        5. Call Claude, parse into RPExtractionV4 Pydantic model
-        6. Store as graph entities and relations
-
-        Returns:
-            ExtractionResultV4 with typed extraction and storage results
-        """
-        from app.services.graph_storage import GraphStorage
-        from app.schemas.extraction_output_v4 import RPExtractionV4
-
-        start_time = time.time()
-        model = model or settings.claude_model
-
-        # Step 1: Parse PDF
-        logger.info(f"V4 Extraction starting for deal {deal_id}")
-        document_text = self.parse_document(pdf_path)
-
-        # Step 2: Extract RP Universe (reuse existing logic)
-        logger.info("Step 2: Extracting RP Universe...")
-        rp_universe = self.extract_rp_universe(document_text)
-        universe_chars = len(rp_universe.raw_text)
-        logger.info(f"RP Universe extracted: {universe_chars} chars")
-
-        if universe_chars < 1000:
-            logger.warning("RP Universe extraction yielded minimal content")
-
-        # Step 3: Load extraction metadata from TypeDB (SSoT)
-        logger.info("Step 3: Loading extraction metadata from TypeDB...")
-        metadata = GraphStorage.load_extraction_metadata()
-        logger.info(f"Loaded {len(metadata)} extraction instructions")
-
-        # Step 4: Build Claude prompt
-        logger.info("Step 4: Building V4 Claude prompt...")
-        prompt = GraphStorage.build_claude_prompt(metadata, rp_universe.raw_text)
-        logger.info(f"Prompt built: {len(prompt)} chars")
-
-        # Step 5: Call Claude
-        logger.info(f"Step 5: Calling Claude ({model})...")
-        response_text = self._call_claude_v4(prompt, model)
-        logger.info(f"Response received: {len(response_text)} chars")
-
-        # Collect cost tracking
-        from app.services.cost_tracker import ExtractionCostSummary
-        cost_summary = ExtractionCostSummary(deal_id=deal_id)
-        # Add segmentation streaming usage(s) from extract_rp_universe
-        for usage in getattr(self, '_streaming_usages', []):
-            usage.deal_id = deal_id
-            cost_summary.add(usage)
-        self._streaming_usages = []
-        if getattr(self, '_last_v4_usage', None):
-            self._last_v4_usage.deal_id = deal_id
-            cost_summary.add(self._last_v4_usage)
-
-        # Step 6: Parse response into Pydantic model
-        logger.info("Step 6: Parsing response...")
-        extraction = GraphStorage.parse_claude_response(response_text)
-
-        # Create storage instance and summarize
-        storage = GraphStorage(deal_id)
-        summary = storage.summarize_extraction(extraction)
-        logger.info(f"Parsed extraction: {summary}")
-
-        # Step 7: Store in TypeDB
-        logger.info("Step 7: Storing V4 extraction to TypeDB...")
-        storage_result = storage.store_rp_extraction_v4(extraction)
-        logger.info(f"Storage complete: {storage_result}")
-
-        extraction_time = time.time() - start_time
-        logger.info(f"V4 Extraction complete in {extraction_time:.1f}s")
-
-        cost_summary.log_summary()
-
-        return ExtractionResultV4(
-            deal_id=deal_id,
-            extraction=extraction,
-            storage_result=storage_result,
-            extraction_time_seconds=extraction_time,
-            rp_universe_chars=universe_chars,
-            model_used=model,
-            total_cost_usd=round(cost_summary.total_cost_usd, 4),
-            cost_breakdown={
-                "num_api_calls": len(cost_summary.steps),
-                "total_input_tokens": cost_summary.total_input_tokens,
-                "total_output_tokens": cost_summary.total_output_tokens,
-                "steps": [
-                    {"step": s.step, "model": s.model, "cost_usd": round(s.cost_usd, 4)}
-                    for s in cost_summary.steps
-                ],
-            },
-        )
-
-    # =========================================================================
     # V4 UNIFIED EXTRACTION (single Claude call for entities + answers)
     # =========================================================================
 
@@ -2539,10 +2432,11 @@ RULES:
         model: Optional[str] = None,
     ) -> 'ExtractionResultV4':
         """
-        V4 Unified extraction pipeline — single Claude call for entities + flat answers.
+        V4 Unified extraction pipeline — single Claude call, unified answer format.
 
-        Replaces the old per-category extraction loop (10-24 Claude calls)
-        with a single call that produces typed entities AND provision_has_answer records.
+        ALL answers (scalar, multiselect, entity_list) flow through one
+        {"answers": [...]} response format. Entity field lists come from
+        TypeDB schema introspection.
 
         After the main call, runs JC Tiers 2 & 3 separately (different context needed).
 
@@ -2557,18 +2451,14 @@ RULES:
             ExtractionResultV4 with extraction, storage results, and cost data
         """
         from app.services.graph_storage import GraphStorage
-        from app.schemas.extraction_output_v4 import RPExtractionV4
 
         start_time = time.time()
         model = model or settings.claude_model
         universe_chars = len(rp_universe.raw_text)
 
-        # Step 1: Load extraction metadata from TypeDB (SSoT)
         logger.info(f"Unified V4 extraction starting for deal {deal_id}")
-        metadata = GraphStorage.load_extraction_metadata()
-        logger.info(f"Loaded {len(metadata)} extraction metadata instructions")
 
-        # Step 2: Load all RP questions (including JC1, excluding JC2/JC3)
+        # Step 1: Load all RP questions (scalar/multiselect, via category_has_question)
         all_questions = self.load_questions_by_category("RP")
 
         # JC1 goes into the unified call (same RP universe context).
@@ -2576,19 +2466,24 @@ RULES:
         jc2_questions = all_questions.pop("JC2", [])
         jc3_questions = all_questions.pop("JC3", [])
 
-        total_questions = sum(len(qs) for qs in all_questions.values())
+        # Step 2: Load entity_list questions (separate — no category relations)
+        entity_list_questions = self._load_entity_list_questions("RP")
+
+        total_scalar = sum(len(qs) for qs in all_questions.values())
         logger.info(
-            f"Loaded {total_questions} questions for unified call "
-            f"({len(all_questions)} categories, JC2={len(jc2_questions)}, JC3={len(jc3_questions)} deferred)"
+            f"Loaded {total_scalar} scalar/multiselect questions "
+            f"({len(all_questions)} categories), "
+            f"{len(entity_list_questions)} entity_list questions, "
+            f"JC2={len(jc2_questions)}, JC3={len(jc3_questions)} deferred"
         )
 
-        # Step 3: Build unified prompt (entities + questions)
+        # Step 3: Build unified prompt (scalar + entity_list questions)
         prompt = GraphStorage.build_claude_prompt(
-            metadata, rp_universe.raw_text, questions=all_questions
+            all_questions, entity_list_questions, rp_universe.raw_text
         )
         logger.info(f"Unified prompt built: {len(prompt)} chars")
 
-        # Step 4: Call Claude (single call for entities + all RP/JC1 answers)
+        # Step 4: Call Claude (single call for all answers)
         logger.info(f"Calling Claude ({model}) for unified extraction...")
         response_text = self._call_claude_v4_unified(prompt, model, deal_id)
         logger.info(f"Response received: {len(response_text)} chars")
@@ -2596,7 +2491,6 @@ RULES:
         # Collect cost tracking
         from app.services.cost_tracker import ExtractionCostSummary
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
-        # Add segmentation streaming usage(s) from extract_rp_universe
         for usage in getattr(self, '_streaming_usages', []):
             usage.deal_id = deal_id
             cost_summary.add(usage)
@@ -2605,20 +2499,21 @@ RULES:
             self._last_v4_usage.deal_id = deal_id
             cost_summary.add(self._last_v4_usage)
 
-        # Step 5: Parse response into Pydantic model
+        # Step 5: Parse response into ExtractionResponse
         logger.info("Parsing unified response...")
-        extraction = GraphStorage.parse_claude_response(response_text)
-        logger.info(
-            f"Parsed: {len(extraction.answers)} answers, "
-            f"builder={extraction.builder_basket is not None}, "
-            f"ratio={extraction.ratio_basket is not None}, "
-            f"blocker={extraction.jcrew_blocker is not None}"
-        )
+        extraction = GraphStorage.parse_extraction_response(response_text)
 
-        # Step 6: Store in TypeDB (entities + answers in one pass)
+        # Count answer types for logging
+        entity_count = sum(1 for a in extraction.answers if a.answer_type == "entity_list")
+        scalar_count = len(extraction.answers) - entity_count
+        logger.info(f"Parsed: {scalar_count} scalar/multiselect, {entity_count} entity_list answers")
+
+        # Step 6: Ensure provision exists, then store
         storage = GraphStorage(deal_id)
+        provision_id = f"{deal_id}_rp"
+        storage._ensure_rp_provision_v4(provision_id)
         logger.info("Storing unified extraction to TypeDB...")
-        storage_result = storage.store_rp_extraction_v4(extraction, deal_id=deal_id)
+        storage_result = storage.store_extraction(deal_id, provision_id, extraction)
         logger.info(f"Storage complete: {storage_result}")
 
         # Step 7: Run JC Tiers 2 & 3 (separate Claude calls — different context)
@@ -2804,34 +2699,70 @@ RULES:
             "elapsed_seconds": round(elapsed, 1),
         }
 
-    def _call_claude_v4(self, prompt: str, model: str) -> str:
-        """Call Claude API for V4 structured extraction (entity-only, legacy)."""
-        from app.services.cost_tracker import extract_usage
+    def _load_entity_list_questions(self, covenant_type: str) -> List[Dict]:
+        """Load entity_list questions from TypeDB (no category relations).
+
+        These questions have answer_type "entity_list" and include
+        target_entity_type and target_relation_type attributes.
+        """
+        if not typedb_client.driver:
+            logger.warning("TypeDB not connected")
+            return []
+
         try:
-            start = time.time()
-            response = self.client.messages.create(
-                model=model,
-                max_tokens=8192,
-                system=self._V4_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
-                timeout=300.0  # 5 minute timeout for extraction
+            from typedb.driver import TransactionType
+            tx = typedb_client.driver.transaction(
+                settings.typedb_database, TransactionType.READ
             )
-            duration = time.time() - start
-            self._last_v4_usage = extract_usage(
-                response, model, "rp_extraction", deal_id=None, duration=duration
-            )
-            return response.content[0].text
+            try:
+                query = f"""
+                    match
+                        $q isa ontology_question,
+                            has question_id $qid,
+                            has question_text $qt,
+                            has answer_type "entity_list",
+                            has covenant_type "{covenant_type}",
+                            has target_entity_type $tet,
+                            has target_relation_type $trt,
+                            has display_order $order;
+                    select $qid, $qt, $tet, $trt, $order;
+                """
+                result = tx.query(query).resolve()
+                questions = []
+                for row in result.as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
+                    if not qid:
+                        continue
+                    q = {
+                        "question_id": qid,
+                        "question_text": _safe_get_value(row, "qt", ""),
+                        "answer_type": "entity_list",
+                        "target_entity_type": _safe_get_value(row, "tet", ""),
+                        "target_relation_type": _safe_get_value(row, "trt", ""),
+                        "display_order": _safe_get_value(row, "order", 0),
+                    }
+
+                    # Load extraction_prompt if available
+                    prompt = self._get_extraction_prompt(tx, qid)
+                    if prompt:
+                        q["extraction_prompt"] = prompt
+
+                    questions.append(q)
+
+                logger.info(f"Loaded {len(questions)} entity_list questions for {covenant_type}")
+                return questions
+            finally:
+                tx.close()
         except Exception as e:
-            logger.error(f"Claude API error: {e}")
-            self._last_v4_usage = None
-            raise
+            logger.error(f"Error loading entity_list questions: {e}")
+            return []
 
 
 @dataclass
 class ExtractionResultV4:
     """Result of V4 graph-native extraction."""
     deal_id: str
-    extraction: Any  # RPExtractionV4
+    extraction: Any  # ExtractionResponse
     storage_result: Dict[str, Any]
     extraction_time_seconds: float
     rp_universe_chars: int
