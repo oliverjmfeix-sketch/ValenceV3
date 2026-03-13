@@ -69,30 +69,27 @@ class GraphStorage:
 
     @classmethod
     def _introspect_entity_type(cls, tx, entity_type: str) -> Dict[str, Any]:
-        """Introspect a single entity type in a schema transaction."""
-        # Get @key attributes
-        key_attrs = set()
-        try:
-            key_query = f"""
-                match entity $et type {entity_type}; $et owns $attr_type @key;
-                select $attr_type;
-            """
-            for row in tx.query(key_query).resolve().as_concept_rows():
-                key_attrs.add(row.get("attr_type").as_attribute_type().get_label())
-        except Exception:
-            pass
+        """Introspect a single entity type in a schema transaction.
 
+        TypeDB 3.x notes:
+        - Use `$et label X` or `$et sub X` (not `entity $et type X`)
+        - @key cannot be queried in match (QueryingAnnotations not implemented)
+        - Key attrs identified by *_id suffix convention
+        """
         # Get all owned attributes
         all_attrs = set()
         try:
             all_query = f"""
-                match entity $et type {entity_type}; $et owns $attr_type;
+                match $et label {entity_type}; $et owns $attr_type;
                 select $attr_type;
             """
             for row in tx.query(all_query).resolve().as_concept_rows():
                 all_attrs.add(row.get("attr_type").as_attribute_type().get_label())
         except Exception:
             pass
+
+        # @key querying not implemented in TypeDB 3.x — identify by *_id convention
+        key_attrs = {a for a in all_attrs if a.endswith("_id")}
 
         # Extractable = all - key - provenance
         extractable = sorted(all_attrs - key_attrs - cls.PROVENANCE_ATTRS)
@@ -101,8 +98,8 @@ class GraphStorage:
         subtypes = {}
         try:
             sub_query = f"""
-                match entity $sub sub {entity_type};
-                not {{ $sub type {entity_type}; }};
+                match $sub sub {entity_type};
+                not {{ $sub label {entity_type}; }};
                 select $sub;
             """
             sub_rows = list(tx.query(sub_query).resolve().as_concept_rows())
@@ -130,7 +127,11 @@ class GraphStorage:
 
     @classmethod
     def get_key_attr_for_entity(cls, entity_type: str) -> Optional[str]:
-        """Get the @key attribute name for an entity type. Cached."""
+        """Get the @key attribute name for an entity type. Cached.
+
+        TypeDB 3.x doesn't support querying @key annotations in match clauses.
+        We query all owned attrs and identify the key by *_id suffix convention.
+        """
         if entity_type in cls._key_attr_cache:
             return cls._key_attr_cache[entity_type]
 
@@ -142,13 +143,14 @@ class GraphStorage:
         tx = driver.transaction(db_name, TransactionType.SCHEMA)
         try:
             query = f"""
-                match entity $et type {entity_type}; $et owns $attr @key;
+                match $et label {entity_type}; $et owns $attr;
                 select $attr;
             """
             for row in tx.query(query).resolve().as_concept_rows():
-                key_name = row.get("attr").as_attribute_type().get_label()
-                cls._key_attr_cache[entity_type] = key_name
-                return key_name
+                attr_name = row.get("attr").as_attribute_type().get_label()
+                if attr_name.endswith("_id"):
+                    cls._key_attr_cache[entity_type] = attr_name
+                    return attr_name
         except Exception as e:
             logger.error(f"Failed to get @key for {entity_type}: {e}")
         finally:
