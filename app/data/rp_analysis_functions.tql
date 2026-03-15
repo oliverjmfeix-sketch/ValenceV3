@@ -112,33 +112,14 @@ fun blocker_binding_gap_evidence($prov_id: string) -> { string, string }:
 # Returns each exception attached to the blocker.
 # Each row = (exception_type: string, exception_name: string, scope: string).
 
-fun blocker_exception_swallow_evidence($prov_id: string) -> { string, exception_name }:
+fun blocker_exception_swallow_evidence($prov_id: string) -> { exception_name }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
         (provision: $p, blocker: $b) isa provision_has_blocker;
         (blocker: $b, exception: $ex) isa blocker_has_exception;
         $ex has exception_name $ename;
-        {
-            $ex isa nonexclusive_license_exception;
-            let $et = "nonexclusive_license";
-        } or {
-            $ex isa intercompany_exception;
-            let $et = "intercompany";
-        } or {
-            $ex isa immaterial_ip_exception;
-            let $et = "immaterial_ip";
-        } or {
-            $ex isa fair_value_exception;
-            let $et = "fair_value";
-        } or {
-            $ex isa ordinary_course_exception;
-            let $et = "ordinary_course";
-        } or {
-            $ex isa license_back_exception;
-            let $et = "license_back";
-        };
-    return { $et, $ename };
+    return { $ename };
 
 # ─── 3. UNSUB DISTRIBUTION EVIDENCE ──────────────────────────────────────────
 # Returns key boolean attributes from the unsub distribution basket.
