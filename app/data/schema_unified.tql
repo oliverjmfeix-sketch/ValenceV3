@@ -1255,7 +1255,7 @@ entity concept @abstract,
     owns description,
     owns display_order,
     owns target_entity_type,
-    owns target_entity_attribute,
+    owns target_entity_attribute @card(0..),
     plays concept_applicability:concept,
     plays concept_hierarchy:parent,
     plays concept_hierarchy:child;

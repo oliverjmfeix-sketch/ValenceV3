@@ -112,14 +112,13 @@ fun blocker_binding_gap_evidence($prov_id: string) -> { string, string }:
 # Returns each exception attached to the blocker.
 # Each row = (exception_type: string, exception_name: string, scope: string).
 
-fun blocker_exception_swallow_evidence($prov_id: string) -> { string, string, string }:
+fun blocker_exception_swallow_evidence($prov_id: string) -> { string, exception_name }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
         (provision: $p, blocker: $b) isa provision_has_blocker;
         (blocker: $b, exception: $ex) isa blocker_has_exception;
         $ex has exception_name $ename;
-        try { $ex has scope_limitation $scope; };
         {
             $ex isa nonexclusive_license_exception;
             let $et = "nonexclusive_license";
@@ -139,48 +138,63 @@ fun blocker_exception_swallow_evidence($prov_id: string) -> { string, string, st
             $ex isa license_back_exception;
             let $et = "license_back";
         };
-    return { $et, $ename, $scope };
+    return { $et, $ename };
 
 # ─── 3. UNSUB DISTRIBUTION EVIDENCE ──────────────────────────────────────────
 # Returns key boolean attributes from the unsub distribution basket.
 # Each row = (attr_name: string, attr_value: boolean).
 
-fun unsub_distribution_evidence($prov_id: string) -> { string, boolean }:
+fun unsub_distribution_evidence($prov_id: string) -> { string, string }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
         (provision: $p, basket: $b) isa provision_has_basket;
         $b isa unsub_distribution_basket;
         {
-            $b has is_categorical $v; let $an = "is_categorical";
+            $b has is_categorical true; let $an = "is_categorical"; let $val = "true";
         } or {
-            $b has covers_equity_interests $v; let $an = "covers_equity_interests";
+            $b has is_categorical false; let $an = "is_categorical"; let $val = "false";
         } or {
-            $b has covers_assets $v; let $an = "covers_assets";
+            $b has covers_equity_interests true; let $an = "covers_equity_interests"; let $val = "true";
         } or {
-            $b has rebuilds_builder_basket $v; let $an = "rebuilds_builder_basket";
+            $b has covers_equity_interests false; let $an = "covers_equity_interests"; let $val = "false";
         } or {
-            $b has reduces_investment_basket $v; let $an = "reduces_investment_basket";
+            $b has covers_assets true; let $an = "covers_assets"; let $val = "true";
         } or {
-            $b has distributions_can_cascade $v; let $an = "distributions_can_cascade";
+            $b has covers_assets false; let $an = "covers_assets"; let $val = "false";
         } or {
-            $b has has_anti_duplication $v; let $an = "has_anti_duplication";
+            $b has rebuilds_builder_basket true; let $an = "rebuilds_builder_basket"; let $val = "true";
         } or {
-            $b has requires_valid_designation $v; let $an = "requires_valid_designation";
+            $b has rebuilds_builder_basket false; let $an = "rebuilds_builder_basket"; let $val = "false";
+        } or {
+            $b has reduces_investment_basket true; let $an = "reduces_investment_basket"; let $val = "true";
+        } or {
+            $b has reduces_investment_basket false; let $an = "reduces_investment_basket"; let $val = "false";
+        } or {
+            $b has distributions_can_cascade true; let $an = "distributions_can_cascade"; let $val = "true";
+        } or {
+            $b has distributions_can_cascade false; let $an = "distributions_can_cascade"; let $val = "false";
+        } or {
+            $b has has_anti_duplication true; let $an = "has_anti_duplication"; let $val = "true";
+        } or {
+            $b has has_anti_duplication false; let $an = "has_anti_duplication"; let $val = "false";
+        } or {
+            $b has requires_valid_designation true; let $an = "requires_valid_designation"; let $val = "true";
+        } or {
+            $b has requires_valid_designation false; let $an = "requires_valid_designation"; let $val = "false";
         };
-    return { $an, $v };
+    return { $an, $val };
 
 # ─── 4. PATHWAY CHAIN SUMMARY ────────────────────────────────────────────────
 # Returns all investment pathways: source → target with capacity info.
 # Each row = (source: string, target: string, cap_usd: double, uncapped: boolean).
 
-fun pathway_chain_summary($prov_id: string) -> { string, string, double, boolean }:
+fun pathway_chain_summary($prov_id: string) -> { pathway_source_type, pathway_target_type, is_uncapped }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
         (provision: $p, pathway: $pw) isa provision_has_pathway;
         $pw has pathway_source_type $src;
         $pw has pathway_target_type $tgt;
-        try { $pw has cap_dollar_usd $cap; };
-        try { $pw has is_uncapped $unc; };
-    return { $src, $tgt, $cap, $unc };
+        $pw has is_uncapped $unc;
+    return { $src, $tgt, $unc };
