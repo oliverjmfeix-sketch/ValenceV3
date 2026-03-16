@@ -95,6 +95,19 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "investment_returns_source",
     has target_attribute_name "_exists";
 
+# ── Previously missing _exists annotations (existing questions) ──────────────
+# ip_definition and transfer_definition use existing JC2 questions as triggers.
+
+match $q isa ontology_question, has question_id "jc_t2_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t2_19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "_exists";
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ATTRIBUTE ANNOTATIONS FROM EXISTING RP QUESTIONS
 #

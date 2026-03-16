@@ -1485,3 +1485,96 @@ match $q isa ontology_question, has question_id "rp_k7";
 insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_contribution_to_capital";
 match $q isa ontology_question, has question_id "rp_k7";
 insert (question: $q) isa question_annotates_attribute, has target_entity_type "jcrew_blocker", has target_attribute_name "covers_non_renewal";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 5: EXISTENCE TRIGGER QUESTIONS
+#
+# These boolean questions trigger single-instance entity creation via _exists.
+# Without them, attribute-setting for these entity types silently no-ops
+# because the entity never gets created.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── general_rp_basket existence (Category N) ─────────────────────────────────
+
+insert $q_n0 isa ontology_question,
+    has question_id "rp_n0",
+    has question_text "Does the RP covenant include a general/catch-all basket?",
+    has description "Whether a general-purpose RP basket exists (not builder, ratio, or specific-purpose)",
+    has answer_type "boolean",
+    has is_required true,
+    has display_order 130,
+    has covenant_type "RP",
+    has extraction_prompt "Is there a general Restricted Payments basket that permits RPs up to a fixed dollar amount (or greater-of formula), NOT tied to builder basket, ratio test, management equity, tax distributions, or any other specific purpose? Often called 'General Basket' or appears as a catch-all numbered clause.";
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n0";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ── intercompany_dividend_permission existence (Category B) ──────────────────
+
+insert $q_b0 isa ontology_question,
+    has question_id "rp_b0",
+    has question_text "Are intercompany dividends explicitly permitted?",
+    has description "Whether the RP covenant explicitly permits upstream dividends between group entities",
+    has answer_type "boolean",
+    has is_required true,
+    has display_order 9,
+    has covenant_type "RP",
+    has extraction_prompt "Does the RP covenant or a separate section (e.g., Section 6.08) explicitly permit unrestricted upstream dividends or distributions between group entities (from Restricted Subsidiaries to the Borrower or other Loan Parties)? Answer true if intercompany dividends are permitted in any form.";
+
+match $cat isa ontology_category, has category_id "B"; $q isa ontology_question, has question_id "rp_b0";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ── materiality_definition existence (Category JC2) ─────────────────────────
+
+insert $q_jc2_30 isa ontology_question,
+    has question_id "jc_t2_30",
+    has question_text "Is 'Material' or 'Material Intellectual Property' a defined term?",
+    has description "Whether any materiality threshold for IP is defined in the agreement",
+    has answer_type "boolean",
+    has display_order 63,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 1.01 define 'Material', 'Material Intellectual Property', or any materiality threshold for IP? Answer true if any such definition exists (including cross-references). Answer false only if the term is NOT defined at all.";
+
+match $cat isa ontology_category, has category_id "JC2"; $q isa ontology_question, has question_id "jc_t2_30";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ── lien_release_mechanics existence (Category JC1) ─────────────────────────
+
+insert $q_jc1_34 isa ontology_question,
+    has question_id "jc_t1_34",
+    has question_text "Does the agreement specify lien release mechanics?",
+    has description "Whether the Security Agreement or Collateral section specifies conditions for lien release",
+    has answer_type "boolean",
+    has display_order 33,
+    has covenant_type "RP",
+    has extraction_prompt "Does the Security Agreement or Collateral section specify conditions under which the Collateral Agent releases liens on collateral? Look for any 'release of Liens' language. Answer true if lien release mechanics exist in any form (automatic or consent-based). Answer false only if no lien release provisions exist.";
+
+match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_34";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PART 6: _exists ANNOTATIONS FOR NEW QUESTIONS
+#
+# These must come after the question definitions above.
+# Triggers entity creation when the question answer is true.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $q isa ontology_question, has question_id "rp_n0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_b0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t2_30";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t1_34";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "_exists";
