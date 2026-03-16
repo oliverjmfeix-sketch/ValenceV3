@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
             logger.info("TypeDB connected")
             _ensure_db_ready()
 
-            # Warm all caches: 2 READ + 1 SCHEMA transaction total
+            # Warm all caches: 1 SCHEMA (30s timeout) first, then 2 READ
             try:
                 from app.services.graph_storage import GraphStorage
                 GraphStorage.warm_caches()

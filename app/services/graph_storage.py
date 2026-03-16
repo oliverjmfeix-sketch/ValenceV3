@@ -9,12 +9,20 @@ import logging
 import uuid
 from typing import Dict, Any, List, Optional
 from typedb.driver import TransactionType
+from typedb.api.connection.transaction_options import TransactionOptions
 
 from app.services.typedb_client import typedb_client
 from app.config import settings
 from app.schemas.extraction_response import Answer, ExtractionResponse
 
 logger = logging.getLogger(__name__)
+
+# Extended timeout for SCHEMA transactions — default 10s is too short when
+# TypeDB Cloud holds a schema lock (init_schema, internal processes, etc.)
+SCHEMA_TX_OPTIONS = TransactionOptions(
+    schema_lock_acquire_timeout_millis=30000,
+    transaction_timeout_millis=30000,
+)
 
 
 class GraphStorage:
@@ -42,29 +50,32 @@ class GraphStorage:
 
     @classmethod
     def warm_caches(cls):
-        """Warm all class-level caches at startup using READ transactions only.
+        """Warm all class-level caches at startup.
 
-        SCHEMA transactions timeout on TypeDB Cloud after prior channel activity.
-        All schema introspection uses match-only queries which work in READ mode.
+        ONE SCHEMA transaction (with extended timeout) FIRST on fresh channel,
+        then READ transactions for seed data queries.
         """
         driver = typedb_client.driver
         if not driver:
             return
 
-        # Phase 1: READ transactions (seed data queries)
-        cls._load_question_to_entity_map()
-        cls._load_concept_routing_map()
-
-        # Phase 2: ONE SCHEMA transaction for ALL schema introspection
-        schema_tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        # Phase 1: ONE SCHEMA transaction FIRST for ALL schema introspection
+        schema_tx = driver.transaction(
+            settings.typedb_database, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS
+        )
         try:
             cls._load_entity_list_types(_tx=schema_tx)
             cls._load_provenance_attrs(_tx=schema_tx)
             cls._load_entity_relation_map(_tx=schema_tx)
-            logger.info("All schema caches warmed (READ transactions only)")
+            logger.info("Schema caches warmed")
         finally:
             if schema_tx.is_open():
                 schema_tx.close()
+
+        # Phase 2: READ transactions for seed data queries
+        cls._load_question_to_entity_map()
+        cls._load_concept_routing_map()
+        logger.info("Data caches warmed")
 
     @classmethod
     def _load_provenance_attrs(cls, _tx=None) -> set:
@@ -144,7 +155,7 @@ class GraphStorage:
         # For each entity type, get all owned attributes (expanding abstract types to subtypes)
         all_attr_sets = []
         own_tx = _tx is None
-        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
+        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS)
         try:
             for et in entity_types:
                 schema_info = cls.get_entity_fields_from_schema(et, _tx=schema_tx)
@@ -198,7 +209,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS)
         try:
             result = cls._introspect_entity_type(tx, entity_type)
             cls._entity_fields_cache[entity_type] = result
@@ -287,7 +298,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS)
         try:
             query = f"""
                 match $et label {entity_type}; $et owns $attr;
@@ -324,7 +335,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         result = {}
-        tx = driver.transaction(db_name, TransactionType.READ)
+        tx = driver.transaction(db_name, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS)
         try:
             query = f"""
                 match $et label {entity_type}; $et owns $attr;
@@ -757,7 +768,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         result = {}
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.READ)
+        tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.SCHEMA, SCHEMA_TX_OPTIONS)
         try:
             for et in sorted(target_types):
                 query = f"""
