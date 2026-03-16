@@ -31,6 +31,16 @@ queries = {
     "diag_pathways": 'match $p isa rp_provision, has provision_id "87852625_rp"; (provision: $p, pathway: $pw) isa provision_has_pathway; $pw has pathway_source_type $src; $pw has pathway_target_type $tgt; select $src, $tgt;',
     "diag_pathway_uncapped": 'match $p isa rp_provision, has provision_id "87852625_rp"; (provision: $p, pathway: $pw) isa provision_has_pathway; $pw has is_uncapped $u; select $u;',
     "diag_basket_amounts": 'match $p isa rp_provision, has provision_id "87852625_rp"; (provision: $p, basket: $b) isa provision_has_basket; $b has basket_amount_usd $amt; select $amt;',
+    # Issue 1B: Do annotations exist for basket_amount_usd?
+    "diag_amount_annotations": 'match (question: $q) isa question_annotates_attribute, has target_entity_type $et, has target_attribute_name "basket_amount_usd"; $q has question_id $qid; select $qid, $et;',
+    # Issue 1D: Entity list types (which types are filtered from attribute routing?)
+    "diag_entity_list_types": 'match $q isa ontology_question, has answer_type "entity_list", has target_entity_type $et; select $et;',
+    # Issue 1: Any attributes set on general_rp_basket?
+    "diag_grp_basket_attrs": 'match $b isa general_rp_basket; select $b;',
+    # Issue 1: Check rp_n1 answer stored
+    "diag_rp_n1_answer": 'match $p isa rp_provision, has provision_id "87852625_rp"; $q isa ontology_question, has question_id "rp_n1"; (provision: $p, question: $q) isa provision_has_answer, has answer_double $v; select $v;',
+    # Issue 1: Check rp_n1 answer as string
+    "diag_rp_n1_string": 'match $p isa rp_provision, has provision_id "87852625_rp"; $q isa ontology_question, has question_id "rp_n1"; (provision: $p, question: $q) isa provision_has_answer, has answer_string $v; select $v;',
 }
 
 tx = driver.transaction(TYPEDB_DATABASE, TransactionType.READ)
