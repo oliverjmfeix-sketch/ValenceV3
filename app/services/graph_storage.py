@@ -331,9 +331,11 @@ class GraphStorage:
                 attr_name = attr_type.get_label()
                 try:
                     vt = attr_type.get_value_type()
-                    result[attr_name] = str(vt).lower() if vt else "string"
+                    if vt:
+                        result[attr_name] = str(vt).lower()
+                    # If vt is None, skip — let _format_tql_value heuristic handle it
                 except Exception:
-                    result[attr_name] = "string"
+                    pass  # Skip — don't default to "string", let heuristic handle it
         except Exception as e:
             logger.error(f"Failed to get attr value types for {entity_type}: {e}")
         finally:
@@ -1186,6 +1188,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         # Get expected value types from schema for type coercion
         attr_types = self.get_attr_value_types(actual_type)
+        if index == 0:
+            logger.info(f"attr_types for {actual_type}: {attr_types}")
 
         for field_name, value in item.items():
             if field_name == "type":
@@ -1198,6 +1202,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             formatted = self._format_tql_value(value, attr_types.get(field_name))
             if formatted is not None:
                 attrs.append(f'has {field_name} {formatted}')
+
+        logger.info(f"Entity {actual_type}[{index}] attrs sample: {attrs[:4]}")
 
         attrs_str = ",\n                ".join(attrs)
 
