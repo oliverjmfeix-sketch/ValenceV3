@@ -10,15 +10,32 @@ DB seeding is handled by init_schema.py (the single source of truth for TQL pars
 Run `python -m app.scripts.init_schema` to seed a fresh database.
 """
 import logging
+import sys
+import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+print("=== VALENCE STARTUP: importing modules ===", flush=True)
 
-from app.config import settings
-from app.services.typedb_client import typedb_client
-from app.routers import health, deals, ontology, qa, eval as eval_router, mfn_eval, ablation
-from app.routers.graph_eval import router as graph_eval_router
+try:
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    print("  FastAPI OK", flush=True)
+
+    from app.config import settings
+    print("  settings OK", flush=True)
+
+    from app.services.typedb_client import typedb_client
+    print("  typedb_client OK", flush=True)
+
+    from app.routers import health, deals, ontology, qa, eval as eval_router, mfn_eval, ablation
+    print("  routers OK", flush=True)
+
+    from app.routers.graph_eval import router as graph_eval_router
+    print("  graph_eval OK", flush=True)
+except Exception as e:
+    print(f"=== IMPORT FAILED: {e} ===", flush=True)
+    traceback.print_exc()
+    sys.exit(1)
 
 # Configure logging
 logging.basicConfig(
