@@ -38,12 +38,16 @@ try:
                 vals = []
                 for col in r.column_names():
                     v = r.get(col)
-                    if hasattr(v, "as_attribute"):
+                    try:
                         vals.append(f"{col}={v.as_attribute().get_value()}")
-                    elif hasattr(v, "get_value"):
-                        vals.append(f"{col}={v.get_value()}")
-                    else:
-                        vals.append(f"{col}={v}")
+                    except Exception:
+                        try:
+                            vals.append(f"{col}={v.as_value().get()}")
+                        except Exception:
+                            try:
+                                vals.append(f"{col}={v.get_value()}")
+                            except Exception:
+                                vals.append(f"{col}={v} (type={type(v).__name__})")
                 print("  " + ", ".join(vals))
         except Exception as e:
             print(f"\n=== {name}: ERROR ===\n  {e}")
