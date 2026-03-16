@@ -2543,6 +2543,12 @@ RULES:
                 batch_prompt, model, deal_id, step_name=f"rp_scalar_batch_{i+1}"
             )
 
+            try:
+                with open(f"/app/uploads/debug_scalar_batch_{i}.txt", "w") as f:
+                    f.write(batch_response)
+            except Exception:
+                pass
+
             if getattr(self, '_last_v4_usage', None):
                 self._last_v4_usage.deal_id = deal_id
                 cost_summary.add(self._last_v4_usage)
