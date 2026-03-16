@@ -29,10 +29,109 @@ class GraphStorage:
     # SCHEMA INTROSPECTION — discover entity fields from TypeDB schema
     # ═══════════════════════════════════════════════════════════════════════════
 
-    PROVENANCE_ATTRS = {"section_reference", "source_page", "source_text", "confidence"}
+    _provenance_attrs_cache: Optional[set] = None
 
     _entity_fields_cache: Dict[str, Any] = {}
     _key_attr_cache: Dict[str, str] = {}
+
+    @classmethod
+    def _load_provenance_attrs(cls) -> set:
+        """Discover provenance attributes: those owned by ALL extracted entity types.
+
+        Provenance = framework infrastructure (WHERE data came from).
+        Domain = entity-specific (WHAT the data is).
+
+        If an attribute appears on every entity type, it's provenance by definition.
+        No hardcoded list needed — the intersection IS the definition.
+        """
+        if cls._provenance_attrs_cache is not None:
+            return cls._provenance_attrs_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            # Fallback if no driver — return known provenance attrs
+            cls._provenance_attrs_cache = {"section_reference", "source_page", "source_text", "confidence"}
+            return cls._provenance_attrs_cache
+
+        db_name = settings.typedb_database
+
+        # Collect all concrete entity types that participate in extraction
+        # These are types that own attributes beyond just an ID key
+        entity_types = set()
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            # Single-instance entity types (from _exists annotations)
+            q1 = """
+                match
+                    (question: $q) isa question_annotates_attribute,
+                        has target_entity_type $et,
+                        has target_attribute_name "_exists";
+                    $q has question_id $qid;
+                select $et;
+            """
+            for row in tx.query(q1).resolve().as_concept_rows():
+                et = row.get("et")
+                try:
+                    entity_types.add(et.as_attribute().get_value())
+                except Exception:
+                    try:
+                        entity_types.add(et.as_value().get())
+                    except Exception:
+                        pass
+
+            # Multi-instance entity types (from entity_list questions)
+            q2 = """
+                match
+                    $q isa ontology_question,
+                        has answer_type "entity_list",
+                        has target_entity_type $et;
+                select $et;
+            """
+            for row in tx.query(q2).resolve().as_concept_rows():
+                et = row.get("et")
+                try:
+                    entity_types.add(et.as_attribute().get_value())
+                except Exception:
+                    try:
+                        entity_types.add(et.as_value().get())
+                    except Exception:
+                        pass
+        finally:
+            tx.close()
+
+        # Remove rp_provision itself — it's the anchor, not an extracted entity
+        entity_types.discard("rp_provision")
+
+        if not entity_types:
+            cls._provenance_attrs_cache = set()
+            return cls._provenance_attrs_cache
+
+        # For each entity type, get all owned attributes (expanding abstract types to subtypes)
+        all_attr_sets = []
+        for et in entity_types:
+            schema_info = cls.get_entity_fields_from_schema(et)
+            if schema_info.get("is_abstract"):
+                # Use each subtype's fields + common fields
+                for sub_name, sub_info in schema_info.get("subtypes", {}).items():
+                    fields = set(sub_info.get("fields", []))
+                    fields |= set(schema_info.get("common_fields", []))
+                    all_attr_sets.append(fields)
+            else:
+                fields = set(schema_info.get("fields", []))
+                all_attr_sets.append(fields)
+
+        if not all_attr_sets:
+            cls._provenance_attrs_cache = set()
+            return cls._provenance_attrs_cache
+
+        # Intersection = attributes that appear on every entity type
+        provenance = set.intersection(*all_attr_sets)
+        # Remove key attributes (*_id pattern) — handled separately
+        provenance = {a for a in provenance if not a.endswith("_id")}
+
+        cls._provenance_attrs_cache = provenance
+        logger.info(f"Discovered provenance attrs ({len(provenance)}): {sorted(provenance)}")
+        return provenance
 
     @classmethod
     def get_entity_fields_from_schema(cls, entity_type: str) -> Dict[str, Any]:
@@ -40,7 +139,7 @@ class GraphStorage:
 
         Classification:
         1. @key attributes → skip (system IDs)
-        2. PROVENANCE_ATTRS → skip from field list (appended as standard fields)
+        2. Provenance attrs (schema intersection) → skip from field list (appended as standard fields)
         3. Everything else → extractable fields
 
         For abstract types: introspect subtypes and their additional attributes.
@@ -92,7 +191,7 @@ class GraphStorage:
         key_attrs = {a for a in all_attrs if a.endswith("_id")}
 
         # Extractable = all - key - provenance
-        extractable = sorted(all_attrs - key_attrs - cls.PROVENANCE_ATTRS)
+        extractable = sorted(all_attrs - key_attrs - cls._load_provenance_attrs())
 
         # Check for subtypes
         subtypes = {}
@@ -670,30 +769,11 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         entity_id = f"{provision_id}_{entity_type}"
 
-        # Look up expected type from schema (SSoT) instead of relying on Python type
+        # Use shared schema-based coercion (SSoT)
         attr_types = self.get_attr_value_types(entity_type)
-        expected_type = attr_types.get(attr_name)
-
-        # Format value for TypeQL based on schema-defined type
-        if expected_type == "boolean":
-            if isinstance(value, bool):
-                tql_value = str(value).lower()
-            else:
-                tql_value = "true" if str(value).lower() in ("true", "1", "yes") else "false"
-        elif expected_type in ("double", "long"):
-            try:
-                num = float(value) if not isinstance(value, (int, float)) else value
-                if expected_type == "long":
-                    tql_value = str(int(num))
-                else:
-                    tql_value = str(num)
-            except (ValueError, TypeError):
-                logger.warning(f"Cannot coerce {value!r} to {expected_type} for {entity_type}.{attr_name}")
-                return
-        elif expected_type == "string" or expected_type is None:
-            tql_value = f'"{self._escape(str(value)[:2000])}"'
-        else:
-            logger.warning(f"Unknown schema type {expected_type} for {entity_type}.{attr_name}")
+        tql_value = self._format_tql_value(value, attr_types.get(attr_name))
+        if tql_value is None:
+            logger.warning(f"Cannot coerce {value!r} for {entity_type}.{attr_name}")
             return
 
         query = f'''
@@ -1002,7 +1082,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             allowed_fields = set(schema_info.get("fields", []))
 
         # Add provenance attrs to allowed set
-        allowed_fields |= self.PROVENANCE_ATTRS
+        allowed_fields |= self._load_provenance_attrs()
 
         # Get expected value types from schema for type coercion
         attr_types = self.get_attr_value_types(actual_type)
