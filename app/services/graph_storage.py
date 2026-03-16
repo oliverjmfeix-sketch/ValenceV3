@@ -670,15 +670,30 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         entity_id = f"{provision_id}_{entity_type}"
 
-        # Format value for TypeQL
-        if isinstance(value, bool):
-            tql_value = str(value).lower()
-        elif isinstance(value, (int, float)):
-            tql_value = str(value)
-        elif isinstance(value, str):
-            tql_value = f'"{self._escape(value[:2000])}"'
+        # Look up expected type from schema (SSoT) instead of relying on Python type
+        attr_types = self.get_attr_value_types(entity_type)
+        expected_type = attr_types.get(attr_name)
+
+        # Format value for TypeQL based on schema-defined type
+        if expected_type == "boolean":
+            if isinstance(value, bool):
+                tql_value = str(value).lower()
+            else:
+                tql_value = "true" if str(value).lower() in ("true", "1", "yes") else "false"
+        elif expected_type in ("double", "long"):
+            try:
+                num = float(value) if not isinstance(value, (int, float)) else value
+                if expected_type == "long":
+                    tql_value = str(int(num))
+                else:
+                    tql_value = str(num)
+            except (ValueError, TypeError):
+                logger.warning(f"Cannot coerce {value!r} to {expected_type} for {entity_type}.{attr_name}")
+                return
+        elif expected_type == "string" or expected_type is None:
+            tql_value = f'"{self._escape(str(value)[:2000])}"'
         else:
-            logger.warning(f"Unsupported value type for {entity_type}.{attr_name}: {type(value)}")
+            logger.warning(f"Unknown schema type {expected_type} for {entity_type}.{attr_name}")
             return
 
         query = f'''
