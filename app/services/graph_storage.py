@@ -38,6 +38,7 @@ class GraphStorage:
     _concept_routing_cache: Optional[Dict[str, List]] = None
     _entity_list_types_cache: Optional[set] = None
     _entity_relation_cache: Optional[Dict[str, tuple]] = None
+    _storage_value_type_cache: Optional[Dict[str, str]] = None
 
     @classmethod
     def _load_provenance_attrs(cls) -> set:
@@ -823,6 +824,41 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         logger.info(f"Loaded entity->relation map for {len(result)} types: {sorted(result.keys())}")
         return result
 
+    @classmethod
+    def _load_storage_value_types(cls) -> Dict[str, str]:
+        """Load question_id → storage_value_type mapping from TypeDB. Cached."""
+        if cls._storage_value_type_cache is not None:
+            return cls._storage_value_type_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        result = {}
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = '''match
+                $q isa ontology_question, has question_id $qid, has storage_value_type $svt;
+                select $qid, $svt;'''
+            for row in tx.query(query).resolve().as_concept_rows():
+                qid = row.get("qid").as_attribute().get_value()
+                svt = row.get("svt").as_attribute().get_value()
+                result[qid] = svt
+        except Exception as e:
+            logger.warning(f"Could not load storage_value_types: {e}")
+        finally:
+            if tx.is_open():
+                tx.close()
+
+        cls._storage_value_type_cache = result
+        logger.info(f"Loaded storage_value_type for {len(result)} questions")
+        return result
+
+    def _get_storage_value_type(self, question_id: str) -> Optional[str]:
+        """Get the storage_value_type for a question. Returns None if not seeded."""
+        svt_map = self._load_storage_value_types()
+        return svt_map.get(question_id)
+
     # ═══════════════════════════════════════════════════════════════════════════
     # SINGLE-INSTANCE ENTITY CREATION + ATTRIBUTE POPULATION
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1269,7 +1305,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             # Store multiselect as comma-separated string
             coerced = ", ".join(str(v) for v in answer.value)
         else:
-            coerced = self._coerce_flat_answer(answer.value, answer.answer_type)
+            # Look up storage_value_type from TypeDB (SSoT); fall back to answer_type
+            svt = self._get_storage_value_type(answer.question_id)
+            coerced = self._coerce_flat_answer(answer.value, svt or answer.answer_type)
 
         if coerced is not None:
             self.store_scalar_answer(
@@ -1522,28 +1560,38 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         logger.info(f"Cleaned up old data for provision {provision_id}")
 
     @staticmethod
-    def _coerce_flat_answer(value: Any, answer_type: str) -> Any:
-        """Coerce a FlatAnswer value to the correct Python type for store_scalar_answer."""
+    def _coerce_flat_answer(value: Any, storage_value_type: Optional[str]) -> Any:
+        """Coerce a FlatAnswer value to the correct Python type based on storage_value_type.
+
+        storage_value_type comes from TypeDB (ontology_question.storage_value_type).
+        Values: "double", "boolean", "string", "integer".
+        Falls back to "number"/"boolean" for legacy answer_type compatibility.
+        """
         if value is None:
             return None
         if isinstance(value, str) and value.lower() in ("not_found", "n/a", "none", "null"):
             return None
 
-        if answer_type == "boolean":
+        if storage_value_type in ("boolean",):
             if isinstance(value, bool):
                 return value
             if isinstance(value, str):
                 return value.lower() in ("true", "yes", "1")
             return bool(value)
 
-        if answer_type == "number":
+        if storage_value_type in ("double", "number"):
             try:
-                v = float(str(value).strip("'\""))
-                return int(v) if v == int(v) else v
+                return float(str(value).strip("'\"$%,"))
             except (ValueError, TypeError):
                 return None
 
-        # Default to string
+        if storage_value_type == "integer":
+            try:
+                return int(float(str(value).strip("'\"$%,")))
+            except (ValueError, TypeError):
+                return None
+
+        # Default to string (includes storage_value_type=None or "string")
         return str(value)
 
     def store_scalar_answer(
@@ -1579,7 +1627,18 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         attrs = [f'has answer_id "{answer_id}"']
 
-        if isinstance(value, bool):
+        # Use storage_value_type from TypeDB (SSoT) for routing;
+        # fall back to isinstance checks for backwards compatibility
+        svt = self._get_storage_value_type(question_id)
+        if svt == "boolean":
+            attrs.append(f'has answer_boolean {str(bool(value)).lower()}')
+        elif svt == "double":
+            attrs.append(f'has answer_double {float(value)}')
+        elif svt == "integer":
+            attrs.append(f'has answer_integer {int(value)}')
+        elif svt == "string":
+            attrs.append(f'has answer_string "{self._escape(str(value))}"')
+        elif isinstance(value, bool):
             attrs.append(f'has answer_boolean {str(value).lower()}')
         elif isinstance(value, int):
             attrs.append(f'has answer_integer {value}')

@@ -97,6 +97,8 @@ attribute is_required, value boolean;
 attribute default_value, value string;
 attribute covenant_type, value string;            # MFN | RP
 attribute extraction_prompt, value string;        # domain hints for Claude
+attribute storage_value_type, value string;       # double | boolean | string | integer
+                                                 # Determines which answer_* attr to use
 
 # ─── Question targeting (on relations) ────────────────────────────────────────
 
@@ -1331,6 +1333,7 @@ entity ontology_question,
     owns display_order,
     owns covenant_type,
     owns extraction_prompt,
+    owns storage_value_type,
     owns target_entity_type,
     owns target_relation_type,
     plays category_has_question:question,

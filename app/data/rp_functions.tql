@@ -10,24 +10,22 @@
 ################################################################################
 
 # Stream function: returns individual basket components contributing to
-# dividend capacity. Each row = (display_name, basket_amount_usd).
-# Python calls this to get the breakdown for entity context.
+# dividend capacity. Each row = (basket_amount_usd).
+# Python derives display name from entity type label at read time.
 define
-fun dividend_capacity_components($prov_id: string) -> { display_name, basket_amount_usd }:
+fun dividend_capacity_components($prov_id: string) -> { basket_amount_usd }:
     match
         $p isa rp_provision, has provision_id $pid;
         $pid == $prov_id;
         {
             (provision: $p, basket: $b) isa provision_has_basket;
             $b has basket_amount_usd $amt;
-            $b has display_name $dn;
         } or {
             (provision: $p, basket: $tgt) isa provision_has_basket;
             (source_basket: $b, target_basket: $tgt) isa basket_reallocates_to;
             $b has basket_amount_usd $amt;
-            $b has display_name $dn;
         };
-    return { $dn, $amt };
+    return { $amt };
 
 # Aggregate function: total fixed-floor dividend capacity.
 # Uses the SAME traversal pattern as dividend_capacity_components.

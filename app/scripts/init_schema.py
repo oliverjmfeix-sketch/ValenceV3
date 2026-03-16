@@ -506,6 +506,36 @@ def init_database():
                 logger.warning(f"   RP analysis functions: {e}")
                 logger.warning("   RP analysis functions not available.")
 
+        # 21. Seed storage_value_type on ontology_question (derived from answer_type)
+        logger.info("\n21. Seeding storage_value_type on ontology_questions...")
+        svt_mappings = {
+            "double": ["number", "currency", "percentage"],
+            "boolean": ["boolean"],
+            "string": ["string", "multiselect"],
+            "integer": ["integer"],
+        }
+        svt_count = 0
+        for svt, answer_types in svt_mappings.items():
+            for at in answer_types:
+                query = f'''match
+                    $q isa ontology_question, has answer_type "{at}";
+                    not {{ $q has storage_value_type $existing; }};
+                insert
+                    $q has storage_value_type "{svt}";'''
+                tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
+                try:
+                    rows = list(tx.query(query).resolve().as_concept_rows())
+                    tx.commit()
+                    n = len(rows)
+                    if n > 0:
+                        logger.info(f"   answer_type={at} -> storage_value_type={svt}: {n} questions")
+                        svt_count += n
+                except Exception as e:
+                    if tx.is_open():
+                        tx.close()
+                    logger.debug(f"   storage_value_type {at}->{svt}: {e}")
+        logger.info(f"   Total: {svt_count} questions got storage_value_type")
+
         # ═══════════════════════════════════════════════════════════════
         # Verification
         # ═══════════════════════════════════════════════════════════════
