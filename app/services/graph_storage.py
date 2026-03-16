@@ -41,7 +41,32 @@ class GraphStorage:
     _entity_relation_cache: Optional[Dict[str, tuple]] = None
 
     @classmethod
-    def _load_provenance_attrs(cls) -> set:
+    def warm_caches(cls):
+        """Warm all class-level caches at startup using minimal transactions.
+
+        Total: 2 READ + 1 SCHEMA (instead of 6 READ + N SCHEMA).
+        """
+        driver = typedb_client.driver
+        if not driver:
+            return
+
+        # Phase 1: READ transactions (seed data queries)
+        cls._load_question_to_entity_map()
+        cls._load_concept_routing_map()
+
+        # Phase 2: ONE SCHEMA transaction for ALL schema introspection
+        schema_tx = driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
+        try:
+            cls._load_entity_list_types(_tx=schema_tx)
+            cls._load_provenance_attrs(_tx=schema_tx)
+            cls._load_entity_relation_map(_tx=schema_tx)
+            logger.info("All schema caches warmed (2 READ + 1 SCHEMA)")
+        finally:
+            if schema_tx.is_open():
+                schema_tx.close()
+
+    @classmethod
+    def _load_provenance_attrs(cls, _tx=None) -> set:
         """Discover provenance attributes: those owned by ALL extracted entity types.
 
         Provenance = framework infrastructure (WHERE data came from).
@@ -49,6 +74,9 @@ class GraphStorage:
 
         If an attribute appears on every entity type, it's provenance by definition.
         No hardcoded list needed — the intersection IS the definition.
+
+        Args:
+            _tx: Optional existing SCHEMA transaction to reuse for introspection.
         """
         if cls._provenance_attrs_cache is not None:
             return cls._provenance_attrs_cache
@@ -113,9 +141,9 @@ class GraphStorage:
             return cls._provenance_attrs_cache
 
         # For each entity type, get all owned attributes (expanding abstract types to subtypes)
-        # Use a SINGLE SCHEMA transaction for all introspections to avoid channel congestion
         all_attr_sets = []
-        schema_tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        own_tx = _tx is None
+        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
         try:
             for et in entity_types:
                 schema_info = cls.get_entity_fields_from_schema(et, _tx=schema_tx)
@@ -128,7 +156,7 @@ class GraphStorage:
                     fields = set(schema_info.get("fields", []))
                     all_attr_sets.append(fields)
         finally:
-            if schema_tx.is_open():
+            if own_tx and schema_tx.is_open():
                 schema_tx.close()
 
         if not all_attr_sets:
@@ -653,10 +681,13 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         return result
 
     @classmethod
-    def _load_entity_list_types(cls) -> set:
+    def _load_entity_list_types(cls, _tx=None) -> set:
         """Load entity types created by entity_list questions. Skip these for _exists creation.
 
         Expands abstract types to include subtypes (e.g. builder_basket_source → ecf_source, etc.).
+
+        Args:
+            _tx: Optional existing SCHEMA transaction to reuse for subtype expansion.
         """
         if cls._entity_list_types_cache is not None:
             return cls._entity_list_types_cache
@@ -685,7 +716,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         # Expand with subtypes for abstract entity types
         expanded = set(types)
         for et in types:
-            schema_info = cls.get_entity_fields_from_schema(et)
+            schema_info = cls.get_entity_fields_from_schema(et, _tx=_tx)
             if schema_info.get("is_abstract"):
                 for sub in schema_info.get("subtypes", {}).keys():
                     expanded.add(sub)
@@ -695,7 +726,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         return expanded
 
     @classmethod
-    def _load_entity_relation_map(cls) -> Dict[str, tuple]:
+    def _load_entity_relation_map(cls, _tx=None) -> Dict[str, tuple]:
         """Discover entity→provision relation from TypeDB schema introspection. Cached.
 
         For each single-instance entity type (from _exists annotations, minus entity_list types),
@@ -703,6 +734,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         inherited plays declarations.
 
         Returns: {entity_type: (relation_type, provision_role, entity_role)}
+
+        Args:
+            _tx: Optional existing SCHEMA transaction to reuse.
         """
         if cls._entity_relation_cache is not None:
             return cls._entity_relation_cache
@@ -712,7 +746,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             return {}
 
         q_to_entity = cls._load_question_to_entity_map()
-        entity_list_types = cls._load_entity_list_types()
+        entity_list_types = cls._load_entity_list_types(_tx=_tx)
 
         # Collect entity types from _exists annotations, minus entity_list types and rp_provision
         target_types = set()
@@ -721,7 +755,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 target_types.add(et)
 
         result = {}
-        tx = driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
+        own_tx = _tx is None
+        tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
         try:
             for et in sorted(target_types):
                 query = f"""
@@ -747,7 +782,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 except Exception as e:
                     logger.warning(f"Schema introspection failed for {et}: {e}")
         finally:
-            if tx.is_open():
+            if own_tx and tx.is_open():
                 tx.close()
 
         cls._entity_relation_cache = result

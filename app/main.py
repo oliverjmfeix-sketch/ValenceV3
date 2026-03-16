@@ -61,15 +61,10 @@ async def lifespan(app: FastAPI):
             logger.info("TypeDB connected")
             _ensure_db_ready()
 
-            # Warm SCHEMA caches FIRST on fresh channel (before any READ transactions)
+            # Warm all caches: 2 READ + 1 SCHEMA transaction total
             try:
                 from app.services.graph_storage import GraphStorage
-                GraphStorage._load_provenance_attrs()
-                GraphStorage._load_question_to_entity_map()
-                GraphStorage._load_concept_routing_map()
-                GraphStorage._load_entity_list_types()
-                GraphStorage._load_entity_relation_map()
-                logger.info("GraphStorage caches warmed at startup")
+                GraphStorage.warm_caches()
             except Exception as e:
                 logger.warning(f"Cache warming skipped: {e}")
 
