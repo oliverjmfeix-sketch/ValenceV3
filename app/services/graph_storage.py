@@ -113,18 +113,23 @@ class GraphStorage:
             return cls._provenance_attrs_cache
 
         # For each entity type, get all owned attributes (expanding abstract types to subtypes)
+        # Use a SINGLE SCHEMA transaction for all introspections to avoid channel congestion
         all_attr_sets = []
-        for et in entity_types:
-            schema_info = cls.get_entity_fields_from_schema(et)
-            if schema_info.get("is_abstract"):
-                # Use each subtype's fields + common fields
-                for sub_name, sub_info in schema_info.get("subtypes", {}).items():
-                    fields = set(sub_info.get("fields", []))
-                    fields |= set(schema_info.get("common_fields", []))
+        schema_tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        try:
+            for et in entity_types:
+                schema_info = cls.get_entity_fields_from_schema(et, _tx=schema_tx)
+                if schema_info.get("is_abstract"):
+                    for sub_name, sub_info in schema_info.get("subtypes", {}).items():
+                        fields = set(sub_info.get("fields", []))
+                        fields |= set(schema_info.get("common_fields", []))
+                        all_attr_sets.append(fields)
+                else:
+                    fields = set(schema_info.get("fields", []))
                     all_attr_sets.append(fields)
-            else:
-                fields = set(schema_info.get("fields", []))
-                all_attr_sets.append(fields)
+        finally:
+            if schema_tx.is_open():
+                schema_tx.close()
 
         if not all_attr_sets:
             cls._provenance_attrs_cache = set()
@@ -140,7 +145,7 @@ class GraphStorage:
         return provenance
 
     @classmethod
-    def get_entity_fields_from_schema(cls, entity_type: str) -> Dict[str, Any]:
+    def get_entity_fields_from_schema(cls, entity_type: str, _tx=None) -> Dict[str, Any]:
         """Query TypeDB SCHEMA transaction to discover entity attributes.
 
         Classification:
@@ -150,6 +155,9 @@ class GraphStorage:
 
         For abstract types: introspect subtypes and their additional attributes.
         Returns dict with is_abstract, common_fields, subtypes (if abstract).
+
+        Args:
+            _tx: Optional existing SCHEMA transaction to reuse (avoids opening a new one).
         """
         if entity_type in cls._entity_fields_cache:
             return cls._entity_fields_cache[entity_type]
@@ -160,7 +168,8 @@ class GraphStorage:
             return {"is_abstract": False, "fields": [], "subtypes": {}}
 
         db_name = settings.typedb_database
-        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        own_tx = _tx is None
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
         try:
             result = cls._introspect_entity_type(tx, entity_type)
             cls._entity_fields_cache[entity_type] = result
@@ -169,7 +178,7 @@ class GraphStorage:
             logger.error(f"Schema introspection failed for {entity_type}: {e}")
             return {"is_abstract": False, "fields": [], "subtypes": {}}
         finally:
-            if tx.is_open():
+            if own_tx and tx.is_open():
                 tx.close()
 
     @classmethod
@@ -231,11 +240,14 @@ class GraphStorage:
             }
 
     @classmethod
-    def get_key_attr_for_entity(cls, entity_type: str) -> Optional[str]:
+    def get_key_attr_for_entity(cls, entity_type: str, _tx=None) -> Optional[str]:
         """Get the @key attribute name for an entity type. Cached.
 
         TypeDB 3.x doesn't support querying @key annotations in match clauses.
         We query all owned attrs and identify the key by *_id suffix convention.
+
+        Args:
+            _tx: Optional existing SCHEMA transaction to reuse.
         """
         if entity_type in cls._key_attr_cache:
             return cls._key_attr_cache[entity_type]
@@ -245,7 +257,8 @@ class GraphStorage:
             return None
 
         db_name = settings.typedb_database
-        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        own_tx = _tx is None
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
         try:
             query = f"""
                 match $et label {entity_type}; $et owns $attr;
@@ -259,7 +272,7 @@ class GraphStorage:
         except Exception as e:
             logger.error(f"Failed to get @key for {entity_type}: {e}")
         finally:
-            if tx.is_open():
+            if own_tx and tx.is_open():
                 tx.close()
 
         return None
