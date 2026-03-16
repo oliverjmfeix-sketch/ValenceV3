@@ -117,7 +117,7 @@ class GraphStorage:
         # For each entity type, get all owned attributes (expanding abstract types to subtypes)
         all_attr_sets = []
         own_tx = _tx is None
-        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
+        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
         try:
             for et in entity_types:
                 schema_info = cls.get_entity_fields_from_schema(et, _tx=schema_tx)
@@ -171,7 +171,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
         try:
             result = cls._introspect_entity_type(tx, entity_type)
             cls._entity_fields_cache[entity_type] = result
@@ -260,7 +260,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(db_name, TransactionType.SCHEMA)
+        tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
         try:
             query = f"""
                 match $et label {entity_type}; $et owns $attr;
@@ -297,7 +297,7 @@ class GraphStorage:
 
         db_name = settings.typedb_database
         result = {}
-        tx = driver.transaction(db_name, TransactionType.SCHEMA)
+        tx = driver.transaction(db_name, TransactionType.READ)
         try:
             query = f"""
                 match $et label {entity_type}; $et owns $attr;
@@ -730,7 +730,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         result = {}
         own_tx = _tx is None
-        tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
+        tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             for et in sorted(target_types):
                 query = f"""
