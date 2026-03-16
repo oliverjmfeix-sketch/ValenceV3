@@ -34,6 +34,12 @@ class GraphStorage:
     _entity_fields_cache: Dict[str, Any] = {}
     _key_attr_cache: Dict[str, str] = {}
 
+    # Class-level caches for seed/schema data (doesn't change per extraction)
+    _q_to_entity_cache: Optional[Dict[str, tuple]] = None
+    _concept_routing_cache: Optional[Dict[str, List]] = None
+    _entity_list_types_cache: Optional[set] = None
+    _entity_relation_cache: Optional[Dict[str, tuple]] = None
+
     @classmethod
     def _load_provenance_attrs(cls) -> set:
         """Discover provenance attributes: those owned by ALL extracted entity types.
@@ -556,14 +562,19 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     # ROUTING TABLE LOADERS — cached TypeDB lookups for entity storage
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _load_question_to_entity_map(self) -> Dict[str, tuple]:
+    @classmethod
+    def _load_question_to_entity_map(cls) -> Dict[str, tuple]:
         """Load question_id → (entity_type, attr_name) from TypeDB.
 
         Reverse of graph_reader._get_annotation_map().
         Source: question_annotates_attribute relations (Phase 2b/2c).
         """
-        if hasattr(self, '_q_to_entity_cache') and self._q_to_entity_cache:
-            return self._q_to_entity_cache
+        if cls._q_to_entity_cache is not None:
+            return cls._q_to_entity_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
 
         query = """
             match
@@ -574,29 +585,34 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             select $qid, $et, $an;
         """
         result = {}
-        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             for row in tx.query(query).resolve().as_concept_rows():
-                qid = self._get_attr(row, "qid")
-                et = self._get_attr(row, "et")
-                an = self._get_attr(row, "an")
+                qid = cls._get_attr(row, "qid")
+                et = cls._get_attr(row, "et")
+                an = cls._get_attr(row, "an")
                 if qid and et and an:
                     result[qid] = (et, an)
         finally:
             tx.close()
 
-        self._q_to_entity_cache = result
+        cls._q_to_entity_cache = result
         logger.info(f"Loaded {len(result)} question->entity annotations")
         return result
 
-    def _load_concept_routing_map(self) -> Dict[str, List]:
+    @classmethod
+    def _load_concept_routing_map(cls) -> Dict[str, List]:
         """Load concept_id → [(entity_type, attribute_name), ...] from TypeDB.
 
         One-to-many: a concept can set multiple booleans (e.g. bt_at_both → 2 attrs).
         Source: concept instances with target_entity_type + target_entity_attribute (Phase 2a).
         """
-        if hasattr(self, '_concept_routing_cache') and self._concept_routing_cache:
-            return self._concept_routing_cache
+        if cls._concept_routing_cache is not None:
+            return cls._concept_routing_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
 
         query = """
             match
@@ -607,29 +623,34 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             select $cid, $et, $ea;
         """
         result: Dict[str, List] = {}
-        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             for row in tx.query(query).resolve().as_concept_rows():
-                cid = self._get_attr(row, "cid")
-                et = self._get_attr(row, "et")
-                ea = self._get_attr(row, "ea")
+                cid = cls._get_attr(row, "cid")
+                et = cls._get_attr(row, "et")
+                ea = cls._get_attr(row, "ea")
                 if cid and et and ea:
                     result.setdefault(cid, []).append((et, ea))
         finally:
             tx.close()
 
-        self._concept_routing_cache = result
+        cls._concept_routing_cache = result
         total = sum(len(v) for v in result.values())
         logger.info(f"Loaded {total} concept->entity boolean mappings ({len(result)} concepts)")
         return result
 
-    def _load_entity_list_types(self) -> set:
+    @classmethod
+    def _load_entity_list_types(cls) -> set:
         """Load entity types created by entity_list questions. Skip these for _exists creation.
 
         Expands abstract types to include subtypes (e.g. builder_basket_source → ecf_source, etc.).
         """
-        if hasattr(self, '_entity_list_types_cache') and self._entity_list_types_cache:
-            return self._entity_list_types_cache
+        if cls._entity_list_types_cache is not None:
+            return cls._entity_list_types_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return set()
 
         query = """
             match
@@ -639,10 +660,10 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             select $et;
         """
         types = set()
-        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             for row in tx.query(query).resolve().as_concept_rows():
-                et = self._get_attr(row, "et")
+                et = cls._get_attr(row, "et")
                 if et:
                     types.add(et)
         finally:
@@ -651,16 +672,17 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         # Expand with subtypes for abstract entity types
         expanded = set(types)
         for et in types:
-            schema_info = self.get_entity_fields_from_schema(et)
+            schema_info = cls.get_entity_fields_from_schema(et)
             if schema_info.get("is_abstract"):
                 for sub in schema_info.get("subtypes", {}).keys():
                     expanded.add(sub)
 
-        self._entity_list_types_cache = expanded
+        cls._entity_list_types_cache = expanded
         logger.info(f"Entity list types ({len(expanded)}): {sorted(expanded)}")
         return expanded
 
-    def _load_entity_relation_map(self) -> Dict[str, tuple]:
+    @classmethod
+    def _load_entity_relation_map(cls) -> Dict[str, tuple]:
         """Discover entity→provision relation from TypeDB schema introspection. Cached.
 
         For each single-instance entity type (from _exists annotations, minus entity_list types),
@@ -669,11 +691,15 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         Returns: {entity_type: (relation_type, provision_role, entity_role)}
         """
-        if hasattr(self, '_entity_relation_cache') and self._entity_relation_cache:
-            return self._entity_relation_cache
+        if cls._entity_relation_cache is not None:
+            return cls._entity_relation_cache
 
-        q_to_entity = self._load_question_to_entity_map()
-        entity_list_types = self._load_entity_list_types()
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        q_to_entity = cls._load_question_to_entity_map()
+        entity_list_types = cls._load_entity_list_types()
 
         # Collect entity types from _exists annotations, minus entity_list types and rp_provision
         target_types = set()
@@ -682,7 +708,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 target_types.add(et)
 
         result = {}
-        tx = self.driver.transaction(self.db_name, TransactionType.SCHEMA)
+        tx = driver.transaction(settings.typedb_database, TransactionType.SCHEMA)
         try:
             for et in sorted(target_types):
                 query = f"""
@@ -697,8 +723,6 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     if rows:
                         row = rows[0]
                         rt = row.get("rt").as_relation_type().get_label()
-                        # TypeDB 3.x role labels are scoped: "relation_type:role_name"
-                        # Strip scope prefix to get just the role name for use in queries
                         role1_raw = row.get("role1").get_label()
                         role2_raw = row.get("role2").get_label()
                         role1 = role1_raw.split(":")[-1] if ":" in role1_raw else role1_raw
@@ -713,7 +737,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             if tx.is_open():
                 tx.close()
 
-        self._entity_relation_cache = result
+        cls._entity_relation_cache = result
         logger.info(f"Loaded entity->relation map for {len(result)} types: {sorted(result.keys())}")
         return result
 

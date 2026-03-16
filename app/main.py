@@ -67,6 +67,18 @@ async def lifespan(app: FastAPI):
                 validate_annotations()
             except Exception as e:
                 logger.warning(f"Annotation validation skipped: {e}")
+
+            # Warm class-level caches (fresh driver, no channel congestion)
+            try:
+                from app.services.graph_storage import GraphStorage
+                GraphStorage._load_provenance_attrs()
+                GraphStorage._load_question_to_entity_map()
+                GraphStorage._load_concept_routing_map()
+                GraphStorage._load_entity_list_types()
+                GraphStorage._load_entity_relation_map()
+                logger.info("GraphStorage caches warmed at startup")
+            except Exception as e:
+                logger.warning(f"Cache warming skipped: {e}")
         logger.info(f"Driver after startup: {typedb_client.driver}, "
                     f"is_connected: {typedb_client.is_connected}")
     except Exception as e:
