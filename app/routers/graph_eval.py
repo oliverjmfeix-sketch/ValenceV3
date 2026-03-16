@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.trace_collector import TraceCollector
-from app.services.graph_reader import get_rp_entities
+from app.services.graph_traversal import get_rp_entities
 from app.services.topic_router import get_topic_router
 from app.routers.deals import ask_question, ask_question_graph, AskRequest
 

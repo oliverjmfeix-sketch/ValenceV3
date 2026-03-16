@@ -18,7 +18,7 @@ from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
 from app.services.topic_router import get_topic_router
-from app.services.graph_reader import get_rp_entities
+from app.services.graph_traversal import get_rp_entities
 from app.schemas.models import UploadResponse, ExtractionStatus
 from typedb.driver import TransactionType
 

@@ -121,7 +121,7 @@ def validate_annotations() -> bool:
     return len(missing) == 0
 
 
-def _fmt_dollar(val) -> str:
+def fmt_dollar(val) -> str:
     """Format a numeric value as $X,XXX,XXX."""
     if val is None:
         return ""
@@ -131,7 +131,7 @@ def _fmt_dollar(val) -> str:
         return str(val)
 
 
-def _fmt_pct(val) -> str:
+def fmt_pct(val) -> str:
     """Format a numeric value as X%.
 
     Values stored as decimals (e.g., 1.0 = 100%, 0.5 = 50%) are converted.
@@ -148,18 +148,24 @@ def _fmt_pct(val) -> str:
         return str(val)
 
 
-def _safe_val(row, key: str):
-    """Extract attribute value from a TypeDB row, returning None on failure."""
+def safe_val(row, key: str):
+    """Extract attribute or value from a TypeDB row, returning None on failure.
+
+    Handles both has-bound variables (Attribute) and let-bound variables (Value).
+    """
     try:
         concept = row.get(key)
         if concept is None:
             return None
-        return concept.as_attribute().get_value()
+        try:
+            return concept.as_attribute().get_value()
+        except Exception:
+            return concept.as_value().get()
     except Exception:
         return None
 
 
-def _safe_type(row, key: str) -> Optional[str]:
+def safe_type(row, key: str) -> Optional[str]:
     """Get the type label of an entity variable."""
     try:
         concept = row.get(key)
@@ -170,7 +176,7 @@ def _safe_type(row, key: str) -> Optional[str]:
         return None
 
 
-def _line(label: str, value, formatter=None, *,
+def line(label: str, value, formatter=None, *,
           entity_type: str = None, attr_key: str = None) -> Optional[str]:
     """Return a formatted line if value is not None, else None.
 
@@ -198,7 +204,7 @@ def _line(label: str, value, formatter=None, *,
     return line
 
 
-def _add_lines(lines: list, items: list):
+def add_lines(lines: list, items: list):
     """Append non-None items to lines."""
     for item in items:
         if item is not None:
@@ -213,7 +219,7 @@ def _get_variable_names(query: str) -> List[str]:
     return []
 
 
-def _run_query(query: str, trace: TraceCollector = None, trace_name: str = "") -> list:
+def run_query(query: str, trace: TraceCollector = None, trace_name: str = "") -> list:
     """Execute a read query and return rows. Optionally trace."""
     start = _time.time()
     tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
@@ -226,7 +232,7 @@ def _run_query(query: str, trace: TraceCollector = None, trace_name: str = "") -
             for row in result[:5]:
                 row_dict = {}
                 for var_name in _get_variable_names(query):
-                    val = _safe_val(row, var_name)
+                    val = safe_val(row, var_name)
                     if val is not None:
                         row_dict[var_name] = val
                 sample.append(row_dict)
@@ -268,52 +274,52 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
     sections = []
 
     # ── RP Baskets ────────────────────────────────────────────────────
-    basket_lines = _fetch_rp_baskets(provision_id, trace=trace)
+    basket_lines = fetch_rp_baskets(provision_id, trace=trace)
     if basket_lines:
         sections.append("\n".join(basket_lines))
 
     # ── Builder Sources ───────────────────────────────────────────────
-    source_lines = _fetch_builder_sources(provision_id, trace=trace)
+    source_lines = fetch_builder_sources(provision_id, trace=trace)
     if source_lines:
         sections.append("\n".join(source_lines))
 
     # ── Reallocations ─────────────────────────────────────────────────
-    realloc_lines = _fetch_reallocations(provision_id, trace=trace)
+    realloc_lines = fetch_reallocations(provision_id, trace=trace)
     if realloc_lines:
         sections.append("\n".join(realloc_lines))
 
     # ── RDP Baskets ───────────────────────────────────────────────────
-    rdp_lines = _fetch_rdp_baskets(provision_id, trace=trace)
+    rdp_lines = fetch_rdp_baskets(provision_id, trace=trace)
     if rdp_lines:
         sections.append("\n".join(rdp_lines))
 
     # ── J.Crew Blocker ────────────────────────────────────────────────
-    blocker_lines = _fetch_jcrew_blocker(provision_id, trace=trace)
+    blocker_lines = fetch_jcrew_blocker(provision_id, trace=trace)
     if blocker_lines:
         sections.append("\n".join(blocker_lines))
 
     # ── Investment Pathways ───────────────────────────────────────────
-    pathway_lines = _fetch_investment_pathways(provision_id, trace=trace)
+    pathway_lines = fetch_investment_pathways(provision_id, trace=trace)
     if pathway_lines:
         sections.append("\n".join(pathway_lines))
 
     # ── Unsub Designation ─────────────────────────────────────────────
-    unsub_lines = _fetch_unsub_designation(provision_id, trace=trace)
+    unsub_lines = fetch_unsub_designation(provision_id, trace=trace)
     if unsub_lines:
         sections.append("\n".join(unsub_lines))
 
     # ── Sweep Tiers ───────────────────────────────────────────────────
-    sweep_lines = _fetch_sweep_tiers(provision_id, trace=trace)
+    sweep_lines = fetch_sweep_tiers(provision_id, trace=trace)
     if sweep_lines:
         sections.append("\n".join(sweep_lines))
 
     # ── De Minimis Thresholds ─────────────────────────────────────────
-    dm_lines = _fetch_de_minimis(provision_id, trace=trace)
+    dm_lines = fetch_de_minimis(provision_id, trace=trace)
     if dm_lines:
         sections.append("\n".join(dm_lines))
 
     # ── Dividend Capacity Summary (TypeDB function, prepended) ───────
-    cap_lines = _fetch_dividend_capacity(provision_id, trace=trace)
+    cap_lines = fetch_dividend_capacity(provision_id, trace=trace)
     if cap_lines:
         sections.insert(0, "\n".join(cap_lines))
 
@@ -333,7 +339,7 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
 # INDIVIDUAL ENTITY FETCHERS
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Call TypeDB dividend_capacity_components function.
 
     Traversal logic lives in TypeDB. Python only formats the output.
@@ -343,15 +349,15 @@ def _fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) ->
             let $dn, $amt in dividend_capacity_components("{provision_id}");
         select $dn, $amt;
     '''
-    rows = _run_query(query, trace=trace, trace_name="dividend_capacity_components")
+    rows = run_query(query, trace=trace, trace_name="dividend_capacity_components")
     if not rows:
         return []
 
     components = []
     total = 0.0
     for row in rows:
-        dn = _safe_val(row, "dn")
-        amt = _safe_val(row, "amt")
+        dn = safe_val(row, "dn")
+        amt = safe_val(row, "amt")
         if dn and amt and amt > 0:
             components.append((dn, amt))
             total += amt
@@ -367,13 +373,13 @@ def _fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) ->
 
     lines = [
         "## Dividend Capacity Summary",
-        f"  Total Fixed Floor: {_fmt_dollar(total)}",
+        f"  Total Fixed Floor: {fmt_dollar(total)}",
         '    \u2192 "What is the total quantifiable fixed-floor dividend capacity '
         'from all independently-sectioned baskets plus reallocatable capacity?"',
         "  Components (independently-sectioned baskets \u2014 additive):",
     ]
     for name, amt in sorted(components, key=lambda x: -x[1]):
-        lines.append(f"    {name}: {_fmt_dollar(amt)}")
+        lines.append(f"    {name}: {fmt_dollar(amt)}")
     lines.append(
         "  Methodology: Each component is from a separately-defined covenant "
         "section. Reallocation capacity is additive \u2014 the source basket\u2019s "
@@ -383,7 +389,7 @@ def _fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) ->
     return lines
 
 
-def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch all RP basket subtypes using per-subtype queries to avoid type inference issues."""
     all_baskets = []
 
@@ -400,17 +406,17 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $sdl, $ugot, $dc;
     '''
-    for row in _run_query(q_builder, trace=trace, trace_name="rp_basket_builder"):
+    for row in run_query(q_builder, trace=trace, trace_name="rp_basket_builder"):
         lines = ["### Builder Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Uses Greatest Of Tests", _safe_val(row, "ugot"),
+        add_lines(lines, [
+            line("Uses Greatest Of Tests", safe_val(row, "ugot"),
                   entity_type="builder_basket", attr_key="uses_greatest_of_tests"),
-            _line("Start Date Language", _safe_val(row, "sdl"),
+            line("Start Date Language", safe_val(row, "sdl"),
                   entity_type="builder_basket", attr_key="start_date_language"),
-            _line("Default Condition", _safe_val(row, "dc")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -434,26 +440,26 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $rt, $rty, $ium, $nwt, $nwthr, $nwu, $tdt, $lct, $pfb, $dc;
     '''
-    for row in _run_query(q_ratio, trace=trace, trace_name="rp_basket_ratio"):
+    for row in run_query(q_ratio, trace=trace, trace_name="rp_basket_ratio"):
         lines = ["### Ratio Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Ratio Threshold", _safe_val(row, "rt"),
+        add_lines(lines, [
+            line("Ratio Threshold", safe_val(row, "rt"),
                   entity_type="ratio_basket", attr_key="ratio_threshold"),
-            _line("Ratio Type", _safe_val(row, "rty")),
-            _line("Is Unlimited If Met", _safe_val(row, "ium"),
+            line("Ratio Type", safe_val(row, "rty")),
+            line("Is Unlimited If Met", safe_val(row, "ium"),
                   entity_type="ratio_basket", attr_key="is_unlimited_if_met"),
-            _line("Has No Worse Test", _safe_val(row, "nwt"),
+            line("Has No Worse Test", safe_val(row, "nwt"),
                   entity_type="ratio_basket", attr_key="has_no_worse_test"),
-            _line("No Worse Threshold",
-                  "uncapped" if _safe_val(row, "nwu") else _safe_val(row, "nwthr"),
+            line("No Worse Threshold",
+                  "uncapped" if safe_val(row, "nwu") else safe_val(row, "nwthr"),
                   entity_type="ratio_basket", attr_key="no_worse_is_uncapped"),
-            _line("Test Date Type", _safe_val(row, "tdt")),
-            _line("LCT Treatment Available", _safe_val(row, "lct")),
-            _line("Pro Forma Basis", _safe_val(row, "pfb")),
-            _line("Default Condition", _safe_val(row, "dc")),
+            line("Test Date Type", safe_val(row, "tdt")),
+            line("LCT Treatment Available", safe_val(row, "lct")),
+            line("Pro Forma Basis", safe_val(row, "pfb")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -471,18 +477,18 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $bau, $bgp, $ipa, $dc;
     '''
-    for row in _run_query(q_general, trace=trace, trace_name="rp_basket_general"):
+    for row in run_query(q_general, trace=trace, trace_name="rp_basket_general"):
         lines = ["### General Rp Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Basket Amount", _safe_val(row, "bau"), _fmt_dollar,
+        add_lines(lines, [
+            line("Basket Amount", safe_val(row, "bau"), fmt_dollar,
                   entity_type="general_rp_basket", attr_key="basket_amount_usd"),
-            _line("Grower Pct", _safe_val(row, "bgp"), _fmt_pct,
+            line("Grower Pct", safe_val(row, "bgp"), fmt_pct,
                   entity_type="general_rp_basket", attr_key="basket_grower_pct"),
-            _line("Is Per Annum", _safe_val(row, "ipa")),
-            _line("Default Condition", _safe_val(row, "dc")),
+            line("Is Per Annum", safe_val(row, "ipa")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -503,23 +509,23 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $acu, $acpe, $cugo, $cfp, $cfmy, $eps, $dc;
     '''
-    for row in _run_query(q_mgmt, trace=trace, trace_name="rp_basket_management"):
+    for row in run_query(q_mgmt, trace=trace, trace_name="rp_basket_management"):
         lines = ["### Management Equity Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Annual Cap", _safe_val(row, "acu"), _fmt_dollar,
+        add_lines(lines, [
+            line("Annual Cap", safe_val(row, "acu"), fmt_dollar,
                   entity_type="management_equity_basket", attr_key="annual_cap_usd"),
-            _line("Annual Cap Pct EBITDA", _safe_val(row, "acpe"), _fmt_pct,
+            line("Annual Cap Pct EBITDA", safe_val(row, "acpe"), fmt_pct,
                   entity_type="management_equity_basket", attr_key="annual_cap_pct_ebitda"),
-            _line("Cap Uses Greater Of", _safe_val(row, "cugo"),
+            line("Cap Uses Greater Of", safe_val(row, "cugo"),
                   entity_type="management_equity_basket", attr_key="cap_uses_greater_of"),
-            _line("Carryforward Permitted", _safe_val(row, "cfp"),
+            line("Carryforward Permitted", safe_val(row, "cfp"),
                   entity_type="management_equity_basket", attr_key="carryforward_permitted"),
-            _line("Carryforward Max Years", _safe_val(row, "cfmy")),
-            _line("Eligible Person Scope", _safe_val(row, "eps")),
-            _line("Default Condition", _safe_val(row, "dc")),
+            line("Carryforward Max Years", safe_val(row, "cfmy")),
+            line("Eligible Person Scope", safe_val(row, "eps")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -538,17 +544,17 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $stl, $htr, $tsp, $etp, $dc;
     '''
-    for row in _run_query(q_tax, trace=trace, trace_name="rp_basket_tax"):
+    for row in run_query(q_tax, trace=trace, trace_name="rp_basket_tax"):
         lines = ["### Tax Distribution Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Standalone Taxpayer Limit", _safe_val(row, "stl")),
-            _line("Hypothetical Tax Rate", _safe_val(row, "htr")),
-            _line("Tax Sharing Permitted", _safe_val(row, "tsp")),
-            _line("Estimated Taxes Permitted", _safe_val(row, "etp")),
-            _line("Default Condition", _safe_val(row, "dc")),
+        add_lines(lines, [
+            line("Standalone Taxpayer Limit", safe_val(row, "stl")),
+            line("Hypothetical Tax Rate", safe_val(row, "htr")),
+            line("Tax Sharing Permitted", safe_val(row, "tsp")),
+            line("Estimated Taxes Permitted", safe_val(row, "etp")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -569,19 +575,19 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $cmf, $cae, $cft, $mfrs, $ral, $rba, $dc;
     '''
-    for row in _run_query(q_holdco, trace=trace, trace_name="rp_basket_holdco"):
+    for row in run_query(q_holdco, trace=trace, trace_name="rp_basket_holdco"):
         lines = ["### Holdco Overhead Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Covers Management Fees", _safe_val(row, "cmf")),
-            _line("Covers Admin Expenses", _safe_val(row, "cae")),
-            _line("Covers Franchise Taxes", _safe_val(row, "cft")),
-            _line("Management Fee Recipient Scope", _safe_val(row, "mfrs")),
-            _line("Requires Arms Length", _safe_val(row, "ral")),
-            _line("Requires Board Approval", _safe_val(row, "rba")),
-            _line("Default Condition", _safe_val(row, "dc")),
+        add_lines(lines, [
+            line("Covers Management Fees", safe_val(row, "cmf")),
+            line("Covers Admin Expenses", safe_val(row, "cae")),
+            line("Covers Franchise Taxes", safe_val(row, "cft")),
+            line("Management Fee Recipient Scope", safe_val(row, "mfrs")),
+            line("Requires Arms Length", safe_val(row, "ral")),
+            line("Requires Board Approval", safe_val(row, "rba")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -598,15 +604,15 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has default_condition $dc; }};
         select $b, $bid, $sec, $pg, $cce, $ctw, $dc;
     '''
-    for row in _run_query(q_eqaward, trace=trace, trace_name="rp_basket_equity_award"):
+    for row in run_query(q_eqaward, trace=trace, trace_name="rp_basket_equity_award"):
         lines = ["### Equity Award Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Covers Cashless Exercise", _safe_val(row, "cce")),
-            _line("Covers Tax Withholding", _safe_val(row, "ctw")),
-            _line("Default Condition", _safe_val(row, "dc")),
+        add_lines(lines, [
+            line("Covers Cashless Exercise", safe_val(row, "cce")),
+            line("Covers Tax Withholding", safe_val(row, "ctw")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
         all_baskets.append(lines)
 
@@ -626,21 +632,21 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $b has requires_valid_designation $rvd; }};
         select $b, $bid, $sec, $pg, $cei, $ci, $ca, $cp, $ic, $rvd;
     '''
-    for row in _run_query(q_unsub_dist, trace=trace, trace_name="rp_basket_unsub_dist"):
+    for row in run_query(q_unsub_dist, trace=trace, trace_name="rp_basket_unsub_dist"):
         lines = ["### Unsub Distribution Basket"]
-        sec, pg = _safe_val(row, "sec"), _safe_val(row, "pg")
+        sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        _add_lines(lines, [
-            _line("Covers Equity Interests", _safe_val(row, "cei"),
+        add_lines(lines, [
+            line("Covers Equity Interests", safe_val(row, "cei"),
                   entity_type="unsub_distribution_basket", attr_key="covers_equity_interests"),
-            _line("Covers Indebtedness", _safe_val(row, "ci")),
-            _line("Covers Assets", _safe_val(row, "ca"),
+            line("Covers Indebtedness", safe_val(row, "ci")),
+            line("Covers Assets", safe_val(row, "ca"),
                   entity_type="unsub_distribution_basket", attr_key="covers_assets"),
-            _line("Covers Proceeds", _safe_val(row, "cp")),
-            _line("Is Categorical", _safe_val(row, "ic"),
+            line("Covers Proceeds", safe_val(row, "cp")),
+            line("Is Categorical", safe_val(row, "ic"),
                   entity_type="unsub_distribution_basket", attr_key="is_categorical"),
-            _line("Requires Valid Designation", _safe_val(row, "rvd")),
+            line("Requires Valid Designation", safe_val(row, "rvd")),
         ])
         all_baskets.append(lines)
 
@@ -654,7 +660,7 @@ def _fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
     return result
 
 
-def _fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch builder basket sources."""
     query = f'''
         match
@@ -686,42 +692,42 @@ def _fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> L
                $recf, $lbp, $lbq, $fcm, $ecc, $eds,
                $ssr, $hrdb, $rdt;
     '''
-    rows = _run_query(query, trace=trace, trace_name="builder_sources")
+    rows = run_query(query, trace=trace, trace_name="builder_sources")
     if not rows:
         return []
 
     lines = ["## Builder Basket Sources"]
     for row in rows:
-        stype = _safe_type(row, "s") or "builder_basket_source"
-        sname = _safe_val(row, "sn") or stype.replace("_", " ").title()
+        stype = safe_type(row, "s") or "builder_basket_source"
+        sname = safe_val(row, "sn") or stype.replace("_", " ").title()
         lines.append(f"\n### {sname}")
 
-        _add_lines(lines, [
-            _line("Dollar Amount", _safe_val(row, "da"), _fmt_dollar,
+        add_lines(lines, [
+            line("Dollar Amount", safe_val(row, "da"), fmt_dollar,
                   entity_type=stype, attr_key="dollar_amount"),
-            _line("EBITDA Percentage", _safe_val(row, "ep"), _fmt_pct,
+            line("EBITDA Percentage", safe_val(row, "ep"), fmt_pct,
                   entity_type=stype, attr_key="ebitda_percentage"),
-            _line("Uses Greater Of", _safe_val(row, "ugo"),
+            line("Uses Greater Of", safe_val(row, "ugo"),
                   entity_type=stype, attr_key="uses_greater_of"),
-            _line("Percentage", _safe_val(row, "pct"), _fmt_pct,
+            line("Percentage", safe_val(row, "pct"), fmt_pct,
                   entity_type=stype, attr_key="percentage"),
-            _line("Is Primary Test", _safe_val(row, "ipt")),
-            _line("Retained ECF Formula", _safe_val(row, "recf"),
+            line("Is Primary Test", safe_val(row, "ipt")),
+            line("Retained ECF Formula", safe_val(row, "recf"),
                   entity_type=stype, attr_key="retained_ecf_formula"),
-            _line("Lookback Period", _safe_val(row, "lbp")),
-            _line("Lookback Quarters", _safe_val(row, "lbq")),
-            _line("FC Multiplier", _safe_val(row, "fcm"),
+            line("Lookback Period", safe_val(row, "lbp")),
+            line("Lookback Quarters", safe_val(row, "lbq")),
+            line("FC Multiplier", safe_val(row, "fcm"),
                   entity_type=stype, attr_key="fc_multiplier"),
-            _line("Excludes Cure Contributions", _safe_val(row, "ecc")),
-            _line("Excludes Disqualified Stock", _safe_val(row, "eds")),
-            _line("Not Otherwise Applied", _safe_val(row, "noa")),
-            _line("Sweep Section Reference", _safe_val(row, "ssr")),
-            _line("Has Ratio Disposition Basket", _safe_val(row, "hrdb")),
-            _line("Ratio Disposition Threshold", _safe_val(row, "rdt")),
+            line("Excludes Cure Contributions", safe_val(row, "ecc")),
+            line("Excludes Disqualified Stock", safe_val(row, "eds")),
+            line("Not Otherwise Applied", safe_val(row, "noa")),
+            line("Sweep Section Reference", safe_val(row, "ssr")),
+            line("Has Ratio Disposition Basket", safe_val(row, "hrdb")),
+            line("Ratio Disposition Threshold", safe_val(row, "rdt")),
         ])
 
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
+        sec = safe_val(row, "sec")
+        pg = safe_val(row, "pg")
         loc = []
         if sec:
             loc.append(f"Section: {sec}")
@@ -733,7 +739,7 @@ def _fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> L
     return lines
 
 
-def _fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Dict[str, tuple]:
+def fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Dict[str, tuple]:
     """Fetch basket_amount_usd and grower_pct for RP + RDP baskets.
 
     Returns dict of short_name -> (amount_usd, grower_pct_or_None).
@@ -749,10 +755,10 @@ def _fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Di
             try {{ $b has basket_grower_pct $bgp; }};
         select $bid, $bau, $bgp;
     '''
-    for row in _run_query(q_rp, trace=trace, trace_name="basket_amounts_rp"):
-        bid = _safe_val(row, "bid")
-        amt = _safe_val(row, "bau")
-        gp = _safe_val(row, "bgp")
+    for row in run_query(q_rp, trace=trace, trace_name="basket_amounts_rp"):
+        bid = safe_val(row, "bid")
+        amt = safe_val(row, "bau")
+        gp = safe_val(row, "bgp")
         if bid and amt:
             short = bid.replace(f"_{provision_id}", "").replace("_", " ")
             result[short] = (amt, gp)
@@ -766,10 +772,10 @@ def _fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Di
             try {{ $rb has basket_grower_pct $bgp; }};
         select $bid, $bau, $bgp;
     '''
-    for row in _run_query(q_rdp, trace=trace, trace_name="basket_amounts_rdp"):
-        bid = _safe_val(row, "bid")
-        amt = _safe_val(row, "bau")
-        gp = _safe_val(row, "bgp")
+    for row in run_query(q_rdp, trace=trace, trace_name="basket_amounts_rdp"):
+        bid = safe_val(row, "bid")
+        amt = safe_val(row, "bau")
+        gp = safe_val(row, "bgp")
         if bid and amt:
             short = bid.replace(f"_{provision_id}", "").replace("_", " ")
             result[short] = (amt, gp)
@@ -778,7 +784,7 @@ def _fetch_basket_amounts(provision_id: str, trace: TraceCollector = None) -> Di
     return result
 
 
-def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch basket reallocation entities."""
     query = f'''
         match
@@ -795,19 +801,19 @@ def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> Lis
             try {{ $r has source_page $pg; }};
         select $rid, $rsrc, $ramt, $bidir, $rsb, $rdfd, $rwoo, $sec, $pg;
     '''
-    rows = _run_query(query, trace=trace, trace_name="reallocations")
+    rows = run_query(query, trace=trace, trace_name="reallocations")
     if not rows:
         return []
 
     # Build a map of basket_id -> amount for inline display
-    basket_amt_map = _fetch_basket_amounts(provision_id, trace=trace)
+    basket_amt_map = fetch_basket_amounts(provision_id, trace=trace)
 
     lines = ["## Reallocation Paths"]
     for row in rows:
-        src = _safe_val(row, "rsrc") or "unknown"
-        bidir = _safe_val(row, "bidir")
-        sec = _safe_val(row, "sec") or ""
-        ramt = _safe_val(row, "ramt")
+        src = safe_val(row, "rsrc") or "unknown"
+        bidir = safe_val(row, "bidir")
+        sec = safe_val(row, "sec") or ""
+        ramt = safe_val(row, "ramt")
         direction = "↔ bidirectional" if bidir else "→ one-way"
         sec_str = f" via {sec}" if sec else ""
         # Use reallocation_amount_usd for inline display, fall back to basket lookup
@@ -817,9 +823,9 @@ def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> Lis
         grower_pct = basket_info[1] if basket_info else None
         if amt_val and grower_pct:
             pct_display = f"{int(grower_pct * 100)}%" if grower_pct <= 1 else f"{grower_pct}%"
-            amt_str = f" ({_fmt_dollar(amt_val)} / {pct_display} EBITDA)"
+            amt_str = f" ({fmt_dollar(amt_val)} / {pct_display} EBITDA)"
         elif amt_val:
-            amt_str = f" ({_fmt_dollar(amt_val)})"
+            amt_str = f" ({fmt_dollar(amt_val)})"
         else:
             amt_str = ""
         lines.append(f"  {src}{amt_str}{sec_str}, {direction}")
@@ -831,16 +837,16 @@ def _fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> Lis
             if qt:
                 lines.append(f'    \u2192 "{qt}"')
 
-        _add_lines(lines, [
-            _line("    Reduces Source Basket", _safe_val(row, "rsb")),
-            _line("    Dollar-for-Dollar Reduction", _safe_val(row, "rdfd")),
-            _line("    While Outstanding Only", _safe_val(row, "rwoo")),
+        add_lines(lines, [
+            line("    Reduces Source Basket", safe_val(row, "rsb")),
+            line("    Dollar-for-Dollar Reduction", safe_val(row, "rdfd")),
+            line("    While Outstanding Only", safe_val(row, "rwoo")),
         ])
 
     return lines
 
 
-def _fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch all RDP basket subtypes."""
     query = f'''
         match
@@ -873,18 +879,18 @@ def _fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[
                $swrp, $sti,
                $rslp, $rslm, $rnip, $prwe, $rqso, $rcce, $noa;
     '''
-    rows = _run_query(query, trace=trace, trace_name="rdp_baskets")
+    rows = run_query(query, trace=trace, trace_name="rdp_baskets")
     if not rows:
         return []
 
     lines = ["## RDP Baskets"]
     for row in rows:
-        rtype = _safe_type(row, "rb") or "rdp_basket"
+        rtype = safe_type(row, "rb") or "rdp_basket"
         label = rtype.replace("_", " ").title()
         lines.append(f"\n### {label}")
 
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
+        sec = safe_val(row, "sec")
+        pg = safe_val(row, "pg")
         loc = []
         if sec:
             loc.append(f"Section: {sec}")
@@ -893,31 +899,31 @@ def _fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[
         if loc:
             lines.append(f"  {', '.join(loc)}")
 
-        _add_lines(lines, [
-            _line("Basket Amount", _safe_val(row, "bau"), _fmt_dollar),
-            _line("Grower Pct", _safe_val(row, "bgp"), _fmt_pct),
-            _line("Ratio Threshold", _safe_val(row, "rt")),
-            _line("Ratio Type", _safe_val(row, "rty")),
-            _line("Is Unlimited If Met", _safe_val(row, "ium")),
-            _line("Test Date Type", _safe_val(row, "tdt")),
-            _line("Pro Forma Basis", _safe_val(row, "pfb")),
-            _line("Uses Closing Ratio Alternative", _safe_val(row, "ucra")),
-            _line("Shares With RP Builder", _safe_val(row, "swrp")),
-            _line("Subject To Intercreditor", _safe_val(row, "sti")),
-            _line("Requires Same Or Lower Priority", _safe_val(row, "rslp")),
-            _line("Requires Same Or Later Maturity", _safe_val(row, "rslm")),
-            _line("Requires No Increase In Principal", _safe_val(row, "rnip")),
-            _line("Permits Refinancing With Equity", _safe_val(row, "prwe")),
-            _line("Requires Qualified Stock Only", _safe_val(row, "rqso")),
-            _line("Requires Cash Common Equity", _safe_val(row, "rcce")),
-            _line("Not Otherwise Applied", _safe_val(row, "noa")),
-            _line("Default Condition", _safe_val(row, "dc")),
+        add_lines(lines, [
+            line("Basket Amount", safe_val(row, "bau"), fmt_dollar),
+            line("Grower Pct", safe_val(row, "bgp"), fmt_pct),
+            line("Ratio Threshold", safe_val(row, "rt")),
+            line("Ratio Type", safe_val(row, "rty")),
+            line("Is Unlimited If Met", safe_val(row, "ium")),
+            line("Test Date Type", safe_val(row, "tdt")),
+            line("Pro Forma Basis", safe_val(row, "pfb")),
+            line("Uses Closing Ratio Alternative", safe_val(row, "ucra")),
+            line("Shares With RP Builder", safe_val(row, "swrp")),
+            line("Subject To Intercreditor", safe_val(row, "sti")),
+            line("Requires Same Or Lower Priority", safe_val(row, "rslp")),
+            line("Requires Same Or Later Maturity", safe_val(row, "rslm")),
+            line("Requires No Increase In Principal", safe_val(row, "rnip")),
+            line("Permits Refinancing With Equity", safe_val(row, "prwe")),
+            line("Requires Qualified Stock Only", safe_val(row, "rqso")),
+            line("Requires Cash Common Equity", safe_val(row, "rcce")),
+            line("Not Otherwise Applied", safe_val(row, "noa")),
+            line("Default Condition", safe_val(row, "dc")),
         ])
 
     return lines
 
 
-def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch J.Crew blocker + exceptions."""
     blocker_query = f'''
         match
@@ -940,15 +946,15 @@ def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> Lis
         select $b, $bid, $ct, $cd, $cip, $cma, $cel, $cnl, $cpledge, $cab,
                $blp, $brs, $isr, $sec, $pg;
     '''
-    rows = _run_query(blocker_query, trace=trace, trace_name="jcrew_blocker")
+    rows = run_query(blocker_query, trace=trace, trace_name="jcrew_blocker")
     if not rows:
         return []
 
     row = rows[0]
     lines = ["## J.Crew Blocker"]
 
-    sec = _safe_val(row, "sec")
-    pg = _safe_val(row, "pg")
+    sec = safe_val(row, "sec")
+    pg = safe_val(row, "pg")
     loc = []
     if sec:
         loc.append(f"Section: {sec}")
@@ -957,27 +963,27 @@ def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> Lis
     if loc:
         lines.append(f"  {', '.join(loc)}")
 
-    _add_lines(lines, [
-        _line("Covers Transfer", _safe_val(row, "ct"),
+    add_lines(lines, [
+        line("Covers Transfer", safe_val(row, "ct"),
               entity_type="jcrew_blocker", attr_key="covers_transfer"),
-        _line("Covers Designation", _safe_val(row, "cd"),
+        line("Covers Designation", safe_val(row, "cd"),
               entity_type="jcrew_blocker", attr_key="covers_designation"),
-        _line("Covers IP", _safe_val(row, "cip"),
+        line("Covers IP", safe_val(row, "cip"),
               entity_type="jcrew_blocker", attr_key="covers_ip"),
-        _line("Covers Material Assets", _safe_val(row, "cma"),
+        line("Covers Material Assets", safe_val(row, "cma"),
               entity_type="jcrew_blocker", attr_key="covers_material_assets"),
-        _line("Covers Exclusive Licensing", _safe_val(row, "cel")),
-        _line("Covers Non-Exclusive Licensing", _safe_val(row, "cnl")),
-        _line("Covers Pledge", _safe_val(row, "cpledge")),
-        _line("Covers Abandonment", _safe_val(row, "cab")),
-        _line("Binds Loan Parties", _safe_val(row, "blp")),
-        _line("Binds Restricted Subs", _safe_val(row, "brs")),
-        _line("Is Sacred Right", _safe_val(row, "isr"),
+        line("Covers Exclusive Licensing", safe_val(row, "cel")),
+        line("Covers Non-Exclusive Licensing", safe_val(row, "cnl")),
+        line("Covers Pledge", safe_val(row, "cpledge")),
+        line("Covers Abandonment", safe_val(row, "cab")),
+        line("Binds Loan Parties", safe_val(row, "blp")),
+        line("Binds Restricted Subs", safe_val(row, "brs")),
+        line("Is Sacred Right", safe_val(row, "isr"),
               entity_type="jcrew_blocker", attr_key="is_sacred_right"),
     ])
 
     # Fetch exceptions
-    bid = _safe_val(row, "bid")
+    bid = safe_val(row, "bid")
     if bid:
         exc_query = f'''
             match
@@ -990,20 +996,20 @@ def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> Lis
                 try {{ $e has source_page $epg; }};
             select $e, $eid, $en, $sl, $esec, $epg;
         '''
-        exc_rows = _run_query(exc_query, trace=trace, trace_name="blocker_exceptions")
+        exc_rows = run_query(exc_query, trace=trace, trace_name="blocker_exceptions")
         if exc_rows:
             lines.append("")
             lines.append("### Exceptions")
             for erow in exc_rows:
-                etype = _safe_type(erow, "e") or "blocker_exception"
-                ename = _safe_val(erow, "en") or etype.replace("_", " ").title()
+                etype = safe_type(erow, "e") or "blocker_exception"
+                ename = safe_val(erow, "en") or etype.replace("_", " ").title()
                 lines.append(f"\n  Exception: {ename}")
-                _add_lines(lines, [
-                    _line("    Type", etype),
-                    _line("    Scope Limitation", _safe_val(erow, "sl")),
+                add_lines(lines, [
+                    line("    Type", etype),
+                    line("    Scope Limitation", safe_val(erow, "sl")),
                 ])
-                esec = _safe_val(erow, "esec")
-                epg = _safe_val(erow, "epg")
+                esec = safe_val(erow, "esec")
+                epg = safe_val(erow, "epg")
                 eloc = []
                 if esec:
                     eloc.append(f"Section: {esec}")
@@ -1015,7 +1021,7 @@ def _fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> Lis
     return lines
 
 
-def _fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch investment pathways."""
     query = f'''
         match
@@ -1033,26 +1039,26 @@ def _fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) 
             try {{ $pw has source_page $pg; }};
         select $pid, $pst, $ptt, $cdu, $cpta, $cugo, $iu, $csob, $sec, $pg;
     '''
-    rows = _run_query(query, trace=trace, trace_name="investment_pathways")
+    rows = run_query(query, trace=trace, trace_name="investment_pathways")
     if not rows:
         return []
 
     lines = ["## Investment Pathways"]
     for row in rows:
-        src = _safe_val(row, "pst") or "?"
-        tgt = _safe_val(row, "ptt") or "?"
+        src = safe_val(row, "pst") or "?"
+        tgt = safe_val(row, "ptt") or "?"
         lines.append(f"\n### {src} -> {tgt}")
 
-        _add_lines(lines, [
-            _line("Dollar Cap", _safe_val(row, "cdu"), _fmt_dollar),
-            _line("Pct Total Assets Cap", _safe_val(row, "cpta"), _fmt_pct),
-            _line("Cap Uses Greater Of", _safe_val(row, "cugo")),
-            _line("Is Uncapped", _safe_val(row, "iu")),
-            _line("Can Stack With Other Baskets", _safe_val(row, "csob")),
+        add_lines(lines, [
+            line("Dollar Cap", safe_val(row, "cdu"), fmt_dollar),
+            line("Pct Total Assets Cap", safe_val(row, "cpta"), fmt_pct),
+            line("Cap Uses Greater Of", safe_val(row, "cugo")),
+            line("Is Uncapped", safe_val(row, "iu")),
+            line("Can Stack With Other Baskets", safe_val(row, "csob")),
         ])
 
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
+        sec = safe_val(row, "sec")
+        pg = safe_val(row, "pg")
         loc = []
         if sec:
             loc.append(f"Section: {sec}")
@@ -1064,7 +1070,7 @@ def _fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) 
     return lines
 
 
-def _fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch unsub designation entity."""
     query = f'''
         match
@@ -1080,15 +1086,15 @@ def _fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) ->
             try {{ $d has source_page $pg; }};
         select $did, $rnd, $rba, $dcu, $pca, $rp, $sec, $pg;
     '''
-    rows = _run_query(query, trace=trace, trace_name="unsub_designation")
+    rows = run_query(query, trace=trace, trace_name="unsub_designation")
     if not rows:
         return []
 
     row = rows[0]
     lines = ["## Unsub Designation"]
 
-    sec = _safe_val(row, "sec")
-    pg = _safe_val(row, "pg")
+    sec = safe_val(row, "sec")
+    pg = safe_val(row, "pg")
     loc = []
     if sec:
         loc.append(f"Section: {sec}")
@@ -1097,20 +1103,20 @@ def _fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) ->
     if loc:
         lines.append(f"  {', '.join(loc)}")
 
-    _add_lines(lines, [
-        _line("Requires No Default", _safe_val(row, "rnd")),
-        _line("Requires Board Approval", _safe_val(row, "rba")),
-        _line("Dollar Cap", _safe_val(row, "dcu"), _fmt_dollar,
+    add_lines(lines, [
+        line("Requires No Default", safe_val(row, "rnd")),
+        line("Requires Board Approval", safe_val(row, "rba")),
+        line("Dollar Cap", safe_val(row, "dcu"), fmt_dollar,
               entity_type="unsub_designation", attr_key="dollar_cap_usd"),
-        _line("Pct Cap Total Assets", _safe_val(row, "pca"), _fmt_pct,
+        line("Pct Cap Total Assets", safe_val(row, "pca"), fmt_pct,
               entity_type="unsub_designation", attr_key="pct_cap_assets"),
-        _line("Redesignation Permitted", _safe_val(row, "rp")),
+        line("Redesignation Permitted", safe_val(row, "rp")),
     ])
 
     return lines
 
 
-def _fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch sweep tiers."""
     query = f'''
         match
@@ -1124,20 +1130,20 @@ def _fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[
             try {{ $t has source_page $pg; }};
         select $tid, $lt, $sp, $iht, $sec, $pg;
     '''
-    rows = _run_query(query, trace=trace, trace_name="sweep_tiers")
+    rows = run_query(query, trace=trace, trace_name="sweep_tiers")
     if not rows:
         return []
 
     lines = ["## Sweep Tiers"]
     for i, row in enumerate(rows, 1):
         lines.append(f"\n### Tier {i}")
-        _add_lines(lines, [
-            _line("Leverage Threshold", _safe_val(row, "lt")),
-            _line("Sweep Percentage", _safe_val(row, "sp"), _fmt_pct),
-            _line("Is Highest Tier", _safe_val(row, "iht")),
+        add_lines(lines, [
+            line("Leverage Threshold", safe_val(row, "lt")),
+            line("Sweep Percentage", safe_val(row, "sp"), fmt_pct),
+            line("Is Highest Tier", safe_val(row, "iht")),
         ])
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
+        sec = safe_val(row, "sec")
+        pg = safe_val(row, "pg")
         loc = []
         if sec:
             loc.append(f"Section: {sec}")
@@ -1149,7 +1155,7 @@ def _fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[
     return lines
 
 
-def _fetch_de_minimis(provision_id: str, trace: TraceCollector = None) -> List[str]:
+def fetch_de_minimis(provision_id: str, trace: TraceCollector = None) -> List[str]:
     """Fetch de minimis thresholds."""
     query = f'''
         match
@@ -1162,19 +1168,19 @@ def _fetch_de_minimis(provision_id: str, trace: TraceCollector = None) -> List[s
             try {{ $t has source_page $pg; }};
         select $tid, $ttype, $tamt, $sec, $pg;
     '''
-    rows = _run_query(query, trace=trace, trace_name="de_minimis_thresholds")
+    rows = run_query(query, trace=trace, trace_name="de_minimis_thresholds")
     if not rows:
         return []
 
     lines = ["## De Minimis Thresholds"]
     for row in rows:
-        ttype = _safe_val(row, "ttype") or "threshold"
+        ttype = safe_val(row, "ttype") or "threshold"
         lines.append(f"\n### {ttype}")
-        _add_lines(lines, [
-            _line("Amount", _safe_val(row, "tamt"), _fmt_dollar),
+        add_lines(lines, [
+            line("Amount", safe_val(row, "tamt"), fmt_dollar),
         ])
-        sec = _safe_val(row, "sec")
-        pg = _safe_val(row, "pg")
+        sec = safe_val(row, "sec")
+        pg = safe_val(row, "pg")
         loc = []
         if sec:
             loc.append(f"Section: {sec}")
