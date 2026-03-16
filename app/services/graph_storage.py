@@ -948,11 +948,42 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         scalar_answers = []       # boolean/number/string (including _exists for flat storage)
         multiselect_answers = []  # multiselect arrays
 
+        # Build set of known entity_list question IDs for validation
+        known_el_qids = set()
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            result = tx.query('''
+                match $q isa ontology_question,
+                    has question_id $qid,
+                    has answer_type "entity_list";
+                select $qid;
+            ''').resolve()
+            for row in result.as_concept_rows():
+                known_el_qids.add(self._get_attr(row, "qid"))
+        except Exception as e:
+            logger.warning(f"Could not load entity_list question IDs: {e}")
+        finally:
+            if tx.is_open():
+                tx.close()
+
         for answer in response.answers:
             if answer.value is None:
                 continue
             if answer.answer_type == "entity_list":
-                entity_list_answers.append(answer)
+                if answer.question_id in known_el_qids:
+                    entity_list_answers.append(answer)
+                else:
+                    # Claude misclassified — reroute as multiselect if list, else scalar
+                    logger.warning(
+                        f"{answer.question_id}: Claude returned answer_type='entity_list' "
+                        f"but question is not entity_list — reclassifying"
+                    )
+                    if isinstance(answer.value, list):
+                        answer.answer_type = "multiselect"
+                        multiselect_answers.append(answer)
+                    else:
+                        scalar_answers.append(answer)
+                    continue
             elif answer.answer_type == "multiselect":
                 multiselect_answers.append(answer)
             else:
@@ -1852,6 +1883,25 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         elif isinstance(value, (int, float)):
             return str(value)
         elif isinstance(value, str):
+            # Heuristic: detect string-encoded booleans/numbers from Claude's JSON
+            # When get_attr_value_types() returns empty (TypeDB Cloud READ tx limitation),
+            # values arrive as strings even if they represent booleans or numbers.
+            stripped = value.strip()
+            low = stripped.lower()
+            if low in ("true", "false"):
+                return low
+            # Try integer (must come before float to avoid "193" → "193.0")
+            try:
+                int(stripped)
+                return stripped
+            except ValueError:
+                pass
+            # Try float
+            try:
+                float(stripped)
+                return stripped
+            except ValueError:
+                pass
             return f'"{self._escape(value[:2000])}"'
         return None
 

@@ -1282,15 +1282,16 @@ Return ONLY the JSON array."""
                     )
             logger.info(f"Pass 2 complete: {len(t2_answers)} answers")
 
-        # ── Pass 3: Tier 3 (Cross-Reference) against both + prior answers ─
+        # ── Pass 3: Tier 3 (Cross-Reference) against definitions + prior answers ─
+        # (NOT full RP universe — T3 analyzes interactions between extracted
+        # provisions, not raw covenant language. Full text would exceed 200K tokens.)
         if jc3_questions:
             logger.info("J.Crew Pass 3: Tier 3 cross-reference analysis...")
 
-            # Build combined context: RP universe + definitions + prior answers
-            combined_parts = [rp_universe.raw_text]
+            combined_parts = []
 
             if definitions_text:
-                combined_parts.append("\n\n## DEFINITIONS (from document)\n\n")
+                combined_parts.append("## DEFINITIONS (from document)\n\n")
                 combined_parts.append(definitions_text)
 
             if prior_answers_summary:
@@ -1300,6 +1301,9 @@ Return ONLY the JSON array."""
                     "provided for cross-reference:\n"
                 )
                 combined_parts.append("\n".join(prior_answers_summary))
+
+            if not combined_parts:
+                combined_parts.append("No prior findings available.")
 
             combined_context = "\n".join(combined_parts)
 
@@ -2757,12 +2761,14 @@ RULES:
                     )
             logger.info(f"Tier 2 complete: {len(t2_answers)} answers")
 
-        # Tier 3: Cross-reference against combined context + prior answers
+        # Tier 3: Cross-reference against definitions + prior answers only
+        # (NOT full RP universe — T3 analyzes interactions between extracted
+        # provisions, not raw covenant language. Full text would exceed 200K tokens.)
         if jc3_questions:
             logger.info(f"J.Crew Tier 3: {len(jc3_questions)} questions (cross-reference)...")
-            combined_parts = [rp_universe.raw_text]
+            combined_parts = []
             if definitions_text:
-                combined_parts.append("\n\n## DEFINITIONS (from document)\n\n")
+                combined_parts.append("## DEFINITIONS (from document)\n\n")
                 combined_parts.append(definitions_text)
             if prior_answers_summary:
                 combined_parts.append("\n\n## PRIOR TIER 1 & 2 FINDINGS\n\n")
@@ -2771,6 +2777,8 @@ RULES:
                     "provided for cross-reference:\n"
                 )
                 combined_parts.append("\n".join(prior_answers_summary))
+            if not combined_parts:
+                combined_parts.append("No prior findings available.")
 
             t3_answers = self._answer_category_questions(
                 "\n".join(combined_parts),

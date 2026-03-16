@@ -1,122 +1,117 @@
-# Valence V3 - Claude Handoff Context
-
-Read this file at the start of any Claude Code session for project context.
-
-## Repo & Deployment
-
-- **GitHub**: https://github.com/oliverjmfeix-sketch/ValenceV3
-- **Backend**: Railway
-- **Database**: TypeDB Cloud 3.x
-- **Frontend**: Lovable
-
-## Core Architecture Principle
-
-**TypeDB is the Single Source of Truth (SSoT).**
-
-- All field definitions live in TypeDB schema (`app/data/schema.tql`), NOT in Python
-- Ontology questions live in `app/data/questions.tql`
-- Concept instances (multi-select options) live in `app/data/concepts.tql`
-- Adding a new concept type = add to schema + seed data. No Python changes needed.
-
-## TypeDB 3.x Syntax (Critical)
-
-```python
-# Queries require .resolve()
-result = tx.query(query).resolve()
-for row in result.as_concept_rows():
-    value = row.get("var").as_attribute().get_value()
-
-# Relations use "links" not parentheses
-insert
-    $app isa concept_applicability,
-        links (provision: $mfn, concept: $c),
-        has applicability_status "INCLUDED";
-```
-
-## Project Structure
-
-```
-ValenceV3/
-├── app/
-│   ├── main.py                 # FastAPI app + startup
-│   ├── config.py               # Settings from env
-│   ├── routers/                # API endpoints
-│   │   ├── deals.py
-│   │   ├── health.py
-│   │   ├── ontology.py
-│   │   ├── patterns.py
-│   │   └── qa.py
-│   ├── services/               # Business logic
-│   │   ├── typedb_client.py    # TypeDB connection
-│   │   ├── extraction.py       # Claude extraction
-│   │   ├── pdf_parser.py       # PDF processing
-│   │   └── qa_engine.py        # Question answering
-│   ├── repositories/           # Data access
-│   │   ├── answer_repository.py
-│   │   ├── deal_repository.py
-│   │   └── ontology_repository.py
-│   ├── schemas/
-│   │   └── models.py           # Pydantic models
-│   ├── scripts/
-│   │   ├── init_schema.py      # Initialize TypeDB schema
-│   │   └── seed_ontology.py    # Seed ontology questions
-│   └── data/
-│       ├── schema.tql          # TypeDB schema (concept types here)
-│       ├── concepts.tql        # Concept instances (multi-select options)
-│       └── questions.tql       # Ontology questions
-├── requirements.txt
-├── Dockerfile
-└── railway.toml
-```
+# Valence V3 — Handoff Document
+**Date**: 2026-03-16
 
 ## Current State
 
-| Covenant | Questions | Concept Types | Status |
-|----------|-----------|---------------|--------|
-| MFN | 42 | 12 | Working |
-| RP | 429 | ~20 | In Progress |
+Startup is clean. Single-instance entity creation works. Entity list stores (sweep_tiers, pathways, exceptions, etc.) all fail due to type coercion bug. RP analytical functions are deployed but return 0 rows because entity data isn't populated.
 
-## RP Concept Types
+## Critical Bug: Type Coercion Failure
 
-These consolidate boolean questions into multi-select concept types:
+### Symptom
+ALL `entity_list` stores fail. TypeDB rejects values like `"196"` for integer fields, `"5.5"` for double, `"false"` for boolean. Every entity attribute gets wrapped in quotes as a string.
 
-| Concept Type | Purpose |
-|--------------|---------|
-| `covered_person` | Who can have equity repurchased |
-| `repurchase_trigger` | Events that trigger repurchases |
-| `dividend_definition_element` | What's included in Dividend definition |
-| `builder_source` | What builds Cumulative Amount |
-| `builder_reduction_type` | What reduces builder basket |
-| `rdp_basket_type` | Baskets available for RDP |
-| `intercompany_recipient_type` | Permitted intercompany recipients |
-| `tax_group_type` | Tax distribution group types |
-| `overhead_cost_type` | Permitted overhead costs |
-| `transaction_cost_type` | Permitted transaction costs |
-| `equity_award_type` | Equity awards for tax repurchases |
-| `rdp_payment_type` | Types of RDP |
-| `reallocation_reduction_type` | What reduces general basket |
-| `reallocation_target` | Cross-covenant reallocation targets |
+### Root Cause
+`get_attr_value_types()` in `app/services/graph_storage.py` (~line 308) queries schema in a READ transaction:
+```python
+match $et label {entity_type}; $et owns $attr;
+```
+The match works (returns attribute labels), but `attr_type.get_value_type()` returns nothing in READ transactions on TypeDB Cloud. So the returned dict is empty → `_format_tql_value()` gets `schema_type=None` → treats all values as strings.
 
-## Common Commands
+### What Was Tried
+1. **SCHEMA transactions at startup** — timeout (10s default), TypeDB Cloud holds exclusive lock
+2. **SCHEMA transactions at runtime** — also timeout
+3. **READ transactions** — don't hang, but `get_value_type()` returns empty
+4. **Consolidating into fewer SCHEMA txns** — still timeout
+5. **TransactionOptions with 30s timeout** — still timeout
 
-```bash
-# Initialize schema
-python -m app.scripts.init_schema
+### Recommended Fix: Heuristic coercion in `_format_tql_value()`
 
-# Seed ontology
-python -m app.scripts.seed_ontology
+Don't rely on schema at all. Detect types from the Python values themselves:
+```python
+def _format_tql_value(value, schema_type=None):
+    # If schema_type is known, use it (existing logic)
+    # If not, infer from the value itself:
+    if isinstance(value, bool): return "true" if value else "false"
+    if isinstance(value, (int, float)): return str(value)
+    if isinstance(value, str):
+        low = value.strip().lower()
+        if low in ("true", "false"): return low
+        try:
+            int(value); return value  # bare integer
+        except ValueError: pass
+        try:
+            float(value); return value  # bare float
+        except ValueError: pass
+        return f'"{value}"'  # actual string
+```
+Claude's extraction outputs are typed in JSON — booleans come as `true`/`false`, numbers as numbers. The current code stringifies them then can't convert back because schema_type is missing.
 
-# Run locally
-uvicorn app.main:app --reload --port 8000
+## Secondary Bug: sweep_exemption Subtypes
 
-# Deploy to Railway
-railway up
+### Symptom
+```
+Type-inference was unable to find compatible types for 'entity' & '_anonymous' across a 'has' constraint
 ```
 
-## Pitfalls to Avoid
+### Root Cause
+Subtypes of `sweep_exemption` (below_threshold_exemption, ratio_basket_exemption, casualty_exemption, non_collateral_exemption, ordinary_course_sale_exemption) don't `owns section_reference` in schema. The store code tries to attach `section_reference` to all entities.
 
-1. **Don't hardcode field lists in Python** - introspect from TypeDB
-2. **Use TypeDB 3.x syntax** - `links` not parentheses for relations
-3. **Call `.resolve()` on queries** - TypeDB 3.x returns Promises
-4. **Use tristate for applicabilities** - INCLUDED/EXCLUDED/SILENT (not just boolean)
-5. **Paths are in app/data/** - not data/ at the root level
+### Fix
+Either add `owns section_reference` to sweep_exemption in schema, or skip provenance attrs for types that don't own them.
+
+## Other Issues
+
+| Issue | Severity | Notes |
+|---|---|---|
+| Missing concept types: builder_source, reallocatable_basket, rdp_basket_type | WARN | "Type label not found" — may need schema additions or extraction prompt fixes |
+| Missing metadata for rp_f8 | ERROR | One question has no metadata entry |
+| J.Crew Tier 3 prompt too long (212K > 200K tokens) | ERROR | Need to trim context or split extraction |
+
+## What Works
+
+- Startup: clean, no timeouts, no hangs
+- TypeDB connection: stable
+- Provenance attrs discovered: confidence, section_reference, source_page, source_text
+- Entity relation map: 13 types loaded
+- Single-instance entities: 12 created (jcrew_blocker, unsub_designation, etc.)
+- RP analytical functions: 4 deployed, compile OK (blocker_binding_gap_evidence, blocker_exception_swallow_evidence, unsub_distribution_evidence, pathway_chain_summary)
+- bt_at_both dual-mapping: verified (covers_transfer + covers_designation)
+
+## Key Files
+
+| File | Purpose |
+|---|---|
+| `app/services/graph_storage.py` | Core storage — type coercion, entity creation, schema introspection |
+| `app/main.py` | FastAPI startup — no cache warming, lazy init only |
+| `app/data/rp_analysis_functions.tql` | 4 analytical functions (Phase 4) |
+| `app/data/schema_unified.tql` | Full TypeDB schema |
+| `app/scripts/init_schema.py` | DB seeding — loads schema + functions |
+| `app/scripts/verify_functions.py` | Temp verification script |
+| `logs_2026-03-16_deploy3.txt` | Full extraction log from latest run |
+
+## Key Methods in graph_storage.py
+
+| Method | Line (approx) | Purpose |
+|---|---|---|
+| `get_attr_value_types()` | ~308 | Returns attr→value_type map. Currently returns empty. |
+| `_format_tql_value()` | ~1793 | Coerces Python values to TQL literals. Broken when schema_type=None. |
+| `_store_entity_list()` | ~1850+ | Creates entities from Claude's JSON. Calls _format_tql_value for each attr. |
+| `get_entity_fields_from_schema()` | ~250 | Returns field list for entity type. Works (READ tx). |
+| `_load_provenance_attrs()` | ~180 | Discovers provenance attrs. Fixed (no longer recursive). |
+
+## Deployment
+
+- Platform: Railway
+- Trigger: `git push origin main` → auto-deploy
+- Reseed: `railway run python -m app.scripts.init_schema --force`
+- Re-extract: `curl --max-time 5 "$API/api/deals/87852625/re-extract" &` (fire-and-forget)
+- Logs: `railway logs --follow` or Railway dashboard
+
+## Recommended Next Steps (in order)
+
+1. **Fix type coercion** — implement heuristic coercion in `_format_tql_value()`
+2. **Deploy + re-extract Duck Creek** (87852625)
+3. **Check entity_list stores succeed** in logs
+4. **Verify RP analytical functions return data** — run verify_functions.py
+5. **Fix sweep_exemption schema** if still erroring
+6. **Address remaining warnings** (missing concept types, rp_f8 metadata)

@@ -537,11 +537,8 @@ insert (question: $q) isa question_targets_field, has target_field_name "blocker
 # QUESTION → TARGET CONCEPT RELATIONS (multiselect questions)
 # ═══════════════════════════════════════════════════════════════════════════
 
-match $q isa ontology_question, has question_id "rp_f9";
-insert (question: $q) isa question_targets_concept, has target_concept_type "builder_source";
-
-match $q isa ontology_question, has question_id "rp_i8";
-insert (question: $q) isa question_targets_concept, has target_concept_type "reallocatable_basket";
+# rp_f9: builder_source concept type superseded by builder_basket_source entity subtypes
+# rp_i8: reallocatable_basket concept type superseded by basket_reallocation entity
 
 match $q isa ontology_question, has question_id "rp_l7";
 insert (question: $q) isa question_targets_concept, has target_concept_type "exempt_sale_type";

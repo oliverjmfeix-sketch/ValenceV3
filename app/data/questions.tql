@@ -452,8 +452,8 @@ $rp_f7 isa ontology_question,
     has display_order 56,
     has covenant_type "RP";
 
-(question: $rp_f7) isa question_targets_concept,
-    has target_concept_type "builder_source";
+# builder_source concept type superseded by builder_basket_source entity subtypes
+# Entity extraction handled by rp_el_builder_sources question
 
 # F8: Which uses reduce capacity? (multiselect - consolidates Q145-Q148)
 $rp_f8 isa ontology_question,
@@ -853,8 +853,8 @@ $rp_t1 isa ontology_question,
     has display_order 130,
     has covenant_type "RP";
 
-(question: $rp_t1) isa question_targets_concept,
-    has target_concept_type "rdp_basket_type";
+# rdp_basket_type concept type superseded by rdp_basket entity subtypes
+# Entity extraction handled by rp_el_rdp_baskets question
 
 ################################################################################
 # CATEGORY Z: PATTERN DETECTION

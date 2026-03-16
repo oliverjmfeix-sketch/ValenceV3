@@ -1642,6 +1642,10 @@ attribute exemption_name, value string;
 entity sweep_exemption @abstract,
     owns exemption_id @key,
     owns exemption_name,
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
     plays provision_has_sweep_exemption:exemption;
 
 entity non_collateral_exemption sub sweep_exemption;
