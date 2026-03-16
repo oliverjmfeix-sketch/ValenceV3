@@ -61,14 +61,7 @@ async def lifespan(app: FastAPI):
             logger.info("TypeDB connected")
             _ensure_db_ready()
 
-            # Validate attribute annotations from TypeDB at startup
-            try:
-                from app.services.graph_reader import validate_annotations
-                validate_annotations()
-            except Exception as e:
-                logger.warning(f"Annotation validation skipped: {e}")
-
-            # Warm class-level caches (fresh driver, no channel congestion)
+            # Warm SCHEMA caches FIRST on fresh channel (before any READ transactions)
             try:
                 from app.services.graph_storage import GraphStorage
                 GraphStorage._load_provenance_attrs()
@@ -79,6 +72,13 @@ async def lifespan(app: FastAPI):
                 logger.info("GraphStorage caches warmed at startup")
             except Exception as e:
                 logger.warning(f"Cache warming skipped: {e}")
+
+            # Validate attribute annotations (READ transactions — after SCHEMA caches)
+            try:
+                from app.services.graph_reader import validate_annotations
+                validate_annotations()
+            except Exception as e:
+                logger.warning(f"Annotation validation skipped: {e}")
         logger.info(f"Driver after startup: {typedb_client.driver}, "
                     f"is_connected: {typedb_client.is_connected}")
     except Exception as e:
