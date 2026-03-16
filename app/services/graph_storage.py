@@ -305,6 +305,41 @@ class GraphStorage:
     _attr_value_type_cache: Dict[str, Dict[str, str]] = {}
 
     @classmethod
+    @staticmethod
+    def _resolve_attr_value_type(attr_type) -> str:
+        """Resolve value type from a TypeDB 3.x _AttributeType using is_* methods.
+
+        TypeDB 3.x removed get_value_type() — use is_boolean(), is_string(), etc.
+        """
+        # try_get_value_type may work on some driver versions
+        try:
+            vt = attr_type.try_get_value_type()
+            if vt is not None:
+                return str(vt).lower()
+        except Exception:
+            pass
+
+        # TypeDB 3.x is_* type checks
+        if attr_type.is_boolean():
+            return "boolean"
+        if attr_type.is_integer():
+            return "long"
+        if attr_type.is_double():
+            return "double"
+        if attr_type.is_string():
+            return "string"
+        if attr_type.is_datetime():
+            return "datetime"
+        if attr_type.is_datetime_tz():
+            return "datetime"
+        if attr_type.is_date():
+            return "datetime"
+        if attr_type.is_decimal():
+            return "double"
+        if attr_type.is_duration():
+            return "string"
+        return "string"  # Safe fallback
+
     def get_attr_value_types(cls, entity_type: str) -> Dict[str, str]:
         """Get {attr_name: value_type} for all attributes owned by an entity type. Cached.
 
@@ -329,18 +364,18 @@ class GraphStorage:
             for row in tx.query(query).resolve().as_concept_rows():
                 attr_type = row.get("attr").as_attribute_type()
                 attr_name = attr_type.get_label()
-                try:
-                    vt = attr_type.get_value_type()
-                    if vt:
-                        result[attr_name] = str(vt).lower()
-                    # If vt is None, skip — let _format_tql_value heuristic handle it
-                except Exception:
-                    pass  # Skip — don't default to "string", let heuristic handle it
+                vt = cls._resolve_attr_value_type(attr_type)
+                result[attr_name] = vt
         except Exception as e:
             logger.error(f"Failed to get attr value types for {entity_type}: {e}")
         finally:
             if tx.is_open():
                 tx.close()
+
+        if result:
+            logger.info(f"get_attr_value_types({entity_type}): {len(result)} attrs")
+        else:
+            logger.error(f"get_attr_value_types({entity_type}): returned EMPTY")
 
         cls._attr_value_type_cache[entity_type] = result
         return result
