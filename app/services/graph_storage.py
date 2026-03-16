@@ -1188,8 +1188,11 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         # Get expected value types from schema for type coercion
         attr_types = self.get_attr_value_types(actual_type)
+        if not attr_types:
+            logger.error(f"No schema type info for {actual_type} — cannot store entity")
+            return
         if index == 0:
-            logger.info(f"attr_types for {actual_type}: {attr_types}")
+            logger.info(f"Type map for {actual_type}: {len(attr_types)} attrs — {attr_types}")
 
         for field_name, value in item.items():
             if field_name == "type":
@@ -1883,32 +1886,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     return str(float(value))
                 return str(value)
 
-        # No schema type — use Python type inference
-        if isinstance(value, bool):
-            return str(value).lower()
-        elif isinstance(value, (int, float)):
-            return str(value)
-        elif isinstance(value, str):
-            # Heuristic: detect string-encoded booleans/numbers from Claude's JSON
-            # When get_attr_value_types() returns empty (TypeDB Cloud READ tx limitation),
-            # values arrive as strings even if they represent booleans or numbers.
-            stripped = value.strip()
-            low = stripped.lower()
-            if low in ("true", "false"):
-                return low
-            # Try integer (must come before float to avoid "193" → "193.0")
-            try:
-                int(stripped)
-                return stripped
-            except ValueError:
-                pass
-            # Try float
-            try:
-                float(stripped)
-                return stripped
-            except ValueError:
-                pass
-            return f'"{self._escape(value[:2000])}"'
+        # No schema type — skip attribute (don't guess)
         return None
 
     def _escape(self, text: str) -> str:
