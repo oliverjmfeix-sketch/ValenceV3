@@ -977,7 +977,7 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
             document_text="",  # No full PDF text — JC tiers 2-3 will be skipped
             rp_universe=rp_universe,
             segment_map=None,
-            model="claude-sonnet-4-5-20250929",  # Use Sonnet for re-extraction (~$0.10 vs $4.60)
+            model="claude-sonnet-4-6",  # Use Sonnet for re-extraction (~$0.10 vs $4.60)
         )
 
         return {

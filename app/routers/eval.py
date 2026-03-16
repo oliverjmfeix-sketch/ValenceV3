@@ -175,7 +175,7 @@ def _call_sonnet(system: str, user: str, max_tokens: int = 4000) -> str:
     import time as _time
     from app.services.cost_tracker import extract_usage
 
-    eval_model = "claude-sonnet-4-20250514"
+    eval_model = "claude-sonnet-4-6"
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     start = _time.time()
     response = client.messages.create(

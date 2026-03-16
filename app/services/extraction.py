@@ -1652,7 +1652,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                 f"context={context_chars} chars"
             )
 
-            mfn_model = "claude-sonnet-4-5-20250929"
+            mfn_model = "claude-sonnet-4-6"
             start = time.time()
             response = self.client.messages.create(
                 model=mfn_model,
@@ -2243,7 +2243,7 @@ If no entities of this type exist, return: {{"entities": []}}
 
             from app.services.cost_tracker import extract_usage
             try:
-                mfn_entity_model = "claude-sonnet-4-5-20250929"
+                mfn_entity_model = "claude-sonnet-4-6"
                 start = time.time()
                 response = self.client.messages.create(
                     model=mfn_entity_model,
