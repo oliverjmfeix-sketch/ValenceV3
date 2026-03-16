@@ -1023,7 +1023,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         if question_id in self._el_question_meta_cache:
             return self._el_question_meta_cache[question_id]
 
-        tx = self.driver.transaction(self.db_name, TransactionType.READ)
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             query = f'''
                 match
