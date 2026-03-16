@@ -25,7 +25,7 @@ queries = {
     "blocker_exception_swallow": 'match let $ename in blocker_exception_swallow_evidence("87852625_rp"); select $ename;',
     "unsub_distribution": 'match let $an, $val in unsub_distribution_evidence("87852625_rp"); select $an, $val;',
     "pathway_chain": 'match let $src, $tgt, $unc in pathway_chain_summary("87852625_rp"); select $src, $tgt, $unc;',
-    "dividend_capacity": 'match let $dn, $amt in dividend_capacity_components("87852625_rp"); select $dn, $amt;',
+    "dividend_capacity": 'match let $amt in dividend_capacity_components("87852625_rp"); select $amt;',
     # Diagnostics
     "diag_baskets": 'match $p isa rp_provision, has provision_id "87852625_rp"; (provision: $p, basket: $b) isa provision_has_basket; $b isa $t; select $t;',
     "diag_pathways": 'match $p isa rp_provision, has provision_id "87852625_rp"; (provision: $p, pathway: $pw) isa provision_has_pathway; $pw has pathway_source_type $src; $pw has pathway_target_type $tgt; select $src, $tgt;',
