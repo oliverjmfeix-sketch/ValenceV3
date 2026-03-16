@@ -40,7 +40,7 @@ class GraphStorage:
     _entity_relation_cache: Optional[Dict[str, tuple]] = None
 
     @classmethod
-    def _load_provenance_attrs(cls, _tx=None) -> set:
+    def _load_provenance_attrs(cls) -> set:
         """Discover provenance attributes: those owned by ALL extracted entity types.
 
         Provenance = framework infrastructure (WHERE data came from).
@@ -49,22 +49,20 @@ class GraphStorage:
         If an attribute appears on every entity type, it's provenance by definition.
         No hardcoded list needed — the intersection IS the definition.
 
-        Args:
-            _tx: Optional existing SCHEMA transaction to reuse for introspection.
+        IMPORTANT: Queries TypeDB directly with '$et owns $attr' — does NOT call
+        get_entity_fields_from_schema() to avoid infinite recursion.
         """
         if cls._provenance_attrs_cache is not None:
             return cls._provenance_attrs_cache
 
         driver = typedb_client.driver
         if not driver:
-            # Fallback if no driver — return known provenance attrs
             cls._provenance_attrs_cache = {"section_reference", "source_page", "source_text", "confidence"}
             return cls._provenance_attrs_cache
 
         db_name = settings.typedb_database
 
-        # Collect all concrete entity types that participate in extraction
-        # These are types that own attributes beyond just an ID key
+        # Step 1: Collect all concrete entity types from seed data (READ tx)
         entity_types = set()
         tx = driver.transaction(db_name, TransactionType.READ)
         try:
@@ -107,40 +105,65 @@ class GraphStorage:
         finally:
             tx.close()
 
-        # Remove rp_provision itself — it's the anchor, not an extracted entity
         entity_types.discard("rp_provision")
 
         if not entity_types:
             cls._provenance_attrs_cache = set()
             return cls._provenance_attrs_cache
 
-        # For each entity type, get all owned attributes (expanding abstract types to subtypes)
+        # Step 2: For each entity type, query owned attrs directly (SCHEMA tx)
+        # Does NOT call get_entity_fields_from_schema to avoid recursion
         all_attr_sets = []
-        own_tx = _tx is None
-        schema_tx = _tx if _tx else driver.transaction(db_name, TransactionType.READ)
+        tx = driver.transaction(db_name, TransactionType.READ)
         try:
             for et in entity_types:
-                schema_info = cls.get_entity_fields_from_schema(et, _tx=schema_tx)
-                if schema_info.get("is_abstract"):
-                    for sub_name, sub_info in schema_info.get("subtypes", {}).items():
-                        fields = set(sub_info.get("fields", []))
-                        fields |= set(schema_info.get("common_fields", []))
-                        all_attr_sets.append(fields)
+                attrs = set()
+                try:
+                    query = f"match $et label {et}; $et owns $attr; select $attr;"
+                    for row in tx.query(query).resolve().as_concept_rows():
+                        attrs.add(row.get("attr").as_attribute_type().get_label())
+                except Exception:
+                    pass
+
+                if not attrs:
+                    # Abstract type — try subtypes
+                    try:
+                        sub_query = f"""
+                            match $sub sub {et};
+                            not {{ $sub label {et}; }};
+                            $sub owns $attr;
+                            select $sub, $attr;
+                        """
+                        sub_attrs: dict = {}
+                        for row in tx.query(sub_query).resolve().as_concept_rows():
+                            sub_name = row.get("sub").as_entity_type().get_label()
+                            attr_name = row.get("attr").as_attribute_type().get_label()
+                            sub_attrs.setdefault(sub_name, set()).add(attr_name)
+                        for sub_name, sa in sub_attrs.items():
+                            all_attr_sets.append(sa)
+                    except Exception:
+                        pass
                 else:
-                    fields = set(schema_info.get("fields", []))
-                    all_attr_sets.append(fields)
+                    all_attr_sets.append(attrs)
+        except Exception as e:
+            logger.warning(f"Provenance attr discovery failed: {e}")
         finally:
-            if own_tx and schema_tx.is_open():
-                schema_tx.close()
+            if tx.is_open():
+                tx.close()
 
         if not all_attr_sets:
-            cls._provenance_attrs_cache = set()
+            # SCHEMA tx failed or returned empty — use known fallback
+            logger.info("Provenance discovery returned empty — using known fallback")
+            cls._provenance_attrs_cache = {"section_reference", "source_page", "source_text", "confidence"}
             return cls._provenance_attrs_cache
 
         # Intersection = attributes that appear on every entity type
         provenance = set.intersection(*all_attr_sets)
-        # Remove key attributes (*_id pattern) — handled separately
         provenance = {a for a in provenance if not a.endswith("_id")}
+
+        if not provenance:
+            # Intersection was empty (shouldn't happen) — use known fallback
+            provenance = {"section_reference", "source_page", "source_text", "confidence"}
 
         cls._provenance_attrs_cache = provenance
         logger.info(f"Discovered provenance attrs ({len(provenance)}): {sorted(provenance)}")
@@ -207,8 +230,8 @@ class GraphStorage:
         # @key querying not implemented in TypeDB 3.x — identify by *_id convention
         key_attrs = {a for a in all_attrs if a.endswith("_id")}
 
-        # Extractable = all - key - provenance
-        extractable = sorted(all_attrs - key_attrs - cls._load_provenance_attrs())
+        # Extractable = all - key (provenance filtering deferred to callers)
+        extractable = sorted(all_attrs - key_attrs)
 
         # Check for subtypes
         subtypes = {}
