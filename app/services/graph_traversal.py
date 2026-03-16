@@ -5,14 +5,13 @@ Findings-first: computed analysis leads, supporting entity data follows.
 Claude explains pre-computed findings instead of reasoning from raw data.
 """
 import logging
-from typing import List, Optional
+from typing import List
 
 from app.services.trace_collector import TraceCollector
 from app.services.typedb_client import typedb_client
 from app.services.graph_reader import (
     run_query,
     safe_val,
-    fmt_dollar,
     # Entity fetchers (supporting data)
     fetch_rp_baskets,
     fetch_builder_sources,
@@ -227,7 +226,8 @@ def _fetch_pathway_findings(provision_id: str, trace: TraceCollector = None) -> 
         if chains:
             lines.append("  Complete chains:")
             for chain in chains:
-                lines.append(f"    {' \u2192 '.join(chain)}")
+                arrow = ' \u2192 '
+            lines.append(f"    {arrow.join(chain)}")
 
         return lines
     except Exception as e:
