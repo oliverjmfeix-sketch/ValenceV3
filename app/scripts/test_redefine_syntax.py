@@ -495,6 +495,156 @@ else:
     print("  [SKIP] T16 skipped because removing parent provision role failed")
 
 # ---------------------------------------------------------------------------
+# NEW TESTS T17-T18: Use `define` (not `redefine`) for the basket alias
+#
+# T15 revealed:
+#   - undefine parent entirely: WORKS
+#   - recreate parent with only `relates extracted`: WORKS
+#   - define child sub parent: WORKS  <-- the sub is now possible!
+#   - redefine basket as extracted: FAILS [REX19] no prior 'relates basket as' to replace
+#
+# Conclusion: use `define` (not `redefine`) for the alias since it's brand new.
+# Also: need to handle the restore carefully (can't add provision to parent
+# once child inherits it).
+#
+# T17: Full working sequence (undefine parent -> recreate -> sub -> define alias)
+# T18: Full working sequence + verify data queries still work
+# ---------------------------------------------------------------------------
+
+def restore_schema_after_t17():
+    """
+    After T17 leaves provision_has_basket sub provision_has_extracted_entity,
+    we need to restore to original state:
+    1. undefine basket alias (if any) from child
+    2. undefine child entirely
+    3. undefine parent entirely
+    4. Recreate parent with both roles
+    5. Recreate child with both roles (standalone)
+    """
+    tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+    try:
+        # Try to drop the child (which now subs the parent)
+        try:
+            tx.query("undefine provision_has_basket;").resolve()
+        except Exception as e:
+            print(f"  [RESTORE] Couldn't undefine child: {e}")
+        # Drop the parent
+        try:
+            tx.query("undefine provision_has_extracted_entity;").resolve()
+        except Exception as e:
+            print(f"  [RESTORE] Couldn't undefine parent: {e}")
+        tx.commit()
+        print("  [RESTORE] Dropped both child and parent")
+    except Exception as e:
+        try:
+            tx.close()
+        except Exception:
+            pass
+        print(f"  [RESTORE] Drop transaction failed: {e}")
+        return
+
+    # Recreate parent
+    tx2 = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+    try:
+        tx2.query("define relation provision_has_extracted_entity @abstract, relates provision, relates extracted;").resolve()
+        tx2.commit()
+        print("  [RESTORE] Recreated parent")
+    except Exception as e:
+        try:
+            tx2.close()
+        except Exception:
+            pass
+        print(f"  [RESTORE] Recreate parent failed: {e}")
+        return
+
+    # Recreate child (standalone, no sub)
+    tx3 = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+    try:
+        tx3.query("define relation provision_has_basket, relates provision, relates basket;").resolve()
+        tx3.commit()
+        print("  [RESTORE] Recreated child as standalone")
+    except Exception as e:
+        try:
+            tx3.close()
+        except Exception:
+            pass
+        print(f"  [RESTORE] Recreate child failed: {e}")
+
+
+print()
+print("=" * 60)
+print("TEST 17: Full sequence — undefine parent, recreate without provision,")
+print("  define child sub parent, then `define` (not redefine) basket alias")
+print("=" * 60)
+
+# Step 1: undefine parent
+s1 = run_schema(["undefine provision_has_extracted_entity;"], "T17-step1: undefine parent")
+if s1:
+    # Step 2: recreate parent with only `relates extracted`
+    s2 = run_schema(
+        ["define relation provision_has_extracted_entity @abstract, relates extracted;"],
+        "T17-step2: recreate parent with only relates extracted"
+    )
+    if s2:
+        # Step 3: define child sub parent
+        s3 = run_schema(
+            ["define relation provision_has_basket sub provision_has_extracted_entity;"],
+            "T17-step3: define child sub parent"
+        )
+        if s3:
+            # Step 4: define basket as extracted (NEW alias — use define not redefine)
+            s4 = run_schema(
+                ["define relation provision_has_basket relates basket as extracted;"],
+                "T17-step4: define basket as extracted (using define)"
+            )
+            results["T17_full_define_sequence"] = s4
+            if s4:
+                print("  *** T17 FULLY PASSED — this is the working sequence! ***")
+        else:
+            results["T17_full_define_sequence"] = False
+    else:
+        results["T17_full_define_sequence"] = False
+else:
+    results["T17_full_define_sequence"] = False
+
+restore_schema_after_t17()
+
+print()
+print("=" * 60)
+print("TEST 18: Same as T17 but using `undefine ... from ...` syntax for role removal")
+print("  (to test if we can avoid undefining the whole parent)")
+print("  TypeDB 3.x `undefine` for roles: `undefine <label> from <type>;`")
+print("=" * 60)
+
+# Try: undefine provision from provision_has_extracted_entity
+# (the `undefine_from` the parser mentioned)
+s1_t18 = run_schema(
+    ["undefine provision from provision_has_extracted_entity;"],
+    "T18-step1: undefine provision from parent (from syntax)"
+)
+if s1_t18:
+    s2_t18 = run_schema(
+        ["define relation provision_has_basket sub provision_has_extracted_entity;"],
+        "T18-step2: define sub after provision removed"
+    )
+    if s2_t18:
+        s3_t18 = run_schema(
+            ["define relation provision_has_basket relates basket as extracted;"],
+            "T18-step3: define basket as extracted"
+        )
+        results["T18_undefine_from_syntax"] = s3_t18
+    else:
+        results["T18_undefine_from_syntax"] = False
+    undo_sub()
+    # Restore provision role to parent
+    run_schema(
+        ["define relation provision_has_extracted_entity relates provision;"],
+        "T18-restore: add provision back to parent"
+    )
+else:
+    results["T18_undefine_from_syntax"] = False
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
