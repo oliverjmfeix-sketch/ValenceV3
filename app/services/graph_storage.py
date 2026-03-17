@@ -58,7 +58,8 @@ class GraphStorage:
 
         driver = typedb_client.driver
         if not driver:
-            cls._provenance_attrs_cache = {"section_reference", "source_page", "source_text", "confidence"}
+            logger.error("Cannot discover provenance attrs — TypeDB driver not connected")
+            cls._provenance_attrs_cache = set()
             return cls._provenance_attrs_cache
 
         db_name = settings.typedb_database
@@ -153,9 +154,8 @@ class GraphStorage:
                 tx.close()
 
         if not all_attr_sets:
-            # SCHEMA tx failed or returned empty — use known fallback
-            logger.info("Provenance discovery returned empty — using known fallback")
-            cls._provenance_attrs_cache = {"section_reference", "source_page", "source_text", "confidence"}
+            logger.error("Provenance attr discovery returned empty — no entity types found in TypeDB")
+            cls._provenance_attrs_cache = set()
             return cls._provenance_attrs_cache
 
         # Intersection = attributes that appear on every entity type
@@ -163,8 +163,7 @@ class GraphStorage:
         provenance = {a for a in provenance if not a.endswith("_id")}
 
         if not provenance:
-            # Intersection was empty (shouldn't happen) — use known fallback
-            provenance = {"section_reference", "source_page", "source_text", "confidence"}
+            logger.error("Provenance attr intersection is empty — entity types share no common attributes")
 
         cls._provenance_attrs_cache = provenance
         logger.info(f"Discovered provenance attrs ({len(provenance)}): {sorted(provenance)}")
@@ -1689,9 +1688,6 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     #   summarize_extraction, _BUILDER_SOURCE_TYPE_MAP, _BASKET_TYPE_MAP,
     #   _BLOCKER_EXCEPTION_TYPE_MAP, _load_source_subtype_attrs
     # ═══════════════════════════════════════════════════════════════════════════
-
-    # Placeholder so line references don't break catastrophically
-    _LEGACY_DELETED = True
 
     # MFN ENTITY STORAGE (Channel 3)
     # ═══════════════════════════════════════════════════════════════════════════

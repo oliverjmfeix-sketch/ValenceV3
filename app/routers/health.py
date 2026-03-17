@@ -2,13 +2,19 @@
 Health check endpoints - Simplified
 """
 from typing import Dict, Any
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from typedb.driver import TransactionType
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
 
 router = APIRouter(tags=["Health"])
+
+
+def _require_debug():
+    """Raise 404 if debug endpoints are not enabled."""
+    if not settings.debug_endpoints_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 @router.get("/api/admin/cost-summary")
@@ -92,6 +98,7 @@ async def health_check() -> Dict[str, Any]:
 @router.get("/api/debug/file/{filename}")
 async def debug_read_file(filename: str):
     """Temporary: read debug files from uploads."""
+    _require_debug()
     from fastapi.responses import PlainTextResponse
     try:
         with open(f"/app/uploads/{filename}", "r") as f:
@@ -113,6 +120,7 @@ async def api_health_check() -> Dict[str, Any]:
 @router.get("/api/debug/schema-check")
 async def debug_schema_check() -> Dict[str, Any]:
     """Check if expanded schema types exist."""
+    _require_debug()
     driver = typedb_client.driver
     db_name = settings.typedb_database
     results = {}
@@ -252,6 +260,7 @@ async def debug_schema_check() -> Dict[str, Any]:
 @router.post("/api/debug/reload-schema-expanded")
 async def debug_reload_schema_expanded() -> Dict[str, Any]:
     """Manually reload the expanded schema."""
+    _require_debug()
     from pathlib import Path
     from app.config import settings
 
@@ -329,6 +338,7 @@ async def debug_reload_schema_expanded() -> Dict[str, Any]:
 @router.post("/api/debug/reload-ontology-expanded")
 async def debug_reload_ontology_expanded() -> Dict[str, Any]:
     """Manually reload the expanded ontology data (questions, concepts, relations)."""
+    _require_debug()
     from pathlib import Path
     from app.config import settings
 
@@ -436,6 +446,7 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
     Do NOT copy this pattern for new fields — instead add to the .tql seed files
     and run init_schema.py.
     """
+    _require_debug()
     from app.config import settings
 
     driver = typedb_client.driver
@@ -557,6 +568,7 @@ async def debug_fix_target_fields() -> Dict[str, Any]:
 @router.post("/api/debug/fix-extraction-prompts")
 async def debug_fix_extraction_prompts() -> Dict[str, Any]:
     """Update extraction prompts for questions with known gaps."""
+    _require_debug()
     from app.config import settings
 
     driver = typedb_client.driver

@@ -14,14 +14,14 @@ Legal document analysis platform that extracts typed primitives from credit agre
 1. **Typed Primitives** - No JSON blobs. Every extracted value is a typed attribute.
 2. **Provenance** - Every primitive links to source_text, source_page, source_section.
 3. **SSoT** - TypeDB is single source of truth. Questions come from schema, not hardcoded lists.
-4. **Pattern Functions** — J.Crew vulnerability detection via TypeDB 3.x `fun` functions defined in `jcrew_functions.tql`. Logic lives in the database schema, called on the fly from queries.
+4. **Pattern Functions** — J.Crew vulnerability detection via TypeDB 3.x `fun` functions. Logic lives in the database schema, called on the fly from queries.
 
 ## Setup
 
 ### 1. Clone and Install
 
 ```bash
-cd valence-backend
+cd ValenceV3
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -48,21 +48,21 @@ UPLOADS_DIR=/app/uploads
 
 # CORS - Add your Lovable frontend URL
 CORS_ORIGINS=http://localhost:5173,https://your-app.lovable.app
+
+# Debug endpoints (disabled by default in production)
+DEBUG_ENDPOINTS_ENABLED=false
 ```
 
-### 3. Initialize TypeDB Schema
+### 3. Initialize TypeDB Schema + Seed Data
 
 ```bash
 python -m app.scripts.init_schema
 ```
 
-### 4. Seed Ontology Questions
+This single command loads the unified schema, all ontology questions, concepts,
+extraction metadata, and TypeDB functions.
 
-```bash
-python -m app.scripts.seed_ontology
-```
-
-### 5. Run Locally
+### 4. Run Locally
 
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -70,90 +70,58 @@ uvicorn app.main:app --reload --port 8000
 
 ## Deploy to Railway
 
-### 1. Create Railway Project
+Railway auto-deploys from GitHub push to `main`. **Never use `railway up`.**
+
+### Reseed TypeDB (after schema changes)
 
 ```bash
-railway login
-railway init
+railway ssh --service ValenceV3 -- python -m app.scripts.init_schema --force
 ```
-
-### 2. Add Volume for PDF Storage
-
-In Railway Dashboard:
-1. Go to Service → Settings → Volumes
-2. Add Volume: name=`pdf-storage`, mount=`/app/uploads`
-
-### 3. Set Environment Variables
-
-```bash
-railway variables set TYPEDB_ADDRESS=your-cluster.typedb.cloud:1729
-railway variables set TYPEDB_DATABASE=valence
-railway variables set TYPEDB_USERNAME=admin
-railway variables set TYPEDB_PASSWORD=xxx
-railway variables set ANTHROPIC_API_KEY=sk-ant-xxx
-railway variables set CORS_ORIGINS=https://your-app.lovable.app
-```
-
-### 4. Deploy
-
-```bash
-railway up
-```
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/health/typedb` | GET | TypeDB connection check |
-| `/api/deals` | GET | List all deals |
-| `/api/deals/{id}` | GET | Get deal with primitives |
-| `/api/deals/{id}` | DELETE | Delete deal |
-| `/api/deals/upload` | POST | Upload PDF and extract |
-| `/api/deals/{id}/pdf` | GET | Serve stored PDF |
-| `/api/ontology/questions` | GET | All questions by category |
-| `/api/deals/{id}/answers` | GET | All answers for a deal |
-| `/api/deals/{id}/provenance/{attribute}` | GET | Source for specific primitive |
-| `/api/deals/{id}/qa` | POST | Ask natural language question |
-| `/api/qa/cross-deal` | POST | Query across all deals |
 
 ## Project Structure
 
 ```
-valence-backend/
+ValenceV3/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI app + startup
-│   ├── config.py               # Settings from env
+│   ├── main.py                          # FastAPI app + startup
+│   ├── config.py                        # Settings from env
 │   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── health.py           # Health checks
-│   │   ├── deals.py            # Deal CRUD + upload
-│   │   ├── ontology.py         # Ontology questions
-│   │   └── qa.py               # Q&A interface
+│   │   ├── health.py                    # Health checks + admin endpoints
+│   │   └── deals.py                     # Deal CRUD + upload + extraction
 │   ├── services/
-│   │   ├── __init__.py
-│   │   ├── typedb_client.py    # TypeDB connection
-│   │   ├── extraction.py       # Claude extraction
-│   │   ├── pdf_parser.py       # PDF text extraction
-│   │   └── qa_engine.py        # Question answering
-│   ├── repositories/
-│   │   ├── __init__.py
-│   │   ├── deal_repository.py
-│   │   ├── answer_repository.py
-│   │   └── ontology_repository.py
+│   │   ├── typedb_client.py             # TypeDB connection
+│   │   ├── extraction.py                # Claude extraction pipeline
+│   │   ├── graph_storage.py             # TypeDB write (all 3 channels)
+│   │   ├── graph_reader.py              # TypeDB read (entity context for Q&A)
+│   │   ├── topic_router.py              # Question → attribute routing
+│   │   ├── segment_introspector.py      # Schema introspection
+│   │   ├── cost_tracker.py              # Claude API cost tracking
+│   │   └── pdf_parser.py                # PDF text extraction
 │   ├── schemas/
-│   │   ├── __init__.py
-│   │   └── models.py           # Pydantic models
-│   └── scripts/
-│       ├── init_schema.py      # Initialize TypeDB schema
-│       └── seed_ontology.py    # Seed ontology questions
-├── data/
-│   ├── schema.tql              # TypeDB schema
-│   ├── ontology_mfn.tql        # MFN ontology questions
-│   └── ontology_rp.tql         # RP ontology questions
+│   │   ├── models.py                    # Pydantic API models
+│   │   └── extraction_output_v4.py      # V4 extraction Pydantic models
+│   ├── scripts/
+│   │   ├── init_schema.py               # DB seeding (single entry point)
+│   │   └── test_functions.py            # TypeDB function tests
+│   └── data/
+│       ├── schema_unified.tql           # THE schema (single file)
+│       ├── questions.tql                # Base ontology (Categories A-K)
+│       ├── ontology_expanded.tql        # Expanded questions (F9+, G5+, I, L, N)
+│       ├── ontology_category_m.tql      # Category M: Unsub distributions
+│       ├── concepts.tql                 # Concept type seed instances
+│       ├── rp_basket_metadata.tql       # RP basket extraction metadata
+│       ├── rdp_basket_metadata.tql      # RDP basket extraction metadata
+│       ├── investment_pathway_metadata.tql  # Pathway extraction metadata
+│       ├── rp_functions.tql             # RP analytical functions
+│       ├── rp_analysis_functions.tql    # RP analysis functions (blocker gaps, etc.)
+│       ├── mfn_functions.tql            # MFN pattern detection functions
+│       └── gold_standard/               # Gold standard eval data
+├── src/
+│   └── types/
+│       └── mfn.generated.ts             # Generated TypeScript types
 ├── requirements.txt
 ├── Dockerfile
 ├── railway.toml
-└── .env.example
+└── CLAUDE.md
 ```

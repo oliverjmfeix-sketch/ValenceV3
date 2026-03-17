@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     app_name: str = "Valence Backend"
     app_version: str = "3.0.0"
     debug: bool = False
+    debug_endpoints_enabled: bool = False
     
     @property
     def cors_origins_list(self) -> List[str]:
