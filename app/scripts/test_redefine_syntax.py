@@ -390,9 +390,10 @@ print("TEST 14: undefine parent's provision role, then define sub")
 print("  undefine relation provision_has_extracted_entity relates provision;")
 print("=" * 60)
 queries_t14_step1 = [
-    "undefine relation provision_has_extracted_entity relates provision;",
+    # TypeDB 3.x undefine syntax: no `relation` keyword, just label
+    "undefine provision_has_extracted_entity relates provision;",
 ]
-step1_ok = run_schema(queries_t14_step1, "T14-step1: undefine parent's provision role")
+step1_ok = run_schema(queries_t14_step1, "T14-step1: undefine parent's provision role (no relation keyword)")
 if step1_ok:
     queries_t14_step2 = [
         "define relation provision_has_basket sub provision_has_extracted_entity;",
@@ -419,9 +420,10 @@ print("=" * 60)
 # Step 2: redefine it with only `relates extracted`
 # Step 3: define child sub parent
 queries_t15_step1 = [
-    "undefine relation provision_has_extracted_entity;",
+    # TypeDB 3.x undefine: no `relation` keyword
+    "undefine provision_has_extracted_entity;",
 ]
-step1_ok = run_schema(queries_t15_step1, "T15-step1: undefine parent entirely")
+step1_ok = run_schema(queries_t15_step1, "T15-step1: undefine parent entirely (no relation keyword)")
 if step1_ok:
     # Recreate parent with only extracted role (no provision)
     queries_t15_step2 = [
@@ -460,14 +462,14 @@ print("=" * 60)
 # Only do this test if the parent exists without the provision conflict
 # For this test, temporarily remove provision from parent first
 step0_ok = run_schema(
-    ["undefine relation provision_has_extracted_entity relates provision;"],
-    "T16-step0: undefine parent's provision role"
+    ["undefine provision_has_extracted_entity relates provision;"],
+    "T16-step0: undefine parent's provision role (no relation keyword)"
 )
 if step0_ok:
     # Now undefine child too
     step1_ok = run_schema(
-        ["undefine relation provision_has_basket;"],
-        "T16-step1: undefine provision_has_basket entirely"
+        ["undefine provision_has_basket;"],
+        "T16-step1: undefine provision_has_basket entirely (no relation keyword)"
     )
     if step1_ok:
         # Recreate child sub parent, with basket aliased as extracted, plus its own provision role
