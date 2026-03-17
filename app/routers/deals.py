@@ -19,6 +19,8 @@ from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
 from app.services.topic_router import get_topic_router
 from app.services.graph_traversal import get_rp_entities
+from app.services.graph_reader import _get_annotation_map, _get_question_texts, safe_val, run_query
+from app.services.graph_storage import GraphStorage
 from app.schemas.models import UploadResponse, ExtractionStatus
 from typedb.driver import TransactionType
 
@@ -1099,7 +1101,10 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             if extraction_complete:
                 stored_values = _load_provision_answers(tx, provision_id)
 
-            # 3. Load concept applicabilities for multiselect questions
+            # LEGACY: concept_applicability will be removed entirely once all covenant types
+            # route multiselect answers through entity booleans.
+            # RP already has full routing. MFN needs target_entity_type/target_entity_attribute
+            # seed data on its concept instances before this can be removed.
             multiselect_values = {}
             if extraction_complete:
                 applicability_query = f"""
@@ -1178,22 +1183,104 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
                     "confidence": answer_data.get("confidence") if answer_data else None,
                 })
 
-            return {
-                "deal_id": deal_id,
-                "extraction_complete": extraction_complete,
-                "answer_count": answer_count,
-                "total_questions": len(questions),
-                "answers": answers
-            }
-
         finally:
             tx.close()
+
+        # Entity booleans: all annotated attributes from typed entities (SSoT)
+        entity_booleans = _load_entity_booleans(provision_id) if extraction_complete else {}
+
+        return {
+            "deal_id": deal_id,
+            "extraction_complete": extraction_complete,
+            "answer_count": answer_count,
+            "total_questions": len(questions),
+            "answers": answers,
+            "entity_booleans": entity_booleans,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting answers for deal {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _load_entity_booleans(provision_id: str) -> dict:
+    """Load all annotated entity attributes for a provision.
+
+    Returns dict[entity_type] → dict[attr_name] → {value, question_id, question_text}
+    For multi-instance entities, returns a list of dicts instead.
+
+    Both data sources are TypeDB SSoT:
+    - Annotation map: question_annotates_attribute relations
+    - Entity relation map: schema introspection of plays declarations
+    No hardcoded attribute lists or relation mappings.
+    """
+    annotation_map = _get_annotation_map()
+    question_texts = _get_question_texts()
+    entity_relation_map = GraphStorage._load_entity_relation_map()
+    result = {}
+
+    for entity_type, attrs in annotation_map.items():
+        # Skip _exists annotations (entity-level markers, not attributes)
+        real_attrs = {k: v for k, v in attrs.items() if k != "_exists"}
+        if not real_attrs:
+            continue
+
+        # Look up relation from schema introspection cache
+        relation_info = entity_relation_map.get(entity_type)
+        if not relation_info:
+            continue
+
+        relation_type, provision_role, entity_role = relation_info
+
+        # Build dynamic TQL from annotation map keys
+        try_clauses = []
+        var_map = {}
+        select_vars = ["$e"]
+
+        for i, attr_name in enumerate(real_attrs.keys()):
+            var_name = f"a{i}"
+            try_clauses.append(f'try {{ $e has {attr_name} ${var_name}; }};')
+            var_map[var_name] = attr_name
+            select_vars.append(f"${var_name}")
+
+        indent = " " * 16
+        query = f'''
+            match
+                $p isa rp_provision, has provision_id "{provision_id}";
+                ({provision_role}: $p, {entity_role}: $e) isa {relation_type};
+                $e isa {entity_type};
+{chr(10).join(indent + tc for tc in try_clauses)}
+            select {", ".join(select_vars)};
+        '''
+
+        try:
+            rows = run_query(query)
+            instances = []
+            for row in rows:
+                entity_data = {}
+                for var_name, attr_name in var_map.items():
+                    val = safe_val(row, var_name)
+                    if val is not None:
+                        qid = real_attrs.get(attr_name)
+                        qt = question_texts.get(qid) if qid else None
+                        entity_data[attr_name] = {
+                            "value": val,
+                            "question_id": qid,
+                            "question_text": qt,
+                        }
+                if entity_data:
+                    instances.append(entity_data)
+
+            if instances:
+                # Single-instance types → dict, multi-instance → list
+                result[entity_type] = instances[0] if len(instances) == 1 else instances
+
+        except Exception as e:
+            logger.warning(f"Failed to load entity booleans for {entity_type}: {e}")
+
+    return result
 
 
 @router.get("/{deal_id}/rp-provision")
@@ -1245,7 +1332,10 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                 except Exception:
                     pass  # Flag not set on this provision
 
-            # Get all concept applicabilities (multiselect answers)
+            # LEGACY: concept_applicability will be removed entirely once all covenant types
+            # route multiselect answers through entity booleans.
+            # RP already has full routing. MFN needs target_entity_type/target_entity_attribute
+            # seed data on its concept instances before this can be removed.
             multiselect_answers = {}
             applicability_query = f"""
                 match
@@ -1269,20 +1359,25 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                         "name": concept_name or "Unknown"
                     })
 
-            return {
-                "deal_id": deal_id,
-                "provision_id": provision_id,
-                "provision_type": "rp_provision",
-                "scalar_answers": scalar_answers,
-                "pattern_flags": pattern_flags,
-                "multiselect_answers": multiselect_answers,
-                "scalar_count": len(scalar_answers),
-                "pattern_flag_count": len(pattern_flags),
-                "multiselect_count": sum(len(v) for v in multiselect_answers.values())
-            }
-
         finally:
             tx.close()
+
+        # Entity booleans: all annotated attributes from typed entities (SSoT)
+        entity_booleans = _load_entity_booleans(provision_id)
+
+        return {
+            "deal_id": deal_id,
+            "provision_id": provision_id,
+            "provision_type": "rp_provision",
+            "scalar_answers": scalar_answers,
+            "pattern_flags": pattern_flags,
+            "multiselect_answers": multiselect_answers,  # LEGACY — remove once frontend reads entity_booleans
+            "entity_booleans": entity_booleans,
+            "scalar_count": len(scalar_answers),
+            "pattern_flag_count": len(pattern_flags),
+            "multiselect_count": sum(len(v) for v in multiselect_answers.values()),
+            "entity_boolean_types": len(entity_booleans),
+        }
 
     except HTTPException:
         raise

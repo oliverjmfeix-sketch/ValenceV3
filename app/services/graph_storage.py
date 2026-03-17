@@ -985,22 +985,28 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     def store_extraction(
         self, deal_id: str, provision_id: str, response: ExtractionResponse
     ) -> Dict[str, Any]:
-        """
-        Store extraction response with ordered processing.
+        """Store extraction results in two forms: flat answers and typed entities.
+
+        Answers (provision_has_answer):
+            Every answer gets a flat key-value record (question_id → typed value).
+            Read by: frontend comparison grid, scalar Q&A.
+
+        Entities (typed attributes):
+            Scalar answers populate entity attributes via question_annotates_attribute.
+            Multiselect answers set entity booleans via concept routing map.
+            Entity_list answers create multi-instance entities.
+            Read by: graph_reader → Claude synthesis, frontend entity_booleans endpoint.
+
+        LEGACY (removing): concept_applicability relations.
+            MFN still writes these — MFN concepts lack entity boolean routing.
+            Once MFN concepts get target_entity_type / target_entity_attribute seed data,
+            concept_applicability is deleted from the schema entirely.
 
         Processing order matters:
         1. _exists=True → create single-instance entities (must exist before attributes)
-        2. entity_list → create multi-instance entities (Phase 2d-ii)
+        2. entity_list → create multi-instance entities
         3. scalar → store flat answer + populate entity attributes via annotations
         4. multiselect → store flat answer + set entity booleans via concept routing
-
-        Args:
-            deal_id: The deal ID
-            provision_id: The provision ID (already ensured to exist)
-            response: Parsed ExtractionResponse
-
-        Returns:
-            Dict with counts of stored items
         """
         results = {
             "provision_id": provision_id,
