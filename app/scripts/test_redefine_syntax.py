@@ -284,6 +284,94 @@ results["T9_same_as_T2_explicit"] = run_schema(queries_t9, "T9: same as T2 (expl
 undo_sub()
 
 # ---------------------------------------------------------------------------
+# NEW TESTS based on error analysis:
+# Root cause of T4a/T4b: [SVL7] role 'provision' is duplicated in hierarchy
+# because provision_has_extracted_entity already has `relates provision`
+# and provision_has_basket also has `relates provision`.
+#
+# Solutions to try:
+# T10: define sub + alias provision role too (provision as provision)
+# T11: define sub + alias both roles in one statement
+# T12: redefine the parent to drop its `relates provision` first, then sub
+# T13: define sub with explicit role overrides for both roles
+# ---------------------------------------------------------------------------
+
+print()
+print("=" * 60)
+print("TEST 10: define sub + alias provision role to override, then basket alias")
+print("  Hypothesis: child must explicitly override all parent roles that conflict")
+print("=" * 60)
+queries_t10 = [
+    "define relation provision_has_basket sub provision_has_extracted_entity, relates provision as provision, relates basket as extracted;",
+]
+results["T10_define_override_both_roles"] = run_schema(queries_t10, "T10: define sub + alias provision + alias basket")
+undo_sub()
+
+print()
+print("=" * 60)
+print("TEST 11: define sub only with explicit provision role override (no basket alias)")
+print("  Hypothesis: just override `provision` role to satisfy hierarchy uniqueness")
+print("=" * 60)
+queries_t11 = [
+    "define relation provision_has_basket sub provision_has_extracted_entity, relates provision as provision;",
+]
+results["T11_define_sub_provision_override"] = run_schema(queries_t11, "T11: define sub + provision as provision")
+if results["T11_define_sub_provision_override"]:
+    # Now try to alias basket
+    print()
+    print("  T11 passed! Now trying to add basket alias...")
+    q_alias = "redefine relation provision_has_basket relates basket as extracted;"
+    results["T11b_basket_alias_after"] = run_schema([q_alias], "T11b: basket alias after T11 sub set")
+    undo_sub()
+else:
+    undo_sub()
+    results["T11b_basket_alias_after"] = None
+
+print()
+print("=" * 60)
+print("TEST 12: Redefine parent to drop `relates provision`, then define sub")
+print("  Hypothesis: abstract parent should only have `relates extracted`, not `provision`")
+print("=" * 60)
+# Step 1: redefine the parent to remove provision role
+# Step 2: define child sub parent
+# Note: This is a more invasive approach — be careful
+queries_t12_step1 = [
+    "redefine relation provision_has_extracted_entity relates extracted;",
+]
+step1_ok = run_schema(queries_t12_step1, "T12-step1: redefine parent to only relates extracted")
+if step1_ok:
+    queries_t12_step2 = [
+        "define relation provision_has_basket sub provision_has_extracted_entity;",
+    ]
+    step2_ok = run_schema(queries_t12_step2, "T12-step2: define sub after parent simplified")
+    if step2_ok:
+        queries_t12_step3 = [
+            "redefine relation provision_has_basket relates basket as extracted;",
+        ]
+        results["T12_parent_simplified_then_sub"] = run_schema(queries_t12_step3, "T12-step3: alias basket after sub set")
+    else:
+        results["T12_parent_simplified_then_sub"] = False
+    undo_sub()
+    # Restore parent's provision role
+    restore_parent = [
+        "define relation provision_has_extracted_entity relates provision;",
+    ]
+    run_schema(restore_parent, "T12-restore: add provision role back to parent")
+else:
+    results["T12_parent_simplified_then_sub"] = False
+
+print()
+print("=" * 60)
+print("TEST 13: define sub with `relates provision as provision` AND `relates basket as extracted` in one shot")
+print("  (Same as T10 but with explicit syntax check)")
+print("=" * 60)
+queries_t13 = [
+    "define\n  relation provision_has_basket\n    sub provision_has_extracted_entity,\n    relates provision as provision,\n    relates basket as extracted;",
+]
+results["T13_define_multi_line_both_overrides"] = run_schema(queries_t13, "T13: define multiline with both role overrides")
+undo_sub()
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
