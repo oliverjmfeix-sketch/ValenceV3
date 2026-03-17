@@ -45,6 +45,7 @@ class TraceCollector:
     # Step 4: Entity context assembly
     entity_context: str = ""
     entity_context_chars: int = 0
+    entity_count: int = 0
 
     # Step 5+6: Claude synthesis
     claude_system_prompt: str = ""

@@ -4,8 +4,12 @@ Graph Traversal — builds entity context using TypeDB analytical functions.
 Findings-first: computed analysis leads, supporting entity data follows.
 Claude explains pre-computed findings instead of reasoning from raw data.
 """
+import json
 import logging
+import time
 from typing import List
+
+from typedb.driver import TransactionType
 
 from app.services.trace_collector import TraceCollector
 from app.services.typedb_client import typedb_client
@@ -236,42 +240,84 @@ def _fetch_pathway_findings(provision_id: str, trace: TraceCollector = None) -> 
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# SECTION 2: SUPPORTING ENTITY DATA
+# SECTION 2: SUPPORTING ENTITY DATA (polymorphic fetch)
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _fetch_supporting_entities(provision_id: str, trace: TraceCollector = None) -> str:
-    """Fetch supporting entity data with annotations for citations.
-
-    Excludes dividend capacity (already in findings, same format).
-    Keeps blocker/pathways because findings report analysis results
-    while supporting data has raw attributes + annotations for disambiguation.
-    """
-    sections = []
-
-    fetchers = [
-        fetch_rp_baskets,
-        fetch_builder_sources,
-        fetch_reallocations,
-        fetch_rdp_baskets,
-        fetch_jcrew_blocker,
-        fetch_investment_pathways,
-        fetch_unsub_designation,
-        fetch_sweep_tiers,
-        fetch_de_minimis,
+_FETCH_QUERY = '''
+match
+    $p isa rp_provision, has provision_id "{pid}";
+    (provision: $p, extracted: $e) isa $rel;
+    $rel sub provision_has_extracted_entity;
+    let $rel_name = label($rel);
+    $rel_name != "provision_has_extracted_entity";
+    $e isa! $etype;
+    let $type_name = label($etype);
+fetch {{
+    "relation": $rel_name,
+    "type_name": $type_name,
+    "attributes": {{ $e.* }},
+    "annotations": [
+        match
+            let $an, $qt in get_entity_annotations($type_name);
+        fetch {{ "attribute": $an, "annotation": $qt }};
+    ],
+    "children": [
+        match
+            ($e, $child) isa $child_rel;
+            not {{ $child_rel sub provision_has_extracted_entity; }};
+            $child isa! $ctype;
+            let $child_type_name = label($ctype);
+            let $child_rel_name = label($child_rel);
+        fetch {{
+            "child_relation": $child_rel_name,
+            "child_type": $child_type_name,
+            "child_attributes": {{ $child.* }},
+            "child_annotations": [
+                match
+                    let $can, $cqt in get_entity_annotations($child_type_name);
+                fetch {{ "attribute": $can, "annotation": $cqt }};
+            ]
+        }};
     ]
+}};
+'''
 
-    for fetcher in fetchers:
+
+def _fetch_supporting_entities(provision_id: str, trace: TraceCollector = None) -> str:
+    """Fetch all extracted entities via single polymorphic TypeDB fetch query.
+
+    Returns JSON string directly from TypeDB — no Python formatting.
+    """
+    try:
+        start = time.time()
+        tx = typedb_client.driver.transaction(
+            typedb_client.database, TransactionType.READ
+        )
         try:
-            lines = fetcher(provision_id, trace=trace)
-            if lines:
-                sections.append("\n".join(lines))
-        except Exception as e:
-            logger.warning(f"{fetcher.__name__} failed: {e}")
+            query = _FETCH_QUERY.format(pid=provision_id)
+            answer = tx.query(query).resolve()
+            docs = list(answer.as_concept_documents())
+        finally:
+            tx.close()
+        duration_ms = (time.time() - start) * 1000
 
-    if not sections:
+        if trace:
+            trace.add_query(
+                name="polymorphic_entity_fetch",
+                query=query,
+                row_count=len(docs),
+                duration_ms=duration_ms,
+                sample_rows=docs[:3] if docs else [],
+            )
+            trace.entity_count = len(docs)
+
+        if not docs:
+            return ""
+
+        return "## SUPPORTING ENTITY DATA\n\n" + json.dumps(docs, indent=2, default=str)
+    except Exception as e:
+        logger.error(f"Polymorphic entity fetch failed: {e}")
         return ""
-
-    return "## SUPPORTING ENTITY DATA\n\n" + "\n\n".join(sections)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

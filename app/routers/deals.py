@@ -2272,7 +2272,18 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
 
 ## DATA FORMAT
 
-The data below contains typed entities (baskets, sources, blockers, pathways, etc.) with their attributes and relationships. This is richer than flat key-value pairs — entities have types, relationships to other entities, and multiple attributes each.
+The data below has two sections:
+
+1. **COMPUTED FINDINGS** — Pre-analyzed results from TypeDB analytical functions (blocker gaps, exception analysis, distribution evidence, pathway chains, dividend capacity). These are formatted as structured text with headings.
+
+2. **SUPPORTING ENTITY DATA** — A JSON array of all extracted entities for this provision. Each entity has:
+   - `relation`: the relation connecting this entity to the provision (e.g., "provision_has_basket", "provision_has_blocker")
+   - `type_name`: the entity type (e.g., "builder_basket", "jcrew_blocker")
+   - `attributes`: all attributes as key-value pairs
+   - `annotations`: question text for each annotated attribute (maps attribute names to assessment questions)
+   - `children`: nested child entities, each with `child_relation` (e.g., "basket_has_source", "blocker_has_exception"), `child_type`, `child_attributes`, and `child_annotations`
+
+Use COMPUTED FINDINGS for analytical conclusions. Use SUPPORTING ENTITY DATA for raw attribute values, citations, and additional context.
 
 ## STRICT RULES
 
