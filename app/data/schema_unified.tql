@@ -1539,21 +1539,27 @@ relation provision_cross_reference,
 #     "provision_has_reallocation"  → provision_has_reallocation
 #     "provision_has_pathway"       → provision_has_pathway
 
-relation provision_has_basket,
+# Abstract parent for all provision → extracted entity relations.
+# Enables polymorphic fetch: one query returns all entity types via (provision: $p, extracted: $e).
+# Each child keeps its own `relates provision` and aliases its entity role as `extracted`.
+relation provision_has_extracted_entity @abstract,
+    relates extracted;
+
+relation provision_has_basket sub provision_has_extracted_entity,
     relates provision,
-    relates basket;
+    relates basket as extracted;
 
 relation basket_has_source,
     relates basket,
     relates source;
 
-relation provision_has_rdp_basket,
+relation provision_has_rdp_basket sub provision_has_extracted_entity,
     relates provision,
-    relates rdp_basket;
+    relates rdp_basket as extracted;
 
-relation provision_has_blocker,
+relation provision_has_blocker sub provision_has_extracted_entity,
     relates provision,
-    relates blocker;
+    relates blocker as extracted;
 
 relation blocker_has_exception,
     relates blocker,
@@ -1564,29 +1570,29 @@ relation blocker_covers_ip_type,
     relates ip_type,
     owns coverage_scope;
 
-relation provision_has_unsub,
+relation provision_has_unsub sub provision_has_extracted_entity,
     relates provision,
-    relates designation;
+    relates designation as extracted;
 
-relation provision_has_sweep_tier,
+relation provision_has_sweep_tier sub provision_has_extracted_entity,
     relates provision,
-    relates tier;
+    relates tier as extracted;
 
-relation provision_has_sweep_exemption,
+relation provision_has_sweep_exemption sub provision_has_extracted_entity,
     relates provision,
-    relates exemption;
+    relates exemption as extracted;
 
-relation provision_has_de_minimis,
+relation provision_has_de_minimis sub provision_has_extracted_entity,
     relates provision,
-    relates threshold;
+    relates threshold as extracted;
 
-relation provision_has_reallocation,
+relation provision_has_reallocation sub provision_has_extracted_entity,
     relates provision,
-    relates reallocation;
+    relates reallocation as extracted;
 
-relation provision_has_pathway,
+relation provision_has_pathway sub provision_has_extracted_entity,
     relates provision,
-    relates pathway;
+    relates pathway as extracted;
 
 relation basket_reallocates_to,
     relates source_basket,
@@ -1595,17 +1601,17 @@ relation basket_reallocates_to,
 
 # ─── New cross-document relations ──────────────────────────────────────────────
 
-relation provision_has_intercompany_permission,
+relation provision_has_intercompany_permission sub provision_has_extracted_entity,
     relates provision,
-    relates permission;
+    relates permission as extracted;
 
-relation provision_has_definition,
+relation provision_has_definition sub provision_has_extracted_entity,
     relates provision,
-    relates definition;
+    relates definition as extracted;
 
-relation provision_has_lien_release,
+relation provision_has_lien_release sub provision_has_extracted_entity,
     relates provision,
-    relates lien_release;
+    relates lien_release as extracted;
 
 relation has_amendment_threshold,
     relates entity_with_threshold,

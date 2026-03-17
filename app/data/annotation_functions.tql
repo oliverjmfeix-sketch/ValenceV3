@@ -1,0 +1,9 @@
+define
+fun get_entity_annotations($type_name: string) -> { target_attribute_name, question_text }:
+    match
+        (question: $q) isa question_annotates_attribute,
+            has target_entity_type $et,
+            has target_attribute_name $an;
+        $et == $type_name;
+        $q has question_text $qt;
+    return { $an, $qt };

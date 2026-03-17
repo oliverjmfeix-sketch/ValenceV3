@@ -78,6 +78,9 @@ RP_FUNCTIONS_FILE = DATA_DIR / "rp_functions.tql"
 # 20. RP analysis functions
 RP_ANALYSIS_FUNCTIONS_FILE = DATA_DIR / "rp_analysis_functions.tql"
 
+# 22. Annotation functions (get_entity_annotations)
+ANNOTATION_FUNCTIONS_FILE = DATA_DIR / "annotation_functions.tql"
+
 # 16. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
@@ -505,6 +508,21 @@ def init_database():
                     tx.close()
                 logger.warning(f"   RP analysis functions: {e}")
                 logger.warning("   RP analysis functions not available.")
+
+        # 22. Load annotation functions (SCHEMA transaction)
+        logger.info("\n22. Loading annotation_functions.tql...")
+        if ANNOTATION_FUNCTIONS_FILE.exists():
+            annotation_tql = load_tql_file(ANNOTATION_FUNCTIONS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(annotation_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded annotation functions ({len(annotation_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   Annotation functions: {e}")
+                logger.warning("   Annotation functions not available.")
 
         # 21. Seed storage_value_type on ontology_question (derived from answer_type)
         logger.info("\n21. Seeding storage_value_type on ontology_questions...")
