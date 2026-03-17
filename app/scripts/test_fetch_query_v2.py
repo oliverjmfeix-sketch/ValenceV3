@@ -22,13 +22,14 @@ driver = TypeDB.driver(address, Credentials(TYPEDB_USERNAME, TYPEDB_PASSWORD), D
 
 PROVISION_ID = "87852625_rp"
 
-# Fix: use "not { $rel isa provision_has_extracted_entity; }" to exclude abstract parent matches
+# Fix: use label() to exclude abstract parent
 FETCH_QUERY = '''
 match
     $p isa rp_provision, has provision_id "{pid}";
     (provision: $p, extracted: $e) isa $rel;
     $rel sub provision_has_extracted_entity;
-    not {{ $rel isa provision_has_extracted_entity; }};
+    let $rel_name = label($rel);
+    $rel_name != "provision_has_extracted_entity";
     $e isa! $etype;
     let $type_name = label($etype);
 fetch {{
