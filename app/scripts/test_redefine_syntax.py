@@ -372,6 +372,127 @@ results["T13_define_multi_line_both_overrides"] = run_schema(queries_t13, "T13: 
 undo_sub()
 
 # ---------------------------------------------------------------------------
+# NEW TESTS T14-T18: The real fix — parent must not have `relates provision`
+#
+# Analysis: TypeDB [SVL7] says the parent's `provision` role is already in the
+# hierarchy and the child can't duplicate it, even with aliasing. The parent
+# was defined WITH `relates provision`, which conflicts when the child also
+# has `relates provision`.
+#
+# Option A: undefine the parent entirely and redefine it without `provision`
+# Option B: undefine just the `provision` role from the parent
+# Option C: undefine `provision_has_basket` entirely and redefine from scratch sub the parent
+# ---------------------------------------------------------------------------
+
+print()
+print("=" * 60)
+print("TEST 14: undefine parent's provision role, then define sub")
+print("  undefine relation provision_has_extracted_entity relates provision;")
+print("=" * 60)
+queries_t14_step1 = [
+    "undefine relation provision_has_extracted_entity relates provision;",
+]
+step1_ok = run_schema(queries_t14_step1, "T14-step1: undefine parent's provision role")
+if step1_ok:
+    queries_t14_step2 = [
+        "define relation provision_has_basket sub provision_has_extracted_entity;",
+    ]
+    step2_ok = run_schema(queries_t14_step2, "T14-step2: define sub after provision removed from parent")
+    if step2_ok:
+        queries_t14_step3 = [
+            "redefine relation provision_has_basket relates basket as extracted;",
+        ]
+        results["T14_undefine_parent_provision_then_sub"] = run_schema(queries_t14_step3, "T14-step3: alias basket as extracted")
+    else:
+        results["T14_undefine_parent_provision_then_sub"] = False
+    undo_sub()
+    # Restore parent's provision role
+    run_schema(["define relation provision_has_extracted_entity relates provision;"], "T14-restore: add provision back to parent")
+else:
+    results["T14_undefine_parent_provision_then_sub"] = False
+
+print()
+print("=" * 60)
+print("TEST 15: undefine parent entirely, redefine without provision, then sub child")
+print("=" * 60)
+# Step 1: undefine the parent type entirely
+# Step 2: redefine it with only `relates extracted`
+# Step 3: define child sub parent
+queries_t15_step1 = [
+    "undefine relation provision_has_extracted_entity;",
+]
+step1_ok = run_schema(queries_t15_step1, "T15-step1: undefine parent entirely")
+if step1_ok:
+    # Recreate parent with only extracted role (no provision)
+    queries_t15_step2 = [
+        "define relation provision_has_extracted_entity @abstract, relates extracted;",
+    ]
+    step2_ok = run_schema(queries_t15_step2, "T15-step2: recreate parent with only relates extracted")
+    if step2_ok:
+        queries_t15_step3 = [
+            "define relation provision_has_basket sub provision_has_extracted_entity;",
+        ]
+        step3_ok = run_schema(queries_t15_step3, "T15-step3: define child sub parent")
+        if step3_ok:
+            queries_t15_step4 = [
+                "redefine relation provision_has_basket relates basket as extracted;",
+            ]
+            results["T15_recreate_parent_no_provision"] = run_schema(queries_t15_step4, "T15-step4: alias basket as extracted")
+        else:
+            results["T15_recreate_parent_no_provision"] = False
+        undo_sub()
+    else:
+        results["T15_recreate_parent_no_provision"] = False
+    # Always restore the parent to original state
+    restore_q = [
+        "define relation provision_has_extracted_entity @abstract, relates provision, relates extracted;",
+    ]
+    run_schema(restore_q, "T15-restore: restore parent to original definition")
+else:
+    results["T15_recreate_parent_no_provision"] = False
+
+print()
+print("=" * 60)
+print("TEST 16: undefine child entirely, redefine from scratch sub parent (+ alias basket)")
+print("  This avoids the conflict by redefining child without its own `relates provision`")
+print("  and instead inheriting it from the parent as-is")
+print("=" * 60)
+# Only do this test if the parent exists without the provision conflict
+# For this test, temporarily remove provision from parent first
+step0_ok = run_schema(
+    ["undefine relation provision_has_extracted_entity relates provision;"],
+    "T16-step0: undefine parent's provision role"
+)
+if step0_ok:
+    # Now undefine child too
+    step1_ok = run_schema(
+        ["undefine relation provision_has_basket;"],
+        "T16-step1: undefine provision_has_basket entirely"
+    )
+    if step1_ok:
+        # Recreate child sub parent, with basket aliased as extracted, plus its own provision role
+        step2_ok = run_schema(
+            ["define relation provision_has_basket sub provision_has_extracted_entity, relates basket as extracted;"],
+            "T16-step2: define child from scratch sub parent, basket as extracted"
+        )
+        results["T16_full_recreate_child"] = step2_ok
+        if step2_ok:
+            # Try to verify and add provision role to child
+            step3_ok = run_schema(
+                ["define relation provision_has_basket relates provision;"],
+                "T16-step3: add provision role back to child"
+            )
+            print(f"  [INFO] provision role added back to child: {step3_ok}")
+        undo_sub()
+    else:
+        results["T16_full_recreate_child"] = False
+    # Restore parent's provision role
+    run_schema(["define relation provision_has_extracted_entity relates provision;"], "T16-restore: add provision back to parent")
+else:
+    results["T16_full_recreate_child"] = None
+    print("  [SKIP] T16 skipped because removing parent provision role failed")
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
