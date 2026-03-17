@@ -3,22 +3,29 @@ Test TypeDB fetch capabilities against live instance.
 Run via: python -m app.scripts.test_fetch_capabilities
 """
 import json
+import os
 import sys
-import logging
+from pathlib import Path
 
-logging.basicConfig(level=logging.WARNING)
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from typedb.driver import TransactionType
-from app.services.typedb_client import typedb_client
-from app.config import settings
+from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType
+
+TYPEDB_ADDRESS = os.getenv("TYPEDB_ADDRESS", "localhost:1729")
+TYPEDB_DATABASE = os.getenv("TYPEDB_DATABASE", "valence")
+TYPEDB_USERNAME = os.getenv("TYPEDB_USERNAME", "")
+TYPEDB_PASSWORD = os.getenv("TYPEDB_PASSWORD", "")
+
+address = TYPEDB_ADDRESS
+if not address.startswith("http://") and not address.startswith("https://"):
+    address = f"https://{address}"
+
+driver = TypeDB.driver(address, Credentials(TYPEDB_USERNAME, TYPEDB_PASSWORD), DriverOptions())
 
 PROVISION_ID = "87852625_rp"
-DB = settings.typedb_database
-driver = typedb_client.driver
-
-if not driver:
-    print("FATAL: No TypeDB driver connected")
-    sys.exit(1)
+DB = TYPEDB_DATABASE
 
 results = {}
 
@@ -117,7 +124,7 @@ run_test("4. Relation type in fetch", f'''
     }};
 ''')
 
-# ── Test 5: Subquery fetch (blocker → exceptions) ────────────
+# ── Test 5: Subquery fetch (blocker -> exceptions) ────────────
 run_test("5. Subquery fetch (blocker -> exceptions)", f'''
     match
         $p isa rp_provision, has provision_id "{PROVISION_ID}";
