@@ -211,6 +211,32 @@ def add_lines(lines: list, items: list):
             lines.append(item)
 
 
+def entity_lines(entity_type: str, attrs: list) -> list:
+    """Format a list of entity attributes with auto-annotation.
+
+    Each item in attrs is a tuple of:
+        (display_name, value, attr_key)                    — no formatter
+        (display_name, value, attr_key, formatter)         — with formatter
+
+    entity_type is passed to line() for EVERY attribute automatically.
+    This eliminates manual per-call entity_type/attr_key wiring.
+    """
+    results = []
+    for item in attrs:
+        if len(item) == 3:
+            display_name, value, attr_key = item
+            formatter = None
+        elif len(item) == 4:
+            display_name, value, attr_key, formatter = item
+        else:
+            continue
+        result = line(display_name, value, formatter,
+                      entity_type=entity_type, attr_key=attr_key)
+        if result is not None:
+            results.append(result)
+    return results
+
+
 def _get_variable_names(query: str) -> List[str]:
     """Extract $variable names from the select clause of a TQL query."""
     select_match = _re.search(r'select\s+(.+?);', query, _re.IGNORECASE | _re.DOTALL)
@@ -328,6 +354,9 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
 
     entity_context = "\n\n".join(sections)
 
+    arrow_count = entity_context.count('\u2192')
+    logger.info(f"Entity context: {len(entity_context)} chars, {arrow_count} annotations")
+
     if trace:
         trace.entity_context = entity_context
         trace.entity_context_chars = len(entity_context)
@@ -346,8 +375,8 @@ def fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) -> 
     """
     query = f'''
         match
-            let $dn, $amt in dividend_capacity_components("{provision_id}");
-        select $dn, $amt;
+            let $amt in dividend_capacity_components("{provision_id}");
+        select $amt;
     '''
     rows = run_query(query, trace=trace, trace_name="dividend_capacity_components")
     if not rows:
@@ -356,10 +385,9 @@ def fetch_dividend_capacity(provision_id: str, trace: TraceCollector = None) -> 
     components = []
     total = 0.0
     for row in rows:
-        dn = safe_val(row, "dn")
         amt = safe_val(row, "amt")
-        if dn and amt and amt > 0:
-            components.append((dn, amt))
+        if amt and amt > 0:
+            components.append(("basket", amt))
             total += amt
 
     if not components:
@@ -411,13 +439,11 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Uses Greatest Of Tests", safe_val(row, "ugot"),
-                  entity_type="builder_basket", attr_key="uses_greatest_of_tests"),
-            line("Start Date Language", safe_val(row, "sdl"),
-                  entity_type="builder_basket", attr_key="start_date_language"),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("builder_basket", [
+            ("Uses Greatest Of Tests", safe_val(row, "ugot"), "uses_greatest_of_tests"),
+            ("Start Date Language", safe_val(row, "sdl"), "start_date_language"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 2: Ratio basket
@@ -445,22 +471,19 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Ratio Threshold", safe_val(row, "rt"),
-                  entity_type="ratio_basket", attr_key="ratio_threshold"),
-            line("Ratio Type", safe_val(row, "rty")),
-            line("Is Unlimited If Met", safe_val(row, "ium"),
-                  entity_type="ratio_basket", attr_key="is_unlimited_if_met"),
-            line("Has No Worse Test", safe_val(row, "nwt"),
-                  entity_type="ratio_basket", attr_key="has_no_worse_test"),
-            line("No Worse Threshold",
-                  "uncapped" if safe_val(row, "nwu") else safe_val(row, "nwthr"),
-                  entity_type="ratio_basket", attr_key="no_worse_is_uncapped"),
-            line("Test Date Type", safe_val(row, "tdt")),
-            line("LCT Treatment Available", safe_val(row, "lct")),
-            line("Pro Forma Basis", safe_val(row, "pfb")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("ratio_basket", [
+            ("Ratio Threshold", safe_val(row, "rt"), "ratio_threshold"),
+            ("Ratio Type", safe_val(row, "rty"), "ratio_type"),
+            ("Is Unlimited If Met", safe_val(row, "ium"), "is_unlimited_if_met"),
+            ("Has No Worse Test", safe_val(row, "nwt"), "has_no_worse_test"),
+            ("No Worse Threshold",
+             "uncapped" if safe_val(row, "nwu") else safe_val(row, "nwthr"),
+             "no_worse_is_uncapped"),
+            ("Test Date Type", safe_val(row, "tdt"), "test_date_type"),
+            ("LCT Treatment Available", safe_val(row, "lct"), "lct_treatment_available"),
+            ("Pro Forma Basis", safe_val(row, "pfb"), "pro_forma_basis"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 3: General RP basket
@@ -482,14 +505,12 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Basket Amount", safe_val(row, "bau"), fmt_dollar,
-                  entity_type="general_rp_basket", attr_key="basket_amount_usd"),
-            line("Grower Pct", safe_val(row, "bgp"), fmt_pct,
-                  entity_type="general_rp_basket", attr_key="basket_grower_pct"),
-            line("Is Per Annum", safe_val(row, "ipa")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("general_rp_basket", [
+            ("Basket Amount", safe_val(row, "bau"), "basket_amount_usd", fmt_dollar),
+            ("Grower Pct", safe_val(row, "bgp"), "basket_grower_pct", fmt_pct),
+            ("Is Per Annum", safe_val(row, "ipa"), "is_per_annum"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 4: Management equity basket
@@ -514,19 +535,15 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Annual Cap", safe_val(row, "acu"), fmt_dollar,
-                  entity_type="management_equity_basket", attr_key="annual_cap_usd"),
-            line("Annual Cap Pct EBITDA", safe_val(row, "acpe"), fmt_pct,
-                  entity_type="management_equity_basket", attr_key="annual_cap_pct_ebitda"),
-            line("Cap Uses Greater Of", safe_val(row, "cugo"),
-                  entity_type="management_equity_basket", attr_key="cap_uses_greater_of"),
-            line("Carryforward Permitted", safe_val(row, "cfp"),
-                  entity_type="management_equity_basket", attr_key="carryforward_permitted"),
-            line("Carryforward Max Years", safe_val(row, "cfmy")),
-            line("Eligible Person Scope", safe_val(row, "eps")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("management_equity_basket", [
+            ("Annual Cap", safe_val(row, "acu"), "annual_cap_usd", fmt_dollar),
+            ("Annual Cap Pct EBITDA", safe_val(row, "acpe"), "annual_cap_pct_ebitda", fmt_pct),
+            ("Cap Uses Greater Of", safe_val(row, "cugo"), "cap_uses_greater_of"),
+            ("Carryforward Permitted", safe_val(row, "cfp"), "carryforward_permitted"),
+            ("Carryforward Max Years", safe_val(row, "cfmy"), "carryforward_max_years"),
+            ("Eligible Person Scope", safe_val(row, "eps"), "eligible_person_scope"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 5: Tax distribution basket
@@ -549,13 +566,13 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Standalone Taxpayer Limit", safe_val(row, "stl")),
-            line("Hypothetical Tax Rate", safe_val(row, "htr")),
-            line("Tax Sharing Permitted", safe_val(row, "tsp")),
-            line("Estimated Taxes Permitted", safe_val(row, "etp")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("tax_distribution_basket", [
+            ("Standalone Taxpayer Limit", safe_val(row, "stl"), "standalone_taxpayer_limit"),
+            ("Hypothetical Tax Rate", safe_val(row, "htr"), "hypothetical_tax_rate"),
+            ("Tax Sharing Permitted", safe_val(row, "tsp"), "tax_sharing_permitted"),
+            ("Estimated Taxes Permitted", safe_val(row, "etp"), "estimated_taxes_permitted"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 6: Holdco overhead basket
@@ -580,15 +597,15 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Covers Management Fees", safe_val(row, "cmf")),
-            line("Covers Admin Expenses", safe_val(row, "cae")),
-            line("Covers Franchise Taxes", safe_val(row, "cft")),
-            line("Management Fee Recipient Scope", safe_val(row, "mfrs")),
-            line("Requires Arms Length", safe_val(row, "ral")),
-            line("Requires Board Approval", safe_val(row, "rba")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("holdco_overhead_basket", [
+            ("Covers Management Fees", safe_val(row, "cmf"), "covers_management_fees"),
+            ("Covers Admin Expenses", safe_val(row, "cae"), "covers_admin_expenses"),
+            ("Covers Franchise Taxes", safe_val(row, "cft"), "covers_franchise_taxes"),
+            ("Management Fee Recipient Scope", safe_val(row, "mfrs"), "management_fee_recipient_scope"),
+            ("Requires Arms Length", safe_val(row, "ral"), "requires_arms_length"),
+            ("Requires Board Approval", safe_val(row, "rba"), "requires_board_approval"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 7: Equity award basket
@@ -609,11 +626,11 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Covers Cashless Exercise", safe_val(row, "cce")),
-            line("Covers Tax Withholding", safe_val(row, "ctw")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines("equity_award_basket", [
+            ("Covers Cashless Exercise", safe_val(row, "cce"), "covers_cashless_exercise"),
+            ("Covers Tax Withholding", safe_val(row, "ctw"), "covers_tax_withholding"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
         all_baskets.append(lines)
 
     # Query 8: Unsub distribution basket (Section 6.06(p) carve-out)
@@ -637,17 +654,14 @@ def fetch_rp_baskets(provision_id: str, trace: TraceCollector = None) -> List[st
         sec, pg = safe_val(row, "sec"), safe_val(row, "pg")
         if sec or pg is not None:
             lines.append(f"  {', '.join(filter(None, [f'Section: {sec}' if sec else None, f'Page: {pg}' if pg is not None else None]))}")
-        add_lines(lines, [
-            line("Covers Equity Interests", safe_val(row, "cei"),
-                  entity_type="unsub_distribution_basket", attr_key="covers_equity_interests"),
-            line("Covers Indebtedness", safe_val(row, "ci")),
-            line("Covers Assets", safe_val(row, "ca"),
-                  entity_type="unsub_distribution_basket", attr_key="covers_assets"),
-            line("Covers Proceeds", safe_val(row, "cp")),
-            line("Is Categorical", safe_val(row, "ic"),
-                  entity_type="unsub_distribution_basket", attr_key="is_categorical"),
-            line("Requires Valid Designation", safe_val(row, "rvd")),
-        ])
+        lines.extend(entity_lines("unsub_distribution_basket", [
+            ("Covers Equity Interests", safe_val(row, "cei"), "covers_equity_interests"),
+            ("Covers Indebtedness", safe_val(row, "ci"), "covers_indebtedness"),
+            ("Covers Assets", safe_val(row, "ca"), "covers_assets"),
+            ("Covers Proceeds", safe_val(row, "cp"), "covers_proceeds"),
+            ("Is Categorical", safe_val(row, "ic"), "is_categorical"),
+            ("Requires Valid Designation", safe_val(row, "rvd"), "requires_valid_designation"),
+        ]))
         all_baskets.append(lines)
 
     if not all_baskets:
@@ -702,29 +716,23 @@ def fetch_builder_sources(provision_id: str, trace: TraceCollector = None) -> Li
         sname = safe_val(row, "sn") or stype.replace("_", " ").title()
         lines.append(f"\n### {sname}")
 
-        add_lines(lines, [
-            line("Dollar Amount", safe_val(row, "da"), fmt_dollar,
-                  entity_type=stype, attr_key="dollar_amount"),
-            line("EBITDA Percentage", safe_val(row, "ep"), fmt_pct,
-                  entity_type=stype, attr_key="ebitda_percentage"),
-            line("Uses Greater Of", safe_val(row, "ugo"),
-                  entity_type=stype, attr_key="uses_greater_of"),
-            line("Percentage", safe_val(row, "pct"), fmt_pct,
-                  entity_type=stype, attr_key="percentage"),
-            line("Is Primary Test", safe_val(row, "ipt")),
-            line("Retained ECF Formula", safe_val(row, "recf"),
-                  entity_type=stype, attr_key="retained_ecf_formula"),
-            line("Lookback Period", safe_val(row, "lbp")),
-            line("Lookback Quarters", safe_val(row, "lbq")),
-            line("FC Multiplier", safe_val(row, "fcm"),
-                  entity_type=stype, attr_key="fc_multiplier"),
-            line("Excludes Cure Contributions", safe_val(row, "ecc")),
-            line("Excludes Disqualified Stock", safe_val(row, "eds")),
-            line("Not Otherwise Applied", safe_val(row, "noa")),
-            line("Sweep Section Reference", safe_val(row, "ssr")),
-            line("Has Ratio Disposition Basket", safe_val(row, "hrdb")),
-            line("Ratio Disposition Threshold", safe_val(row, "rdt")),
-        ])
+        lines.extend(entity_lines(stype, [
+            ("Dollar Amount", safe_val(row, "da"), "dollar_amount", fmt_dollar),
+            ("EBITDA Percentage", safe_val(row, "ep"), "ebitda_percentage", fmt_pct),
+            ("Uses Greater Of", safe_val(row, "ugo"), "uses_greater_of"),
+            ("Percentage", safe_val(row, "pct"), "percentage", fmt_pct),
+            ("Is Primary Test", safe_val(row, "ipt"), "is_primary_test"),
+            ("Retained ECF Formula", safe_val(row, "recf"), "retained_ecf_formula"),
+            ("Lookback Period", safe_val(row, "lbp"), "lookback_period"),
+            ("Lookback Quarters", safe_val(row, "lbq"), "lookback_quarters"),
+            ("FC Multiplier", safe_val(row, "fcm"), "fc_multiplier"),
+            ("Excludes Cure Contributions", safe_val(row, "ecc"), "excludes_cure_contributions"),
+            ("Excludes Disqualified Stock", safe_val(row, "eds"), "excludes_disqualified_stock"),
+            ("Not Otherwise Applied", safe_val(row, "noa"), "not_otherwise_applied"),
+            ("Sweep Section Reference", safe_val(row, "ssr"), "sweep_section_reference"),
+            ("Has Ratio Disposition Basket", safe_val(row, "hrdb"), "has_ratio_disposition_basket"),
+            ("Ratio Disposition Threshold", safe_val(row, "rdt"), "ratio_disposition_threshold"),
+        ]))
 
         sec = safe_val(row, "sec")
         pg = safe_val(row, "pg")
@@ -837,11 +845,11 @@ def fetch_reallocations(provision_id: str, trace: TraceCollector = None) -> List
             if qt:
                 lines.append(f'    \u2192 "{qt}"')
 
-        add_lines(lines, [
-            line("    Reduces Source Basket", safe_val(row, "rsb")),
-            line("    Dollar-for-Dollar Reduction", safe_val(row, "rdfd")),
-            line("    While Outstanding Only", safe_val(row, "rwoo")),
-        ])
+        lines.extend(entity_lines("basket_reallocation", [
+            ("    Reduces Source Basket", safe_val(row, "rsb"), "reduces_source_basket"),
+            ("    Dollar-for-Dollar Reduction", safe_val(row, "rdfd"), "reduction_is_dollar_for_dollar"),
+            ("    While Outstanding Only", safe_val(row, "rwoo"), "reduction_while_outstanding_only"),
+        ]))
 
     return lines
 
@@ -885,8 +893,8 @@ def fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
 
     lines = ["## RDP Baskets"]
     for row in rows:
-        rtype = safe_type(row, "rb") or "rdp_basket"
-        label = rtype.replace("_", " ").title()
+        btype = safe_type(row, "rb") or "rdp_basket"
+        label = btype.replace("_", " ").title()
         lines.append(f"\n### {label}")
 
         sec = safe_val(row, "sec")
@@ -899,26 +907,26 @@ def fetch_rdp_baskets(provision_id: str, trace: TraceCollector = None) -> List[s
         if loc:
             lines.append(f"  {', '.join(loc)}")
 
-        add_lines(lines, [
-            line("Basket Amount", safe_val(row, "bau"), fmt_dollar),
-            line("Grower Pct", safe_val(row, "bgp"), fmt_pct),
-            line("Ratio Threshold", safe_val(row, "rt")),
-            line("Ratio Type", safe_val(row, "rty")),
-            line("Is Unlimited If Met", safe_val(row, "ium")),
-            line("Test Date Type", safe_val(row, "tdt")),
-            line("Pro Forma Basis", safe_val(row, "pfb")),
-            line("Uses Closing Ratio Alternative", safe_val(row, "ucra")),
-            line("Shares With RP Builder", safe_val(row, "swrp")),
-            line("Subject To Intercreditor", safe_val(row, "sti")),
-            line("Requires Same Or Lower Priority", safe_val(row, "rslp")),
-            line("Requires Same Or Later Maturity", safe_val(row, "rslm")),
-            line("Requires No Increase In Principal", safe_val(row, "rnip")),
-            line("Permits Refinancing With Equity", safe_val(row, "prwe")),
-            line("Requires Qualified Stock Only", safe_val(row, "rqso")),
-            line("Requires Cash Common Equity", safe_val(row, "rcce")),
-            line("Not Otherwise Applied", safe_val(row, "noa")),
-            line("Default Condition", safe_val(row, "dc")),
-        ])
+        lines.extend(entity_lines(btype, [
+            ("Basket Amount", safe_val(row, "bau"), "basket_amount_usd", fmt_dollar),
+            ("Grower Pct", safe_val(row, "bgp"), "basket_grower_pct", fmt_pct),
+            ("Ratio Threshold", safe_val(row, "rt"), "ratio_threshold"),
+            ("Ratio Type", safe_val(row, "rty"), "ratio_type"),
+            ("Is Unlimited If Met", safe_val(row, "ium"), "is_unlimited_if_met"),
+            ("Test Date Type", safe_val(row, "tdt"), "test_date_type"),
+            ("Pro Forma Basis", safe_val(row, "pfb"), "pro_forma_basis"),
+            ("Uses Closing Ratio Alternative", safe_val(row, "ucra"), "uses_closing_ratio_alternative"),
+            ("Shares With RP Builder", safe_val(row, "swrp"), "shares_with_rp_builder"),
+            ("Subject To Intercreditor", safe_val(row, "sti"), "subject_to_intercreditor"),
+            ("Requires Same Or Lower Priority", safe_val(row, "rslp"), "requires_same_or_lower_priority"),
+            ("Requires Same Or Later Maturity", safe_val(row, "rslm"), "requires_same_or_later_maturity"),
+            ("Requires No Increase In Principal", safe_val(row, "rnip"), "requires_no_increase_in_principal"),
+            ("Permits Refinancing With Equity", safe_val(row, "prwe"), "permits_refinancing_with_equity"),
+            ("Requires Qualified Stock Only", safe_val(row, "rqso"), "requires_qualified_stock_only"),
+            ("Requires Cash Common Equity", safe_val(row, "rcce"), "requires_cash_common_equity"),
+            ("Not Otherwise Applied", safe_val(row, "noa"), "not_otherwise_applied"),
+            ("Default Condition", safe_val(row, "dc"), "default_condition"),
+        ]))
 
     return lines
 
@@ -963,24 +971,19 @@ def fetch_jcrew_blocker(provision_id: str, trace: TraceCollector = None) -> List
     if loc:
         lines.append(f"  {', '.join(loc)}")
 
-    add_lines(lines, [
-        line("Covers Transfer", safe_val(row, "ct"),
-              entity_type="jcrew_blocker", attr_key="covers_transfer"),
-        line("Covers Designation", safe_val(row, "cd"),
-              entity_type="jcrew_blocker", attr_key="covers_designation"),
-        line("Covers IP", safe_val(row, "cip"),
-              entity_type="jcrew_blocker", attr_key="covers_ip"),
-        line("Covers Material Assets", safe_val(row, "cma"),
-              entity_type="jcrew_blocker", attr_key="covers_material_assets"),
-        line("Covers Exclusive Licensing", safe_val(row, "cel")),
-        line("Covers Non-Exclusive Licensing", safe_val(row, "cnl")),
-        line("Covers Pledge", safe_val(row, "cpledge")),
-        line("Covers Abandonment", safe_val(row, "cab")),
-        line("Binds Loan Parties", safe_val(row, "blp")),
-        line("Binds Restricted Subs", safe_val(row, "brs")),
-        line("Is Sacred Right", safe_val(row, "isr"),
-              entity_type="jcrew_blocker", attr_key="is_sacred_right"),
-    ])
+    lines.extend(entity_lines("jcrew_blocker", [
+        ("Covers Transfer", safe_val(row, "ct"), "covers_transfer"),
+        ("Covers Designation", safe_val(row, "cd"), "covers_designation"),
+        ("Covers IP", safe_val(row, "cip"), "covers_ip"),
+        ("Covers Material Assets", safe_val(row, "cma"), "covers_material_assets"),
+        ("Covers Exclusive Licensing", safe_val(row, "cel"), "covers_exclusive_licensing"),
+        ("Covers Non-Exclusive Licensing", safe_val(row, "cnl"), "covers_nonexclusive_licensing"),
+        ("Covers Pledge", safe_val(row, "cpledge"), "covers_pledge"),
+        ("Covers Abandonment", safe_val(row, "cab"), "covers_abandonment"),
+        ("Binds Loan Parties", safe_val(row, "blp"), "binds_loan_parties"),
+        ("Binds Restricted Subs", safe_val(row, "brs"), "binds_restricted_subs"),
+        ("Is Sacred Right", safe_val(row, "isr"), "is_sacred_right"),
+    ]))
 
     # Fetch exceptions
     bid = safe_val(row, "bid")
@@ -1049,13 +1052,13 @@ def fetch_investment_pathways(provision_id: str, trace: TraceCollector = None) -
         tgt = safe_val(row, "ptt") or "?"
         lines.append(f"\n### {src} -> {tgt}")
 
-        add_lines(lines, [
-            line("Dollar Cap", safe_val(row, "cdu"), fmt_dollar),
-            line("Pct Total Assets Cap", safe_val(row, "cpta"), fmt_pct),
-            line("Cap Uses Greater Of", safe_val(row, "cugo")),
-            line("Is Uncapped", safe_val(row, "iu")),
-            line("Can Stack With Other Baskets", safe_val(row, "csob")),
-        ])
+        lines.extend(entity_lines("investment_pathway", [
+            ("Dollar Cap", safe_val(row, "cdu"), "cap_dollar_usd", fmt_dollar),
+            ("Pct Total Assets Cap", safe_val(row, "cpta"), "cap_pct_total_assets", fmt_pct),
+            ("Cap Uses Greater Of", safe_val(row, "cugo"), "cap_uses_greater_of"),
+            ("Is Uncapped", safe_val(row, "iu"), "is_uncapped"),
+            ("Can Stack With Other Baskets", safe_val(row, "csob"), "can_stack_with_other_baskets"),
+        ]))
 
         sec = safe_val(row, "sec")
         pg = safe_val(row, "pg")
@@ -1103,15 +1106,13 @@ def fetch_unsub_designation(provision_id: str, trace: TraceCollector = None) -> 
     if loc:
         lines.append(f"  {', '.join(loc)}")
 
-    add_lines(lines, [
-        line("Requires No Default", safe_val(row, "rnd")),
-        line("Requires Board Approval", safe_val(row, "rba")),
-        line("Dollar Cap", safe_val(row, "dcu"), fmt_dollar,
-              entity_type="unsub_designation", attr_key="dollar_cap_usd"),
-        line("Pct Cap Total Assets", safe_val(row, "pca"), fmt_pct,
-              entity_type="unsub_designation", attr_key="pct_cap_assets"),
-        line("Redesignation Permitted", safe_val(row, "rp")),
-    ])
+    lines.extend(entity_lines("unsub_designation", [
+        ("Requires No Default", safe_val(row, "rnd"), "requires_no_default"),
+        ("Requires Board Approval", safe_val(row, "rba"), "requires_board_approval"),
+        ("Dollar Cap", safe_val(row, "dcu"), "dollar_cap_usd", fmt_dollar),
+        ("Pct Cap Total Assets", safe_val(row, "pca"), "pct_cap_assets", fmt_pct),
+        ("Redesignation Permitted", safe_val(row, "rp"), "redesignation_permitted"),
+    ]))
 
     return lines
 
@@ -1137,11 +1138,11 @@ def fetch_sweep_tiers(provision_id: str, trace: TraceCollector = None) -> List[s
     lines = ["## Sweep Tiers"]
     for i, row in enumerate(rows, 1):
         lines.append(f"\n### Tier {i}")
-        add_lines(lines, [
-            line("Leverage Threshold", safe_val(row, "lt")),
-            line("Sweep Percentage", safe_val(row, "sp"), fmt_pct),
-            line("Is Highest Tier", safe_val(row, "iht")),
-        ])
+        lines.extend(entity_lines("sweep_tier", [
+            ("Leverage Threshold", safe_val(row, "lt"), "leverage_threshold"),
+            ("Sweep Percentage", safe_val(row, "sp"), "sweep_percentage", fmt_pct),
+            ("Is Highest Tier", safe_val(row, "iht"), "is_highest_tier"),
+        ]))
         sec = safe_val(row, "sec")
         pg = safe_val(row, "pg")
         loc = []
@@ -1176,9 +1177,10 @@ def fetch_de_minimis(provision_id: str, trace: TraceCollector = None) -> List[st
     for row in rows:
         ttype = safe_val(row, "ttype") or "threshold"
         lines.append(f"\n### {ttype}")
-        add_lines(lines, [
-            line("Amount", safe_val(row, "tamt"), fmt_dollar),
-        ])
+        lines.extend(entity_lines("de_minimis_threshold", [
+            ("Threshold Type", safe_val(row, "ttype"), "threshold_type"),
+            ("Amount", safe_val(row, "tamt"), "threshold_amount_usd", fmt_dollar),
+        ]))
         sec = safe_val(row, "sec")
         pg = safe_val(row, "pg")
         loc = []
