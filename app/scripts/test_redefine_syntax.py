@@ -33,6 +33,72 @@ driver = TypeDB.driver(address, Credentials(TYPEDB_USERNAME, TYPEDB_PASSWORD), D
 print("Connected.\n")
 
 # ---------------------------------------------------------------------------
+# PRE-FLIGHT: Check whether provision_has_extracted_entity actually exists
+# ---------------------------------------------------------------------------
+print("=" * 60)
+print("PRE-FLIGHT: Schema state check")
+print("=" * 60)
+
+def schema_type_exists(type_name: str) -> bool:
+    """Return True if the given type label exists in the schema."""
+    tx = driver.transaction(TYPEDB_DATABASE, TransactionType.READ)
+    try:
+        # TypeDB 3.x: use fetch to introspect type labels
+        q = f"match $r sub relation; fetch {{ \"label\": $r; }};"
+        rows = list(tx.query(q).resolve())
+        for row in rows:
+            try:
+                label = str(row)
+                if type_name in label:
+                    return True
+            except Exception:
+                pass
+        return False
+    except Exception as e:
+        print(f"  [WARN] schema_type_exists query failed: {e}")
+        return False
+    finally:
+        tx.close()
+
+# Direct approach: try a trivial read query referencing the type
+def type_exists_direct(type_name: str) -> bool:
+    tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+    try:
+        q = f"match $r sub {type_name};"
+        rows = list(tx.query(q).resolve())
+        print(f"  {type_name}: EXISTS (sub-types query returned {len(rows)} rows)")
+        return True
+    except Exception as e:
+        print(f"  {type_name}: NOT FOUND - {str(e)[:150]}")
+        return False
+    finally:
+        tx.close()
+
+parent_exists = type_exists_direct("provision_has_extracted_entity")
+basket_exists = type_exists_direct("provision_has_basket")
+
+if not parent_exists:
+    print()
+    print("  *** Abstract parent does NOT exist. Attempting to create it now... ***")
+    create_parent_q = [
+        "define relation provision_has_extracted_entity @abstract, relates provision, relates extracted;",
+    ]
+    tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+    try:
+        tx.query(create_parent_q[0]).resolve()
+        tx.commit()
+        print("  [OK] Created provision_has_extracted_entity")
+        parent_exists = True
+    except Exception as e:
+        try:
+            tx.close()
+        except Exception:
+            pass
+        print(f"  [ERROR] Could not create abstract parent: {e}")
+
+print()
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
