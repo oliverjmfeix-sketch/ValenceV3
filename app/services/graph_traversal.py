@@ -40,8 +40,8 @@ fetch {{
     ],
     "children": [
         match
-            ($e, $child) isa $child_rel;
-            not {{ $child_rel sub provision_has_extracted_entity; }};
+            $child_link isa $child_rel, links (parent: $e, child: $child);
+            $child_rel sub entity_has_child;
             $child isa! $ctype;
             let $child_type_name = label($ctype);
             let $child_rel_name = label($child_rel);
@@ -54,6 +54,25 @@ fetch {{
                     let $can, $cqt in get_entity_annotations($child_type_name);
                 fetch {{ "attribute": $can, "annotation": $cqt }};
             ]
+        }};
+    ],
+    "links": [
+        match
+            $link isa $link_type, links ($my_role: $e, $their_role: $linked);
+            not {{ $link_type sub provision_has_extracted_entity; }};
+            not {{ $link_type sub entity_has_child; }};
+            $linked isa! $linked_etype;
+            let $link_name = label($link_type);
+            let $linked_type_name = label($linked_etype);
+            let $my_role_name = label($my_role);
+            let $their_role_name = label($their_role);
+        fetch {{
+            "link_relation": $link_name,
+            "my_role": $my_role_name,
+            "their_role": $their_role_name,
+            "linked_type": $linked_type_name,
+            "linked_attributes": {{ $linked.* }},
+            "relation_attributes": {{ $link.* }}
         }};
     ]
 }};

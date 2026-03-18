@@ -1549,9 +1549,16 @@ relation provision_has_basket sub provision_has_extracted_entity,
     relates provision,
     relates basket as extracted;
 
-relation basket_has_source,
-    relates basket,
-    relates source;
+# Abstract parent for entity→child relations.
+# Positive marker for parent-child relationships within the entity graph.
+# Used by polymorphic fetch to distinguish children from peer cross-references.
+relation entity_has_child @abstract,
+    relates parent,
+    relates child;
+
+relation basket_has_source sub entity_has_child,
+    relates basket as parent,
+    relates source as child;
 
 relation provision_has_rdp_basket sub provision_has_extracted_entity,
     relates provision,
@@ -1561,9 +1568,9 @@ relation provision_has_blocker sub provision_has_extracted_entity,
     relates provision,
     relates blocker as extracted;
 
-relation blocker_has_exception,
-    relates blocker,
-    relates exception;
+relation blocker_has_exception sub entity_has_child,
+    relates blocker as parent,
+    relates exception as child;
 
 relation blocker_covers_ip_type,
     relates blocker,

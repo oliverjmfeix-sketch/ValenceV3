@@ -2278,11 +2278,19 @@ The data below is a JSON array of all extracted entities for this provision. Eac
 - `attributes`: all attribute values as key-value pairs
 - `annotations`: human-readable questions that explain what each attribute means — use these to understand attribute semantics
 - `children`: nested sub-entities (e.g., builder basket sources, blocker exceptions), each with their own attributes and annotations
+- `links`: connections to other entities in the graph (e.g., reallocation edges between baskets). Each link has:
+  - `link_relation`: the relationship type (e.g., "basket_reallocates_to")
+  - `my_role`: what role this entity plays (e.g., "target_basket")
+  - `their_role`: what role the linked entity plays (e.g., "source_basket")
+  - `linked_type`: the type of the linked entity
+  - `linked_attributes`: all attributes of the linked entity
+  - `relation_attributes`: attributes on the relationship itself (e.g., reallocation amounts)
 
 When answering:
 - Scan the entity array to find entities relevant to the question (use `type_name` and `relation` to navigate)
 - Read `annotations` to understand what boolean/numeric attributes mean before interpreting their values
 - Check `children` for supporting detail (e.g., builder basket `starter_amount_source` for the starter dollar amount)
+- For capacity/aggregation questions, follow `links` to find cross-basket relationships — reallocation links show which baskets flow capacity to which other baskets, with dollar amounts and direction
 - For capacity/aggregation questions, identify ALL relevant baskets and reallocation paths — check `basket_reallocation` entities for cross-covenant capacity flows
 - Use `source_text` attributes for verbatim agreement language when available
 
