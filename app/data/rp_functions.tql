@@ -1,44 +1,5 @@
-################################################################################
 # RP COVENANT FUNCTIONS
 #
-# TypeDB 3.x schema functions for Restricted Payments analysis.
-# Loaded in a SCHEMA transaction by init_schema.py.
-#
-# SINGLE TRAVERSAL PATTERN: Both functions use the same or-branch logic
-# to identify which baskets contribute to dividend capacity.
-# If you change the traversal logic, update BOTH functions.
-################################################################################
-
-# Stream function: returns individual basket components contributing to
-# dividend capacity. Each row = (basket_amount_usd).
-# Python derives display name from entity type label at read time.
-define
-fun dividend_capacity_components($prov_id: string) -> { basket_amount_usd }:
-    match
-        $p isa rp_provision, has provision_id $pid;
-        $pid == $prov_id;
-        {
-            (provision: $p, basket: $b) isa provision_has_basket;
-            $b has basket_amount_usd $amt;
-        } or {
-            (provision: $p, basket: $tgt) isa provision_has_basket;
-            (source_basket: $b, target_basket: $tgt) isa basket_reallocates_to;
-            $b has basket_amount_usd $amt;
-        };
-    return { $amt };
-
-# Aggregate function: total fixed-floor dividend capacity.
-# Uses the SAME traversal pattern as dividend_capacity_components.
-fun total_fixed_dividend_capacity($prov_id: string) -> double:
-    match
-        $p isa rp_provision, has provision_id $pid;
-        $pid == $prov_id;
-        {
-            (provision: $p, basket: $b) isa provision_has_basket;
-            $b has basket_amount_usd $amt;
-        } or {
-            (provision: $p, basket: $tgt) isa provision_has_basket;
-            (source_basket: $b, target_basket: $tgt) isa basket_reallocates_to;
-            $b has basket_amount_usd $amt;
-        };
-    return sum($amt);
+# Previously contained dividend_capacity_components and total_fixed_dividend_capacity.
+# Deleted in Prompt 3: polymorphic fetch replaces pre-computed capacity aggregation.
+# Claude now derives capacity from raw entity JSON + annotations.

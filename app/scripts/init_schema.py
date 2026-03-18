@@ -479,35 +479,10 @@ def init_database():
                 logger.warning(f"   MFN functions: {e}")
                 logger.warning("   MFN pattern detection functions not available.")
 
-        # 19. Load RP covenant functions (SCHEMA transaction)
-        logger.info("\n19. Loading rp_functions.tql...")
-        if RP_FUNCTIONS_FILE.exists():
-            rp_func_tql = load_tql_file(RP_FUNCTIONS_FILE)
-            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
-            try:
-                tx.query(rp_func_tql).resolve()
-                tx.commit()
-                logger.info(f"   Loaded RP functions ({len(rp_func_tql)} chars)")
-            except Exception as e:
-                if tx.is_open():
-                    tx.close()
-                logger.warning(f"   RP functions: {e}")
-                logger.warning("   RP dividend capacity function not available.")
-
-        # 20. Load RP analysis functions (SCHEMA transaction)
-        logger.info("\n20. Loading rp_analysis_functions.tql...")
-        if RP_ANALYSIS_FUNCTIONS_FILE.exists():
-            rp_analysis_tql = load_tql_file(RP_ANALYSIS_FUNCTIONS_FILE)
-            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
-            try:
-                tx.query(rp_analysis_tql).resolve()
-                tx.commit()
-                logger.info(f"   Loaded RP analysis functions ({len(rp_analysis_tql)} chars)")
-            except Exception as e:
-                if tx.is_open():
-                    tx.close()
-                logger.warning(f"   RP analysis functions: {e}")
-                logger.warning("   RP analysis functions not available.")
+        # 19-20. RP functions and analysis functions removed in Prompt 3.
+        # Polymorphic fetch replaces pre-computed analytical functions.
+        # Files rp_functions.tql and rp_analysis_functions.tql are now comment-only.
+        logger.info("\n19-20. Skipping RP functions (removed — polymorphic fetch replaces them)")
 
         # 22. Load annotation functions (SCHEMA transaction)
         logger.info("\n22. Loading annotation_functions.tql...")

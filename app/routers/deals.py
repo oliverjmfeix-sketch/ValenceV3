@@ -2268,22 +2268,23 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
    (e) **CAPACITY SUMMARY** — For complex questions, end with a table of available baskets.
 """
 
-    system_rules = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted STRUCTURED ENTITY DATA from a knowledge graph.
+    system_rules = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted ENTITY DATA from a knowledge graph.
 
 ## DATA FORMAT
 
-The data below has two sections:
+The data below is a JSON array of all extracted entities for this provision. Each entity has:
+- `relation`: how this entity connects to the provision (e.g., "provision_has_basket", "provision_has_blocker")
+- `type_name`: the specific entity type (e.g., "builder_basket", "jcrew_blocker", "investment_pathway")
+- `attributes`: all attribute values as key-value pairs
+- `annotations`: human-readable questions that explain what each attribute means — use these to understand attribute semantics
+- `children`: nested sub-entities (e.g., builder basket sources, blocker exceptions), each with their own attributes and annotations
 
-1. **COMPUTED FINDINGS** — Pre-analyzed results from TypeDB analytical functions (blocker gaps, exception analysis, distribution evidence, pathway chains, dividend capacity). These are formatted as structured text with headings.
-
-2. **SUPPORTING ENTITY DATA** — A JSON array of all extracted entities for this provision. Each entity has:
-   - `relation`: the relation connecting this entity to the provision (e.g., "provision_has_basket", "provision_has_blocker")
-   - `type_name`: the entity type (e.g., "builder_basket", "jcrew_blocker")
-   - `attributes`: all attributes as key-value pairs
-   - `annotations`: question text for each annotated attribute (maps attribute names to assessment questions)
-   - `children`: nested child entities, each with `child_relation` (e.g., "basket_has_source", "blocker_has_exception"), `child_type`, `child_attributes`, and `child_annotations`
-
-Use COMPUTED FINDINGS for analytical conclusions. Use SUPPORTING ENTITY DATA for raw attribute values, citations, and additional context.
+When answering:
+- Scan the entity array to find entities relevant to the question (use `type_name` and `relation` to navigate)
+- Read `annotations` to understand what boolean/numeric attributes mean before interpreting their values
+- Check `children` for supporting detail (e.g., builder basket `starter_amount_source` for the starter dollar amount)
+- For capacity/aggregation questions, identify ALL relevant baskets and reallocation paths — check `basket_reallocation` entities for cross-covenant capacity flows
+- Use `source_text` attributes for verbatim agreement language when available
 
 ## STRICT RULES
 
