@@ -6,6 +6,7 @@ instead of flat attributes.
 """
 import json
 import logging
+import re
 import uuid
 from typing import Dict, Any, List, Optional
 from typedb.driver import TransactionType
@@ -435,7 +436,7 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
 ### General rules:
 - source_text MUST be exact verbatim quote, not a paraphrase or "See Section X"
 - confidence: "high" (explicit), "medium" (inferred), "low" (uncertain)
-- For entity_list answers: include section_reference, source_page, source_text, confidence on EACH entity object
+- For entity_list answers: section_reference, source_page, source_text, and confidence are REQUIRED on EACH entity object. section_reference must be a specific clause (e.g., "Section 6.06(p)", "Definition of Cumulative Amount, clause (h)"), not a generic section. source_page must be the integer page number from the [PAGE X] markers in the document text.
 - For percentages use decimals (50% = 0.5, 140% = 1.4)
 - For dollar amounts use raw numbers (130000000 not "130M")
 - DEFINITIONS: Cross-references ARE definitions. When asked if defined, answer true for both inline and cross-reference.
@@ -560,7 +561,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             if fields:
                 section += f"- Fields: {', '.join(fields)}\n"
 
-        section += f"- Provenance fields (include on each entity): section_reference, source_page, source_text, confidence\n"
+        section += f"- **REQUIRED provenance on EVERY entity**: section_reference (e.g., 'Section 6.06(p)'), source_page (integer page number), source_text (verbatim quote, max 500 chars), confidence (high/medium/low)\n"
         section += "\n"
         return section
 
@@ -862,10 +863,27 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     # SINGLE-INSTANCE ENTITY CREATION + ATTRIBUTE POPULATION
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _create_single_instance_entity(self, provision_id: str, entity_type: str):
+    @staticmethod
+    def _extract_section_ref(source_text: str) -> Optional[str]:
+        """Extract section reference from source text if not explicitly provided."""
+        if not source_text:
+            return None
+        match = re.search(r'(Section \d+\.\d+(?:\([a-z]\))?(?:\([a-z]+\))?)', source_text)
+        if match:
+            return match.group(1)
+        match = re.search(r'(Definition of [A-Z][^,;.]+)', source_text)
+        if match:
+            return match.group(1).strip()
+        return None
+
+    def _create_single_instance_entity(self, provision_id: str, entity_type: str,
+                                        source_text: str = None, source_page: int = None,
+                                        section_reference: str = None, confidence: str = None):
         """Create a single-instance entity and link to provision via schema-introspected relation.
 
         Called when an _exists answer is True (e.g., rp_k1=true → create jcrew_blocker).
+        Propagates provenance attributes (source_text, source_page, section_reference, confidence)
+        from the _exists answer onto the entity.
         """
         entity_relation_map = self._load_entity_relation_map()
         relation_info = entity_relation_map.get(entity_type)
@@ -881,17 +899,33 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         entity_id = f"{provision_id}_{entity_type}"
 
+        # Build provenance attributes (only for attrs the entity type actually owns)
+        attr_types = self.get_attr_value_types(entity_type)
+        prov_attrs = []
+        if source_text and "source_text" in attr_types:
+            prov_attrs.append(f'has source_text "{self._escape(source_text[:2000])}"')
+        if source_page is not None and "source_page" in attr_types:
+            prov_attrs.append(f'has source_page {source_page}')
+        if section_reference and "section_reference" in attr_types:
+            prov_attrs.append(f'has section_reference "{self._escape(section_reference)}"')
+        if confidence and "confidence" in attr_types:
+            prov_attrs.append(f'has confidence "{confidence}"')
+
+        prov_str = ""
+        if prov_attrs:
+            prov_str = ",\n                    ".join([""] + prov_attrs)  # leading comma
+
         query = f'''
             match
                 $prov isa rp_provision, has provision_id "{provision_id}";
             insert
                 $entity isa {entity_type},
-                    has {key_attr} "{entity_id}";
+                    has {key_attr} "{entity_id}"{prov_str};
                 ({prov_role}: $prov, {entity_role}: $entity) isa {relation_type};
         '''
         try:
             self._execute_query(query)
-            logger.info(f"Created {entity_type}: {entity_id}")
+            logger.info(f"Created {entity_type}: {entity_id} (provenance: {len(prov_attrs)} attrs)")
         except Exception as e:
             logger.warning(f"Failed to create {entity_type}: {e}")
 
@@ -1081,7 +1115,15 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         for answer in exists_answers:
             try:
                 entity_type = q_to_entity[answer.question_id][0]
-                self._create_single_instance_entity(provision_id, entity_type)
+                # Derive section_reference from source_text if not available
+                section_ref = self._extract_section_ref(answer.source_text) if answer.source_text else None
+                self._create_single_instance_entity(
+                    provision_id, entity_type,
+                    source_text=answer.source_text,
+                    source_page=answer.source_page,
+                    section_reference=section_ref,
+                    confidence=answer.confidence,
+                )
                 results["entities_created"] += 1
             except Exception as e:
                 et = q_to_entity.get(answer.question_id, ("?",))[0]
