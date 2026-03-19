@@ -14,9 +14,9 @@ class Answer(BaseModel):
     question_id: str
     value: Any  # bool, float, str, list[str], list[dict]
     answer_type: str  # "boolean", "number", "string", "multiselect", "entity_list"
-    confidence: str = "high"
     source_text: str = ""
     source_page: Optional[int] = None
+    section_reference: Optional[str] = None
     reasoning: Optional[str] = None
 
 

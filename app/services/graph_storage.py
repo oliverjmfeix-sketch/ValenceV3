@@ -408,9 +408,9 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
       "question_id": "rp_a1",
       "value": true,
       "answer_type": "boolean",
-      "confidence": "high",
       "source_text": "exact verbatim quote from document (max 500 chars)",
-      "source_page": 145
+      "source_page": 145,
+      "section_reference": "6.06(p)"
     },
     {
       "question_id": "rp_el_sweep_tiers",
@@ -418,8 +418,7 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
         {"leverage_threshold": 5.75, "sweep_percentage": 0.5, "is_highest_tier": true,
          "section_reference": "2.10(f)", "source_page": 80}
       ],
-      "answer_type": "entity_list",
-      "confidence": "high"
+      "answer_type": "entity_list"
     }
   ]
 }
@@ -435,8 +434,8 @@ Return a single JSON object with one key: `"answers"` — an array of answer obj
 
 ### General rules:
 - source_text MUST be exact verbatim quote, not a paraphrase or "See Section X"
-- confidence: "high" (explicit), "medium" (inferred), "low" (uncertain)
-- For entity_list answers: section_reference, source_page, source_text, and confidence are REQUIRED on EACH entity object. section_reference must be a specific clause (e.g., "Section 6.06(p)", "Definition of Cumulative Amount, clause (h)"), not a generic section. source_page must be the integer page number from the [PAGE X] markers in the document text.
+- section_reference MUST be the specific agreement provision reference where this appears — including the paragraph/subsection letter or number (e.g., "6.06(p)", "6.09(a)(I)", "Definition of Cumulative Amount, clause (h)", "Clause 22.3(a)"). Be as specific as possible — "6.06(p)" not just "6.06".
+- For entity_list answers: section_reference, source_page, and source_text are REQUIRED on EACH entity object. section_reference must be a specific clause (e.g., "6.06(p)", "Definition of Cumulative Amount, clause (h)"), not a generic section. source_page must be the integer page number from the [PAGE X] markers in the document text.
 - For percentages use decimals (50% = 0.5, 140% = 1.4)
 - For dollar amounts use raw numbers (130000000 not "130M")
 - DEFINITIONS: Cross-references ARE definitions. When asked if defined, answer true for both inline and cross-reference.
@@ -473,7 +472,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         prompt += "## ENTITY EXTRACTION\n\n"
         prompt += "For each entity_list question below, return an array of entity objects.\n"
-        prompt += "Each entity object should include the listed fields plus provenance (section_reference, source_page, source_text, confidence).\n\n"
+        prompt += "Each entity object should include the listed fields plus provenance (section_reference, source_page, source_text).\n\n"
 
         for q in sorted(entity_list_questions, key=lambda x: x.get("display_order", 0)):
             prompt += cls._format_entity_list_question(q)
@@ -495,7 +494,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         prompt = cls._prompt_header()
 
         prompt += "You MUST answer ALL questions listed below. "
-        prompt += 'For questions where the answer cannot be found in the document, respond with confidence: "not_found" and value: null.\n\n'
+        prompt += 'For questions where the answer cannot be found in the document, respond with value: null.\n\n'
 
         prompt += "## QUESTIONS\n\n"
 
@@ -561,7 +560,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             if fields:
                 section += f"- Fields: {', '.join(fields)}\n"
 
-        section += f"- **REQUIRED provenance on EVERY entity**: section_reference (e.g., 'Section 6.06(p)'), source_page (integer page number), source_text (verbatim quote, max 500 chars), confidence (high/medium/low)\n"
+        section += f"- **REQUIRED provenance on EVERY entity**: section_reference (e.g., '6.06(p)'), source_page (integer page number), source_text (verbatim quote, max 500 chars)\n"
         section += "\n"
         return section
 
@@ -615,9 +614,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     question_id=raw.get("question_id", ""),
                     value=raw.get("value"),
                     answer_type=raw.get("answer_type", "string"),
-                    confidence=raw.get("confidence", "high"),
                     source_text=raw.get("source_text", ""),
                     source_page=raw.get("source_page"),
+                    section_reference=raw.get("section_reference"),
                     reasoning=raw.get("reasoning"),
                 )
                 answers.append(answer)
@@ -878,11 +877,11 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
     def _create_single_instance_entity(self, provision_id: str, entity_type: str,
                                         source_text: str = None, source_page: int = None,
-                                        section_reference: str = None, confidence: str = None):
+                                        section_reference: str = None):
         """Create a single-instance entity and link to provision via schema-introspected relation.
 
         Called when an _exists answer is True (e.g., rp_k1=true → create jcrew_blocker).
-        Propagates provenance attributes (source_text, source_page, section_reference, confidence)
+        Propagates provenance attributes (source_text, source_page, section_reference)
         from the _exists answer onto the entity.
         """
         entity_relation_map = self._load_entity_relation_map()
@@ -908,8 +907,6 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             prov_attrs.append(f'has source_page {source_page}')
         if section_reference and "section_reference" in attr_types:
             prov_attrs.append(f'has section_reference "{self._escape(section_reference)}"')
-        if confidence and "confidence" in attr_types:
-            prov_attrs.append(f'has confidence "{confidence}"')
 
         prov_str = ""
         if prov_attrs:
@@ -1115,14 +1112,15 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         for answer in exists_answers:
             try:
                 entity_type = q_to_entity[answer.question_id][0]
-                # Derive section_reference from source_text if not available
-                section_ref = self._extract_section_ref(answer.source_text) if answer.source_text else None
+                # Use explicit section_reference from extraction, fall back to regex
+                section_ref = answer.section_reference
+                if not section_ref and answer.source_text:
+                    section_ref = self._extract_section_ref(answer.source_text)
                 self._create_single_instance_entity(
                     provision_id, entity_type,
                     source_text=answer.source_text,
                     source_page=answer.source_page,
                     section_reference=section_ref,
-                    confidence=answer.confidence,
                 )
                 results["entities_created"] += 1
             except Exception as e:
@@ -1363,7 +1361,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 value=coerced,
                 source_text=answer.source_text,
                 source_page=answer.source_page,
-                confidence=answer.confidence,
+                source_section=answer.section_reference,
             )
 
     def _create_rp_provision_v4(self, provision_id: str):

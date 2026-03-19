@@ -81,6 +81,7 @@ class AnsweredQuestion:
     confidence: str
     reasoning: Optional[str] = None
     chunk_index: int = 0
+    section_reference: Optional[str] = None
 
 
 @dataclass
@@ -745,11 +746,7 @@ For EACH question, answer based ONLY on the extracted content above:
 - value: The answer (true/false for boolean, number for numeric, array for multiselect)
 - source_text: EXACT verbatim quote from the document text that supports your answer (max 500 chars). This MUST be actual contract language copied from the context above. NEVER write "See page X" or "See Section X" or any other reference — always paste the actual text. If no supporting text exists, use an empty string "".
 - source_pages: Page numbers from [PAGE X] markers
-- confidence:
-  - "high" = explicit answer found in text
-  - "medium" = answer inferred from context
-  - "low" = uncertain, partial information
-  - "not_found" = no relevant information found
+- section_reference: The specific agreement provision reference where this appears, including the paragraph/subsection letter or number (e.g., "6.06(p)", "6.09(a)(I)", "Definition of Cumulative Amount, clause (h)"). Be as specific as possible.
 - reasoning: Brief explanation (1 sentence)
 
 ## OUTPUT
@@ -757,7 +754,7 @@ For EACH question, answer based ONLY on the extracted content above:
 Return JSON array:
 ```json
 [
-  {{"question_id": "rp_a1", "value": true, "source_text": "...", "source_pages": [89], "confidence": "high", "reasoning": "..."}}
+  {{"question_id": "rp_a1", "value": true, "source_text": "...", "source_pages": [89], "section_reference": "6.06(p)", "reasoning": "..."}}
 ]
 ```
 
@@ -861,8 +858,9 @@ Return ONLY the JSON array."""
                     value=value,
                     source_text=item.get("source_text") or "",
                     source_pages=(item.get("source_pages") or []),
-                    confidence=item.get("confidence") or "not_found",
-                    reasoning=item.get("reasoning")
+                    confidence=item.get("confidence") or "high",
+                    reasoning=item.get("reasoning"),
+                    section_reference=item.get("section_reference"),
                 ))
 
             logger.info(f"Parsed {len(answers)} answers")
@@ -932,7 +930,7 @@ Return ONLY the JSON array."""
                                         answer.source_pages[0]
                                         if answer.source_pages else None
                                     ),
-                                    confidence=answer.confidence,
+                                    source_section=answer.section_reference,
                                 )
                                 scalar_count += 1
                             else:
@@ -1632,8 +1630,7 @@ Return a JSON object with an "answers" array. Each answer:
   "value": true,
   "source_text": "verbatim quote from document (30-500 chars)",
   "source_page": 45,
-  "source_section": "as found in this document",
-  "confidence": "high"
+  "source_section": "e.g., Section X.XX(a)"
 }}
 
 For multiselect questions, value is an array of concept_ids:
@@ -1642,8 +1639,7 @@ For multiselect questions, value is an array of concept_ids:
   "value": ["incremental_term_loans", "ratio_debt"],
   "source_text": "...",
   "source_page": 45,
-  "source_section": "e.g., Section X.XX(a)",
-  "confidence": "high"
+  "source_section": "e.g., Section X.XX(a)"
 }}
 
 IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, explanation, or preamble before or after the JSON."""
@@ -1980,7 +1976,6 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                             source_text=source_text or None,
                             source_page=source_page,
                             source_section=source_section or None,
-                            confidence=confidence,
                         )
                         stored_scalar += 1
                 except Exception as e:
@@ -2233,8 +2228,7 @@ with the fields described in the instructions above. Example:
       ...
       "section_reference": "as found in this document",
       "source_text": "verbatim quote (30-500 chars)",
-      "source_page": 45,
-      "confidence": "high"
+      "source_page": 45
     }}
   ]
 }}
