@@ -745,8 +745,7 @@ entity general_investment_basket sub rp_basket,
 # Investment provision — lightweight provision for the investment covenant.
 # Its baskets are separate from RP baskets but reachable via reallocation.
 entity investment_provision sub provision,
-    plays provision_has_basket:provision,
-    plays deal_has_provision:provision;
+    plays provision_has_basket:provision;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET SOURCES (polymorphic)

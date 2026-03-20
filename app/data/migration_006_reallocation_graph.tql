@@ -12,8 +12,7 @@ entity cross_covenant_mapping,
     owns provision_type_name;
 
 entity investment_provision sub provision,
-    plays provision_has_basket:provision,
-    plays deal_has_provision:provision;
+    plays provision_has_basket:provision;
 
 relation basket_reallocates_to,
     relates source_basket,
