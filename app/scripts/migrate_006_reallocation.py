@@ -95,7 +95,7 @@ def update_extraction_prompt(db: str):
                 $q isa ontology_question, has question_id "rp_el_reallocations",
                     has extraction_prompt $old;
             delete
-                $q has $old;
+                $old of $q;
         ''').resolve()
 
         # Insert new
