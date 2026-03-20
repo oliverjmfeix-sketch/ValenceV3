@@ -40,6 +40,7 @@ class GraphStorage:
     _entity_list_types_cache: Optional[set] = None
     _entity_relation_cache: Optional[Dict[str, tuple]] = None
     _storage_value_type_cache: Optional[Dict[str, str]] = None
+    _cross_covenant_cache: Optional[Dict[str, str]] = None
 
     @classmethod
     def _load_provenance_attrs(cls) -> set:
@@ -341,6 +342,119 @@ class GraphStorage:
             return "string"
         return "string"  # Safe fallback
 
+    @classmethod
+    def _get_basket_subtype_names(cls) -> List[str]:
+        """Introspect all concrete basket subtypes from schema.
+
+        SSoT: discovers types by querying which entity types own basket_id,
+        then filters to leaf types (no further subtypes). No hardcoded parent names.
+        Used to expand {basket_subtypes} template variable in extraction prompts.
+        """
+        cache_key = "__basket_subtypes"
+        if cache_key in cls._entity_fields_cache:
+            return cls._entity_fields_cache[cache_key]
+
+        driver = typedb_client.driver
+        if not driver:
+            return []
+
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # All types that own basket_id (includes abstract parents + all subtypes)
+            all_types = set()
+            for row in tx.query(
+                "match $bt owns basket_id; select $bt;"
+            ).resolve().as_concept_rows():
+                all_types.add(row.get("bt").as_entity_type().get_label())
+
+            # Filter to concrete (leaf) types: those with no further subtypes
+            concrete = set()
+            for t in all_types:
+                sub_rows = list(tx.query(f"""
+                    match $sub sub {t}; not {{ $sub label {t}; }}; select $sub;
+                """).resolve().as_concept_rows())
+                if not sub_rows:
+                    concrete.add(t)
+
+            result = sorted(concrete)
+            cls._entity_fields_cache[cache_key] = result
+            logger.info(f"Introspected {len(result)} concrete basket subtypes from schema")
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to introspect basket subtypes: {e}")
+            return []
+        finally:
+            tx.close()
+
+    @classmethod
+    def _load_cross_covenant_mappings(cls) -> Dict[str, str]:
+        """Load basket_type_name -> provision_type_name from TypeDB seed data.
+
+        SSoT: the mapping lives in cross_covenant_mapping entities in TypeDB,
+        not in a Python dict. Adding a new cross-covenant basket = one seed insert,
+        zero Python changes.
+        """
+        if cls._cross_covenant_cache is not None:
+            return cls._cross_covenant_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        result = {}
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = '''match
+                $m isa cross_covenant_mapping,
+                    has basket_type_name $bt,
+                    has provision_type_name $pt;
+                select $bt, $pt;'''
+            for row in tx.query(query).resolve().as_concept_rows():
+                bt = row.get("bt").as_attribute().get_value()
+                pt = row.get("pt").as_attribute().get_value()
+                result[bt] = pt
+        except Exception as e:
+            logger.warning(f"Failed to load cross-covenant mappings: {e}")
+        finally:
+            tx.close()
+
+        cls._cross_covenant_cache = result
+        logger.info(f"Loaded {len(result)} cross-covenant basket mappings from TypeDB")
+        return result
+
+    @classmethod
+    def _get_relation_attr_types(cls, relation_type: str) -> Dict[str, str]:
+        """Get {attr_name: value_type} for all attributes owned by a relation type.
+
+        SSoT: mirrors get_attr_value_types() but for relations instead of entities.
+        Used by _build_reallocation_edge_query to avoid hardcoded field maps.
+        """
+        cache_key = f"__rel_attrs_{relation_type}"
+        if cache_key in cls._entity_fields_cache:
+            return cls._entity_fields_cache[cache_key]
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        result = {}
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = f"match $rt label {relation_type}; $rt owns $attr; select $attr;"
+            for row in tx.query(query).resolve().as_concept_rows():
+                attr_type = row.get("attr").as_attribute_type()
+                attr_name = attr_type.get_label()
+                vt = cls._resolve_attr_value_type(attr_type)
+                result[attr_name] = vt
+        except Exception as e:
+            logger.warning(f"Failed to introspect relation attrs for {relation_type}: {e}")
+        finally:
+            tx.close()
+
+        cls._entity_fields_cache[cache_key] = result
+        logger.info(f"Introspected {len(result)} attrs for relation {relation_type}")
+        return result
+
     def get_attr_value_types(cls, entity_type: str) -> Dict[str, str]:
         """Get {attr_name: value_type} for all attributes owned by an entity type. Cached.
 
@@ -541,6 +655,10 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         section += f"- entity_type: {entity_type}\n"
 
         if hint:
+            # Expand template variables (SSoT: lists from schema, not hardcoded)
+            if "{basket_subtypes}" in hint:
+                basket_types = cls._get_basket_subtype_names()
+                hint = hint.replace("{basket_subtypes}", ", ".join(basket_types))
             section += f"- instructions: {hint}\n"
 
         # Introspect schema for fields
@@ -1013,6 +1131,250 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         },
     }
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # REALLOCATION GRAPH EDGE WIRING
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def wire_reallocation_edges(self, deal_id: str, provision_id: str,
+                                raw_reallocation_items: List[Dict]):
+        """Create basket_reallocates_to relation instances from extracted reallocation data.
+
+        Called AFTER _store_entity_list() so all basket entities exist.
+        Reads source_basket_type / target_basket_type from the RAW answer JSON
+        (these fields are NOT schema attributes on basket_reallocation — they are
+        dropped by _store_single_entity(). We read them from the original answer.value.)
+
+        Batches all inserts in a single WRITE transaction to avoid gRPC congestion.
+        """
+        if not raw_reallocation_items:
+            return
+
+        cross_covenant = self._load_cross_covenant_mappings()
+
+        # Phase A: Ensure cross-covenant provisions and baskets exist
+        # (must happen before the edge inserts that reference them)
+        cross_baskets_needed = set()
+        for item in raw_reallocation_items:
+            if not isinstance(item, dict):
+                continue
+            for field in ("source_basket_type", "target_basket_type"):
+                bt = item.get(field)
+                if bt and bt in cross_covenant:
+                    cross_baskets_needed.add(bt)
+
+        for basket_type in cross_baskets_needed:
+            prov_type = cross_covenant[basket_type]
+            cross_prov_id = f"{deal_id}_{prov_type.replace('_provision', '')}"
+            basket_id = f"{cross_prov_id}_{basket_type}"
+            self._ensure_cross_provision(deal_id, cross_prov_id, prov_type)
+            # Find the first item that references this basket type for dollar amount
+            ref_item = next(
+                (i for i in raw_reallocation_items
+                 if isinstance(i, dict)
+                 and (i.get("source_basket_type") == basket_type
+                      or i.get("target_basket_type") == basket_type)),
+                {}
+            )
+            self._ensure_cross_basket(cross_prov_id, basket_type, basket_id, ref_item)
+
+        # Phase B: Resolve all basket IDs and batch edge inserts
+        edge_queries = []
+        for item in raw_reallocation_items:
+            if not isinstance(item, dict):
+                continue
+
+            source_type = item.get("source_basket_type")
+            target_type = item.get("target_basket_type")
+
+            if not source_type or not target_type:
+                logger.warning(f"Reallocation missing source/target type: "
+                             f"{item.get('reallocation_source', '?')}")
+                continue
+
+            source_id = self._resolve_basket_id(deal_id, provision_id, source_type, cross_covenant)
+            target_id = self._resolve_basket_id(deal_id, provision_id, target_type, cross_covenant)
+
+            if not source_id or not target_id:
+                logger.warning(f"Could not resolve basket IDs: "
+                             f"{source_type}({source_id}) -> {target_type}({target_id})")
+                continue
+
+            query = self._build_reallocation_edge_query(
+                source_type, source_id, target_type, target_id, item
+            )
+            if query:
+                edge_queries.append(query)
+
+        # Execute all edge inserts in one WRITE transaction
+        if edge_queries:
+            tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
+            try:
+                for q in edge_queries:
+                    tx.query(q).resolve()
+                tx.commit()
+                logger.info(f"Committed {len(edge_queries)} reallocation edges for {provision_id}")
+            except Exception as e:
+                logger.error(f"Failed to commit reallocation edges: {e}")
+                tx.close()
+                raise
+
+    def _resolve_basket_id(self, deal_id: str, provision_id: str,
+                           basket_type: str, cross_covenant: Dict[str, str]) -> Optional[str]:
+        """Resolve a basket type name to its actual @key ID in TypeDB.
+
+        For cross-covenant baskets: derive from known ID convention.
+        For RP/RDP baskets: query TypeDB using polymorphic provision_has_extracted_entity.
+
+        Cannot assume key convention for RP/RDP baskets because entity_list baskets
+        have non-deterministic index suffixes (e.g., general_rdp_basket_4).
+
+        SSoT: uses provision_has_extracted_entity (abstract parent of all entity-bearing
+        relations) instead of hardcoded relation type names.
+        """
+        if basket_type in cross_covenant:
+            prov_type = cross_covenant[basket_type]
+            cross_prov_id = f"{deal_id}_{prov_type.replace('_provision', '')}"
+            return f"{cross_prov_id}_{basket_type}"
+
+        # Polymorphic query: find basket connected to provision via ANY
+        # sub-relation of provision_has_extracted_entity
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            query = f'''
+                match
+                    $prov isa provision, has provision_id "{provision_id}";
+                    $b isa {basket_type}, has basket_id $bid;
+                    $rel isa provision_has_extracted_entity, links ($prov, $b);
+                select $bid;
+            '''
+            rows = list(tx.query(query).resolve().as_concept_rows())
+            if rows:
+                bid = rows[0].get("bid").as_attribute().get_value()
+                logger.debug(f"Resolved {basket_type} -> {bid}")
+                return bid
+
+            logger.warning(f"No {basket_type} found on provision {provision_id}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error resolving {basket_type}: {e}")
+            return None
+        finally:
+            tx.close()
+
+    def _ensure_cross_provision(self, deal_id: str, provision_id: str, provision_type: str):
+        """Create a cross-covenant provision if it doesn't exist.
+
+        Uses put for the entity (verified in TypeDB 3.x).
+        Uses match-not-insert for the relation (put for relations is unverified).
+        """
+        try:
+            # Ensure the provision entity exists (put is safe for entities)
+            self._execute_query(f'''
+                match
+                    $deal isa deal, has deal_id "{deal_id}";
+                put $prov isa {provision_type},
+                    has provision_id "{provision_id}",
+                    has provision_type "{provision_type}";
+            ''')
+
+            # Ensure the deal_has_provision relation exists
+            self._execute_query(f'''
+                match
+                    $deal isa deal, has deal_id "{deal_id}";
+                    $prov isa {provision_type}, has provision_id "{provision_id}";
+                    not {{ (deal: $deal, provision: $prov) isa deal_has_provision; }};
+                insert
+                    (deal: $deal, provision: $prov) isa deal_has_provision;
+            ''')
+            logger.info(f"Ensured {provision_type}: {provision_id}")
+        except Exception as e:
+            logger.warning(f"Error ensuring cross-provision {provision_id}: {e}")
+
+    def _ensure_cross_basket(self, provision_id: str, basket_type: str,
+                             basket_id: str, item: Dict):
+        """Create a cross-covenant basket entity if it doesn't exist.
+
+        Does NOT set section_reference from the reallocation item — the item's
+        section_reference is where the reallocation cross-reference lives (e.g., 6.06(j)),
+        not where the basket itself lives (e.g., 6.03(y)). The basket entity's
+        section_reference will be populated when full investment covenant extraction is built.
+        """
+        try:
+            attrs = [f'has basket_id "{basket_id}"']
+
+            # Transfer dollar amount and grower from reallocation data
+            amount = item.get("reallocation_amount_usd")
+            if amount is not None:
+                attrs.append(f'has basket_amount_usd {amount}')
+            grower = item.get("reallocation_grower_pct")
+            if grower is not None:
+                attrs.append(f'has basket_grower_pct {grower}')
+            # Intentionally NOT setting section_reference or source_text here.
+            # Those describe the reallocation clause, not the basket's own location.
+
+            attrs_str = ",\n                ".join(attrs)
+
+            # Entity put (safe) + relation match-not-insert (separate calls)
+            self._execute_query(f'''
+                put $basket isa {basket_type},
+                    {attrs_str};
+            ''')
+
+            self._execute_query(f'''
+                match
+                    $prov isa provision, has provision_id "{provision_id}";
+                    $basket isa {basket_type}, has basket_id "{basket_id}";
+                    not {{ (provision: $prov, basket: $basket) isa provision_has_basket; }};
+                insert
+                    (provision: $prov, basket: $basket) isa provision_has_basket;
+            ''')
+            logger.info(f"Ensured cross-covenant basket: {basket_type} ({basket_id})")
+        except Exception as e:
+            logger.warning(f"Error ensuring cross-basket {basket_type}: {e}")
+
+    def _build_reallocation_edge_query(self, source_type: str, source_id: str,
+                                        target_type: str, target_id: str,
+                                        item: Dict) -> Optional[str]:
+        """Build a TQL insert query for a basket_reallocates_to relation instance.
+
+        SSoT: introspects basket_reallocates_to owned attributes from schema
+        instead of using a hardcoded field map. Adding a new attribute to the
+        relation in schema = it gets stored automatically.
+        """
+        try:
+            source_key = self.get_key_attr_for_entity(source_type) or "basket_id"
+            target_key = self.get_key_attr_for_entity(target_type) or "basket_id"
+
+            # Introspect relation attributes from schema
+            attr_types = self._get_relation_attr_types("basket_reallocates_to")
+
+            rel_attrs = []
+            for attr_name, vtype in attr_types.items():
+                val = item.get(attr_name)
+                if val is None:
+                    continue
+                if vtype == "boolean":
+                    rel_attrs.append(f'has {attr_name} {str(val).lower()}')
+                elif vtype in ("long", "double"):
+                    rel_attrs.append(f'has {attr_name} {val}')
+                elif vtype == "string":
+                    rel_attrs.append(f'has {attr_name} "{self._escape(str(val)[:2000])}"')
+
+            rel_attrs_str = ""
+            if rel_attrs:
+                rel_attrs_str = ",\n                " + ",\n                ".join(rel_attrs)
+
+            return f'''
+                match
+                    $source isa {source_type}, has {source_key} "{source_id}";
+                    $target isa {target_type}, has {target_key} "{target_id}";
+                insert
+                    (source_basket: $source, target_basket: $target) isa basket_reallocates_to{rel_attrs_str};
+            '''
+        except Exception as e:
+            logger.warning(f"Error building edge query: {e}")
+            return None
+
     def store_extraction(
         self, deal_id: str, provision_id: str, response: ExtractionResponse
     ) -> Dict[str, Any]:
@@ -1134,6 +1496,21 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 results["entities_created"] += count
             except Exception as e:
                 results["errors"].append(f"{answer.question_id}: {str(e)[:100]}")
+
+        # ── Phase 2b: Wire reallocation graph edges ──────────────────────────
+        # Runs AFTER Phase 2 so all basket entities exist.
+        # Reads source_basket_type / target_basket_type from the RAW answer
+        # JSON — these routing fields are NOT schema attrs and are dropped
+        # by _store_single_entity(). We read them from the original answer.value.
+        for answer in response.answers:
+            if (answer.question_id == "rp_el_reallocations"
+                    and answer.answer_type == "entity_list"
+                    and isinstance(answer.value, list)):
+                try:
+                    self.wire_reallocation_edges(deal_id, provision_id, answer.value)
+                except Exception as e:
+                    logger.error(f"Reallocation wiring failed: {e}")
+                    results["errors"].append(f"reallocation_wiring: {str(e)[:200]}")
 
         # Phase 3: Store scalar answers (flat + entity attribute if annotated)
         for answer in scalar_answers:
@@ -1406,7 +1783,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         # Create new provision + link to deal
         self._create_rp_provision_v4(provision_id)
 
-    def _cleanup_provision_data(self, provision_id: str):
+    def _cleanup_provision_data(self, provision_id: str, deal_id: str = None):
         """Delete old answers, applicabilities, and entity relations for a provision.
 
         Preserves the provision entity and deal_has_provision link.
@@ -1416,7 +1793,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         Work bottom-up: leaf entities first, then parent entities.
         If cascade fails, fall back to ID-pattern matching for orphaned entities.
         """
+        deal_id = deal_id or self.deal_id
         pid = provision_id  # shorthand for pattern matching
+        investment_prov_id = f"{deal_id}_investment"
+
+        # Clear cross-covenant cache so it's reloaded after cleanup
+        GraphStorage._cross_covenant_cache = None
 
         cleanup_queries = [
             # ── Phase 1: Delete Channel 1 & 2 relations ─────────────────────
@@ -1442,6 +1824,27 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 (provision: $p, basket: $b) isa provision_has_basket;
                 (basket: $b, source: $src) isa basket_has_source;
             delete $src;''',
+
+            # ── Phase 2b: Clean up investment provision data for this deal ──
+            f'''match
+                $prov isa investment_provision, has provision_id "{investment_prov_id}";
+                (provision: $prov, basket: $b) isa provision_has_basket;
+                $rel isa basket_reallocates_to, links (source_basket: $b);
+            delete $rel;''',
+            f'''match
+                $prov isa investment_provision, has provision_id "{investment_prov_id}";
+                (provision: $prov, basket: $b) isa provision_has_basket;
+                $rel isa basket_reallocates_to, links (target_basket: $b);
+            delete $rel;''',
+            # Delete investment baskets
+            f'''match
+                $prov isa investment_provision, has provision_id "{investment_prov_id}";
+                (provision: $prov, basket: $b) isa provision_has_basket;
+            delete $b;''',
+            # Delete investment provision
+            f'''match
+                $prov isa investment_provision, has provision_id "{investment_prov_id}";
+            delete $prov;''',
 
             # ── Phase 3: Delete basket_reallocates_to relations ──────────────
             # RP baskets as source/target
