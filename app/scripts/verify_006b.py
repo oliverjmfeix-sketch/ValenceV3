@@ -1,4 +1,7 @@
 """Verify Prompt 6b: extraction chain methods load correctly."""
+from app.services.typedb_client import typedb_client
+typedb_client.connect()
+
 from app.services.graph_storage import GraphStorage
 
 # Test 1: basket subtype introspection
