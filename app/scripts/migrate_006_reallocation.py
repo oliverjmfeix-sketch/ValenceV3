@@ -31,7 +31,7 @@ def run():
     # Split on "redefine" keyword to get the two blocks
     parts = define_block.split("redefine", 1)
     define_tql = parts[0].strip()
-    redefine_tql = "redefine" + parts[1].strip() if len(parts) > 1 else None
+    redefine_tql = "redefine\n" + parts[1].strip() if len(parts) > 1 else None
 
     logger.info(f"Running migration 006 schema changes on '{db}'...")
     tx = typedb_client.driver.transaction(db, TransactionType.SCHEMA)
