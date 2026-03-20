@@ -1,0 +1,4 @@
+insert $m isa cross_covenant_mapping,
+    has mapping_id "ccm_general_investment_basket",
+    has basket_type_name "general_investment_basket",
+    has provision_type_name "investment_provision";

@@ -300,6 +300,12 @@ attribute is_bidirectional, value boolean;
 attribute reduces_source_basket, value boolean;
 attribute reduction_is_dollar_for_dollar, value boolean;
 attribute reduction_while_outstanding_only, value boolean;
+attribute reallocation_grower_pct, value double;
+
+# ── Cross-covenant mapping ────────────────────────────────────────────────────
+attribute basket_type_name, value string;
+attribute provision_type_name, value string;
+attribute mapping_id, value string;
 
 # ── Investment pathway (J.Crew chain analysis) ────────────────────────────────
 attribute pathway_source_type, value string;       # loan_party | restricted_sub | non_guarantor_rs
@@ -739,7 +745,8 @@ entity general_investment_basket sub rp_basket,
 # Investment provision — lightweight provision for the investment covenant.
 # Its baskets are separate from RP baskets but reachable via reallocation.
 entity investment_provision sub provision,
-    plays provision_has_basket:provision;
+    plays provision_has_basket:provision,
+    plays deal_has_provision:provision;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # BUILDER BASKET SOURCES (polymorphic)
@@ -926,6 +933,11 @@ entity basket_reallocation,
     owns source_text,
     owns confidence,
     plays provision_has_reallocation:reallocation;
+
+entity cross_covenant_mapping,
+    owns mapping_id @key,
+    owns basket_type_name,
+    owns provision_type_name;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INVESTMENT PATHWAYS (J.Crew chain analysis)
@@ -1604,7 +1616,14 @@ relation provision_has_pathway sub provision_has_extracted_entity,
 relation basket_reallocates_to,
     relates source_basket,
     relates target_basket,
-    owns reallocation_amount_usd;
+    owns reallocation_amount_usd,
+    owns reallocation_grower_pct,
+    owns reduces_source_basket,
+    owns reduction_is_dollar_for_dollar,
+    owns reduction_while_outstanding_only,
+    owns section_reference,
+    owns source_page,
+    owns source_text;
 
 # ─── New cross-document relations ──────────────────────────────────────────────
 

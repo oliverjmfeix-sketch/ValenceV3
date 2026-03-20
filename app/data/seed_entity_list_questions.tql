@@ -103,19 +103,24 @@ insert $q isa ontology_question,
     has answer_type "entity_list",
     has target_entity_type "basket_reallocation",
     has target_relation_type "provision_has_reallocation",
-    has extraction_prompt "Identify baskets that can be REALLOCATED to fund Restricted Payments.
+    has extraction_prompt "Identify ALL reallocation paths that move capacity between baskets.
 
-Look in the Restricted Payments covenant for cross-references like:
-- 'amounts available under Section 6.03(y)' (Investment basket)
-- 'amounts available under Section 6.09(a)' (RDP basket)
-- 'plus any amounts not used under...'
+For EACH reallocation path, model EACH DIRECTION as a SEPARATE entity.
+If capacity flows from RDP basket -> RP basket AND from RP basket -> RDP basket,
+that is TWO entities with different source/target, not one with is_bidirectional=true.
 
-For EACH reallocation path extract:
-- Source basket (what's being reallocated FROM)
-- Target basket (what it reallocates TO - usually general RP)
-- Section reference
-- Dollar cap (if different from source basket cap)
-- Is bidirectional? (can capacity flow both ways?)
+In ADDITION to the schema fields listed above, include these routing fields on each entity:
+- source_basket_type: TypeDB entity type of the SOURCE basket. Must be one of: {basket_subtypes}
+- target_basket_type: TypeDB entity type of the TARGET basket. Must be one of: {basket_subtypes}
+
+MAPPING GUIDE for source_basket_type / target_basket_type:
+- 'Section 6.03(y) Investment basket' -> general_investment_basket
+- 'Section 6.09(a) RDP basket' -> general_rdp_basket
+- 'Section 6.06(j) general RP basket' -> general_rp_basket
+- 'Available Amount / Cumulative Amount' -> builder_basket
+- 'Ratio RP basket' -> ratio_basket
+
+You MUST also populate reallocation_source as a human-readable description (e.g. 'Section 6.03(y) Investment basket').
 
 This is critical for total dividend capacity calculation.",
     has covenant_type "RP",
