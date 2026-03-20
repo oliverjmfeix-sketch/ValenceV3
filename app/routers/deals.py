@@ -1810,6 +1810,15 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
    (e) **CAPACITY SUMMARY** — For complex questions, end with a table showing each
        potentially available basket, its capacity or test, and whether it is
        available for the specific scenario asked about.
+
+   (f) **CAPACITY AGGREGATION** — When calculating total quantifiable dividend capacity,
+       use the capacity_category attribute on each basket entity:
+       - Sum ONLY baskets where capacity_category = "general_purpose". Show arithmetic
+         explicitly ("$X + $Y + $Z = $TOTAL") and verify the total.
+       - List "restricted_purpose" baskets SEPARATELY with their conditions.
+       - List "unlimited_conditional" baskets SEPARATELY with their tests.
+       - List "categorical" baskets SEPARATELY.
+       NEVER mix categories in the same total.
 """
 
     # Determine which covenant-specific rules to include

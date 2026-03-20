@@ -41,6 +41,7 @@ class GraphStorage:
     _entity_relation_cache: Optional[Dict[str, tuple]] = None
     _storage_value_type_cache: Optional[Dict[str, str]] = None
     _cross_covenant_cache: Optional[Dict[str, str]] = None
+    _capacity_class_cache: Optional[Dict[str, str]] = None
 
     @classmethod
     def _load_provenance_attrs(cls) -> set:
@@ -420,6 +421,39 @@ class GraphStorage:
 
         cls._cross_covenant_cache = result
         logger.info(f"Loaded {len(result)} cross-covenant basket mappings from TypeDB")
+        return result
+
+    @classmethod
+    def _load_capacity_classifications(cls) -> Dict[str, str]:
+        """Load basket_type_name -> capacity_category from TypeDB seed data.
+
+        SSoT: classification lives in basket_capacity_class entities.
+        Adding a new basket type = one seed insert, zero code changes.
+        """
+        if cls._capacity_class_cache is not None:
+            return cls._capacity_class_cache
+
+        driver = typedb_client.driver
+        if not driver:
+            return {}
+
+        result = {}
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            for row in tx.query('''match
+                $m isa basket_capacity_class,
+                    has basket_type_name $bt,
+                    has capacity_category $cc;
+                select $bt, $cc;''').resolve().as_concept_rows():
+                bt = row.get("bt").as_attribute().get_value()
+                cc = row.get("cc").as_attribute().get_value()
+                result[bt] = cc
+        except Exception as e:
+            logger.warning(f"Failed to load capacity classifications: {e}")
+        finally:
+            tx.close()
+
+        cls._capacity_class_cache = result
         return result
 
     @classmethod
@@ -1041,6 +1075,18 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         try:
             self._execute_query(query)
             logger.info(f"Created {entity_type}: {entity_id} (provenance: {len(prov_attrs)} attrs)")
+
+            # Set capacity_category from SSoT classification
+            cap_cat = self._load_capacity_classifications().get(entity_type)
+            if cap_cat:
+                try:
+                    self._execute_query(f'''
+                        match $b isa {entity_type}, has {key_attr} "{entity_id}";
+                            not {{ $b has capacity_category $existing; }};
+                        insert $b has capacity_category "{cap_cat}";
+                    ''')
+                except Exception:
+                    pass  # Already set or type doesn't support it
         except Exception as e:
             logger.warning(f"Failed to create {entity_type}: {e}")
 
@@ -1175,7 +1221,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                       or i.get("target_basket_type") == basket_type)),
                 {}
             )
-            self._ensure_cross_basket(cross_prov_id, basket_type, basket_id, ref_item)
+            self._ensure_cross_basket(cross_prov_id, prov_type, basket_type, basket_id, ref_item)
 
         # Phase B: Resolve all basket IDs and batch edge inserts
         edge_queries = []
@@ -1273,8 +1319,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 match
                     $deal isa deal, has deal_id "{deal_id}";
                 put $prov isa {provision_type},
-                    has provision_id "{provision_id}",
-                    has provision_type "{provision_type}";
+                    has provision_id "{provision_id}";
             ''')
 
             # Ensure the deal_has_provision relation exists
@@ -1290,8 +1335,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         except Exception as e:
             logger.warning(f"Error ensuring cross-provision {provision_id}: {e}")
 
-    def _ensure_cross_basket(self, provision_id: str, basket_type: str,
-                             basket_id: str, item: Dict):
+    def _ensure_cross_basket(self, provision_id: str, provision_type: str,
+                             basket_type: str, basket_id: str, item: Dict):
         """Create a cross-covenant basket entity if it doesn't exist.
 
         Does NOT set section_reference from the reallocation item — the item's
@@ -1306,6 +1351,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             amount = item.get("reallocation_amount_usd")
             if amount is not None:
                 attrs.append(f'has basket_amount_usd {amount}')
+            else:
+                logger.warning(f"reallocation_amount_usd missing for {basket_type} — "
+                             f"cross-covenant basket will lack basket_amount_usd")
             grower = item.get("reallocation_grower_pct")
             if grower is not None:
                 attrs.append(f'has basket_grower_pct {grower}')
@@ -1322,13 +1370,25 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
             self._execute_query(f'''
                 match
-                    $prov isa provision, has provision_id "{provision_id}";
+                    $prov isa {provision_type}, has provision_id "{provision_id}";
                     $basket isa {basket_type}, has basket_id "{basket_id}";
                     not {{ (provision: $prov, basket: $basket) isa provision_has_basket; }};
                 insert
                     (provision: $prov, basket: $basket) isa provision_has_basket;
             ''')
             logger.info(f"Ensured cross-covenant basket: {basket_type} ({basket_id})")
+
+            # Set capacity_category from SSoT classification
+            cap_cat = self._load_capacity_classifications().get(basket_type)
+            if cap_cat:
+                try:
+                    self._execute_query(f'''
+                        match $b isa {basket_type}, has basket_id "{basket_id}";
+                            not {{ $b has capacity_category $existing; }};
+                        insert $b has capacity_category "{cap_cat}";
+                    ''')
+                except Exception:
+                    pass  # Already set or type doesn't support it
         except Exception as e:
             logger.warning(f"Error ensuring cross-basket {basket_type}: {e}")
 
@@ -1718,6 +1778,18 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         '''
         self._execute_query(query)
 
+        # Set capacity_category from SSoT classification
+        cap_cat = self._load_capacity_classifications().get(actual_type)
+        if cap_cat:
+            try:
+                self._execute_query(f'''
+                    match $b isa {actual_type}, has {key_attr} "{entity_id}";
+                        not {{ $b has capacity_category $existing; }};
+                    insert $b has capacity_category "{cap_cat}";
+                ''')
+            except Exception:
+                pass  # Already set or type doesn't support it
+
     def _store_flat_answer(self, provision_id: str, answer: Answer):
         """Store a scalar or multiselect answer via store_scalar_answer.
 
@@ -1797,8 +1869,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         pid = provision_id  # shorthand for pattern matching
         investment_prov_id = f"{deal_id}_investment"
 
-        # Clear cross-covenant cache so it's reloaded after cleanup
+        # Clear caches so they're reloaded after cleanup
         GraphStorage._cross_covenant_cache = None
+        GraphStorage._capacity_class_cache = None
 
         cleanup_queries = [
             # ── Phase 1: Delete Channel 1 & 2 relations ─────────────────────

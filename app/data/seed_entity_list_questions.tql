@@ -122,6 +122,8 @@ MAPPING GUIDE for source_basket_type / target_basket_type:
 
 You MUST also populate reallocation_source as a human-readable description (e.g. 'Section 6.03(y) Investment basket').
 
+- reallocation_amount_usd: REQUIRED. The fixed-dollar component of the source basket's cap. If the source basket is 'the greater of $130,000,000 and 100% of Consolidated EBITDA', reallocation_amount_usd is 130000000. You MUST populate this on EVERY reallocation entity.
+
 This is critical for total dividend capacity calculation.",
     has covenant_type "RP",
     has display_order 103;

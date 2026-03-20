@@ -1,0 +1,17 @@
+insert $m isa basket_capacity_class, has mapping_id "bcc_builder_basket", has basket_type_name "builder_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_general_rp_basket", has basket_type_name "general_rp_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_general_rdp_basket", has basket_type_name "general_rdp_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_general_investment_basket", has basket_type_name "general_investment_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_builder_rdp_basket", has basket_type_name "builder_rdp_basket", has capacity_category "general_purpose";
+
+insert $m isa basket_capacity_class, has mapping_id "bcc_management_equity_basket", has basket_type_name "management_equity_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_tax_distribution_basket", has basket_type_name "tax_distribution_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_equity_award_basket", has basket_type_name "equity_award_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_holdco_overhead_basket", has basket_type_name "holdco_overhead_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_refinancing_rdp_basket", has basket_type_name "refinancing_rdp_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_equity_funded_rdp_basket", has basket_type_name "equity_funded_rdp_basket", has capacity_category "restricted_purpose";
+
+insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_basket", has basket_type_name "ratio_basket", has capacity_category "unlimited_conditional";
+insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_rdp_basket", has basket_type_name "ratio_rdp_basket", has capacity_category "unlimited_conditional";
+
+insert $m isa basket_capacity_class, has mapping_id "bcc_unsub_distribution_basket", has basket_type_name "unsub_distribution_basket", has capacity_category "categorical";

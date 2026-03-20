@@ -306,6 +306,7 @@ attribute reallocation_grower_pct, value double;
 attribute basket_type_name, value string;
 attribute provision_type_name, value string;
 attribute mapping_id, value string;
+attribute capacity_category, value string;
 
 # ── Investment pathway (J.Crew chain analysis) ────────────────────────────────
 attribute pathway_source_type, value string;       # loan_party | restricted_sub | non_guarantor_rs
@@ -633,6 +634,7 @@ entity rp_basket @abstract,
     owns confidence,
     owns default_condition,
     owns requires_ratio_test,
+    owns capacity_category,
     plays provision_has_basket:basket,
     plays basket_reallocates_to:source_basket,
     plays basket_reallocates_to:target_basket;
@@ -938,6 +940,11 @@ entity cross_covenant_mapping,
     owns basket_type_name,
     owns provision_type_name;
 
+entity basket_capacity_class,
+    owns mapping_id @key,
+    owns basket_type_name,
+    owns capacity_category;
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # INVESTMENT PATHWAYS (J.Crew chain analysis)
 #
@@ -993,6 +1000,7 @@ entity rdp_basket @abstract,
     owns source_text,
     owns confidence,
     owns default_condition,
+    owns capacity_category,
     plays provision_has_rdp_basket:rdp_basket,
     plays basket_reallocates_to:source_basket,
     plays basket_reallocates_to:target_basket;

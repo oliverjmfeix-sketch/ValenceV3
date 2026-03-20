@@ -96,6 +96,12 @@ NEW_QUESTIONS_FILE = DATA_DIR / "seed_new_questions.tql"
 # 17e. Entity-list questions (Phase 2d-i — replaces extraction_metadata for RP entities)
 ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_entity_list_questions.tql"
 
+# 17f. Cross-covenant mappings (basket_type → provision_type)
+CROSS_COVENANT_MAPPINGS_FILE = DATA_DIR / "seed_cross_covenant_mappings.tql"
+
+# 17g. Capacity classifications (basket_type → capacity_category)
+CAPACITY_CLASSIFICATIONS_FILE = DATA_DIR / "seed_capacity_classifications.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -463,6 +469,16 @@ def init_database():
         logger.info("\n17e. Loading seed_entity_list_questions.tql...")
         if ENTITY_LIST_QUESTIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, ENTITY_LIST_QUESTIONS_FILE)
+
+        # 17f. Load cross-covenant mappings
+        logger.info("\n17f. Loading seed_cross_covenant_mappings.tql...")
+        if CROSS_COVENANT_MAPPINGS_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, CROSS_COVENANT_MAPPINGS_FILE)
+
+        # 17g. Load capacity classifications
+        logger.info("\n17g. Loading seed_capacity_classifications.tql...")
+        if CAPACITY_CLASSIFICATIONS_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, CAPACITY_CLASSIFICATIONS_FILE)
 
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
