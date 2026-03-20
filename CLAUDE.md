@@ -1,6 +1,7 @@
 # CLAUDE.md — Valence V3
 
 > Auto-loaded by Claude Code at session start. Read this first.
+> For full project context, see HANDOFF.md.
 
 ## CRITICAL WARNINGS
 
@@ -16,7 +17,7 @@
 - **Branch:** `main`
 - **Backend:** Railway — auto-deploys from GitHub push
 - **Backend URL:** `https://valencev3-production.up.railway.app`
-- **Database:** TypeDB Cloud 3.x
+- **Database:** TypeDB Cloud 3.x (`ip654h-0.cluster.typedb.com:80`, database `valence`)
 - **Frontend:** Lovable
 
 ## What Valence Does
@@ -24,7 +25,7 @@
 Legal technology platform analyzing credit agreements (leveraged finance).
 Extracts covenant provisions from PDFs, stores structured data in TypeDB,
 enables cross-deal comparison and loophole detection (J.Crew, Serta, etc.).
-Currently covers MFN (42 questions) and Restricted Payments (429 questions, 24 categories).
+Currently covers MFN (42 questions) and Restricted Payments (289 questions, 27 categories).
 
 ## Core Principle: SSoT (Single Source of Truth)
 
@@ -34,17 +35,17 @@ names, or type mappings in Python or TypeScript.
 Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers via introspection.
 
 ### SSoT violations to NEVER introduce:
-- Hardcoded `category_names` dicts (DELETED — was in extraction.py)
-- Parsing question_id strings to derive category (DELETED — use TypeQL join)
+- Hardcoded `category_names` dicts
+- Parsing question_id strings to derive category (use TypeQL join)
 - Flat attribute lists duplicating schema definitions
 - Frontend category configs not sourced from TypeDB
 - Any Python dict mapping category IDs to display names
-- Duplicate TQL parsers (DELETED — was in main.py, init_schema.py is the sole parser)
+- Duplicate TQL parsers (init_schema.py is the sole parser)
+- Hardcoded entity-relation maps (use TypeDB schema introspection)
 
 ## Schema: schema_unified.tql
 
 **Single schema file** (996 lines, 156 attributes, 78 entities, 27 relations).
-Replaces old schema.tql + schema_v2.tql + schema_expanded.tql (all deleted).
 
 ### Provisions are PURE ANCHORS
 
@@ -70,6 +71,11 @@ Which concepts from a closed set apply. Example: facility_prong → term_loans, 
 **Channel 3 — Entity (typed entities + relations)**
 Structured objects with multiple attributes: baskets, sources, blockers, pathways.
 
+### Abstract Parent: provision_has_extracted_entity
+
+All 12 entity-bearing relations sub `provision_has_extracted_entity` with role alias `as extracted`.
+This enables a single polymorphic fetch query to retrieve ALL entities for a provision.
+
 ## Entity Hierarchy
 
 ### RP Baskets (7 subtypes of rp_basket) → provision_has_basket
@@ -91,17 +97,41 @@ nonexclusive_license_exception, intercompany_exception, immaterial_ip_exception,
 fair_value_exception, ordinary_course_exception
 
 ### Other Entities
-- jcrew_blocker → provision_has_blocker
+- jcrew_blocker → provision_has_blocker (~25 boolean coverage attributes)
 - unsub_designation → provision_has_unsub
 - sweep_tier → provision_has_sweep_tier
 - de_minimis_threshold → provision_has_de_minimis
 - basket_reallocation → provision_has_reallocation
 - investment_pathway → provision_has_pathway (J.Crew chain analysis)
+- sweep_exemption (5 subtypes) → provision_has_sweep_exemption
+- intercompany_permission → provision_has_intercompany_permission
+- definition_clause → provision_has_definition
+- lien_release_mechanics → provision_has_lien_release
+
+## Q&A Pipeline (`/ask-graph`)
+
+```
+User question
+    → TopicRouter (SSoT categories from TypeDB)
+    → get_rp_entities(deal_id):
+        Section 1: Computed Findings (TypeDB analytical functions)
+            - dividend_capacity_components, blocker_binding_gap_evidence,
+              blocker_exception_swallow_evidence, unsub_distribution_evidence,
+              pathway_chain_summary
+        Section 2: Supporting Entity Data (single polymorphic TypeDB fetch → JSON)
+            - All entities + attributes + annotations + children in one query
+    → Claude synthesis (system rules + entity context)
+    → Answer with citations + evidence block
+```
+
+The polymorphic fetch query lives in `graph_traversal.py` as `_FETCH_QUERY`. It uses
+`provision_has_extracted_entity` abstract parent, `get_entity_annotations()` TypeDB function
+for annotation lookup, and nested children subquery. Returns ~39 docs, 79KB JSON, 0.12s.
 
 ## Ontology System
 
 Questions live in TypeDB as `ontology_question` entities grouped by `ontology_category`.
-Categories use single-letter IDs: A through N, plus S, T, Z.
+Categories: A-N, P, S, T, Z, JC1-JC3, MFN1-MFN6 (27 total, 289 questions).
 
 Category resolution uses TypeQL join through category_has_question — NOT prefix parsing.
 
@@ -110,26 +140,50 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | Purpose | File |
 |---------|------|
 | **Schema** (single file) | `app/data/schema_unified.tql` |
-| V4 Pydantic models | `app/schemas/extraction_output_v4.py` |
-| Graph storage (write) | `app/services/graph_storage.py` |
-| Extraction pipeline | `app/services/extraction.py` |
-| Deal API (read) | `app/routers/deals.py` |
-| TypeDB client | `app/services/typedb_client.py` |
-| App startup (connection only) | `app/main.py` |
 | **DB seeding (SSoT)** | `app/scripts/init_schema.py` |
+| **Entity context builder** | `app/services/graph_traversal.py` |
+| **Entity read (legacy fetchers)** | `app/services/graph_reader.py` |
+| **Graph write (all 3 channels)** | `app/services/graph_storage.py` |
+| **Extraction pipeline** | `app/services/extraction.py` |
+| **Deal API + synthesis prompt** | `app/routers/deals.py` |
+| **TypeDB client** | `app/services/typedb_client.py` |
+| **App startup (connection only)** | `app/main.py` |
+| **Config** | `app/config.py` |
+| **V4 Pydantic models** | `app/schemas/extraction_output_v4.py` |
 | **Frontend types** | `src/types/mfn.generated.ts` |
+| **Trace collector** | `app/services/trace_collector.py` |
+| **Topic router** | `app/services/topic_router.py` |
+| **Annotation function** | `app/data/annotation_functions.tql` |
+| **RP analytical functions** | `app/data/rp_analysis_functions.tql` |
 
-### Data Files
+### Data Files (loaded by init_schema.py in order)
 | File | Contents |
 |------|----------|
-| `app/data/schema_unified.tql` | THE schema (996 lines) |
-| `app/data/questions.tql` | Base ontology (Categories A-K) |
-| `app/data/ontology_expanded.tql` | Expanded questions (F9-F17, G5-G7, I, L, N) |
-| `app/data/ontology_category_m.tql` | Category M: Unsub distributions (10 questions) |
-| `app/data/concepts.tql` | Concept type seed instances |
-| `app/data/rp_basket_metadata.tql` | Extraction metadata for new RP baskets |
-| `app/data/rdp_basket_metadata.tql` | Extraction metadata for RDP baskets |
-| `app/data/investment_pathway_metadata.tql` | Extraction metadata for investment pathways |
+| `schema_unified.tql` | THE schema (996 lines) |
+| `concepts.tql` | ~170 concept instances |
+| `jcrew_concepts_seed.tql` | 72 J.Crew concept instances |
+| `questions.tql` | Base ontology (Categories A-K) |
+| `categories.tql` | Category definitions + category_has_question |
+| `ontology_expanded.tql` | Extended questions (F9-F17, G5-G7, I, L, N) |
+| `ontology_category_m.tql` | Category M: Unsub distributions (10 questions) |
+| `ontology_category_p.tql` | Category P: Unsub distribution basket carve-outs |
+| `jcrew_questions_seed.tql` | J.Crew categories JC1-JC3 (69 questions) |
+| `seed_v4_data.tql` | IP types, source types, reference instances |
+| `seed_concept_entity_mapping.tql` | Concept → entity attribute routing |
+| `mfn_concepts_extended.tql` | MFN-specific concepts |
+| `mfn_ontology_questions.tql` | 42 MFN questions across 6 categories |
+| `segment_types_seed.tql` | 21 document segment types |
+| `mfn_extraction_metadata.tql` | MFN extraction metadata |
+| `seed_attribute_annotations.tql` | Question → attribute annotations (batch 1) |
+| `seed_complete_annotations.tql` | Complete annotation coverage (batch 2) |
+| `seed_new_questions.tql` | ~66 new questions + ~55 annotation catch-ups |
+| `seed_entity_list_questions.tql` | Entity-list extraction questions (incl. `rp_el_reallocations` with `{basket_subtypes}` template) |
+| `seed_cross_covenant_mappings.tql` | SSoT: basket_type → provision_type (1 mapping) |
+| `seed_capacity_classifications.tql` | SSoT: basket_type → capacity_category (15 mappings) |
+| `mfn_functions.tql` | 10 MFN pattern detection functions |
+| `rp_functions.tql` | Dividend capacity functions |
+| `rp_analysis_functions.tql` | 4 RP analytical functions |
+| `annotation_functions.tql` | `get_entity_annotations()` function |
 
 ## DB Seeding
 
@@ -167,6 +221,12 @@ Extraction metadata loaded from TypeDB (SSoT). Pydantic validates. graph_storage
 - `@key` for unique identifiers
 - Variables scoped to single query — use match-insert for cross-references
 - Use `try { }` blocks for optional attribute access in queries
+- `define` is idempotent — use instead of `redefine` for adding sub + role alias
+- `label($var)` converts a type variable to a string at runtime
+- `fetch` returns JSON documents directly; `select` returns concept rows
+- `$entity.*` fetches all attributes as key-value pairs
+- Functions: `fun name($param: type) -> { return_vals }:`
+- `isa!` for exact type match (excludes subtypes)
 
 ## TypeScript Types: mfn.generated.ts
 
@@ -180,52 +240,10 @@ and extraction_output_v4.py. Includes:
 There is NO type_generator.py in this repo. To regenerate types, read
 schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.ts.
 
-## Completed Migration Steps (Feb 2025)
+## Known Issues
 
-### Steps 1-2: Schema Unification ✅
-- Consolidated 3 schema files → `schema_unified.tql`
-- Deleted old schema.tql, schema_v2.tql, schema_expanded.tql
-- Removed deprecated concept types
-
-### Steps 3A-3C: Channel 1 Refactor ✅
-- `store_scalar_answer()` method in graph_storage.py
-- All scalar writes go through provision_has_answer
-- All reads query provision_has_answer (deals.py fully migrated)
-- Deleted hardcoded category_names dict
-- Net: -214 lines of hardcoded dicts, +163 lines of SSoT queries
-
-### Steps 4-7: V4 Entity Expansion ✅
-- 18 new attributes on existing entity types
-- 3 new RP basket types, 5 new RDP basket types
-- investment_pathway entity for J.Crew chain analysis
-- All with Pydantic models, store methods, extraction metadata
-
-### Step 8: TypeScript Type Regeneration ✅
-- Generated mfn.generated.ts (613 lines) from unified schema
-- Covers all three data channels
-- Provisions as pure anchors (zero extracted values in TS types)
-
-### Step 9: Full Verification ✅
-- SSoT violation grep: zero violations across all .py and .ts files
-- Pydantic model tests: 21/21 passed (extraction_output_v4.py)
-- File consistency: all 11 TQL files + 9 key source files verified
-- init_schema.py rewritten for TypeDB 3.x API, loads all 11 data files
-- Schema gaps fixed: added extraction_metadata entity, restricted_party hierarchy,
-  sweep_exemption hierarchy, license_back_exception, source_name, exception_name,
-  requires_context, context_entities attributes
-- Fixed ontology_expanded.tql: target_concept_type is attribute not entity
-- Fixed seed_v4_data.tql: removed redundant ip_type entries (already in concepts.tql)
-- Fixed _load_mixed_tql_file parser: match-insert pairs no longer split
-- DB drop/reload: all checks passed (170 concepts, 91 questions, 17 categories,
-  27 extraction metadata, 12 IP types, 5 party types)
-- Note: Only 91 of 471 total questions currently seeded in TQL files.
-  Remaining questions need to be added to seed data.
-
-### Step 10: Remove Duplicate TQL Parser from main.py ✅
-- Deleted ~430 lines of TQL parsing/seeding from main.py startup
-- main.py now only verifies TypeDB connection + database existence
-- init_schema.py is the sole SSoT for TQL parsing and DB seeding
-- Fixes: 34 of 49 ontology_expanded inserts were silently failing on every startup
+- **Old fetcher functions in graph_reader.py**: 10 individual fetcher functions (fetch_rp_baskets, etc.) are still present but no longer called. Only `fetch_dividend_capacity` is still used. Safe to delete in cleanup pass.
+- **J.Crew Tier 3 prompt too long**: 212K > 200K token limit. Needs context trimming or split extraction.
 
 ## Cost Awareness
 
@@ -256,3 +274,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 Types: schema, extraction, api, types, data, fix, refactor
 
 **After EVERY commit, run:** `git push origin main`
+
+## Test Deal
+
+Duck Creek (deal_id: `87852625`, provision_id: `87852625_rp`).
+Last extracted: 2026-03-20 — 66 entities, 176 scalar answers.
+
+## Eval: Gold Standard Questions
+
+6 questions for Duck Creek. Pre-refactor baseline: 4 correct, 1 partial, 1 wrong.
+Run via `POST /api/graph-eval/87852625` or manually via `/ask-graph`.
