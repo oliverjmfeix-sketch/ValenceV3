@@ -698,9 +698,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         # Introspect schema for fields
         schema_info = cls.get_entity_fields_from_schema(entity_type)
 
+        # Fields set by SSoT seed data, not by extraction
+        ssot_only_fields = {"capacity_category"}
+
         if schema_info.get("is_abstract"):
             section += f"- **This is an abstract type with subtypes.** Include a `\"type\"` field to specify the subtype.\n"
-            common = schema_info.get("common_fields", [])
+            common = [f for f in schema_info.get("common_fields", []) if f not in ssot_only_fields]
             if common:
                 section += f"- Common fields: {', '.join(common)}\n"
             for sub_name, sub_info in schema_info.get("subtypes", {}).items():
@@ -708,7 +711,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 if sub_fields:
                     section += f"  - **{sub_name}**: {', '.join(sub_fields)}\n"
         else:
-            fields = schema_info.get("fields", [])
+            fields = [f for f in schema_info.get("fields", []) if f not in ssot_only_fields]
             if fields:
                 section += f"- Fields: {', '.join(fields)}\n"
 
@@ -1748,8 +1751,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             logger.info(f"Type map for {actual_type}: {len(attr_types)} attrs — {attr_types}")
 
         for field_name, value in item.items():
-            if field_name == "type":
-                continue  # Discriminator, not an attribute
+            if field_name in ("type", "capacity_category"):
+                continue  # Discriminator / SSoT-only fields, not extracted
             if field_name not in allowed_fields:
                 continue
             if value is None:
