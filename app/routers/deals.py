@@ -1819,18 +1819,6 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
        - List "unlimited_conditional" baskets SEPARATELY with their tests.
        - List "categorical" baskets SEPARATELY.
        NEVER mix categories in the same total.
-
-   (g) **REALLOCATION = ADDITIVE CAPACITY** — Each general_purpose basket is a SEPARATE
-       pool with its OWN cap (e.g., each sized at greater of $130M / 100% EBITDA).
-       When basket_reallocates_to links show that RDP and Investment baskets can
-       reallocate TO the RP basket, this ADDS capacity for dividends beyond the
-       RP basket's own cap. "Reduces source basket dollar-for-dollar" means the
-       SOURCE loses what the TARGET gains — it does NOT mean the baskets share a
-       single pool. The Borrower can ELECT to reallocate, unlocking the source
-       basket's full cap as additional dividend capacity.
-       CORRECT: $130M (RP) + $130M (builder starter) + $130M (RDP via reallocation)
-       + $130M (Investment via reallocation) = $520M total general_purpose capacity.
-       WRONG: "these share a pool" or "the practical maximum is $130M."
 """
 
     # Determine which covenant-specific rules to include
