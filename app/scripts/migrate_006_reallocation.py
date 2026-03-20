@@ -5,7 +5,7 @@ Adds: investment_provision type, cross_covenant_mapping type + seed,
       expanded basket_reallocates_to relation.
 
 Run: python -m app.scripts.migrate_006_reallocation
-Safe to run multiple times (define/redefine are idempotent, put is idempotent).
+Safe to run multiple times (define is idempotent, insert is idempotent with @key).
 """
 import logging
 from pathlib import Path
@@ -25,22 +25,13 @@ def run():
 
     db = settings.typedb_database
 
-    # ── Phase 1: Schema changes (two separate queries in one SCHEMA tx) ──
-    define_block = (DATA_DIR / "migration_006_reallocation_graph.tql").read_text()
-
-    # Split on "redefine" keyword to get the two blocks
-    parts = define_block.split("redefine", 1)
-    define_tql = parts[0].strip()
-    redefine_tql = "redefine\n" + parts[1].strip() if len(parts) > 1 else None
+    # ── Phase 1: Schema changes (single idempotent define) ──────────────
+    define_tql = (DATA_DIR / "migration_006_reallocation_graph.tql").read_text()
 
     logger.info(f"Running migration 006 schema changes on '{db}'...")
     tx = typedb_client.driver.transaction(db, TransactionType.SCHEMA)
     try:
         tx.query(define_tql).resolve()
-        logger.info("  define block committed")
-        if redefine_tql:
-            tx.query(redefine_tql).resolve()
-            logger.info("  redefine block committed")
         tx.commit()
         logger.info("Schema migration 006 complete.")
     except Exception as e:

@@ -15,8 +15,6 @@ entity investment_provision sub provision,
     plays provision_has_basket:provision,
     plays deal_has_provision:provision;
 
-redefine
-
 relation basket_reallocates_to,
     relates source_basket,
     relates target_basket,
