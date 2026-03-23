@@ -1254,13 +1254,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             # Catches has_amendment_threshold where provision plays entity_with_threshold
             tier3_count = 0
             for prov_type in ("rp_provision", "mfn_provision"):
+                # Query which roles this provision type plays
                 tier3_query = f"""
                     match
-                        relation $rel; $rel relates $prov_role;
-                        entity $pt; $pt label {prov_type}; $pt plays $prov_role;
-                        $rel relates $other_role;
-                        $prov_role != $other_role;
-                    select $rel, $prov_role, $other_role;
+                        entity $pt; $pt label {prov_type}; $pt plays $role;
+                        relation $rel; $rel relates $role;
+                    select $rel, $role;
                 """
                 try:
                     tier3_rows = list(tx.query(tier3_query).resolve().as_concept_rows())
@@ -1268,23 +1267,43 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     logger.warning(f"Tier 3 query failed for {prov_type}: {e}")
                     continue
 
+                # Group: relation → [roles played by provision]
+                prov_plays: Dict[str, list] = {}
                 for row in tier3_rows:
                     rl = row.get("rel").as_relation_type().get_label()
+                    ro = row.get("role").get_label()
+                    ro = ro.split(":")[-1] if ":" in ro else ro
+                    prov_plays.setdefault(rl, []).append(ro)
+
+                for rl, prov_roles in prov_plays.items():
                     if rl in config or rl in cls._INFRA_RELATIONS:
                         continue
-                    # Already handled in Tier 1/2, or infrastructure
-                    pr = row.get("prov_role").get_label()
-                    pr = pr.split(":")[-1] if ":" in pr else pr
-                    er = row.get("other_role").get_label()
-                    er = er.split(":")[-1] if ":" in er else er
 
-                    # Skip abstract roles
-                    if er in ("extracted", "parent", "child"):
+                    # Get ALL roles for this relation
+                    all_roles_query = f"""
+                        match
+                            relation $rel; $rel label {rl}; $rel relates $role;
+                        select $role;
+                    """
+                    try:
+                        all_role_rows = list(tx.query(all_roles_query).resolve().as_concept_rows())
+                        all_roles = []
+                        for arr in all_role_rows:
+                            rn = arr.get("role").get_label()
+                            rn = rn.split(":")[-1] if ":" in rn else rn
+                            all_roles.append(rn)
+                    except Exception:
+                        continue
+
+                    # The provision role is what prov_type plays; entity role is the other
+                    prov_role = prov_roles[0]
+                    other_roles = [r for r in all_roles if r != prov_role and r not in ("extracted", "parent", "child")]
+                    if len(other_roles) != 1:
                         continue
 
                     config[rl] = {
                         "parent_match_template": '$prov isa {prov_type}, has provision_id "{provision_id}";',
-                        "roles": (pr, er),
+                        "roles": (prov_role, other_roles[0]),
                         "parent_var": "$prov",
                     }
                     tier3_count += 1
