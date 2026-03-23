@@ -2408,7 +2408,7 @@ Return ONLY the JSON object. No explanation."""
 
         filter_start = _time.time()
         filter_response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-6",
             max_tokens=1000,
             system=filter_prompt,
             messages=[{"role": "user", "content": f"## QUESTION\n\n{request.question}\n\n## ENTITIES\n\n{entities_json_str}"}]
@@ -2458,12 +2458,12 @@ Return ONLY the JSON object. No explanation."""
         # Trace filter stage
         excluded_count = len(all_entities) - len(primary_entities) - len(supplementary_entities)
         if collector:
-            collector.filter_model = "claude-sonnet-4-20250514"
+            collector.filter_model = "claude-opus-4-6"
             collector.filter_input_tokens = filter_response.usage.input_tokens
             collector.filter_output_tokens = filter_response.usage.output_tokens
             collector.filter_cost_usd = (
-                filter_response.usage.input_tokens * 3.0 / 1_000_000
-                + filter_response.usage.output_tokens * 15.0 / 1_000_000
+                filter_response.usage.input_tokens * 15.0 / 1_000_000
+                + filter_response.usage.output_tokens * 75.0 / 1_000_000
             )
             collector.filter_duration_ms = filter_duration_ms
             collector.filter_primary_types = primary_types
