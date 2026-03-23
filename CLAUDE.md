@@ -113,25 +113,26 @@ their capacity is separate and additive for dividend purposes.
 - definition_clause → provision_has_definition
 - lien_release_mechanics → provision_has_lien_release
 
-## Q&A Pipeline (`/ask-graph`)
+## Q&A Pipeline (`/ask-graph`) — Two-Stage Synthesis
 
 ```
 User question
     → TopicRouter (SSoT categories from TypeDB)
     → get_rp_entities(deal_id):
         Section 1: Computed Findings (TypeDB analytical functions)
-            - dividend_capacity_components, blocker_binding_gap_evidence,
-              blocker_exception_swallow_evidence, unsub_distribution_evidence,
-              pathway_chain_summary
-        Section 2: Supporting Entity Data (single polymorphic TypeDB fetch → JSON)
-            - All entities + attributes + annotations + children in one query
-    → Claude synthesis (system rules + entity context)
-    → Answer with citations + evidence block
+        Section 2: Supporting Entity Data (polymorphic fetch → 43 entities JSON)
+    → Stage 1: Entity Filter (Opus 4.6)
+        - Classifies 43 entities into PRIMARY / SUPPLEMENTARY / EXCLUDE
+        - Returns JSON: {"primary": [...], "supplementary": [...]}
+    → Stage 2: Synthesis (Opus 4.6)
+        - Receives tiered context (primary + supplementary sections)
+        - System prompt includes SELF-VERIFICATION block
+        - Produces answer with citations + evidence block
 ```
 
 The polymorphic fetch query lives in `graph_traversal.py` as `_FETCH_QUERY`. It uses
 `provision_has_extracted_entity` abstract parent, `get_entity_annotations()` TypeDB function
-for annotation lookup, and nested children subquery. Returns ~39 docs, 79KB JSON, 0.12s.
+for annotation lookup, and nested children subquery. Returns ~43 docs, ~80KB JSON, 0.12s.
 
 ## Ontology System
 
@@ -248,17 +249,20 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 
 ## Known Issues
 
-- **Q5 synthesis regression ($150M instead of $520M)**: Claude still misreads reallocation edges as shared pool despite `capacity_effect=additive` on edges and `shares_capacity_pool` absence signal. Needs stronger system prompt rule in 7(g) emphasizing dollar-for-dollar reduction means source loses capacity, not shared pool. Data is correct in TypeDB.
-- **Q6 improved (uncapped, no hedge)**: After `no_worse_is_uncapped` extraction, Claude now correctly identifies the no-worse test as uncapped and concludes the dividend is permitted. No longer hedges.
+- **Q5 now passes ($520M)**: Two-stage synthesis (Prompt 8d) + Opus 4.6 correctly identifies 4 × $130M general-purpose capacity. Self-verification block catches shared-pool errors.
+- **Q6 now passes (Yes, permitted)**: Opus 4.6 correctly reasons that removing negative-EBITDA asset improves leverage, passing the uncapped no-worse test. Opus 4.5 got this wrong (said removing negative EBITDA "worsens" leverage).
+- **All 6 gold standard questions pass** as of Prompt 8d + Opus 4.6 (2026-03-23).
 - **Old fetcher functions in graph_reader.py**: 10 individual fetcher functions (fetch_rp_baskets, etc.) are still present but no longer called. Only `fetch_dividend_capacity` is still used. Safe to delete in cleanup pass.
 - **J.Crew Tier 3 prompt too long**: 212K > 200K token limit. Needs context trimming or split extraction.
+- **Filter cost**: Using Opus 4.6 for both filter and synthesis costs ~$0.55–0.71 per question (vs ~$0.35 with Sonnet filter). Worth it for reasoning quality.
 
 ## Cost Awareness
 
 ### Application API Calls (extraction pipeline, /ask endpoint)
 - RP Universe extraction: ~$0.50 (cache it, avoid re-running)
 - V4 entity extraction: ~$0.10 (fine to iterate)
-- Use Sonnet for extraction. Opus only for complex analysis.
+- /ask-graph: ~$0.55–0.71 per question (Opus 4.6 for both filter + synthesis)
+- Use Sonnet for extraction. Opus 4.6 for synthesis and entity filtering.
 
 ### Claude Code Development Tasks
 - **Opus**: Architecture decisions, multi-file refactors, complex debugging,
