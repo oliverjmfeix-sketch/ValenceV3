@@ -1423,6 +1423,10 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 elif vtype == "string":
                     rel_attrs.append(f'has {attr_name} "{self._escape(str(val)[:2000])}"')
 
+            # capacity_effect is structural metadata, not extracted from the document.
+            # "additive" = source's cap becomes additional capacity for the target.
+            rel_attrs.append(f'has capacity_effect "additive"')
+
             rel_attrs_str = ""
             if rel_attrs:
                 rel_attrs_str = ",\n                " + ",\n                ".join(rel_attrs)

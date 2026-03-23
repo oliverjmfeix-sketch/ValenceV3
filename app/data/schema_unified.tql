@@ -307,6 +307,7 @@ attribute basket_type_name, value string;
 attribute provision_type_name, value string;
 attribute mapping_id, value string;
 attribute capacity_category, value string;
+attribute capacity_effect, value string;
 
 # ── Investment pathway (J.Crew chain analysis) ────────────────────────────────
 attribute pathway_source_type, value string;       # loan_party | restricted_sub | non_guarantor_rs
@@ -1630,7 +1631,8 @@ relation basket_reallocates_to,
     owns reduction_while_outstanding_only,
     owns section_reference,
     owns source_page,
-    owns source_text;
+    owns source_text,
+    owns capacity_effect;
 
 # ─── New cross-document relations ──────────────────────────────────────────────
 

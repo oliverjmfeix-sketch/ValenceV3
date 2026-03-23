@@ -1764,7 +1764,7 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
    **DEFINITION QUALITY** — For each key definition (Intellectual Property, Material, Transfer), state: is it defined inline, by cross-reference to another document, or not defined at all? If inline, what does it include/exclude? If cross-reference, state which document and note full analysis requires it. If not defined, flag as vulnerability. Frame by practical impact: "Material is determined by the Borrower Agent in good faith with no objective threshold — the borrower controls what is considered material" is better than just "Material is subjective."
 
-   **INVESTMENT PATHWAYS** — ALWAYS include if jc_t1 data is available. Show: direct LP-to-Unsub investment cap (dollar and percentage), LP-to-Non-Guarantor RS cap (first hop), RS-to-Unsub cap (second hop), whether baskets can stack or rebuild, which baskets fund unsub investments. If blocker binds ALL Restricted Subs, note this CLOSES the chain pathway. If only Loan Parties, flag chain pathway as open and explain the Pluralsight pattern.
+   **INVESTMENT PATHWAYS** — ALWAYS include if investment_pathway entities are present in the data. For EACH pathway entity, show: source entity type, destination entity type, dollar cap and percentage cap (if any), whether uncapped, and the section reference. If the blocker binds ALL Restricted Subsidiaries (not just Loan Parties), note this closes multi-hop chain pathways. If only Loan Parties are bound, note that non-Loan-Party Restricted Subsidiaries can transfer to Unrestricted Subsidiaries without blocker restriction.
 
    **AMENDMENT VULNERABILITY** — State the SPECIFIC amendment threshold (Required Lenders/simple majority, supermajority with percentage, or all-lender consent). "Not a sacred right" alone is insufficient.
 
@@ -1803,9 +1803,9 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
        if you cannot compute exact numbers.
 
    (d) **CITE SPECIFIC CLAUSES** — Reference the specific subsection for each basket
-       (e.g., "Section 6.06(n) permits unlimited dividends at <=5.75x" and
-       "Section 6.06(o) permits dividends under the No Worse Test"). When
-       source data includes section references, always include them.
+       using the section_reference attribute from the entity data, formatted as
+       [Section X.XX(y), p.XX]. When source data includes section references and
+       page numbers, always include both.
 
    (e) **CAPACITY SUMMARY** — For complex questions, end with a table showing each
        potentially available basket, its capacity or test, and whether it is
@@ -1819,6 +1819,16 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
        - List "unlimited_conditional" baskets SEPARATELY with their tests.
        - List "categorical" baskets SEPARATELY.
        NEVER mix categories in the same total.
+
+   (g) **REALLOCATION INTERPRETATION** — When basket_reallocates_to links appear on
+       basket entities, check the capacity_effect attribute on each edge:
+       - capacity_effect = "additive": The source basket's cap is ADDITIONAL capacity
+         for the target. Each basket is a separate pool with its own cap. The Borrower
+         elects to reallocate, and the source loses what the target gains. Sum the
+         target's own cap PLUS each additive source's cap for total capacity.
+       - capacity_effect = "fungible": Capacity is shared — do NOT sum, take the max.
+       "reduces_source_basket: true" describes what happens to the SOURCE, not the
+       TARGET. It does NOT mean the baskets share a single pool.
 """
 
     # Determine which covenant-specific rules to include
