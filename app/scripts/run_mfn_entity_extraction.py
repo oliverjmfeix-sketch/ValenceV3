@@ -57,12 +57,10 @@ async def main():
     if not prov_exists:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
-            from datetime import datetime, timezone
-            now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
             tx.query(f'''
                 match $d isa deal, has deal_id "{DEAL_ID}";
                 insert
-                    $p isa mfn_provision, has provision_id "{provision_id}", has extracted_at "{now}";
+                    $p isa mfn_provision, has provision_id "{provision_id}";
                     (deal: $d, provision: $p) isa deal_has_provision;
             ''').resolve()
             tx.commit()
@@ -70,7 +68,8 @@ async def main():
         except Exception as e:
             if tx.is_open():
                 tx.close()
-            print(f"Provision creation: {e}")
+            print(f"Provision creation error: {e}")
+            sys.exit(1)
 
     # Run extraction
     from app.services.extraction import get_extraction_service
