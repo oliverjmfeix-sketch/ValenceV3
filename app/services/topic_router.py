@@ -223,6 +223,91 @@ class TopicRouter:
         )
         return categories
 
+    # ── Entity type mapping (for metadata-driven filtering) ────────────
+
+    _question_entity_types_cache: Optional[Dict[str, Set[str]]] = None
+    _question_entity_types_time: float = 0
+
+    def _load_question_entity_types(self) -> Dict[str, Set[str]]:
+        """Load question_id → set[entity_type] mapping from TypeDB.
+
+        Two sources:
+        1. question_annotates_attribute → target_entity_type (scalar annotations)
+        2. ontology_question with answer_type="entity_list" → target_entity_type
+        """
+        now = time.time()
+        if (self._question_entity_types_cache is not None
+                and (now - self._question_entity_types_time) < self._ttl):
+            return self._question_entity_types_cache
+
+        result: Dict[str, Set[str]] = {}
+
+        with self._client.read_transaction() as tx:
+            # Query A: annotation-based entity types
+            try:
+                q_a = """
+                    match
+                        (question: $q) isa question_annotates_attribute,
+                            has target_entity_type $et;
+                        $q has question_id $qid;
+                    select $qid, $et;
+                """
+                for row in tx.query(q_a).resolve().as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
+                    et = _safe_get_value(row, "et")
+                    if qid and et:
+                        result.setdefault(qid, set()).add(et)
+            except Exception as e:
+                logger.warning(f"Annotation entity type query failed: {e}")
+
+            # Query B: entity_list question entity types
+            try:
+                q_b = """
+                    match
+                        $q isa ontology_question,
+                            has answer_type "entity_list",
+                            has question_id $qid,
+                            has target_entity_type $et;
+                    select $qid, $et;
+                """
+                for row in tx.query(q_b).resolve().as_concept_rows():
+                    qid = _safe_get_value(row, "qid")
+                    et = _safe_get_value(row, "et")
+                    if qid and et:
+                        result.setdefault(qid, set()).add(et)
+            except Exception as e:
+                logger.warning(f"Entity list entity type query failed: {e}")
+
+        self._question_entity_types_cache = result
+        self._question_entity_types_time = now
+        logger.info(
+            f"Loaded question→entity_type map: {len(result)} questions, "
+            f"{len(set().union(*result.values()) if result else set())} entity types"
+        )
+        return result
+
+    def get_relevant_entity_types(
+        self, matched_categories: List[CategoryMetadata]
+    ) -> Set[str]:
+        """Derive entity types relevant to matched categories.
+
+        Chain: category.question_ids → question_annotates_attribute.target_entity_type
+        Plus:  category.question_ids → entity_list question.target_entity_type
+
+        Returns empty set if no types found (caller should use all entities).
+        """
+        q_to_types = self._load_question_entity_types()
+        if not q_to_types:
+            return set()
+
+        relevant = set()
+        for cat in matched_categories:
+            for qid in cat.question_ids:
+                types = q_to_types.get(qid, set())
+                relevant.update(types)
+
+        return relevant
+
     # ── Routing ───────────────────────────────────────────────────────
 
     def route(self, question: str) -> TopicRouteResult:

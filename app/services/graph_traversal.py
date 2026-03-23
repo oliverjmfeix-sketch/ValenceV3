@@ -7,6 +7,7 @@ TypeDB schema is the single source of truth — no hardcoded attribute lists.
 import json
 import logging
 import time
+from typing import List, Optional, Tuple
 
 from typedb.driver import TransactionType
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 _FETCH_QUERY = '''
 match
-    $p isa rp_provision, has provision_id "{pid}";
+    $p isa {prov_type}, has provision_id "{pid}";
     (provision: $p, extracted: $e) isa $rel;
     $rel sub provision_has_extracted_entity;
     let $rel_name = label($rel);
@@ -83,16 +84,21 @@ fetch {{
 # PUBLIC API
 # ═════════════════════════════════════════════════════════════════════════════
 
-def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
-    """Build entity context for Claude synthesis.
+def get_provision_entities(
+    deal_id: str,
+    provision_type: str = "rp_provision",
+    trace: TraceCollector = None,
+) -> Tuple[List[dict], str]:
+    """Fetch all entities for a provision via polymorphic TypeDB query.
 
-    Single polymorphic fetch: all entities, all attributes, all annotations,
-    all children. TypeDB schema is the single source of truth.
+    Returns (docs, context_string) where docs is the raw list of entity
+    documents and context_string is the formatted text for Claude synthesis.
     """
     if not typedb_client.driver:
-        return "(TypeDB not connected)"
+        return [], "(TypeDB not connected)"
 
-    provision_id = f"{deal_id}_rp"
+    suffix = provision_type.replace("_provision", "")
+    provision_id = f"{deal_id}_{suffix}"
 
     if trace:
         trace.provision_id = provision_id
@@ -103,7 +109,7 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
             typedb_client.database, TransactionType.READ
         )
         try:
-            query = _FETCH_QUERY.format(pid=provision_id)
+            query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
             answer = tx.query(query).resolve()
             docs = list(answer.as_concept_documents())
         finally:
@@ -121,7 +127,7 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
             trace.entity_count = len(docs)
 
         if not docs:
-            return "(No Channel 3 entities found for this provision)"
+            return [], "(No Channel 3 entities found for this provision)"
 
         entity_json = json.dumps(docs, indent=2, default=str)
         context = f"## ENTITY DATA\n\n{entity_json}"
@@ -130,7 +136,13 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
             trace.entity_context = context
             trace.entity_context_chars = len(context)
 
-        return context
+        return docs, context
     except Exception as e:
         logger.error(f"Polymorphic entity fetch failed: {e}")
-        return "(TypeDB query failed)"
+        return [], "(TypeDB query failed)"
+
+
+def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
+    """Backward-compatible wrapper — returns only the context string."""
+    _, context = get_provision_entities(deal_id, "rp_provision", trace)
+    return context
