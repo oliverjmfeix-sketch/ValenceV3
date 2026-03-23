@@ -96,6 +96,11 @@ debt_conversion_source
 nonexclusive_license_exception, intercompany_exception, immaterial_ip_exception,
 fair_value_exception, ordinary_course_exception
 
+### Capacity Pool (`shares_capacity_pool`)
+Relation linking baskets that share a single capacity pool. `rp_basket` plays `pool_member`.
+Used as an **absence signal** in synthesis: if baskets are NOT linked by `shares_capacity_pool`,
+their capacity is separate and additive for dividend purposes.
+
 ### Other Entities
 - jcrew_blocker → provision_has_blocker (~25 boolean coverage attributes)
 - unsub_designation → provision_has_unsub
@@ -180,6 +185,7 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | `seed_entity_list_questions.tql` | Entity-list extraction questions (incl. `rp_el_reallocations` with `{basket_subtypes}` template) |
 | `seed_cross_covenant_mappings.tql` | SSoT: basket_type → provision_type (1 mapping) |
 | `seed_capacity_classifications.tql` | SSoT: basket_type → capacity_category (15 mappings) |
+| `seed_new_questions_008.tql` | Prompt 8: `rp_g5b` question for `no_worse_is_uncapped` boolean (Category G) |
 | `mfn_functions.tql` | 10 MFN pattern detection functions |
 | `rp_functions.tql` | Dividend capacity functions |
 | `rp_analysis_functions.tql` | 4 RP analytical functions |
@@ -242,6 +248,8 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 
 ## Known Issues
 
+- **Q5 synthesis regression ($150M instead of $520M)**: Claude still misreads reallocation edges as shared pool despite `capacity_effect=additive` on edges and `shares_capacity_pool` absence signal. Needs stronger system prompt rule in 7(g) emphasizing dollar-for-dollar reduction means source loses capacity, not shared pool. Data is correct in TypeDB.
+- **Q6 improved (uncapped, no hedge)**: After `no_worse_is_uncapped` extraction, Claude now correctly identifies the no-worse test as uncapped and concludes the dividend is permitted. No longer hedges.
 - **Old fetcher functions in graph_reader.py**: 10 individual fetcher functions (fetch_rp_baskets, etc.) are still present but no longer called. Only `fetch_dividend_capacity` is still used. Safe to delete in cleanup pass.
 - **J.Crew Tier 3 prompt too long**: 212K > 200K token limit. Needs context trimming or split extraction.
 

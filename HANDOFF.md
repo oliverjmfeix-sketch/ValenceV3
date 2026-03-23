@@ -1,5 +1,5 @@
 # Valence V3 — Handoff Document
-**Date**: 2026-03-20 (updated after Prompts 6–7)
+**Date**: 2026-03-23 (updated after Prompts 7b and 8)
 
 ---
 
@@ -39,107 +39,155 @@ ALL extracted data flows through exactly one of:
 
 | Channel | What | Relation | Example |
 |---------|------|----------|---------|
-| **1 — Scalar** | Boolean, string, number keyed by question_id | `provision_has_answer` | "Does covenant allow unrestricted distributions?" → false |
-| **2 — Multiselect** | Concepts from a closed set | `concept_applicability` | facility_prong → term_loans |
+| **1 — Scalar** | Boolean, string, number keyed by question_id | `provision_has_answer` | "Does covenant allow unrestricted distributions?" -> false |
+| **2 — Multiselect** | Concepts from a closed set | `concept_applicability` | facility_prong -> term_loans |
 | **3 — Entity** | Structured objects with multiple attributes | Typed entities + relations | builder_basket with 15 attributes, 8 source children |
 
 **Provisions are pure anchors** — own ZERO extracted values. Only identity + computed pattern flags.
 
 ---
 
-## Current State (as of 2026-03-20, post Prompt 7)
+## Current State (as of 2026-03-23, post Prompts 7b and 8)
 
 ### What Works
-- Full extraction pipeline: PDF → RP universe → V4 entity extraction → TypeDB storage
-- 47 entities created, 175 scalar answers stored for Duck Creek (deal 87852625)
-- Schema: unified (~1010 lines, 80 entities, 27 relations, ~160 attributes)
+- Full extraction pipeline: PDF -> RP universe -> V4 entity extraction -> TypeDB storage
+- 66 entities created, 176 scalar answers stored for Duck Creek (deal 87852625)
+- Schema: unified (~1010 lines, 80+ entities, 27+ relations, ~160+ attributes)
 - Abstract parent `provision_has_extracted_entity` with 12 child relations
 - 4 RP analytical functions deployed
-- Polymorphic fetch query: single query returns all entities + children + annotations + **links** (43 docs, ~80KB JSON)
-- **Reallocation graph edges**: `basket_reallocates_to` typed relations between actual basket entities (5 edges for Duck Creek)
-- **Cross-covenant wiring**: `investment_provision` + `general_investment_basket` auto-created, linked to deal, with $130M amount
-- **Capacity classification**: `capacity_category` attribute on all RP/RDP baskets (general_purpose, restricted_purpose, unlimited_conditional, categorical) — set from SSoT seed data, excluded from extraction prompts
+- Polymorphic fetch query: single query returns all entities + children + annotations + links
+- **Reallocation graph edges**: `basket_reallocates_to` typed relations with `capacity_effect` attribute
+- **Cross-covenant wiring**: `investment_provision` + `general_investment_basket` auto-created
+- **Capacity classification**: `capacity_category` on all RP/RDP baskets (SSoT seed data)
+- **`shares_capacity_pool` relation**: absence-signal schema — baskets NOT linked share separate capacity
+- **`no_worse_is_uncapped` boolean**: extracted on `ratio_basket`, drives Q6 synthesis improvement
 - Entity booleans endpoint for frontend migration off concept_applicability
 
-### Database State (Duck Creek, last re-extracted 2026-03-20)
-- **5 `basket_reallocates_to` edges** with section_reference and reallocation_amount_usd ($130M each)
+### Database State (Duck Creek, last re-extracted 2026-03-23)
+- **5 `basket_reallocates_to` edges** with `capacity_effect: "additive"`, section_reference, reallocation_amount_usd ($130M each)
 - **1 `investment_provision`** (87852625_investment) with `general_investment_basket` ($130M)
 - **13 baskets** with correct `capacity_category` labels
-- Links visible in polymorphic fetch: general_rp_basket and general_rdp_basket show links to each other and to general_investment_basket
+- **`no_worse_is_uncapped: true`** on ratio_basket
+- No `shares_capacity_pool` instances (correct — Duck Creek baskets are separate pools)
 
 ### Completed Phases
 
-**Schema Migration (CC Prompt 1 of 3)** ✅
+**Schema Migration (CC Prompt 1 of 3)** completed
 - Abstract parent `provision_has_extracted_entity` with 12 child relations
 
-**Polymorphic Fetch Read Path (CC Prompt 2 of 3)** ✅
+**Polymorphic Fetch Read Path (CC Prompt 2 of 3)** completed
 - Single `_FETCH_QUERY` in `graph_traversal.py`, includes links subquery for `basket_reallocates_to`
 
-**RP Analytical Functions (Phase 4)** ✅
+**RP Analytical Functions (Phase 4)** completed
 - 4 functions: `blocker_binding_gap_evidence`, `blocker_exception_swallow_evidence`, `unsub_distribution_evidence`, `pathway_chain_summary`
 
-**Prompt 6a: Reallocation Graph Edge Schema** ✅
+**Prompt 6a: Reallocation Graph Edge Schema** completed
 - Expanded `basket_reallocates_to` with 8 owned attributes (amount, grower_pct, reduces_source, dollar_for_dollar, while_outstanding, section_reference, source_page, source_text)
 - Added `investment_provision sub provision`
-- Added `cross_covenant_mapping` entity (SSoT for basket→provision type mapping)
-- New attributes: `reallocation_grower_pct`, `basket_type_name`, `provision_type_name`, `mapping_id`
+- Added `cross_covenant_mapping` entity (SSoT for basket->provision type mapping)
 
-**Prompt 6b: Extraction Chain — Template Expansion + Wiring** ✅
+**Prompt 6b: Extraction Chain — Template Expansion + Wiring** completed
 - 3 SSoT introspection methods: `_get_basket_subtype_names()`, `_load_cross_covenant_mappings()`, `_get_relation_attr_types()`
-- Template variable expansion: `{basket_subtypes}` in extraction prompts → comma-separated list from schema
+- Template variable expansion: `{basket_subtypes}` in extraction prompts -> comma-separated list from schema
 - `wire_reallocation_edges()` — post-extraction step creates `basket_reallocates_to` relations
 - Cross-covenant provision/basket creation via `_ensure_cross_provision()` / `_ensure_cross_basket()`
-- Cleanup handles investment provision data
 
-**Prompt 7: Capacity Classification** ✅
+**Prompt 7: Capacity Classification** completed
 - `capacity_category` attribute on `rp_basket` and `rdp_basket` abstracts
 - `basket_capacity_class` seed entity (15 classifications)
 - `_load_capacity_classifications()` loader, auto-set after entity creation
 - `capacity_category` excluded from extraction prompts (SSoT-only field)
-- `reallocation_amount_usd` marked REQUIRED in `rp_el_reallocations` extraction prompt
-- Fixed `_ensure_cross_provision` (removed non-existent `provision_type` attr)
-- Fixed `_ensure_cross_basket` (use specific provision_type in match, not `isa provision`)
-- `seed_cross_covenant_mappings.tql` and `seed_capacity_classifications.tql` added to `init_schema.py`
 - Rule 7(f) in synthesis prompt: capacity aggregation by category
 
-### Eval Results (Post Prompt 7)
+**Prompt 7b: capacity_effect + System Prompt Cleanup** completed
+- Added `capacity_effect` attribute to `basket_reallocates_to` relation in schema
+- Value is `"additive"` — signals that reallocation adds capacity to target, does not share a pool
+- Cleaned up hardcoded system prompt text in `deals.py` — removed redundant category explanations
+- Rule 7(g) added then reverted (was not effective enough; see Q5 regression)
+
+**Prompt 8: shares_capacity_pool + no_worse_is_uncapped** completed
+- Added `shares_capacity_pool` relation to schema — `rp_basket` plays `pool_member`
+- Designed as **absence signal**: if baskets are NOT linked, their capacity is separate/additive
+- Duck Creek has no `shares_capacity_pool` instances (correct — 3 general baskets are separate pools)
+- Added `no_worse_is_uncapped` boolean attribute on `ratio_basket`
+- New ontology question `rp_g5b` in `seed_new_questions_008.tql` (Category G)
+- Extraction now captures whether the no-worse test is uncapped
+- Duck Creek extracts `no_worse_is_uncapped: true` (correct)
+
+### Eval Results (Post Prompt 7b)
 
 | Q# | Gold | Result | Notes |
 |----|------|--------|-------|
-| Q1 | Greatest of 3 tests, starts fiscal quarter of closing | ✅ Correct | |
-| Q2 | Yes, under 6.06(p) categorical carve-out | ✅ Correct | |
-| Q3 | Yes, Investment 6.03(y) + RDP 6.09(a) reallocate to 6.06(j) | ✅ Correct data, wrong conclusion | Claude sees typed edges but says "practical maximum is $130M, not a multiple" |
-| Q4 | Yes, Retained Asset Sale Proceeds build Cumulative Amount | ✅ Correct | |
-| Q5 | $520M (4x$130M) | ⚠️ Data correct, synthesis wrong | Claude sees all 4 $130M components but says "these share a pool — cannot be stacked" |
-| Q6 | Yes, via ratio basket 6.06(o) no-worse test | ⚠️ Partially correct | Gets to right answer via no-worse test but hedges |
+| Q1 | Greatest of 3 tests, starts fiscal quarter of closing | Pass | |
+| Q2 | Yes, under 6.06(p) categorical carve-out | Pass | |
+| Q3 | Yes, Investment 6.03(y) + RDP 6.09(a) reallocate to 6.06(j) | Pass | Correctly identifies reallocation sources and amounts |
+| Q4 | Yes, Retained Asset Sale Proceeds build Cumulative Amount | Pass | |
+| Q5 | $520M (4x$130M) | Regressed to ~$390M | Claude sees reallocation as additive (~$390M) but still treats RP+builder starter as shared |
+| Q6 | Yes, via ratio basket 6.06(o) no-worse test | Partially correct | Says "no" initially, then backtracks to "may be permitted"; hedges heavily |
 
-### THE OPEN PROBLEM: Q3/Q5 Synthesis
+### Eval Results (Post Prompt 8)
+
+| Q# | Gold | Result | Notes |
+|----|------|--------|-------|
+| Q1 | Greatest of 3 tests, starts fiscal quarter of closing | Pass | |
+| Q2 | Yes, under 6.06(p) categorical carve-out | Pass | |
+| Q3 | Yes, Investment 6.03(y) + RDP 6.09(a) reallocate to 6.06(j) | Pass | Correctly identifies bidirectional reallocation |
+| Q4 | Yes, Retained Asset Sale Proceeds build Cumulative Amount | Pass | |
+| Q5 | $520M (4x$130M) | **Regressed to ~$150M** | Claude says "General RP / Builder Starter: $130M (shared across covenants)" — treats all 3 baskets as one pool |
+| Q6 | Yes, via ratio basket 6.06(o) no-worse test | **Improved** | Now says "Yes" with clear reasoning: uncapped no-worse test, negative EBITDA removal improves leverage |
+
+### THE OPEN PROBLEM: Q5 Synthesis ($150M instead of $520M)
 
 **The data pipeline is correct.** Claude receives:
-- `general_rp_basket` with 4 `basket_reallocates_to` links (to/from rdp and investment), each with `reallocation_amount_usd: 130000000` and `section_reference`
+- `general_rp_basket` with 4 `basket_reallocates_to` links, each with `capacity_effect: "additive"` and `reallocation_amount_usd: 130000000`
 - `general_rdp_basket` with similar links
 - `general_investment_basket` visible via links with `basket_amount_usd: 130000000`
-- All baskets have correct `capacity_category = "general_purpose"`
-- Flat `basket_reallocation` entities also present (legacy, 5 of them) with `reduces_source_basket: true`
+- All baskets have `capacity_category = "general_purpose"`
+- No `shares_capacity_pool` instances linking them (absence = separate pools)
+- Reallocation edges have `reduces_source_basket: true` and `reduction_is_dollar_for_dollar: true`
 
-**Claude's error:** It reads `reduces_source_basket: true` and `reduction_is_dollar_for_dollar: true` on the edge relation_attributes and concludes the baskets share a single pool. In reality, each basket is a SEPARATE pool sized at $130M, and reallocation is an *election* that moves capacity from one covenant to another — additive for dividend purposes.
+**Claude's persistent error:** Despite `capacity_effect: "additive"` on edges and the absence of `shares_capacity_pool`, Claude reads `reduces_source_basket: true` / `reduction_is_dollar_for_dollar: true` and concludes the baskets share a single pool of $130M. In reality:
+- Each basket (RP, RDP, Investment) is a SEPARATE pool sized at $130M
+- Reallocation is an ELECTION that moves capacity from one covenant to another
+- "Dollar-for-dollar reduction" means the source loses what the target gains — it does NOT mean they share capacity
+- The builder basket starter ($130M) is ALSO separate from the general RP basket
+- Correct total: $130M (starter) + $130M (general RP) + $130M (RDP reallocation) + $130M (Investment reallocation) = $520M
 
-**What NOT to do:** Do not add more rules to the Python synthesis prompt (`deals.py`). The user explicitly rejected this approach.
+**What was tried and did not work:**
+- Rule 7(g) in synthesis prompt about reallocation = additive capacity (committed then reverted — Claude ignored it)
+- `capacity_effect: "additive"` attribute on edges (Claude still overweights `reduces_source_basket`)
+- `shares_capacity_pool` absence signal (Claude does not reason about absence of relations)
 
-**Possible approaches (not yet attempted):**
-- Add a TypeDB analytical function that computes total reallocation capacity
-- Add a computed finding in `_fetch_computed_findings()` that pre-calculates the $520M total
-- Modify the `basket_reallocation` flat entity to include a field explaining additivity
-- Remove `reduces_source_basket` from the `basket_reallocates_to` relation (it confuses Claude)
+**What NOT to do:** The user has not rejected adding more synthesis rules, but simple rule additions have proven insufficient. The problem is that Claude's reading of `reduces_source_basket: true` creates a strong prior toward "shared pool" that overrides explicit contrary signals.
+
+**Possible next steps:**
+- Stronger, more explicit rule 7(g) that specifically addresses the "dollar-for-dollar reduction means source LOSES capacity, not shared pool" distinction
+- Pre-computed finding in `_fetch_computed_findings()` that calculates $520M total and presents it as fact
+- Remove `reduces_source_basket` from the context entirely (it confuses Claude more than it helps)
+- Add a `capacity_is_separate: true` boolean directly on baskets
 
 ### Known Issues
 
 | Issue | Severity | Notes |
 |---|---|---|
-| Q3/Q5 synthesis treats reallocation as shared pool | HIGH | Data is correct; Claude interpretation is wrong. See "THE OPEN PROBLEM" above |
+| Q5 synthesis treats reallocation as shared pool ($150M) | HIGH | Data correct; Claude interpretation wrong. See "THE OPEN PROBLEM" above |
+| Q6 improved but conclusion is hedged | LOW | Says "may be permitted" and "potentially yes" instead of definitive "yes" |
 | Old individual fetcher functions still in graph_reader.py | CLEANUP | 10 functions, only `fetch_dividend_capacity` still used |
 | J.Crew Tier 3 prompt too long (212K > 200K tokens) | ERROR | Need to trim context or split extraction |
-| 14 of 15 capacity classifications loaded (unsub_distribution_basket may be missing) | LOW | Check `_load_multi_insert_file` for edge case |
+
+---
+
+## Key Decisions Made in Prompts 7b-8
+
+1. **`capacity_effect` on edges, not baskets**: The `capacity_effect` attribute lives on `basket_reallocates_to` relation, not on the baskets themselves. Value `"additive"` means reallocation adds to target capacity.
+
+2. **`shares_capacity_pool` as absence signal**: Rather than marking every basket pair as "separate", the relation exists only when baskets DO share a pool. Absence of the relation means separate capacity. This is a more natural graph modeling pattern but Claude struggles to reason about absence.
+
+3. **`no_worse_is_uncapped` as extracted boolean**: Rather than relying on Claude to infer uncapped-ness from the contract text during synthesis, we extract it as a boolean during the extraction phase. This gives synthesis a clear signal.
+
+4. **Rule 7(g) reverted**: The initial attempt at a synthesis rule about additive reallocation was committed then reverted because Claude ignored it in favor of its own reading of `reduces_source_basket`.
+
+5. **System prompt cleanup**: Removed hardcoded category name explanations from the synthesis prompt in `deals.py` — these were SSoT violations that duplicated information already available from TypeDB.
 
 ---
 
@@ -149,8 +197,8 @@ ALL extracted data flows through exactly one of:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `extraction.py` | ~2,900 | 2-stage extraction pipeline: PDF → RP universe → V4 entities |
-| `graph_storage.py` | ~2,200 | Write all 3 channels to TypeDB. Schema introspection. **New:** `wire_reallocation_edges()`, `_load_capacity_classifications()`, `_get_basket_subtype_names()`, `_load_cross_covenant_mappings()`, `_get_relation_attr_types()` |
+| `extraction.py` | ~2,900 | 2-stage extraction pipeline: PDF -> RP universe -> V4 entities |
+| `graph_storage.py` | ~2,200 | Write all 3 channels to TypeDB. Schema introspection. Includes `wire_reallocation_edges()`, `_load_capacity_classifications()`, `_get_basket_subtype_names()`, `_load_cross_covenant_mappings()`, `_get_relation_attr_types()` |
 | `graph_reader.py` | ~1,200 | Read entities from TypeDB. Legacy fetchers (being replaced) |
 | `graph_traversal.py` | ~370 | **Entry point for Q&A context.** Computed findings + polymorphic JSON fetch with links |
 | `topic_router.py` | ~390 | Route questions to TypeDB categories (SSoT) |
@@ -167,38 +215,37 @@ ALL extracted data flows through exactly one of:
 
 | File | Purpose |
 |------|---------|
-| `schema_unified.tql` | **THE schema** (~1010 lines, 80 entities, 27 relations) |
-| `migration_006_reallocation_graph.tql` | P6a migration (for reference, not used by init_schema) |
-| `seed_cross_covenant_mappings.tql` | SSoT: basket_type → provision_type (1 mapping) |
-| `seed_capacity_classifications.tql` | SSoT: basket_type → capacity_category (15 mappings) |
+| `schema_unified.tql` | **THE schema** (~1010 lines, 80+ entities, 27+ relations) |
+| `seed_cross_covenant_mappings.tql` | SSoT: basket_type -> provision_type (1 mapping) |
+| `seed_capacity_classifications.tql` | SSoT: basket_type -> capacity_category (15 mappings) |
 | `seed_entity_list_questions.tql` | Entity-list extraction questions incl. `rp_el_reallocations` with `{basket_subtypes}` template |
+| `seed_new_questions_008.tql` | Prompt 8: `rp_g5b` question for `no_worse_is_uncapped` (Category G) |
 
 ### Scripts (`app/scripts/`)
 
 | File | Purpose |
 |------|---------|
-| `init_schema.py` | **THE single entry point for all DB seeding.** Now loads cross_covenant_mappings + capacity_classifications |
-| `migrate_006_reallocation.py` | P6a migration (ran once, kept for reference) |
-| `verify_006.py` | Verify P6a schema migration |
-| `verify_006b.py` | Verify P6b extraction chain methods |
-| `verify_006c_edges.py` | Verify reallocation edges in TypeDB |
+| `init_schema.py` | **THE single entry point for all DB seeding.** Loads all seed files in order including cross_covenant_mappings, capacity_classifications, and seed_new_questions_008 |
 
 ---
 
 ## Entity Hierarchy
 
-### RP Baskets (7 subtypes of `rp_basket`) → `provision_has_basket`
+### RP Baskets (7 subtypes of `rp_basket`) -> `provision_has_basket`
 builder_basket, ratio_basket, general_rp_basket, management_equity_basket, tax_distribution_basket, holdco_overhead_basket, equity_award_basket
 
-**New:** `general_investment_basket` sub `rp_basket` — cross-covenant basket, created by wiring step, linked to `investment_provision`
+**Also:** `general_investment_basket` sub `rp_basket` — cross-covenant basket, created by wiring step, linked to `investment_provision`
 
-### RDP Baskets (5 subtypes of `rdp_basket`) → `provision_has_rdp_basket`
+### RDP Baskets (5 subtypes of `rdp_basket`) -> `provision_has_rdp_basket`
 refinancing_rdp_basket, general_rdp_basket, ratio_rdp_basket, builder_rdp_basket, equity_funded_rdp_basket
 
 ### Reallocation Graph (`basket_reallocates_to`)
-Typed edges between basket entities. Each edge owns: `reallocation_amount_usd`, `reallocation_grower_pct`, `reduces_source_basket`, `reduction_is_dollar_for_dollar`, `reduction_while_outstanding_only`, `section_reference`, `source_page`, `source_text`.
+Typed edges between basket entities. Each edge owns: `reallocation_amount_usd`, `reallocation_grower_pct`, `reduces_source_basket`, `reduction_is_dollar_for_dollar`, `reduction_while_outstanding_only`, `section_reference`, `source_page`, `source_text`, `capacity_effect`.
 
-Duck Creek has 5 edges: RP↔RDP, RP↔Investment, RDP↔Investment (bidirectional minus one direction).
+Duck Creek has 5 edges, all with `capacity_effect: "additive"`.
+
+### Capacity Pool (`shares_capacity_pool`)
+Relation with role `pool_member` played by `rp_basket`. Used as an **absence signal**: baskets NOT linked by this relation have separate, additive capacity. Duck Creek has no instances (correct).
 
 ### Capacity Classification (`capacity_category` on rp_basket/rdp_basket)
 - `general_purpose`: builder_basket, general_rp_basket, general_rdp_basket, general_investment_basket, builder_rdp_basket
@@ -207,8 +254,8 @@ Duck Creek has 5 edges: RP↔RDP, RP↔Investment, RDP↔Investment (bidirection
 - `categorical`: unsub_distribution_basket
 
 ### Cross-Covenant SSoT Entities
-- `cross_covenant_mapping`: basket_type_name → provision_type_name (e.g., general_investment_basket → investment_provision)
-- `basket_capacity_class`: basket_type_name → capacity_category (15 mappings)
+- `cross_covenant_mapping`: basket_type_name -> provision_type_name (e.g., general_investment_basket -> investment_provision)
+- `basket_capacity_class`: basket_type_name -> capacity_category (15 mappings)
 
 ### Abstract Parent
 All 12 entity-bearing relations sub `provision_has_extracted_entity` with role alias `as extracted`.
@@ -219,24 +266,24 @@ All 12 entity-bearing relations sub `provision_has_extracted_entity` with role a
 
 ```
 User question
-    ↓
+    |
 TopicRouter: route to categories (SSoT from TypeDB)
-    ↓
+    |
 get_rp_entities(deal_id, trace):
-    ├── Section 1: Computed Findings (analytical functions)
-    │   ├── dividend_capacity_components()
-    │   ├── blocker_binding_gap_evidence()
-    │   ├── blocker_exception_swallow_evidence()
-    │   ├── unsub_distribution_evidence()
-    │   └── pathway_chain_summary()
-    │
-    └── Section 2: Supporting Entity Data (polymorphic fetch)
-        └── Single TypeDB fetch query → JSON array of all entities
+    +-- Section 1: Computed Findings (analytical functions)
+    |   +-- dividend_capacity_components()
+    |   +-- blocker_binding_gap_evidence()
+    |   +-- blocker_exception_swallow_evidence()
+    |   +-- unsub_distribution_evidence()
+    |   +-- pathway_chain_summary()
+    |
+    +-- Section 2: Supporting Entity Data (polymorphic fetch)
+        +-- Single TypeDB fetch query -> JSON array of all entities
             with attributes, annotations, children, AND links
-            (basket_reallocates_to edges with relation_attributes)
-    ↓
+            (basket_reallocates_to edges with relation_attributes including capacity_effect)
+    |
 Claude synthesis (Opus 4.5) with system rules 7(a-f) + entity context
-    ↓
+    |
 Answer with citations + evidence block
 ```
 
@@ -251,8 +298,16 @@ Answer with citations + evidence block
 | Re-extract (from cached RP universe) | `POST /api/deals/87852625/re-extract` |
 | Full extract (reads PDF, ~$6, ~8min) | `POST /api/deals/87852625/extract` |
 | Check health | `GET /health` |
-| Verify edges | `railway ssh --service ValenceV3 -- python -m app.scripts.verify_006c_edges` |
-| Verify capacity methods | `railway ssh --service ValenceV3 -- python -m app.scripts.verify_006b` |
+
+---
+
+## Gotchas for Next Session
+
+1. **Do NOT re-extract Duck Creek** — just done 2026-03-23 (~$0.10). Data is correct; the problem is synthesis.
+2. **Schema is fresh** — `init_schema --force` was run. No need to reseed unless changing schema.
+3. **Eval files**: `eval_post_prompt7b.txt` and `eval_post_prompt8.txt` in repo root (not committed).
+4. **Rule 7(g) was reverted** — commit `9a72d08`. The rule existed briefly in `9af02fd` but was backed out because Claude ignored it.
+5. **`capacity_effect` is stored but ignored by Claude** — the attribute exists on edges and is set to `"additive"` but Claude still overweights `reduces_source_basket: true`.
 
 ---
 
@@ -271,6 +326,8 @@ Types: schema, extraction, api, types, data, fix, refactor
 ## Recent Commit History
 
 ```
+736cb40 schema: add capacity_effect attribute + system prompt hardcoding cleanup
+9fb1a20 docs: update HANDOFF.md and CLAUDE.md for P6/P7 state
 9a72d08 Revert "api: add rule 7(g) — reallocation = additive capacity"
 9af02fd api: add rule 7(g) — reallocation = additive capacity
 7724265 fix: exclude capacity_category from extraction prompts and entity storage
@@ -278,19 +335,14 @@ b9a4b8b schema: add capacity_category classification + fix cross-covenant wiring
 e25e387 test: add migration 006c edge verification script
 637a22a fix: add typedb_client.connect() to verify_006b script
 810ca38 extraction: add reallocation graph edge wiring pipeline
-55fa9ca test: add migration 006 verification script
-8fa1294 fix: use TypeDB 3.x delete syntax ($old of $q) for attribute removal
-ab1a883 fix: remove redundant deal_has_provision play from investment_provision
-4aba043 fix: use single idempotent define block instead of define+redefine split
-f32d4df schema: migration 006 — reallocation graph edges
 ```
 
 ---
 
 ## Pending Work
 
-### PRIORITY: Fix Q3/Q5 synthesis (reallocation = additive capacity)
-The data pipeline delivers correct typed edges with $130M amounts. Claude misinterprets `reduces_source_basket: true` as evidence of shared capacity. Need an approach that does NOT involve adding more rules to the Python synthesis prompt in `deals.py`.
+### PRIORITY: Fix Q5 synthesis (reallocation = additive capacity, target $520M)
+The data pipeline delivers correct typed edges with $130M amounts, `capacity_effect: "additive"`, and no `shares_capacity_pool` links. Claude still says "$130M shared across covenants" instead of $520M (4 x $130M). Most promising approach: pre-computed finding in `_fetch_computed_findings()` that calculates and presents the total as authoritative fact, or removing `reduces_source_basket` from the context to eliminate the confusing signal.
 
 ### Cleanup
 - Delete 10 unused individual fetcher functions from `graph_reader.py`
@@ -299,7 +351,7 @@ The data pipeline delivers correct typed edges with $130M amounts. Claude misint
 ### Other
 - J.Crew Tier 3 prompt too long (212K > 200K tokens) — trim or split
 - Frontend integration: wire entity_booleans into UI
-- Verify all 15 capacity classifications loaded (check unsub_distribution_basket)
+- Strengthen Q6 synthesis to be definitive "yes" instead of hedged "may be permitted"
 
 ---
 
@@ -320,11 +372,11 @@ The data pipeline delivers correct typed edges with $130M amounts. Claude misint
 ## Test Deal
 
 Duck Creek (deal_id: `87852625`, provision_id: `87852625_rp`).
-Last extracted: 2026-03-20 — 47 entities, 175 scalar answers, 5 reallocation edges.
+Last extracted: 2026-03-23 — 66 entities, 176 scalar answers, 5 reallocation edges.
 
 ## Eval Files (in repo root, not committed)
 
+- `eval_post_prompt7b.txt` — Post P7b eval (Q5 at ~$390M, Q6 hedged)
+- `eval_post_prompt8.txt` — Post P8 eval (Q5 regressed to $150M, Q6 improved)
 - `eval_post_prompt6.txt` / `eval_post_prompt6_full.json` — Post P6 eval (Q5 hit $520M)
-- `eval_post_prompt7.txt` / `eval_post_prompt7_full.json` — Post P7 eval (capacity categories correct, Q5 regressed)
-- `eval_post_prompt7_categories.txt` — Capacity category verification
-- `debug_links_context.txt` — What Claude sees in entity context (links, relation_attributes)
+- `eval_post_prompt7.txt` / `eval_post_prompt7_full.json` — Post P7 eval (capacity categories)
