@@ -1,7 +1,7 @@
 # CLAUDE.md — Valence V3
 
 > Auto-loaded by Claude Code at session start. Read this first.
-> For full project context, see HANDOFF.md.
+> Session handoff context: @HANDOFF.md
 
 ## CRITICAL WARNINGS
 
