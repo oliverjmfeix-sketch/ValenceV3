@@ -2326,6 +2326,26 @@ When answering:
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
 {rp_specific_rules}
+## SELF-VERIFICATION
+
+Before finalizing your answer, verify:
+- If you calculated a total, re-derive it: list each component, its dollar amount, and
+  its capacity_category. Sum ONLY the general_purpose components. State the count and
+  the multiplication (e.g., "4 baskets × $130M = $520M"). If the sum doesn't match
+  your stated total, fix it.
+- If you labeled a basket as restricted_purpose or categorical but included it in a
+  general_purpose total, remove it from the total.
+- If your reasoning chain reaches a definitive conclusion but your summary uses hedge
+  language ("may", "potentially", "likely"), align the summary to the conclusion.
+  Extracted boolean attributes that are true are findings, not possibilities.
+- If you stated that baskets "share a pool" or that reallocation "does not add capacity",
+  check for capacity_effect on the reallocation edges and shares_capacity_pool links
+  between the baskets. If capacity_effect = "additive" and no shares_capacity_pool
+  link exists, revise: each basket is independent capacity.
+- Check the SUPPLEMENTARY ENTITIES section for any data that qualifies, contradicts,
+  or adds important detail to your answer. If supplementary entities contain sweep
+  tiers, thresholds, or conditions relevant to your answer, incorporate them.
+
 ## FORMATTING
 
 - Use **bold** for key terms and defined terms
@@ -2365,36 +2385,26 @@ This block MUST appear at the very end of your response."""
             all_entities = []
             logger.warning("Could not parse entity context as JSON for filtering")
 
-        filter_prompt = """You are a legal data analyst. Given a question about a credit agreement and a set of extracted entities, identify which entity types are needed to answer the question.
+        filter_prompt = """You are a legal data analyst. Given a question about a credit agreement and a set of extracted entities, classify each entity into one of three categories:
 
-## PRIORITY
+PRIMARY — Core entities needed to directly answer the question. These form the basis of the analysis. Be precise: for a capacity question, PRIMARY includes all baskets and reallocation edges. For a ratio test question, PRIMARY includes the ratio basket. For a specific covenant question, PRIMARY includes the directly governing entity.
 
-A correct, complete answer is far more important than a small context window.
-Including an extra entity costs almost nothing. Missing a relevant entity produces a wrong answer.
-ERR HEAVILY ON THE SIDE OF INCLUSION.
+SUPPLEMENTARY — Entities that might add detail, qualifications, edge cases, or corrections to the answer. Include entities that provide related context even if not directly cited — for example, sweep tiers and de minimis thresholds for asset sale questions, or the J.Crew blocker for unrestricted subsidiary questions.
 
-## RULES
+EXCLUDE — Entities that are clearly irrelevant to this specific question. Only exclude entities you are certain have no bearing on the answer.
 
-1. Include every entity whose attributes or relationships MIGHT be needed to answer the
-   question, even if relevance is indirect or conditional.
-2. Include reallocation edges (basket_reallocates_to links) if the question involves
-   capacity, amounts, baskets, or cross-covenant analysis.
-3. Include parent entities if their children are relevant (e.g., include builder_basket
-   if builder_basket_source children are needed).
-4. Include entities that provide CONTEXT for the answer even if not directly cited —
-   for example, sweep tiers and de minimis thresholds for asset sale questions,
-   or all basket types for any capacity question.
-5. For capacity/total questions, include ALL baskets, ALL reallocation edges, ALL
-   sweep tiers, and ALL thresholds.
-6. If the question could touch multiple covenant areas, include entities from ALL
-   potentially relevant areas.
-7. If unsure whether an entity is relevant, INCLUDE IT.
+When in doubt between PRIMARY and SUPPLEMENTARY, choose PRIMARY.
+When in doubt between SUPPLEMENTARY and EXCLUDE, choose SUPPLEMENTARY.
 
 ## OUTPUT FORMAT
 
-Return ONLY a JSON array of entity type_name strings. No explanation.
+Return ONLY a JSON object with two arrays:
 
-Example: ["ratio_basket", "general_rp_basket", "builder_basket", "general_rdp_basket"]"""
+{"primary": ["type_name_1", "type_name_2"], "supplementary": ["type_name_3", "type_name_4"]}
+
+Use the entity's type_name field. For linked entities that appear only in another entity's links array, include the linked type_name.
+
+Return ONLY the JSON object. No explanation."""
 
         filter_start = _time.time()
         filter_response = client.messages.create(
@@ -2405,34 +2415,48 @@ Example: ["ratio_basket", "general_rp_basket", "builder_basket", "general_rdp_ba
         )
         filter_duration_ms = (_time.time() - filter_start) * 1000
 
-        # Parse filter response
+        # Parse two-tier filter response
         filter_text = filter_response.content[0].text.strip()
         if filter_text.startswith("```"):
             filter_text = filter_text.strip("`").strip("json").strip()
         try:
-            relevant_types = json.loads(filter_text)
+            tiers = json.loads(filter_text)
+            primary_types = tiers.get("primary", [])
+            supplementary_types = tiers.get("supplementary", [])
         except json.JSONDecodeError:
-            logger.warning(f"Filter response not valid JSON, using all entities: {filter_text[:200]}")
-            relevant_types = [e.get("type_name", "") for e in all_entities]
+            logger.warning(f"Filter response not valid JSON, using all as primary: {filter_text[:200]}")
+            primary_types = [e.get("type_name", "") for e in all_entities]
+            supplementary_types = []
 
-        relevant_set = set(relevant_types)
+        primary_set = set(primary_types)
+        supplementary_set = set(supplementary_types)
 
-        # Filter entities: keep if type_name matches OR has links to relevant types
-        filtered_entities = []
+        # Split entities into tiers
+        primary_entities = []
+        supplementary_entities = []
         for entity in all_entities:
             type_name = entity.get("type_name", "")
-            if type_name in relevant_set:
-                filtered_entities.append(entity)
-            else:
-                # Include if this entity has links to/from relevant types
-                links = entity.get("links", [])
-                if any(lnk.get("linked_type") in relevant_set for lnk in links):
-                    filtered_entities.append(entity)
+            links = entity.get("links", [])
+            linked_types = {lnk.get("linked_type") for lnk in links}
 
-        # Build filtered context with same format
-        filtered_context = header + "\n\n" + json.dumps(filtered_entities, indent=2)
+            if type_name in primary_set:
+                primary_entities.append(entity)
+            elif type_name in supplementary_set:
+                supplementary_entities.append(entity)
+            elif linked_types & primary_set:
+                primary_entities.append(entity)
+            elif linked_types & supplementary_set:
+                supplementary_entities.append(entity)
+
+        # Build tiered context
+        tiered_context = header + "\n\n"
+        tiered_context += "## PRIMARY ENTITIES\nBase your core analysis on these entities.\n\n"
+        tiered_context += json.dumps(primary_entities, indent=2)
+        tiered_context += "\n\n## SUPPLEMENTARY ENTITIES\nCheck these for additional detail, qualifications, or corrections during self-verification.\n\n"
+        tiered_context += json.dumps(supplementary_entities, indent=2)
 
         # Trace filter stage
+        excluded_count = len(all_entities) - len(primary_entities) - len(supplementary_entities)
         if collector:
             collector.filter_model = "claude-sonnet-4-20250514"
             collector.filter_input_tokens = filter_response.usage.input_tokens
@@ -2442,20 +2466,23 @@ Example: ["ratio_basket", "general_rp_basket", "builder_basket", "general_rdp_ba
                 + filter_response.usage.output_tokens * 15.0 / 1_000_000
             )
             collector.filter_duration_ms = filter_duration_ms
-            collector.filter_entity_types = relevant_types
+            collector.filter_primary_types = primary_types
+            collector.filter_supplementary_types = supplementary_types
             collector.filter_total_entities = len(all_entities)
-            collector.filter_filtered_entities = len(filtered_entities)
+            collector.filter_primary_count = len(primary_entities)
+            collector.filter_supplementary_count = len(supplementary_entities)
+            collector.filter_excluded_count = excluded_count
 
-        logger.info(f"Entity filter: {len(all_entities)} total -> {len(filtered_entities)} filtered ({len(relevant_types)} types)")
+        logger.info(f"Entity filter: {len(all_entities)} total -> {len(primary_entities)} primary + {len(supplementary_entities)} supplementary ({excluded_count} excluded)")
 
-        # ── Stage 2: Synthesis (Opus) with filtered entities ──────────
+        # ── Stage 2: Synthesis (Opus) with tiered entities ──────────
         filtered_user_prompt = f"""## USER QUESTION
 
 {request.question}
 
 ## EXTRACTED ENTITY DATA FOR THIS DEAL
 
-{filtered_context}"""
+{tiered_context}"""
 
         claude_start = _time.time()
         response = client.messages.create(
@@ -2509,7 +2536,7 @@ Example: ["ratio_basket", "general_rp_basket", "builder_basket", "general_rdp_ba
             "data_source": "graph_entities",
             "entity_context": entity_context,
             "entity_context_chars": len(entity_context),
-            "filtered_entity_count": len(filtered_entities),
+            "filtered_entity_count": len(primary_entities) + len(supplementary_entities),
             "total_entity_count": len(all_entities),
             "model": model_used,
             "deal_id": deal_id,

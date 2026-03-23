@@ -53,9 +53,12 @@ class TraceCollector:
     filter_output_tokens: int = 0
     filter_cost_usd: float = 0.0
     filter_duration_ms: float = 0.0
-    filter_entity_types: List[str] = field(default_factory=list)
+    filter_primary_types: List[str] = field(default_factory=list)
+    filter_supplementary_types: List[str] = field(default_factory=list)
     filter_total_entities: int = 0
-    filter_filtered_entities: int = 0
+    filter_primary_count: int = 0
+    filter_supplementary_count: int = 0
+    filter_excluded_count: int = 0
 
     # Step 5+6: Claude synthesis
     claude_system_prompt: str = ""
@@ -127,8 +130,11 @@ class TraceCollector:
                 "cost_usd": round(self.filter_cost_usd, 4),
                 "duration_ms": round(self.filter_duration_ms, 1),
                 "total_entities": self.filter_total_entities,
-                "filtered_entities": self.filter_filtered_entities,
-                "entity_types": self.filter_entity_types,
+                "primary_count": self.filter_primary_count,
+                "supplementary_count": self.filter_supplementary_count,
+                "excluded_count": self.filter_excluded_count,
+                "primary_types": self.filter_primary_types,
+                "supplementary_types": self.filter_supplementary_types,
             } if self.filter_model else None,
             "step_5_6_claude_synthesis": {
                 "system_prompt": self.claude_system_prompt,
