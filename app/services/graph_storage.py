@@ -42,6 +42,7 @@ class GraphStorage:
     _storage_value_type_cache: Optional[Dict[str, str]] = None
     _cross_covenant_cache: Optional[Dict[str, str]] = None
     _capacity_class_cache: Optional[Dict[str, str]] = None
+    _relation_config_cache: Optional[Dict[str, Dict]] = None
 
     @classmethod
     def _load_provenance_attrs(cls) -> set:
@@ -1130,55 +1131,205 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     # UNIFIED STORAGE — store_extraction()
     # ═══════════════════════════════════════════════════════════════════════════
 
-    # Parent resolution: relation_type → (parent_match_template, role_names)
-    # Used by _store_entity_list for multi-instance entities with complex parent chains
-    _RELATION_CONFIG = {
-        "provision_has_sweep_tier": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "tier"),
-        },
-        "provision_has_de_minimis": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "threshold"),
-        },
-        "provision_has_pathway": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "pathway"),
-        },
-        "provision_has_reallocation": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "reallocation"),
-        },
-        "provision_has_rdp_basket": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "rdp_basket"),
-        },
-        "provision_has_sweep_exemption": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("provision", "exemption"),
-        },
-        "has_amendment_threshold": {
-            "parent_match": '$prov isa rp_provision, has provision_id "{provision_id}";',
-            "roles": ("entity_with_threshold", "threshold"),
-        },
-        "blocker_has_exception": {
-            "parent_match": (
-                '$prov isa rp_provision, has provision_id "{provision_id}";'
-                '\n                (provision: $prov, blocker: $parent) isa provision_has_blocker;'
+    # ───────────────────────────────────────────────────────────────────────
+    # RELATION CONFIG — schema introspection (replaces hardcoded dict)
+    # ───────────────────────────────────────────────────────────────────────
+
+    # Infrastructure relations to exclude from Tier 3 discovery
+    _INFRA_RELATIONS = frozenset({
+        "provision_has_answer", "concept_applicability", "deal_has_provision",
+        "provision_cross_reference", "has_provenance", "answer_has_qualification",
+        "answer_has_citation", "category_has_question", "question_annotates_attribute",
+        "deal_has_document", "question_maps_concept",
+    })
+
+    @classmethod
+    def _build_relation_config(cls) -> Dict[str, Dict]:
+        """Introspect TypeDB schema to build relation storage config.
+
+        Discovers relations across 3 tiers:
+          Tier 1: provision_has_extracted_entity subs (provision → entity)
+          Tier 2: entity_has_child subs (entity → child, via provision)
+          Tier 3: other relations where a provision type plays a role
+
+        Returns: {relation_label: {parent_match_template, roles, parent_var}}
+        """
+        driver = typedb_client.driver
+        if not driver:
+            raise RuntimeError("Cannot build relation config — TypeDB not connected")
+
+        config: Dict[str, Dict] = {}
+        tx = driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            # ── Tier 1: provision_has_extracted_entity subs ─────────────
+            tier1_query = """
+                match
+                    relation $rel;
+                    $rel sub provision_has_extracted_entity;
+                    $rel relates $role;
+                    not { $rel label provision_has_extracted_entity; };
+                select $rel, $role;
+            """
+            tier1_rows = list(tx.query(tier1_query).resolve().as_concept_rows())
+
+            rel_roles: Dict[str, list] = {}
+            for row in tier1_rows:
+                rl = row.get("rel").as_relation_type().get_label()
+                ro = row.get("role").get_label()
+                ro = ro.split(":")[-1] if ":" in ro else ro
+                rel_roles.setdefault(rl, []).append(ro)
+
+            for rl, roles in rel_roles.items():
+                entity_roles = [r for r in roles if r not in ("provision", "extracted")]
+                if len(entity_roles) != 1:
+                    logger.warning(f"Tier 1 skip {rl}: unexpected roles {roles}")
+                    continue
+                config[rl] = {
+                    "parent_match_template": '$prov isa {prov_type}, has provision_id "{provision_id}";',
+                    "roles": ("provision", entity_roles[0]),
+                    "parent_var": "$prov",
+                }
+
+            logger.info(f"Tier 1 (provision_has_extracted_entity subs): {len(config)} relations")
+
+            # ── Tier 2: entity_has_child subs ──────────────────────────
+            tier2_query = """
+                match
+                    relation $rel;
+                    $rel sub entity_has_child;
+                    $rel relates $role;
+                    not { $rel label entity_has_child; };
+                select $rel, $role;
+            """
+            tier2_rows = list(tx.query(tier2_query).resolve().as_concept_rows())
+
+            child_rel_roles: Dict[str, list] = {}
+            for row in tier2_rows:
+                rl = row.get("rel").as_relation_type().get_label()
+                ro = row.get("role").get_label()
+                ro = ro.split(":")[-1] if ":" in ro else ro
+                child_rel_roles.setdefault(rl, []).append(ro)
+
+            tier2_count = 0
+            for rl, roles in child_rel_roles.items():
+                concrete_roles = [r for r in roles if r not in ("parent", "child")]
+                if len(concrete_roles) != 2:
+                    logger.warning(f"Tier 2 skip {rl}: expected 2 concrete roles, got {concrete_roles}")
+                    continue
+
+                # Find which Tier 1 relation has a matching entity role for one of these
+                parent_role = None
+                child_role = None
+                parent_provision_rel = None
+                for cr in concrete_roles:
+                    for cfg_rl, cfg in config.items():
+                        if cfg["roles"][1] == cr:
+                            parent_role = cr
+                            parent_provision_rel = cfg_rl
+                            break
+                    if parent_role:
+                        break
+
+                if not parent_role or not parent_provision_rel:
+                    logger.warning(f"Tier 2 skip {rl}: no Tier 1 parent found for roles {concrete_roles}")
+                    continue
+
+                child_role = [r for r in concrete_roles if r != parent_role][0]
+                prov_cfg = config[parent_provision_rel]
+                prov_entity_role = prov_cfg["roles"][1]
+
+                config[rl] = {
+                    "parent_match_template": (
+                        '$prov isa {prov_type}, has provision_id "{provision_id}";'
+                        f'\n                ({prov_cfg["roles"][0]}: $prov, {prov_entity_role}: $parent) isa {parent_provision_rel};'
+                    ),
+                    "roles": (parent_role, child_role),
+                    "parent_var": "$parent",
+                }
+                tier2_count += 1
+
+            logger.info(f"Tier 2 (entity_has_child subs): {tier2_count} relations")
+
+            # ── Tier 3: other relations where provision plays a role ───
+            # Catches has_amendment_threshold where provision plays entity_with_threshold
+            tier3_count = 0
+            for prov_type in ("rp_provision", "mfn_provision"):
+                tier3_query = f"""
+                    match
+                        relation $rel; $rel relates $prov_role;
+                        entity $pt; $pt label {prov_type}; $pt plays $prov_role;
+                        $rel relates $other_role;
+                        $prov_role != $other_role;
+                    select $rel, $prov_role, $other_role;
+                """
+                try:
+                    tier3_rows = list(tx.query(tier3_query).resolve().as_concept_rows())
+                except Exception as e:
+                    logger.warning(f"Tier 3 query failed for {prov_type}: {e}")
+                    continue
+
+                for row in tier3_rows:
+                    rl = row.get("rel").as_relation_type().get_label()
+                    if rl in config or rl in cls._INFRA_RELATIONS:
+                        continue
+                    # Already handled in Tier 1/2, or infrastructure
+                    pr = row.get("prov_role").get_label()
+                    pr = pr.split(":")[-1] if ":" in pr else pr
+                    er = row.get("other_role").get_label()
+                    er = er.split(":")[-1] if ":" in er else er
+
+                    # Skip abstract roles
+                    if er in ("extracted", "parent", "child"):
+                        continue
+
+                    config[rl] = {
+                        "parent_match_template": '$prov isa {prov_type}, has provision_id "{provision_id}";',
+                        "roles": (pr, er),
+                        "parent_var": "$prov",
+                    }
+                    tier3_count += 1
+
+            logger.info(f"Tier 3 (provision plays non-standard role): {tier3_count} relations")
+            logger.info(
+                f"Built relation config from schema: {len(config)} total — "
+                f"{sorted(config.keys())}"
+            )
+
+        except Exception as e:
+            logger.error(f"_build_relation_config failed: {e}")
+            raise
+        finally:
+            if tx.is_open():
+                tx.close()
+
+        return config
+
+    @classmethod
+    def _get_relation_config(cls, target_relation_type: str, provision_id: str) -> Optional[Dict]:
+        """Get storage config for a relation type via schema introspection.
+
+        Returns dict with keys: parent_match (formatted), roles, parent_var.
+        Replaces the hardcoded _RELATION_CONFIG dict.
+        """
+        if cls._relation_config_cache is None:
+            cls._relation_config_cache = cls._build_relation_config()
+
+        template = cls._relation_config_cache.get(target_relation_type)
+        if not template:
+            logger.error(f"No relation config found for {target_relation_type}")
+            return None
+
+        # Derive provision type from provision_id suffix
+        suffix = provision_id.rsplit("_", 1)[-1]  # "rp" or "mfn"
+        prov_type = f"{suffix}_provision"
+
+        return {
+            "parent_match": template["parent_match_template"].format(
+                prov_type=prov_type, provision_id=provision_id
             ),
-            "roles": ("blocker", "exception"),
-            "parent_var": "$parent",
-        },
-        "basket_has_source": {
-            "parent_match": (
-                '$prov isa rp_provision, has provision_id "{provision_id}";'
-                '\n                (provision: $prov, basket: $parent) isa provision_has_basket;'
-                '\n                $parent isa builder_basket;'
-            ),
-            "roles": ("basket", "source"),
-            "parent_var": "$parent",
-        },
-    }
+            "roles": template["roles"],
+            "parent_var": template.get("parent_var", "$prov"),
+        }
 
     # ═══════════════════════════════════════════════════════════════════════════
     # REALLOCATION GRAPH EDGE WIRING
@@ -1633,7 +1784,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         target_entity_type = q_meta["target_entity_type"]
         target_relation_type = q_meta["target_relation_type"]
 
-        config = self._RELATION_CONFIG.get(target_relation_type)
+        config = self._get_relation_config(target_relation_type, provision_id)
         if not config:
             logger.error(f"No relation config for {target_relation_type}")
             return 0
@@ -1770,8 +1921,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         attrs_str = ",\n                ".join(attrs)
 
-        # Build match clause
-        parent_match = config["parent_match"].format(provision_id=provision_id)
+        # Build match clause (parent_match is pre-formatted by _get_relation_config)
+        parent_match = config["parent_match"]
         roles = config["roles"]
         parent_var = config.get("parent_var", "$prov")
 

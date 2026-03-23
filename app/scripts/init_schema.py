@@ -105,6 +105,9 @@ CAPACITY_CLASSIFICATIONS_FILE = DATA_DIR / "seed_capacity_classifications.tql"
 # 17h. New questions for Prompt 8 (no_worse_is_uncapped)
 NEW_QUESTIONS_008_FILE = DATA_DIR / "seed_new_questions_008.tql"
 
+# 17i. MFN entity annotations (maps MFN entity attributes to ontology questions)
+MFN_ANNOTATIONS_FILE = DATA_DIR / "seed_mfn_annotations.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -487,6 +490,11 @@ def init_database():
         logger.info("\n17h. Loading seed_new_questions_008.tql...")
         if NEW_QUESTIONS_008_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_008_FILE)
+
+        # 17i. Load MFN entity annotations
+        logger.info("\n17i. Loading seed_mfn_annotations.tql...")
+        if MFN_ANNOTATIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_ANNOTATIONS_FILE)
 
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")

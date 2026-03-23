@@ -1,0 +1,176 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN Entity Attribute Annotations
+# Maps MFN entity attributes to their ontology questions via
+# question_annotates_attribute relations.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── mfn_exclusion (7 annotations) ─────────────────────────────────────────────
+# mfn_10: "Is acquisition debt excluded from MFN?"
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_type";
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_has_cap";
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_cap_usd";
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_cap_pct_ebitda";
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_conditions";
+
+match $q isa ontology_question, has question_id "mfn_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "excludes_from_mfn";
+
+# mfn_39: "Which loopholes or structural weaknesses exist?"
+match $q isa ontology_question, has question_id "mfn_39";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "can_stack_with_other_exclusions";
+
+# ── mfn_yield_definition (10 annotations) ─────────────────────────────────────
+# mfn_18: "Which yield components are included in MFN comparison?"
+
+match $q isa ontology_question, has question_id "mfn_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "defined_term";
+
+match $q isa ontology_question, has question_id "mfn_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_margin";
+
+# mfn_20: "Is the SOFR/LIBOR floor included in yield calculation?"
+match $q isa ontology_question, has question_id "mfn_20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_floor_benefit";
+
+# mfn_19: "Is OID included in yield calculation?"
+match $q isa ontology_question, has question_id "mfn_19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_oid";
+
+# mfn_21: "Are upfront fees included in yield calculation?"
+match $q isa ontology_question, has question_id "mfn_21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_upfront_fees";
+
+# mfn_18 again — these are yield component inclusions, not exclusions (mfn_22)
+match $q isa ontology_question, has question_id "mfn_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_commitment_fees";
+
+match $q isa ontology_question, has question_id "mfn_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "includes_other_fees";
+
+# mfn_23: "How is OID amortized for yield calculation?"
+match $q isa ontology_question, has question_id "mfn_23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "oid_amortization_method";
+
+# mfn_24: "What is the assumed OID amortization period (years)?"
+match $q isa ontology_question, has question_id "mfn_24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "oid_amortization_years";
+
+# mfn_25: "Is there a yield comparison methodology specified?"
+match $q isa ontology_question, has question_id "mfn_25";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "comparison_baseline";
+
+# ── mfn_sunset_provision (6 annotations) ──────────────────────────────────────
+
+# mfn_28: "Is there a sunset provision that terminates MFN?"
+match $q isa ontology_question, has question_id "mfn_28";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_exists";
+
+# mfn_29: "What is the sunset period in months?"
+match $q isa ontology_question, has question_id "mfn_29";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_period_months";
+
+# mfn_30: "What sunset type applies?"
+match $q isa ontology_question, has question_id "mfn_30";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_trigger_event";
+
+# mfn_32: "Does the sunset reset upon refinancing or repricing?"
+match $q isa ontology_question, has question_id "mfn_32";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_resets_on_refi";
+
+# mfn_31: "Is the sunset tied to the maturity date of existing term loans?"
+match $q isa ontology_question, has question_id "mfn_31";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_tied_to_maturity";
+
+# mfn_39: "Which loopholes or structural weaknesses exist?"
+match $q isa ontology_question, has question_id "mfn_39";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_timing_loophole";
+
+# ── mfn_freebie_basket (6 annotations) ────────────────────────────────────────
+# mfn_15: "Are there any other specific exclusions?" — freebie IS an exclusion mechanism
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "dollar_amount_usd";
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "ebitda_pct";
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "uses_greater_of";
+
+# mfn_39: "Which loopholes?" — stacking is a loophole
+match $q isa ontology_question, has question_id "mfn_39";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "stacks_with_general_basket";
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "general_basket_amount_usd";
+
+match $q isa ontology_question, has question_id "mfn_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_freebie_basket",
+    has target_attribute_name "total_mfn_exempt_capacity_usd";

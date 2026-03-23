@@ -1242,21 +1242,21 @@ entity mfn_freebie_basket,
 
 # ── MFN entity relations ─────────────────────────────────────────────────────
 
-relation provision_has_exclusion,
+relation provision_has_exclusion sub provision_has_extracted_entity,
     relates provision,
-    relates exclusion;
+    relates exclusion as extracted;
 
-relation provision_has_yield_def,
+relation provision_has_yield_def sub provision_has_extracted_entity,
     relates provision,
-    relates yield_def;
+    relates yield_def as extracted;
 
-relation provision_has_sunset,
+relation provision_has_sunset sub provision_has_extracted_entity,
     relates provision,
-    relates sunset;
+    relates sunset as extracted;
 
-relation provision_has_freebie,
+relation provision_has_freebie sub provision_has_extracted_entity,
     relates provision,
-    relates freebie;
+    relates freebie as extracted;
 
 
 ################################################################################
