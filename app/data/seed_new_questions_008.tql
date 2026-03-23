@@ -1,0 +1,26 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Prompt 8: New question for no_worse_is_uncapped (Category G)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_g5b",
+    has covenant_type "RP",
+    has question_text "Is the no-worse test uncapped — meaning any leverage level is permitted as long as pro forma leverage does not exceed the pre-transaction level?",
+    has answer_type "boolean",
+    has display_order 55,
+    has storage_value_type "boolean",
+    has extraction_prompt "Determine if the 'no worse' / 'no greater than' ratio test has NO separate cap above the absolute threshold. If the test says 'the greater of (x) [threshold] and (y) the ratio immediately prior to the transaction' — this IS uncapped (answer true) because ANY pre-transaction ratio works as the floor. If the test says 'provided the ratio does not exceed [specific higher number]' — this is CAPPED (answer false). The key question: is there a maximum ratio above which the no-worse test stops working, or does it work at any level?";
+
+match $q isa ontology_question, has question_id "rp_g5b";
+insert (question: $q) isa question_targets_field,
+    has target_field_name "no_worse_is_uncapped",
+    has target_entity_type "rp_provision";
+
+match $q isa ontology_question, has question_id "rp_g5b";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "no_worse_is_uncapped";
+
+match $cat isa ontology_category, has category_id "G";
+match $q isa ontology_question, has question_id "rp_g5b";
+insert (category: $cat, question: $q) isa category_has_question;

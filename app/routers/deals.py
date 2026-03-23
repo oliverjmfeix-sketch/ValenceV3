@@ -1789,12 +1789,12 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
        - Specific-purpose baskets — management equity, tax distributions, etc.
        - Basket stacking — can multiple baskets be combined?
 
-   (b) **THE "NO WORSE" TEST IS CRITICAL** — If the extracted data shows a "no worse"
-       ratio test exists (look for answers about "no worse" in the Ratio Basket
-       category), ALWAYS analyze whether the specific transaction would pass it.
-       Key insight: Disposing of a negative-EBITDA asset IMPROVES the leverage
-       ratio (consolidated EBITDA increases), so the "no worse" test may be
-       satisfied even at leverage levels above the absolute threshold.
+   (b) **PRO FORMA RATIO ANALYSIS** — When a question involves a specific transaction
+       at a stated leverage level, apply pro forma analysis: determine whether the
+       transaction increases or decreases each component of the leverage ratio
+       (numerator = debt, denominator = EBITDA) and state the directional conclusion.
+       Read the annotation text on each ratio basket attribute to understand what
+       conditions permit or restrict the transaction.
 
    (c) **PRO FORMA ANALYSIS** — When a question specifies a transaction (e.g.,
        "dividend a business division with $X EBITDA"), analyze the pro forma
@@ -1819,6 +1819,10 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
        - List "unlimited_conditional" baskets SEPARATELY with their tests.
        - List "categorical" baskets SEPARATELY.
        NEVER mix categories in the same total.
+       If two baskets are connected by a shares_capacity_pool link, they share a
+       single pool — count them ONCE at the larger cap. If NO shares_capacity_pool
+       link exists between baskets (check the links array), each general_purpose
+       basket is independent capacity with its own cap.
 
    (g) **REALLOCATION INTERPRETATION** — When basket_reallocates_to links appear on
        basket entities, check the capacity_effect attribute on each edge:

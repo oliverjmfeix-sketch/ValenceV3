@@ -638,7 +638,8 @@ entity rp_basket @abstract,
     owns capacity_category,
     plays provision_has_basket:basket,
     plays basket_reallocates_to:source_basket,
-    plays basket_reallocates_to:target_basket;
+    plays basket_reallocates_to:target_basket,
+    plays shares_capacity_pool:pool_member;
 
 entity builder_basket sub rp_basket,
     owns basket_amount_usd,
@@ -1633,6 +1634,9 @@ relation basket_reallocates_to,
     owns source_page,
     owns source_text,
     owns capacity_effect;
+
+relation shares_capacity_pool,
+    relates pool_member;
 
 # ─── New cross-document relations ──────────────────────────────────────────────
 

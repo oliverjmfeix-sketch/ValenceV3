@@ -102,6 +102,9 @@ CROSS_COVENANT_MAPPINGS_FILE = DATA_DIR / "seed_cross_covenant_mappings.tql"
 # 17g. Capacity classifications (basket_type → capacity_category)
 CAPACITY_CLASSIFICATIONS_FILE = DATA_DIR / "seed_capacity_classifications.tql"
 
+# 17h. New questions for Prompt 8 (no_worse_is_uncapped)
+NEW_QUESTIONS_008_FILE = DATA_DIR / "seed_new_questions_008.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -479,6 +482,11 @@ def init_database():
         logger.info("\n17g. Loading seed_capacity_classifications.tql...")
         if CAPACITY_CLASSIFICATIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, CAPACITY_CLASSIFICATIONS_FILE)
+
+        # 17h. Load Prompt 8 questions (no_worse_is_uncapped)
+        logger.info("\n17h. Loading seed_new_questions_008.tql...")
+        if NEW_QUESTIONS_008_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_008_FILE)
 
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
