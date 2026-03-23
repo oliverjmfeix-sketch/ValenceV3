@@ -80,6 +80,31 @@ fetch {{
 '''
 
 
+# Fallback for provision types whose entities don't support children/links
+# subqueries (e.g. MFN entities have no entity_has_child relationships,
+# causing TypeDB type-inference errors in the full query).
+_FETCH_QUERY_SIMPLE = '''
+match
+    $p isa {prov_type}, has provision_id "{pid}";
+    (provision: $p, extracted: $e) isa $rel;
+    $rel sub provision_has_extracted_entity;
+    let $rel_name = label($rel);
+    $rel_name != "provision_has_extracted_entity";
+    $e isa! $etype;
+    let $type_name = label($etype);
+fetch {{
+    "relation": $rel_name,
+    "type_name": $type_name,
+    "attributes": {{ $e.* }},
+    "annotations": [
+        match
+            let $an, $qt in get_entity_annotations($type_name);
+        fetch {{ "attribute": $an, "annotation": $qt }};
+    ]
+}};
+'''
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # PUBLIC API
 # ═════════════════════════════════════════════════════════════════════════════
@@ -110,8 +135,27 @@ def get_provision_entities(
         )
         try:
             query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
-            answer = tx.query(query).resolve()
-            docs = list(answer.as_concept_documents())
+            try:
+                answer = tx.query(query).resolve()
+                docs = list(answer.as_concept_documents())
+            except Exception as qe:
+                # TypeDB type-inference fails if entity types don't support
+                # children/links subqueries (e.g. MFN entities have no
+                # entity_has_child relationships). Fall back to simple query.
+                if "type-inference" in str(qe).lower() or "INF11" in str(qe):
+                    logger.info(f"Full fetch failed for {provision_type}, using simple query: {qe}")
+                    tx.close()
+                    tx = typedb_client.driver.transaction(
+                        typedb_client.database, TransactionType.READ
+                    )
+                    simple_query = _FETCH_QUERY_SIMPLE.format(
+                        prov_type=provision_type, pid=provision_id
+                    )
+                    answer = tx.query(simple_query).resolve()
+                    docs = list(answer.as_concept_documents())
+                    query = simple_query  # for trace
+                else:
+                    raise
         finally:
             tx.close()
         duration_ms = (time.time() - start) * 1000
