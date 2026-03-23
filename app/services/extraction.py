@@ -2165,143 +2165,46 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         deal_id: str,
         mfn_universe_text: str,
     ) -> dict:
-        """
-        Extract MFN Channel 3 entities using extraction_metadata from TypeDB.
+        """Extract MFN Channel 3 entities via unified entity_list pipeline.
 
-        Loads metadata for mfn_exclusion, mfn_yield_definition,
-        mfn_sunset_provision, and mfn_freebie_basket. For each metadata
-        entry, calls Claude with the extraction prompt and MFN universe text,
-        then stores the resulting entities via GraphStorage.
-
-        Returns:
-            dict with entity counts and errors
+        Same flow as RP: load entity_list questions → build_entity_list_prompt
+        (schema introspection) → Claude → parse → store_extraction.
         """
         from app.services.graph_storage import GraphStorage
 
         provision_id = f"{deal_id}_mfn"
+
+        # 1. Load MFN entity_list questions
+        entity_list_questions = self._load_entity_list_questions("MFN")
+        if not entity_list_questions:
+            logger.warning("No MFN entity_list questions found")
+            return {"entities_stored": 0, "errors": ["No MFN entity_list questions"]}
+
+        # 2. Build prompt (schema introspection adds fields automatically)
+        entity_prompt = GraphStorage.build_entity_list_prompt(
+            entity_list_questions, mfn_universe_text
+        )
+        logger.info(
+            f"MFN entity list prompt: {len(entity_prompt)} chars, "
+            f"{len(entity_list_questions)} questions"
+        )
+
+        # 3. Call Claude (synchronous — matches RP pattern)
+        model = settings.claude_model
+        entity_response = self._call_claude_v4_unified(
+            entity_prompt, model, deal_id, step_name="mfn_entity_list"
+        )
+        logger.info(f"MFN entity list response: {len(entity_response)} chars")
+
+        # 4. Parse and store via unified store_extraction
+        entity_extraction = GraphStorage.parse_extraction_response(entity_response)
         storage = GraphStorage(deal_id)
+        result = storage.store_extraction(deal_id, provision_id, entity_extraction)
+        logger.info(f"MFN entity storage: {result}")
 
-        # 1. Load MFN extraction metadata from TypeDB (SSoT)
-        metadata_list = GraphStorage.load_mfn_extraction_metadata()
-        if not metadata_list:
-            logger.warning("No MFN extraction metadata found in TypeDB")
-            return {"entities_stored": 0, "errors": ["No MFN metadata in TypeDB"]}
-
-        logger.info(
-            f"MFN entity extraction: {len(metadata_list)} metadata entries loaded"
-        )
-
-        total_entities = 0
-        errors = []
-        from app.services.cost_tracker import ExtractionCostSummary
-        cost_summary = ExtractionCostSummary(deal_id=deal_id)
-
-        # 2. For each metadata entry, extract entities
-        for meta in metadata_list:
-            entity_type = meta["target_entity_type"]
-            meta_id = meta["metadata_id"]
-            prompt_text = meta["extraction_prompt"]
-            section_hint = meta.get("extraction_section_hint", "")
-
-            logger.info(f"Extracting {entity_type} ({meta_id})...")
-
-            user_prompt = f"""Extract structured entities from the MFN universe text below.
-
-## ENTITY TYPE: {entity_type}
-
-## EXTRACTION INSTRUCTIONS
-{prompt_text}
-
-## SECTION HINT
-Focus on: {section_hint}
-
-## RESPONSE FORMAT
-
-Return a JSON object with an "entities" array. Each entity is a JSON object
-with the fields described in the instructions above. Example:
-
-{{
-  "entities": [
-    {{
-      "exclusion_type": "acquisition",
-      "exclusion_has_cap": false,
-      ...
-      "section_reference": "as found in this document",
-      "source_text": "verbatim quote (30-500 chars)",
-      "source_page": 45
-    }}
-  ]
-}}
-
-If no entities of this type exist, return: {{"entities": []}}
-
-## MFN UNIVERSE TEXT
-
-{mfn_universe_text}"""
-
-            from app.services.cost_tracker import extract_usage
-            try:
-                mfn_entity_model = "claude-sonnet-4-6"
-                start = time.time()
-                response = self.client.messages.create(
-                    model=mfn_entity_model,
-                    max_tokens=8000,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-                duration = time.time() - start
-                usage = extract_usage(
-                    response, mfn_entity_model, "mfn_entity_extraction",
-                    deal_id=deal_id, duration=duration
-                )
-                cost_summary.add(usage)
-
-                text = response.content[0].text.strip()
-                if text.startswith("```"):
-                    text = text.split("\n", 1)[1].rsplit("```", 1)[0]
-
-                result = json.loads(text)
-                entities = result.get("entities", [])
-
-                if not entities:
-                    logger.info(f"  {entity_type}: no entities found")
-                    continue
-
-                # 3. Store each entity via the appropriate GraphStorage method
-                store_method_name = storage.MFN_ENTITY_STORE_MAP.get(entity_type)
-                if not store_method_name:
-                    errors.append(f"No store method for {entity_type}")
-                    continue
-
-                store_method = getattr(storage, store_method_name)
-                stored = 0
-                for entity_data in entities:
-                    try:
-                        store_method(provision_id, entity_data)
-                        stored += 1
-                    except Exception as e:
-                        errors.append(f"{entity_type} store error: {e}")
-                        logger.warning(f"  {entity_type} store error: {e}")
-
-                total_entities += stored
-                logger.info(f"  {entity_type}: stored {stored}/{len(entities)}")
-
-            except json.JSONDecodeError as e:
-                errors.append(f"{meta_id} JSON parse error: {e}")
-                logger.warning(f"  {meta_id}: JSON parse error")
-            except Exception as e:
-                errors.append(f"{meta_id} extraction error: {e}")
-                logger.warning(f"  {meta_id}: extraction error: {e}")
-
-        if cost_summary.steps:
-            cost_summary.log_summary()
-
-        logger.info(
-            f"MFN entity extraction complete: {total_entities} entities stored"
-        )
         return {
-            "entities_stored": total_entities,
-            "metadata_entries": len(metadata_list),
-            "errors": errors,
+            "entities_stored": result.get("entities_created", 0),
+            "answers_stored": result.get("answers_stored", 0),
         }
 
     # =========================================================================

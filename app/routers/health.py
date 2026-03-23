@@ -70,7 +70,7 @@ async def ssot_status() -> Dict[str, Any]:
 
     return {
         **counts,
-        "ssot_compliant": counts["segment_types"] == 21 and counts["extraction_metadata"] >= 19,
+        "ssot_compliant": counts["segment_types"] == 21 and counts["ontology_questions"] >= 279,
     }
 
 

@@ -66,8 +66,7 @@ JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
 MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
 MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 
-# 17. MFN extraction metadata
-MFN_METADATA_FILE = DATA_DIR / "mfn_extraction_metadata.tql"
+# 17. MFN extraction metadata — RETIRED (Prompt 2: replaced by entity_list questions)
 
 # 18. MFN inference functions
 MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
@@ -107,6 +106,9 @@ NEW_QUESTIONS_008_FILE = DATA_DIR / "seed_new_questions_008.tql"
 
 # 17i. MFN entity annotations (maps MFN entity attributes to ontology questions)
 MFN_ANNOTATIONS_FILE = DATA_DIR / "seed_mfn_annotations.tql"
+
+# 17j. MFN entity-list questions (replaces mfn_extraction_metadata)
+MFN_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_mfn_entity_list_questions.tql"
 
 
 def get_driver():
@@ -451,10 +453,8 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Segment types: {e}")
 
-        # 17. Load MFN extraction metadata
-        logger.info("\n17. Loading mfn_extraction_metadata.tql...")
-        if MFN_METADATA_FILE.exists():
-            _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_METADATA_FILE)
+        # 17. MFN extraction metadata — RETIRED (replaced by entity_list questions)
+        logger.info("\n17. Skipping mfn_extraction_metadata (retired — entity_list questions replace it)")
 
         # 17b. Load attribute annotations (replaces attribute_glossary.py)
         logger.info("\n17b. Loading seed_attribute_annotations.tql...")
@@ -495,6 +495,11 @@ def init_database():
         logger.info("\n17i. Loading seed_mfn_annotations.tql...")
         if MFN_ANNOTATIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_ANNOTATIONS_FILE)
+
+        # 17j. Load MFN entity-list questions
+        logger.info("\n17j. Loading seed_mfn_entity_list_questions.tql...")
+        if MFN_ENTITY_LIST_QUESTIONS_FILE.exists():
+            _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_ENTITY_LIST_QUESTIONS_FILE)
 
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")
@@ -575,8 +580,7 @@ def init_database():
                 ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
                 ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 279),
                 ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
-                ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 4),
-                ("MFN extraction metadata", 'match $em isa extraction_metadata, has metadata_id $id; $id like "mfn_.*"; select $id;', 4),
+                ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 0),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),
                 ("Attribute annotations", "match $r isa question_annotates_attribute; select $r;", 210),

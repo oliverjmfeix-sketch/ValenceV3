@@ -1,0 +1,82 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFN Entity-List Questions
+# Replaces mfn_extraction_metadata for MFN entities.
+# Routes through unified pipeline: build_entity_list_prompt → _store_entity_list
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_el_exclusions isa ontology_question,
+    has question_id "mfn_el_exclusions",
+    has covenant_type "MFN",
+    has question_text "Extract all debt types excluded from MFN protection",
+    has answer_type "entity_list",
+    has display_order 100,
+    has target_entity_type "mfn_exclusion",
+    has target_relation_type "provision_has_exclusion",
+    has extraction_prompt "Extract ALL debt types that are excluded from MFN protection.
+Each exclusion is a SEPARATE entity. Common exclusion types:
+
+- acquisition: Debt incurred to finance Permitted Acquisitions or Investments
+- refinancing: Credit Agreement Refinancing Indebtedness or Refinancing Debt
+- ratio: Debt incurred under the ratio-based incurrence test (Incremental Equivalent Debt)
+- bridge: Bridge loans or bridge facilities
+- revolving: Incremental revolving commitments
+- freebie: Dollar/EBITDA basket exempt from MFN (typically 'greater of $X and Y% of EBITDA')
+- maturity: Debt maturing after the Term Maturity Date
+- currency: Non-USD denominated debt
+- fixed_rate: Fixed rate (non-floating) debt
+- private: Non-broadly-syndicated (private credit) debt
+- priority: Debt not ranking pari passu in right of payment
+
+Look in the Incremental Facility section for the MFN provision's exception list.";
+
+insert $mfn_el_yield_definition isa ontology_question,
+    has question_id "mfn_el_yield_definition",
+    has covenant_type "MFN",
+    has question_text "Extract the yield calculation methodology for MFN comparison",
+    has answer_type "entity_list",
+    has display_order 101,
+    has target_entity_type "mfn_yield_definition",
+    has target_relation_type "provision_has_yield_def",
+    has extraction_prompt "Extract the yield calculation methodology used for MFN comparison.
+
+Find the definition of 'Effective Yield' or 'All-In Yield' in the Definitions section,
+then cross-reference with the MFN clause in the Incremental Facility section.
+
+CRITICAL: If both OID AND floor are EXCLUDED, flag this as a significant weakness —
+it makes the yield comparison nearly meaningless.";
+
+insert $mfn_el_sunset isa ontology_question,
+    has question_id "mfn_el_sunset",
+    has covenant_type "MFN",
+    has question_text "Extract MFN sunset/expiration provisions",
+    has answer_type "entity_list",
+    has display_order 102,
+    has target_entity_type "mfn_sunset_provision",
+    has target_relation_type "provision_has_sunset",
+    has extraction_prompt "Extract the MFN sunset provision — when MFN protection expires.
+
+Look for time-based language in the MFN clause:
+- 'incurred prior to the date that is [X] months after the Effective Date'
+- 'during the [X]-month period following the Closing Date'
+
+Common periods: 6, 12, 18, 24 months. No sunset = perpetual MFN protection.";
+
+insert $mfn_el_freebie isa ontology_question,
+    has question_id "mfn_el_freebie",
+    has covenant_type "MFN",
+    has question_text "Extract MFN freebie basket details",
+    has answer_type "entity_list",
+    has display_order 103,
+    has target_entity_type "mfn_freebie_basket",
+    has target_relation_type "provision_has_freebie",
+    has extraction_prompt "Extract the MFN freebie basket — the dollar/EBITDA amount of
+incremental debt that can be incurred WITHOUT triggering MFN protection.
+
+Look for language like:
+- 'other than First Lien Incremental Term Facilities... in an aggregate principal
+   amount not to exceed the greater of $X and Y% of Consolidated EBITDA'
+- 'together with First Lien Incremental Equivalent Debt in an aggregate principal
+   amount not to exceed...'
+
+This basket is CRITICAL for analysis — analysts need to know the
+total dollar capacity available without triggering MFN.";
