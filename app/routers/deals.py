@@ -2,6 +2,7 @@
 Deal endpoints - Simplified for V3 launch (TypeDB 3.x API)
 """
 import hashlib
+import json
 import os
 import asyncio
 import uuid
@@ -2353,12 +2354,102 @@ This block MUST appear at the very end of your response."""
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         model_used = settings.claude_model
 
+        # ── Stage 1: Entity Filter (Sonnet) ──────────────────────────
+        # Parse entity context into header + JSON array
+        parts = entity_context.split("\n\n", 1)
+        header = parts[0] if len(parts) > 1 else ""
+        entities_json_str = parts[1] if len(parts) > 1 else parts[0]
+        try:
+            all_entities = json.loads(entities_json_str)
+        except json.JSONDecodeError:
+            all_entities = []
+            logger.warning("Could not parse entity context as JSON for filtering")
+
+        filter_prompt = """You are a legal data analyst. Given a question about a credit agreement and a set of extracted entities, identify which entity types are needed to answer the question.
+
+## RULES
+
+1. Include every entity whose attributes or relationships are needed to answer the question.
+2. Include reallocation edges (basket_reallocates_to links) — if the question involves
+   capacity, amounts, totals, or cross-covenant analysis, include ALL basket types.
+3. Include parent entities if their children are relevant (e.g., include builder_basket
+   if builder_basket_source children are needed).
+4. When in doubt, include the entity — false positives are better than false negatives.
+5. For capacity/total/dividend questions, include ALL baskets and ALL reallocation edges.
+
+## OUTPUT FORMAT
+
+Return ONLY a JSON array of entity type_name strings. No explanation.
+
+Example: ["ratio_basket", "general_rp_basket", "builder_basket", "general_rdp_basket"]"""
+
+        filter_start = _time.time()
+        filter_response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1000,
+            system=filter_prompt,
+            messages=[{"role": "user", "content": f"## QUESTION\n\n{request.question}\n\n## ENTITIES\n\n{entities_json_str}"}]
+        )
+        filter_duration_ms = (_time.time() - filter_start) * 1000
+
+        # Parse filter response
+        filter_text = filter_response.content[0].text.strip()
+        if filter_text.startswith("```"):
+            filter_text = filter_text.strip("`").strip("json").strip()
+        try:
+            relevant_types = json.loads(filter_text)
+        except json.JSONDecodeError:
+            logger.warning(f"Filter response not valid JSON, using all entities: {filter_text[:200]}")
+            relevant_types = [e.get("type_name", "") for e in all_entities]
+
+        relevant_set = set(relevant_types)
+
+        # Filter entities: keep if type_name matches OR has links to relevant types
+        filtered_entities = []
+        for entity in all_entities:
+            type_name = entity.get("type_name", "")
+            if type_name in relevant_set:
+                filtered_entities.append(entity)
+            else:
+                # Include if this entity has links to/from relevant types
+                links = entity.get("links", [])
+                if any(lnk.get("linked_type") in relevant_set for lnk in links):
+                    filtered_entities.append(entity)
+
+        # Build filtered context with same format
+        filtered_context = header + "\n\n" + json.dumps(filtered_entities, indent=2)
+
+        # Trace filter stage
+        if collector:
+            collector.filter_model = "claude-sonnet-4-20250514"
+            collector.filter_input_tokens = filter_response.usage.input_tokens
+            collector.filter_output_tokens = filter_response.usage.output_tokens
+            collector.filter_cost_usd = (
+                filter_response.usage.input_tokens * 3.0 / 1_000_000
+                + filter_response.usage.output_tokens * 15.0 / 1_000_000
+            )
+            collector.filter_duration_ms = filter_duration_ms
+            collector.filter_entity_types = relevant_types
+            collector.filter_total_entities = len(all_entities)
+            collector.filter_filtered_entities = len(filtered_entities)
+
+        logger.info(f"Entity filter: {len(all_entities)} total -> {len(filtered_entities)} filtered ({len(relevant_types)} types)")
+
+        # ── Stage 2: Synthesis (Opus) with filtered entities ──────────
+        filtered_user_prompt = f"""## USER QUESTION
+
+{request.question}
+
+## EXTRACTED ENTITY DATA FOR THIS DEAL
+
+{filtered_context}"""
+
         claude_start = _time.time()
         response = client.messages.create(
             model=model_used,
-            max_tokens=4000,
+            max_tokens=6000,
             system=system_rules,
-            messages=[{"role": "user", "content": user_prompt}]
+            messages=[{"role": "user", "content": filtered_user_prompt}]
         )
         claude_duration_ms = (_time.time() - claude_start) * 1000
 
@@ -2385,14 +2476,14 @@ This block MUST appear at the very end of your response."""
         # Capture trace data for Claude synthesis
         if collector:
             collector.claude_system_prompt = system_rules
-            collector.claude_user_prompt = user_prompt
+            collector.claude_user_prompt = filtered_user_prompt
             collector.claude_model = model_used
             collector.claude_input_tokens = response.usage.input_tokens
             collector.claude_output_tokens = response.usage.output_tokens
-            # Cost estimate: Sonnet input=$3/MTok, output=$15/MTok
+            # Cost estimate: Opus input=$15/MTok, output=$75/MTok
             collector.claude_cost_usd = (
-                response.usage.input_tokens * 3.0 / 1_000_000
-                + response.usage.output_tokens * 15.0 / 1_000_000
+                response.usage.input_tokens * 15.0 / 1_000_000
+                + response.usage.output_tokens * 75.0 / 1_000_000
             )
             collector.claude_duration_ms = claude_duration_ms
             collector.claude_answer = answer_text
@@ -2405,6 +2496,8 @@ This block MUST appear at the very end of your response."""
             "data_source": "graph_entities",
             "entity_context": entity_context,
             "entity_context_chars": len(entity_context),
+            "filtered_entity_count": len(filtered_entities),
+            "total_entity_count": len(all_entities),
             "model": model_used,
             "deal_id": deal_id,
         }

@@ -47,6 +47,16 @@ class TraceCollector:
     entity_context_chars: int = 0
     entity_count: int = 0
 
+    # Step 4b: Entity filter (two-stage synthesis)
+    filter_model: str = ""
+    filter_input_tokens: int = 0
+    filter_output_tokens: int = 0
+    filter_cost_usd: float = 0.0
+    filter_duration_ms: float = 0.0
+    filter_entity_types: List[str] = field(default_factory=list)
+    filter_total_entities: int = 0
+    filter_filtered_entities: int = 0
+
     # Step 5+6: Claude synthesis
     claude_system_prompt: str = ""
     claude_user_prompt: str = ""
@@ -110,6 +120,16 @@ class TraceCollector:
                 "text": self.entity_context,
                 "chars": self.entity_context_chars,
             },
+            "step_4b_entity_filter": {
+                "model": self.filter_model,
+                "input_tokens": self.filter_input_tokens,
+                "output_tokens": self.filter_output_tokens,
+                "cost_usd": round(self.filter_cost_usd, 4),
+                "duration_ms": round(self.filter_duration_ms, 1),
+                "total_entities": self.filter_total_entities,
+                "filtered_entities": self.filter_filtered_entities,
+                "entity_types": self.filter_entity_types,
+            } if self.filter_model else None,
             "step_5_6_claude_synthesis": {
                 "system_prompt": self.claude_system_prompt,
                 "user_prompt": self.claude_user_prompt,
