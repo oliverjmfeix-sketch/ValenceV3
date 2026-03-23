@@ -21,6 +21,5 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "ratio_basket",
     has target_attribute_name "no_worse_is_uncapped";
 
-match $cat isa ontology_category, has category_id "G";
-match $q isa ontology_question, has question_id "rp_g5b";
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g5b";
 insert (category: $cat, question: $q) isa category_has_question;
