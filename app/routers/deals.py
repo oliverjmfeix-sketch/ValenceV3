@@ -2367,15 +2367,28 @@ This block MUST appear at the very end of your response."""
 
         filter_prompt = """You are a legal data analyst. Given a question about a credit agreement and a set of extracted entities, identify which entity types are needed to answer the question.
 
+## PRIORITY
+
+A correct, complete answer is far more important than a small context window.
+Including an extra entity costs almost nothing. Missing a relevant entity produces a wrong answer.
+ERR HEAVILY ON THE SIDE OF INCLUSION.
+
 ## RULES
 
-1. Include every entity whose attributes or relationships are needed to answer the question.
-2. Include reallocation edges (basket_reallocates_to links) — if the question involves
-   capacity, amounts, totals, or cross-covenant analysis, include ALL basket types.
+1. Include every entity whose attributes or relationships MIGHT be needed to answer the
+   question, even if relevance is indirect or conditional.
+2. Include reallocation edges (basket_reallocates_to links) if the question involves
+   capacity, amounts, baskets, or cross-covenant analysis.
 3. Include parent entities if their children are relevant (e.g., include builder_basket
    if builder_basket_source children are needed).
-4. When in doubt, include the entity — false positives are better than false negatives.
-5. For capacity/total/dividend questions, include ALL baskets and ALL reallocation edges.
+4. Include entities that provide CONTEXT for the answer even if not directly cited —
+   for example, sweep tiers and de minimis thresholds for asset sale questions,
+   or all basket types for any capacity question.
+5. For capacity/total questions, include ALL baskets, ALL reallocation edges, ALL
+   sweep tiers, and ALL thresholds.
+6. If the question could touch multiple covenant areas, include entities from ALL
+   potentially relevant areas.
+7. If unsure whether an entity is relevant, INCLUDE IT.
 
 ## OUTPUT FORMAT
 
