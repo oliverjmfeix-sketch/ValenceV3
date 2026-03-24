@@ -37,13 +37,13 @@ GOLD_STANDARD_DIR = Path("/app/uploads/gold_standard")
 EVAL_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 GOLD_STANDARD_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── Seed gold standard files from bundled data if not already present ────
+# ── Seed gold standard files from bundled data (overwrite if bundled is newer) ──
 _SEED_DIR = Path(__file__).resolve().parent.parent / "data" / "gold_standard"
 if _SEED_DIR.is_dir():
+    import shutil
     for seed_file in _SEED_DIR.glob("*.json"):
         dest = GOLD_STANDARD_DIR / seed_file.name
-        if not dest.exists():
-            import shutil
+        if not dest.exists() or seed_file.stat().st_mtime > dest.stat().st_mtime:
             shutil.copy2(seed_file, dest)
             logger.info(f"Seeded gold standard: {dest}")
 
