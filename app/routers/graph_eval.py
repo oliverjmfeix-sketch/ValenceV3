@@ -263,12 +263,16 @@ async def run_graph_eval(deal_id: str):
         gold = json.load(f)
 
     # Resolve actual deal_id for convention keys (e.g. "acp_tara_mfn" → "8d0bf2f8")
-    actual_deal_id = deal_id
-    if deal_id == "acp_tara_mfn":
-        actual_deal_id = _find_deal_by_name("ACP") or _find_deal_by_name("Tara")
-        if not actual_deal_id:
-            raise HTTPException(404, "ACP Tara not found in TypeDB. Upload first.")
-        logger.info(f"Resolved acp_tara_mfn → deal_id {actual_deal_id}")
+    # Priority: 1) resolve_deal_id in JSON, 2) name search, 3) deal_id as-is
+    actual_deal_id = gold.get("resolve_deal_id")
+    if not actual_deal_id:
+        actual_deal_id = (
+            _find_deal_by_name(gold.get("deal_name", "")) or
+            _find_deal_by_name(deal_id) or
+            deal_id
+        )
+    if actual_deal_id != deal_id:
+        logger.info(f"Resolved {deal_id} → deal_id {actual_deal_id}")
 
     questions = gold["questions"]
     eval_start = time.time()

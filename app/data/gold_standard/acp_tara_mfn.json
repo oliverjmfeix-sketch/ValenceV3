@@ -1,6 +1,7 @@
 {
   "deal_id": "acp_tara_mfn",
   "deal_name": "ACP Tara (MFN)",
+  "resolve_deal_id": "8d0bf2f8",
   "covenant_type": "mfn",
   "version": "1.0",
   "last_updated": "2026-03-24T00:00:00Z",
