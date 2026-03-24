@@ -205,9 +205,15 @@ that the database exists.
 ### Development Workflow for Seed Data Changes
 1. Edit the `.tql` seed files locally
 2. `git add` → `git commit` → `git push origin main`
-3. To reseed TypeDB: `railway ssh --service ValenceV3 -- python -m app.scripts.init_schema --force`
+3. **To reseed TypeDB** (when `.tql` files changed):
+   a. Temporarily change `railway.toml` startCommand to:
+      `"sh -c 'python -m app.scripts.init_schema --force && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"`
+   b. Commit and push to `main` — Railway deploys and reseeds
+   c. Immediately revert `railway.toml` back to normal startCommand:
+      `"sh -c 'uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"`
+   d. Commit and push again — future deploys skip reseed
 4. **Do NOT** install typedb-driver locally or run TypeDB scripts locally
-5. **Do NOT** write temp Python scripts to reseed — use init_schema.py via `railway ssh`
+5. **Do NOT** write temp Python scripts to reseed — use the workflow above
 
 ## Extraction Pipeline
 
