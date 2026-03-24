@@ -110,6 +110,9 @@ MFN_ANNOTATIONS_FILE = DATA_DIR / "seed_mfn_annotations.tql"
 # 17j. MFN entity-list questions (replaces mfn_extraction_metadata)
 MFN_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_mfn_entity_list_questions.tql"
 
+# 17k. Synthesis guidance (category-specific analysis rules for /ask and /ask-graph)
+SYNTHESIS_GUIDANCE_FILE = DATA_DIR / "seed_synthesis_guidance.tql"
+
 
 def get_driver():
     """Get TypeDB 3.x driver."""
@@ -500,6 +503,11 @@ def init_database():
         logger.info("\n17j. Loading seed_mfn_entity_list_questions.tql...")
         if MFN_ENTITY_LIST_QUESTIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_ENTITY_LIST_QUESTIONS_FILE)
+
+        # 17k. Load synthesis guidance (category-specific analysis rules)
+        logger.info("\n17k. Loading seed_synthesis_guidance.tql...")
+        if SYNTHESIS_GUIDANCE_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, SYNTHESIS_GUIDANCE_FILE)
 
         # 18. Load MFN inference functions (SCHEMA transaction)
         logger.info("\n18. Loading mfn_functions.tql...")

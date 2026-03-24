@@ -1330,6 +1330,7 @@ entity no_default_basket sub concept;
 
 attribute extraction_context_sections, value string;
 attribute extraction_batch_hint, value string;
+attribute synthesis_guidance, value string;
 
 entity ontology_category,
     owns category_id @key,
@@ -1338,6 +1339,7 @@ entity ontology_category,
     owns display_order,
     owns extraction_context_sections,
     owns extraction_batch_hint,
+    owns synthesis_guidance,
     plays category_has_question:category,
     plays category_hierarchy:parent_category,
     plays category_hierarchy:child_category;
