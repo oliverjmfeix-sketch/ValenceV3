@@ -19,7 +19,7 @@ from app.config import settings
 from app.services.typedb_client import typedb_client
 from app.services.extraction import get_extraction_service
 from app.services.topic_router import get_topic_router
-from app.services.graph_traversal import get_rp_entities, get_provision_entities
+from app.services.graph_traversal import get_rp_entities, get_provision_entities, get_cross_covenant_entities
 from app.services.graph_reader import _get_annotation_map, _get_question_texts, safe_val, run_query
 from app.services.graph_storage import GraphStorage
 from app.schemas.models import UploadResponse, ExtractionStatus
@@ -2228,6 +2228,15 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
         entity_context = rp_ctx + "\n\n" + mfn_ctx if rp_ctx and mfn_ctx else rp_ctx or mfn_ctx or ""
     else:
         all_docs, entity_context = get_provision_entities(deal_id, "rp_provision", trace=collector)
+
+    # Cross-covenant entities — only for MFN questions (walk MFN→RP, unidirectional)
+    if covenant_type in ("mfn", "both"):
+        cross_docs, cross_context = get_cross_covenant_entities(
+            deal_id, "mfn_provision", trace=collector
+        )
+        if cross_docs:
+            all_docs.extend(cross_docs)
+            entity_context += "\n\n" + cross_context
 
     if collector:
         collector.provision_lookup_ms = (_time.time() - start) * 1000

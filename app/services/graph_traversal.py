@@ -264,3 +264,102 @@ def get_rp_entities(deal_id: str, trace: TraceCollector = None) -> str:
     """Backward-compatible wrapper — returns only the context string."""
     _, context = get_provision_entities(deal_id, "rp_provision", trace)
     return context
+
+
+def get_cross_covenant_entities(
+    deal_id: str,
+    source_provision_type: str,
+    trace: TraceCollector = None,
+) -> Tuple[List[dict], str]:
+    """Walk provision_cross_reference to load entities from linked provisions.
+
+    UNIDIRECTIONAL: walks source→target only. The extraction pipeline creates
+    (source_provision: mfn, target_provision: rp), so this walks MFN→RP.
+    RP questions should NOT call this — they would find no outgoing edges.
+
+    Reuses get_provision_entities() for the actual entity fetch (SSoT).
+    """
+    if not typedb_client.driver:
+        return [], ""
+
+    suffix = source_provision_type.replace("_provision", "")
+    source_pid = f"{deal_id}_{suffix}"
+
+    try:
+        start = time.time()
+        tx = typedb_client.driver.transaction(
+            typedb_client.database, TransactionType.READ
+        )
+        try:
+            # Find linked provisions via provision_cross_reference (source→target)
+            query = f"""
+                match
+                    $source isa {source_provision_type},
+                        has provision_id "{source_pid}";
+                    (source_provision: $source, target_provision: $target)
+                        isa provision_cross_reference;
+                    $target has provision_id $target_pid;
+                    $target isa! $target_type;
+                    let $ttype = label($target_type);
+                select $target_pid, $ttype;
+            """
+            result = list(tx.query(query).resolve().as_concept_rows())
+        finally:
+            tx.close()
+
+        if not result:
+            if trace:
+                trace.add_query(
+                    name="cross_covenant_lookup",
+                    query=query,
+                    row_count=0,
+                    duration_ms=(time.time() - start) * 1000,
+                )
+            return [], ""
+
+        # For each linked provision, fetch its entities
+        all_cross_docs = []
+        for row in result:
+            target_pid = row.get("target_pid").as_attribute().get_value()
+            target_type = row.get("ttype").as_value().get_value()
+
+            # Extract deal_id from provision_id (format: "{deal_id}_{suffix}")
+            target_deal_id = target_pid.rsplit("_", 1)[0]
+
+            target_docs, _ = get_provision_entities(
+                target_deal_id, target_type, trace=None
+            )
+
+            # Mark each entity as cross-covenant sourced
+            for doc in target_docs:
+                doc["source"] = "cross_reference"
+            all_cross_docs.extend(target_docs)
+
+        duration_ms = (time.time() - start) * 1000
+
+        if trace:
+            trace.add_query(
+                name="cross_covenant_fetch",
+                query=f"provision_cross_reference from {source_pid}",
+                row_count=len(all_cross_docs),
+                duration_ms=duration_ms,
+            )
+
+        if not all_cross_docs:
+            return [], ""
+
+        cross_json = json.dumps(all_cross_docs, indent=2, default=str)
+        context = (
+            "## CROSS-COVENANT ENTITIES\n\n"
+            "These entities come from linked provisions via "
+            "provision_cross_reference. They provide context from other "
+            "parts of the credit agreement that interact with the "
+            "provision being analyzed.\n\n"
+            f"{cross_json}"
+        )
+
+        return all_cross_docs, context
+
+    except Exception as e:
+        logger.warning(f"Cross-covenant entity fetch failed: {e}")
+        return [], ""

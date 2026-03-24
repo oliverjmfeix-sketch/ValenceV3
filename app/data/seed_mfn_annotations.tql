@@ -174,3 +174,9 @@ match $q isa ontology_question, has question_id "mfn_15";
 insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "mfn_freebie_basket",
     has target_attribute_name "total_mfn_exempt_capacity_usd";
+
+# ── mfn_44: exclusion_scope (ratio prong vs IED distinction) ─────────────────
+match $q isa ontology_question, has question_id "mfn_44";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "exclusion_scope";

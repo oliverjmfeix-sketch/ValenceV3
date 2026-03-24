@@ -1154,6 +1154,7 @@ attribute exclusion_cap_pct_ebitda, value double;
 attribute exclusion_conditions, value string;
 attribute can_stack_with_other_exclusions, value boolean;
 attribute excludes_from_mfn, value boolean;
+attribute exclusion_scope, value string;
 
 attribute yield_def_id, value string;
 attribute defined_term, value string;
@@ -1188,6 +1189,7 @@ entity mfn_exclusion,
     owns exclusion_conditions,
     owns can_stack_with_other_exclusions,
     owns excludes_from_mfn,
+    owns exclusion_scope,
     owns section_reference,
     owns source_page,
     owns source_text,

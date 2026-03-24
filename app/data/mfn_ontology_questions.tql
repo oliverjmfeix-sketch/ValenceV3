@@ -209,6 +209,14 @@ insert $mfn_17 isa ontology_question,
     has display_order 17,
     has extraction_prompt "Determine if there is a minimum size for an incremental facility below which the MFN does not apply. Some agreements exempt small incremental facilities from MFN. Extract the threshold amount if it exists, or return 'None' if no de minimis threshold.";
 
+insert $mfn_44 isa ontology_question,
+    has question_id "mfn_44",
+    has covenant_type "MFN",
+    has question_text "Does debt incurred as a First Lien Incremental Term Facility under the Incremental Facility section, using ratio-based capacity (clause (I) of the Incremental Cap) to size the debt, still trigger MFN protection?",
+    has answer_type "boolean",
+    has display_order 44,
+    has extraction_prompt "CRITICAL: This question asks about the ratio prong as a SIZING mechanism for debt incurred WITHIN the credit agreement (still a First Lien Incremental Term Facility under Section 2.19), NOT about Incremental Equivalent Debt or Ratio Debt incurred outside the agreement. Determine whether an Incremental Term Facility sized using the ratio test in clause (I) of the Incremental Cap would still be subject to the MFN conditions in Section 2.19(b)(i). Look at condition (w) — does it exclude debt incurred 'in reliance on' clause (I), or only debt incurred under clause (II)(a)? If the MFN conditions list clause (II)(a) as a required condition for MFN to apply, then debt incurred under clause (I) would NOT trigger MFN.";
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY MFN3: YIELD MECHANICS (Questions mfn_18 - mfn_27)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -465,6 +473,8 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_16";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_17";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN2"; $q isa ontology_question, has question_id "mfn_44";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # MFN3: Yield Mechanics

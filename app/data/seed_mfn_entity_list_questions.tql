@@ -17,7 +17,7 @@ Each exclusion is a SEPARATE entity. Common exclusion types:
 
 - acquisition: Debt incurred to finance Permitted Acquisitions or Investments
 - refinancing: Credit Agreement Refinancing Indebtedness or Refinancing Debt
-- ratio: Debt incurred under the ratio-based incurrence test (Incremental Equivalent Debt)
+- ratio: Debt incurred using the ratio prong OR as Incremental Equivalent Debt/Ratio Debt
 - bridge: Bridge loans or bridge facilities
 - revolving: Incremental revolving commitments
 - freebie: Dollar/EBITDA basket exempt from MFN (typically 'greater of $X and Y% of EBITDA')
@@ -26,6 +26,12 @@ Each exclusion is a SEPARATE entity. Common exclusion types:
 - fixed_rate: Fixed rate (non-floating) debt
 - private: Non-broadly-syndicated (private credit) debt
 - priority: Debt not ranking pari passu in right of payment
+
+For EACH exclusion, determine exclusion_scope:
+- 'within_agreement': Condition on First Lien Incremental Term Facilities incurred under Section 2.19 (e.g., condition (w) about which Incremental Cap prong was used — MFN still applies to the debt itself)
+- 'outside_agreement': Applies to debt incurred outside the agreement (e.g., Incremental Equivalent Debt, Ratio Debt under the debt incurrence covenant — MFN does NOT apply)
+- 'both': Applies regardless of incurrence vehicle
+This distinction is CRITICAL for ratio-type exclusions. The ratio prong determines HOW MUCH can be incurred, not WHETHER MFN applies.
 
 Look in the Incremental Facility section for the MFN provision's exception list.";
 
