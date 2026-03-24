@@ -4,6 +4,6 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "sh -c 'if [ \"$RESEED\" = \"true\" ]; then echo \"RESEED=true detected, running init_schema...\"; python -m app.scripts.init_schema --force; fi && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
+startCommand = "sh -c 'python -m app.scripts.init_schema --force && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
