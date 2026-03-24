@@ -28,6 +28,9 @@ from typedb.driver import TransactionType
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/deals", tags=["Deals"])
 
+# Concurrency guard: prevent duplicate extractions for the same deal
+_extraction_locks: Dict[str, bool] = {}  # deal_id -> is_running
+
 
 def _safe_get_value(row, key: str, default=None):
     """Safely get attribute value from a TypeDB row with null check."""
@@ -522,7 +525,13 @@ async def run_extraction(deal_id: str, pdf_path: str):
     5. Run J.Crew Tiers 2-3 (separate context needed)
     6. Run MFN extraction (separate provision type)
     """
+    # Concurrency guard — skip if extraction already running for this deal
+    if _extraction_locks.get(deal_id):
+        logger.warning(f"Background extraction SKIPPED for {deal_id} — extraction already in progress")
+        return
+
     extraction_svc = get_extraction_service()
+    _extraction_locks[deal_id] = True
 
     try:
         # Update status: parsing PDF
@@ -689,6 +698,8 @@ async def run_extraction(deal_id: str, pdf_path: str):
             current_step=None,
             error=str(e)
         )
+    finally:
+        _extraction_locks.pop(deal_id, None)
 
 
 @router.post("/{deal_id}/upload-pdf")
@@ -757,6 +768,15 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
     Useful when Channel 3 entities are missing but Channel 1 scalars exist.
     """
     logger.info(f"Re-extract requested for deal {deal_id}")
+
+    # Concurrency guard — reject if extraction already running for this deal
+    if _extraction_locks.get(deal_id):
+        logger.warning(f"Re-extract REJECTED for {deal_id} — extraction already in progress")
+        raise HTTPException(
+            status_code=409,
+            detail=f"Extraction already in progress for deal {deal_id}. Wait for it to complete."
+        )
+
     from app.services.extraction import RPUniverse
 
     # Check cached RP universe text exists
@@ -798,6 +818,7 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
         logger.warning(f"Could not ensure deal entity: {e}")
 
     extraction_svc = get_extraction_service()
+    _extraction_locks[deal_id] = True
     try:
         v4_result = await extraction_svc.extract_rp_v4_unified(
             deal_id=deal_id,
@@ -819,6 +840,8 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Re-extraction failed for {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _extraction_locks.pop(deal_id, None)
 
 
 

@@ -14,6 +14,7 @@ session's state, pending tasks, gotchas). Do NOT rely on cached/stale versions.
 2. **ALWAYS push after commit:** `git push origin main`
 3. Railway auto-deploys from GitHub. **NEVER use `railway up`.**
 4. **NEVER install typedb-driver locally.** It only exists on Railway. Do NOT run TypeDB scripts locally — make code changes, commit, push. Railway runs them on deploy.
+5. **NEVER trigger extraction or re-extraction without explicit user confirmation.** Always ask and wait for approval before calling `/re-extract`, `/upload`, or any endpoint that runs the Claude extraction pipeline. These cost money and take minutes to run.
 
 ## Repo & Deployment
 
