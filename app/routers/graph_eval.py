@@ -26,6 +26,7 @@ from app.services.trace_collector import TraceCollector
 from app.services.graph_traversal import get_rp_entities, get_provision_entities
 from app.services.topic_router import get_topic_router
 from app.routers.deals import ask_question, ask_question_graph, AskRequest
+from typedb.driver import TransactionType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Graph Eval"])
@@ -59,6 +60,7 @@ class GoldStandardQuestion(BaseModel):
     source: str = Field("xtract_lawyer_report", description="Where this Q&A came from")
     category: Optional[str] = Field(None, description="e.g. 'builder_basket', 'reallocation'")
     requires_entities: List[str] = Field(default_factory=list, description="Entity types needed")
+    key_signals: List[str] = Field(default_factory=list, description="Key phrases expected in answer")
     added_date: str = Field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
 
 
@@ -66,6 +68,7 @@ class DealGoldStandard(BaseModel):
     """Full gold standard set for a deal."""
     deal_id: str
     deal_name: str
+    covenant_type: str = Field("rp", description="rp or mfn")
     version: str = Field("1.0", description="Increment when questions change")
     questions: List[GoldStandardQuestion]
     last_updated: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -106,6 +109,29 @@ async def save_gold_standard(deal_id: str, data: DealGoldStandard):
     with open(filepath, "w") as f:
         json.dump(data.dict(), f, indent=2)
     return {"saved": str(filepath), "question_count": len(data.questions)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DEAL LOOKUP HELPERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _find_deal_by_name(name_fragment: str) -> Optional[str]:
+    """Find deal_id by name fragment (case-insensitive)."""
+    if not typedb_client.driver:
+        return None
+    tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+    try:
+        result = tx.query("""
+            match $d isa deal, has deal_id $did, has deal_name $dn;
+            select $did, $dn;
+        """).resolve()
+        for row in result.as_concept_rows():
+            dn = row.get("dn").as_attribute().get_value()
+            if dn and name_fragment.lower() in dn.lower():
+                return row.get("did").as_attribute().get_value()
+        return None
+    finally:
+        tx.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -236,6 +262,14 @@ async def run_graph_eval(deal_id: str):
     with open(filepath) as f:
         gold = json.load(f)
 
+    # Resolve actual deal_id for convention keys (e.g. "acp_tara_mfn" → "8d0bf2f8")
+    actual_deal_id = deal_id
+    if deal_id == "acp_tara_mfn":
+        actual_deal_id = _find_deal_by_name("ACP") or _find_deal_by_name("Tara")
+        if not actual_deal_id:
+            raise HTTPException(404, "ACP Tara not found in TypeDB. Upload first.")
+        logger.info(f"Resolved acp_tara_mfn → deal_id {actual_deal_id}")
+
     questions = gold["questions"]
     eval_start = time.time()
     comparisons = []
@@ -250,7 +284,7 @@ async def run_graph_eval(deal_id: str):
             "evidence_entities": [], "entity_context": "", "trace": {}
         }
         try:
-            graph_result = await ask_question_graph(deal_id, req, trace=True)
+            graph_result = await ask_question_graph(actual_deal_id, req, trace=True)
         except HTTPException as e:
             graph_result["answer"] = f"(HTTP {e.status_code}: {e.detail})"
         except Exception as e:
@@ -259,7 +293,7 @@ async def run_graph_eval(deal_id: str):
         # Run scalar pipeline for comparison
         scalar_answer = ""
         try:
-            scalar_result = await ask_question(deal_id, req)
+            scalar_result = await ask_question(actual_deal_id, req)
             scalar_answer = scalar_result.get("answer", "")
         except Exception as e:
             scalar_answer = f"(error: {e})"
@@ -269,6 +303,12 @@ async def run_graph_eval(deal_id: str):
         if trace_dict and trace_dict.get("step_7_answer"):
             trace_dict["step_7_answer"]["scalar_answer"] = scalar_answer
 
+        # Key signals scoring
+        key_signals = question_data.get("key_signals", [])
+        answer_lower = graph_result.get("answer", "").lower()
+        signals_found = [s for s in key_signals if s.lower() in answer_lower]
+        signals_missed = [s for s in key_signals if s.lower() not in answer_lower]
+
         comparison = {
             "question_id": question_data.get("question_id", ""),
             "question": q,
@@ -277,6 +317,12 @@ async def run_graph_eval(deal_id: str):
             "requires_entities": question_data.get("requires_entities", []),
             "graph_answer": graph_result.get("answer", ""),
             "scalar_answer": scalar_answer,
+            "key_signals_total": len(key_signals),
+            "key_signals_found": signals_found,
+            "key_signals_missed": signals_missed,
+            "key_signals_hit_rate": (
+                len(signals_found) / len(key_signals) if key_signals else 1.0
+            ),
             "trace": trace_dict,
         }
         comparisons.append(comparison)
@@ -290,12 +336,27 @@ async def run_graph_eval(deal_id: str):
         if synth and isinstance(synth, dict):
             total_cost += synth.get("cost_usd", 0.0)
 
+    # Aggregate key_signals metrics
+    total_signals = sum(c["key_signals_total"] for c in comparisons)
+    total_found = sum(len(c["key_signals_found"]) for c in comparisons)
+    avg_hit_rate = (
+        sum(c["key_signals_hit_rate"] for c in comparisons) / len(comparisons)
+        if comparisons else 0.0
+    )
+
     full_results = {
         "deal_id": deal_id,
+        "actual_deal_id": actual_deal_id,
         "deal_name": gold.get("deal_name", ""),
+        "covenant_type": gold.get("covenant_type", "rp"),
         "gold_standard_version": gold.get("version", ""),
         "timestamp": datetime.utcnow().isoformat(),
         "num_questions": len(comparisons),
+        "key_signals_summary": {
+            "total_signals": total_signals,
+            "total_found": total_found,
+            "avg_hit_rate": round(avg_hit_rate, 3),
+        },
         "comparisons": comparisons,
         "elapsed_seconds": round(total_elapsed, 1),
         "total_claude_cost_usd": round(total_cost, 4),

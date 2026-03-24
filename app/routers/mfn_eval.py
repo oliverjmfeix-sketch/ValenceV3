@@ -1,4 +1,8 @@
 """
+LEGACY: These questions are now in app/data/gold_standard/acp_tara_mfn.json
+Use /api/graph-eval/acp_tara_mfn instead of /api/mfn-eval/{deal_id}
+TODO: Delete this entire file once graph-eval handles MFN fully
+
 MFN Expert Q&A Evaluation — Re-extract + Test.
 
 Flow:
@@ -29,6 +33,9 @@ router = APIRouter(prefix="/api/mfn-eval", tags=["MFN Eval"])
 
 # =============================================================================
 # EXPERT QUESTIONS — VERBATIM from domain expert Q&A on ACP Tara
+# =============================================================================
+# LEGACY: These questions are now in app/data/gold_standard/acp_tara_mfn.json
+# Use /api/graph-eval/acp_tara_mfn instead.
 # =============================================================================
 
 EXPERT_QA = [
