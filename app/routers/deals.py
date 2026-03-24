@@ -1597,7 +1597,7 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
-6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. State your verification briefly at the end: "Verified against: [entity types checked]"
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially". State your verification briefly at the end: "Verified against: [entity types checked]"
 
 ## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
 
@@ -2086,31 +2086,11 @@ When answering:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it.
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
-6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. State your verification briefly at the end: "Verified against: [entity types checked]"
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially". State your verification briefly at the end: "Verified against: [entity types checked]"
 
 ## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
 
 {category_guidance}
-
-## SELF-VERIFICATION
-
-Before finalizing your answer, verify:
-- If you calculated a total, re-derive it: list each component, its dollar amount, and
-  its capacity_category. Sum ONLY the general_purpose components. State the count and
-  the multiplication (e.g., "4 baskets × $130M = $520M"). If the sum doesn't match
-  your stated total, fix it.
-- If you labeled a basket as restricted_purpose or categorical but included it in a
-  general_purpose total, remove it from the total.
-- If your reasoning chain reaches a definitive conclusion but your summary uses hedge
-  language ("may", "potentially", "likely"), align the summary to the conclusion.
-  Extracted boolean attributes that are true are findings, not possibilities.
-- If you stated that baskets "share a pool" or that reallocation "does not add capacity",
-  check for capacity_effect on the reallocation edges and shares_capacity_pool links
-  between the baskets. If capacity_effect = "additive" and no shares_capacity_pool
-  link exists, revise: each basket is independent capacity.
-- Check the SUPPLEMENTARY ENTITIES section for any data that qualifies, contradicts,
-  or adds important detail to your answer. If supplementary entities contain sweep
-  tiers, thresholds, or conditions relevant to your answer, incorporate them.
 
 ## FORMATTING
 
