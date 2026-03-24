@@ -30,6 +30,7 @@ class CategoryMetadata:
     question_ids: List[str] = field(default_factory=list)
     target_fields: List[str] = field(default_factory=list)
     target_concept_types: List[str] = field(default_factory=list)
+    synthesis_guidance: str = ""
     # Derived at load time from name + description
     keywords: Set[str] = field(default_factory=set)
 
@@ -128,7 +129,8 @@ class TopicRouter:
                         has category_id $cid,
                         has name $cname;
                     try { $c has description $cdesc; };
-                select $cid, $cname, $cdesc;
+                    try { $c has synthesis_guidance $sg; };
+                select $cid, $cname, $cdesc, $sg;
             """
             cat_result = tx.query(cat_query).resolve()
             for row in cat_result.as_concept_rows():
@@ -137,6 +139,7 @@ class TopicRouter:
                     continue
                 cname = _safe_get_value(row, "cname", "")
                 cdesc = _safe_get_value(row, "cdesc", "")
+                sg = _safe_get_value(row, "sg", "")
 
                 # Build keyword set from name + description
                 keywords = _tokenize(cname) | _tokenize(cdesc)
@@ -146,6 +149,7 @@ class TopicRouter:
                     name=cname,
                     description=cdesc,
                     covenant_type="RP",  # default; derived from questions below
+                    synthesis_guidance=sg,
                     keywords=keywords,
                 )
 
@@ -442,6 +446,22 @@ class TopicRouter:
     def get_all_categories(self) -> Dict[str, CategoryMetadata]:
         """Return all cached category metadata. Useful for diagnostics."""
         return self._get_cached_metadata()
+
+    def get_synthesis_guidance(self, matched_categories: List[CategoryMetadata]) -> str:
+        """Assemble synthesis_guidance from matched categories.
+
+        Returns concatenated guidance from all matched categories that have
+        synthesis_guidance set. If no matched categories have guidance, returns
+        empty string (caller should fall back to all categories for covenant type).
+        """
+        parts = []
+        for cat in matched_categories:
+            if cat.synthesis_guidance:
+                parts.append(
+                    f"### Category {cat.category_id}: {cat.name}\n\n"
+                    f"{cat.synthesis_guidance}"
+                )
+        return "\n\n".join(parts)
 
 
 def _safe_get_value(row, key: str, default=None):

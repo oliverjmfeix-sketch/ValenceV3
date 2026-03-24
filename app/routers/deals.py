@@ -124,182 +124,6 @@ def _detect_covenant_type(question: str) -> str:
         return "both"
 
 
-MFN_SYNTHESIS_RULES = """
-## MFN ANALYSIS RULES
-
-When answering questions about MFN (Most Favored Nation) provisions,
-follow these rules:
-
-### 1. PROTECTION STRENGTH ASSESSMENT
-
-Assess overall MFN strength using these factors:
-
-STRONG PROTECTION indicators:
-- All-in yield comparison (not margin-only)
-- OID AND floor AND upfront fees all included in yield
-- No sunset, or sunset > 18 months
-- Sacred right status (requires all-lender consent to waive)
-- Covers incremental equivalent / ratio debt (no reclassification loophole)
-- Low threshold (25bps)
-
-WEAK PROTECTION indicators:
-- Margin-only comparison (excludes OID, floor, fees)
-- OID or floor excluded from yield calculation
-- Short sunset (6 months or less)
-- Modifiable by Required Lenders (simple majority)
-- Does NOT cover ratio debt / incremental equivalent (reclassification loophole)
-- High threshold (75bps+)
-- Acquisition debt excluded
-
-### 2. YIELD CALCULATION ANALYSIS
-
-When discussing yield mechanics, always:
-- State which components ARE included and which are EXCLUDED
-- If OID is included, state the amortization period
-- If both OID and floor are excluded, flag the "yield exclusion pattern"
-  as a significant weakness
-- Note who determines the yield calculation (agent vs borrower vs joint)
-
-### 3. LOOPHOLE DETECTION
-
-Always check and surface these loopholes:
-
-a) **Reclassification risk**: If ratio debt / incremental equivalent debt
-   is NOT subject to MFN, the borrower can incur the same economic debt
-   under the debt incurrence covenant instead of the incremental
-   facility section and completely avoid MFN. This is the single
-   most important MFN loophole.
-
-b) **Sunset timing**: If a sunset exists, note the exact period and
-   whether there are anti-abuse provisions. A 6-month sunset on a 7-year
-   term loan means MFN protection covers less than 8% of the loan's life.
-
-c) **Exclusion stacking**: If acquisition debt AND refinancing debt AND
-   bridge facilities are all excluded, very little incremental debt
-   would actually trigger MFN.
-
-d) **Amendment vulnerability**: If MFN is NOT a sacred right, Required
-   Lenders (simple majority) can waive it. The borrower can potentially
-   negotiate a waiver as part of any amendment package.
-
-### 4. COMPARISON CONTEXT
-
-When comparing MFN provisions across deals:
-- 25bps is lender-friendly, 75bps is borrower-friendly
-- All-in yield comparison is stronger than margin-only
-- 12-18 month sunset is typical; no sunset is rare and lender-friendly
-- Sacred right status for MFN is becoming more common post-2020
-
-### 5. SECTION REFERENCES
-
-Always cite the specific section where the MFN provision is found
-(the incremental facility section). For yield definitions, cite the
-definitions section and the specific defined term.
-
-### 6. INTERACTION WITH OTHER COVENANTS
-
-If the user asks about MFN interaction with other covenant types:
-- MFN + Debt Incurrence: The debt incurrence covenant creates the
-  reclassification loophole if ratio debt is not MFN-covered
-- MFN + Restricted Payments: No direct interaction
-- MFN + Financial Covenants: Financial covenant leverage tests may
-  constrain the incurrence test for ratio debt, indirectly limiting the
-  reclassification loophole
-
-### 7. MFN ENTITY ANALYSIS RULES
-
-When answering questions about MFN using Channel 3 entity data:
-
-(a) CHECK ALL EXCLUSIONS — enumerate every exclusion from the
-    MFN EXCLUSION ANALYSIS section. If ANY exclusion applies, MFN is
-    not triggered for that debt type.
-
-(b) CHECK THE FREEBIE — even if no exclusion applies, debt within the
-    freebie basket capacity is exempt from MFN.
-
-(c) COMPUTE TOTAL EXEMPT CAPACITY — freebie + general basket + any
-    other exempt amounts. Always state the total dollar figure.
-
-(d) YIELD METHODOLOGY MATTERS — when discussing yield comparison,
-    always specify what is included/excluded. If both OID and floor
-    are excluded, explicitly flag this as making the comparison
-    "nearly meaningless."
-
-(e) SUNSET TIMING — if sunset exists, specify when it expires and
-    whether the borrower could time issuance to exploit it.
-
-(f) PATTERN FLAGS — reference detected patterns from the DETECTED
-    PATTERNS section. These are computed by deterministic TypeDB
-    functions, not LLM judgment — cite them as architectural findings.
-
-(g) CROSS-COVENANT — if cross-references exist, explain how MFN
-    exclusions interact with RP debt incurrence capacity.
-
-### 8. MFN TRIGGER CONDITIONS ARE CONJUNCTIVE
-
-MFN applies ONLY when ALL of the following conditions are met
-simultaneously for the new debt:
-- Is a First Lien Incremental Term Facility under the incremental
-  facility section of this agreement
-- Is broadly syndicated
-- Is a floating rate term loan
-- Ranks pari passu in right of payment and security with Initial TLs
-- Is denominated in USD (if same-currency restriction exists)
-- Is scheduled to mature on or prior to the Term Maturity Date
-- Is NOT within the freebie basket threshold
-- Is NOT incurred to finance a Permitted Acquisition (if carve-out
-  exists)
-
-If ANY SINGLE condition is not met, MFN DOES NOT APPLY. Do not
-analyze freebie baskets or other exclusions when the debt is already
-outside MFN scope due to a failed trigger condition.
-
-When analyzing hypothetical debt, check each condition against the
-debt's characteristics. Identify the FIRST condition that fails and
-state that as the primary reason MFN does not apply.
-
-### 9. YIELD REPRICING AND MARKET PRICE
-
-When a user asks how existing debt would be repriced under MFN, or
-which yield figure is used in the comparison:
-
-- The Effective Yield comparison uses CONTRACTUAL economics, not
-  secondary market trading prices
-- Reference rate movements (SOFR/LIBOR) affect both existing and new
-  debt equally — they do not independently change the yield
-  differential
-- Market price decline (e.g., debt trading at 95 cents) is NOT
-  reflected in Effective Yield. Market price is a secondary market
-  phenomenon, not a contractual yield component
-- Effective Yield components: contractual margin, reference rate floor
-  benefit (fixed at closing), OID (amortized, fixed at closing), and
-  upfront fees paid to lenders
-
-When asked "would the original yield or current yield be used?": it
-depends on WHY yield changed. SOFR movement affects both sides
-equally. Market price decline is irrelevant to MFN entirely.
-
-### 10. COMBINED MFN-EXEMPT CAPACITY
-
-When asked about total capacity to avoid MFN, compute the COMBINED
-MFN-exempt figure from all available baskets. Present individual
-components AND total: freebie basket + general debt basket + any
-EBITDA-based carveout. This is in ADDITION to unlimited capacity via
-Ratio Debt and Incremental Equivalent Debt (outside MFN scope).
-
-Always present the dollar figure. If data includes
-total_mfn_exempt_capacity_usd, use it. Otherwise sum the components.
-
-### 11. PRIORITY ALTERATION LOOPHOLE
-
-MFN applies to debt that "ranks equal in right of payment" with
-Initial Term Loans AND is "secured on a pari passu basis." A sponsor
-can structure new debt to NOT rank equal in payment priority (e.g.,
-subordinating the payment waterfall) while still obtaining a pari
-passu lien on collateral. This gives equivalent collateral protection
-while technically falling outside MFN scope.
-"""
-
 # Ensure uploads directory exists
 UPLOADS_DIR = "/app/uploads"
 os.makedirs(UPLOADS_DIR, exist_ok=True)
@@ -1744,97 +1568,25 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     context = "\n\n".join(context_parts)
 
     # Step 5: Build system rules based on covenant type
-    rp_specific_rules = """
-6. **JCREW BLOCKER ANALYSIS RULES**:
-   When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as follows:
+    # Load category-specific synthesis guidance from TypeDB (SSoT)
+    if route_result and topic_router:
+        category_guidance = topic_router.get_synthesis_guidance(route_result.matched_categories)
+        if not category_guidance:
+            # Broad question — load ALL categories for this covenant type
+            all_cats = topic_router.get_all_categories()
+            relevant = [c for c in all_cats.values()
+                        if c.covenant_type.upper() == covenant_type.upper()
+                        or covenant_type == "both"]
+            category_guidance = topic_router.get_synthesis_guidance(relevant)
+    else:
+        category_guidance = ""
 
-   **BLOCKER PROVISION** — State whether the blocker exists, quote it verbatim, and cite the page. This is the anchor — everything else is analysis of this provision.
-
-   **WHAT IT COVERS** — State scope ONCE (do not repeat scope facts later). What actions are prohibited (ownership, licensing, etc.), who is bound (Loan Parties only vs all Restricted Subsidiaries), what assets are protected, when it applies (designation-only vs ongoing). IMPORTANT: A J.Crew blocker covering only Intellectual Property (not broader "material assets") is STANDARD MARKET PRACTICE — do not frame IP-only coverage as a limitation or gap.
-
-   **DEFINITION QUALITY** — For each key definition (Intellectual Property, Material, Transfer), state: is it defined inline, by cross-reference to another document, or not defined at all? If inline, what does it include/exclude? If cross-reference, state which document and note full analysis requires it. If not defined, flag as vulnerability. Frame by practical impact: "Material is determined by the Borrower Agent in good faith with no objective threshold — the borrower controls what is considered material" is better than just "Material is subjective."
-
-   **INVESTMENT PATHWAYS** — ALWAYS include if investment_pathway entities are present in the data. For EACH pathway entity, show: source entity type, destination entity type, dollar cap and percentage cap (if any), whether uncapped, and the section reference. If the blocker binds ALL Restricted Subsidiaries (not just Loan Parties), note this closes multi-hop chain pathways. If only Loan Parties are bound, note that non-Loan-Party Restricted Subsidiaries can transfer to Unrestricted Subsidiaries without blocker restriction.
-
-   **AMENDMENT VULNERABILITY** — State the SPECIFIC amendment threshold (Required Lenders/simple majority, supermajority with percentage, or all-lender consent). "Not a sacred right" alone is insufficient.
-
-   **LIEN RELEASE INTERACTION** — CONNECT lien release to blocker: explain WHY automatic lien release matters (IP collateral liens releasing without consent means collateral protection evaporates if blocker has gaps). Do not state the fact without the connection.
-
-   **SYNTHESIS** — End with 2-3 sentences connecting findings with cause-and-effect relationships. Do NOT include subjective risk ratings. State objective facts and their connections. Legal professionals make the judgment calls.
-
-   FORMATTING RULES FOR JCREW ANSWERS: Do NOT use labels "Tier 1", "Tier 2", "Tier 3". Do NOT repeat the same fact in multiple sections. Do NOT frame IP-only coverage as a gap. Do NOT list findings without explaining why they matter. ALWAYS include investment pathway data if available. ALWAYS state specific amendment thresholds. ALWAYS connect lien release to blocker analysis. ALWAYS end with connective synthesis.
-
-7. **RATIO BASKET AND DIVIDEND CAPACITY RULES**:
-   When answering questions about whether a specific dividend, distribution,
-   or restricted payment is permitted at a given leverage level:
-
-   (a) **CHECK ALL BASKETS** — Never answer based on one basket alone. The borrower
-       can use ANY available basket. Check in this order:
-       - Ratio-based unlimited basket — what is the absolute threshold?
-       - "No worse" test — does it exist? If yes, the borrower can make the
-         payment at ANY leverage level as long as the pro forma ratio is no
-         worse than immediately before the transaction.
-       - Builder basket / Cumulative Amount — what capacity has accumulated?
-       - General RP basket — fixed dollar + grower amounts
-       - Specific-purpose baskets — management equity, tax distributions, etc.
-       - Basket stacking — can multiple baskets be combined?
-
-   (b) **PRO FORMA RATIO ANALYSIS** — When a question involves a specific transaction
-       at a stated leverage level, apply pro forma analysis: determine whether the
-       transaction increases or decreases each component of the leverage ratio
-       (numerator = debt, denominator = EBITDA) and state the directional conclusion.
-       Read the annotation text on each ratio basket attribute to understand what
-       conditions permit or restrict the transaction.
-
-   (c) **PRO FORMA ANALYSIS** — When a question specifies a transaction (e.g.,
-       "dividend a business division with $X EBITDA"), analyze the pro forma
-       impact on the leverage ratio. Removing EBITDA changes the denominator.
-       Removing debt changes the numerator. State the directional impact even
-       if you cannot compute exact numbers.
-
-   (d) **CITE SPECIFIC CLAUSES** — Reference the specific subsection for each basket
-       using the section_reference attribute from the entity data, formatted as
-       [Section X.XX(y), p.XX]. When source data includes section references and
-       page numbers, always include both.
-
-   (e) **CAPACITY SUMMARY** — For complex questions, end with a table showing each
-       potentially available basket, its capacity or test, and whether it is
-       available for the specific scenario asked about.
-
-   (f) **CAPACITY AGGREGATION** — When calculating total quantifiable dividend capacity,
-       use the capacity_category attribute on each basket entity:
-       - Sum ONLY baskets where capacity_category = "general_purpose". Show arithmetic
-         explicitly ("$X + $Y + $Z = $TOTAL") and verify the total.
-       - List "restricted_purpose" baskets SEPARATELY with their conditions.
-       - List "unlimited_conditional" baskets SEPARATELY with their tests.
-       - List "categorical" baskets SEPARATELY.
-       NEVER mix categories in the same total.
-       If two baskets are connected by a shares_capacity_pool link, they share a
-       single pool — count them ONCE at the larger cap. If NO shares_capacity_pool
-       link exists between baskets (check the links array), each general_purpose
-       basket is independent capacity with its own cap.
-
-   (g) **REALLOCATION INTERPRETATION** — When basket_reallocates_to links appear on
-       basket entities, check the capacity_effect attribute on each edge:
-       - capacity_effect = "additive": The source basket's cap is ADDITIONAL capacity
-         for the target. Each basket is a separate pool with its own cap. The Borrower
-         elects to reallocate, and the source loses what the target gains. Sum the
-         target's own cap PLUS each additive source's cap for total capacity.
-       - capacity_effect = "fungible": Capacity is shared — do NOT sum, take the max.
-       "reduces_source_basket: true" describes what happens to the SOURCE, not the
-       TARGET. It does NOT mean the baskets share a single pool.
-"""
-
-    # Determine which covenant-specific rules to include
     if covenant_type == "mfn":
         covenant_subject = "MFN (Most Favored Nation) provision"
-        specific_rules = MFN_SYNTHESIS_RULES
     elif covenant_type == "both":
         covenant_subject = "credit agreement covenants (Restricted Payments and MFN)"
-        specific_rules = rp_specific_rules + "\n" + MFN_SYNTHESIS_RULES
     else:
         covenant_subject = "restricted payments covenant"
-        specific_rules = rp_specific_rules
 
     system_rules = f"""You are a legal analyst answering questions about a credit agreement's {covenant_subject} using pre-extracted structured data.
 
@@ -1845,7 +1597,11 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
-{specific_rules}
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. State your verification briefly at the end: "Verified against: [entity types checked]"
+
+## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
+
+{category_guidance}
 ## FORMATTING
 
 - Use **bold** for key terms and defined terms
@@ -2277,34 +2033,27 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
     except Exception as e:
         logger.warning(f"Metadata entity filter failed (using all entities): {e}")
 
-    # Build synthesis prompt — same rules as /ask
-    rp_specific_rules = """
-6. **JCREW BLOCKER ANALYSIS RULES**:
-   When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as follows:
+    # Build synthesis prompt — load category-specific guidance from TypeDB (SSoT)
+    if route_result and topic_router:
+        category_guidance = topic_router.get_synthesis_guidance(route_result.matched_categories)
+        if not category_guidance:
+            # Broad question — load ALL categories for this covenant type
+            all_cats = topic_router.get_all_categories()
+            relevant = [c for c in all_cats.values()
+                        if c.covenant_type.upper() == covenant_type.upper()
+                        or covenant_type == "both"]
+            category_guidance = topic_router.get_synthesis_guidance(relevant)
+    else:
+        category_guidance = ""
 
-   **BLOCKER PROVISION** — State whether the blocker exists, quote it verbatim, and cite the page.
+    if covenant_type == "mfn":
+        covenant_subject = "MFN (Most Favored Nation) provision"
+    elif covenant_type == "both":
+        covenant_subject = "credit agreement covenants (Restricted Payments and MFN)"
+    else:
+        covenant_subject = "restricted payments covenant"
 
-   **WHAT IT COVERS** — State scope ONCE. What actions are prohibited, who is bound, what assets are protected.
-
-   **DEFINITION QUALITY** — For each key definition, state: defined inline, by cross-reference, or not defined at all?
-
-   **INVESTMENT PATHWAYS** — ALWAYS include if pathway data is available.
-
-   **AMENDMENT VULNERABILITY** — State the SPECIFIC amendment threshold.
-
-   **LIEN RELEASE INTERACTION** — CONNECT lien release to blocker.
-
-   **SYNTHESIS** — End with 2-3 sentences connecting findings with cause-and-effect relationships.
-
-7. **RATIO BASKET AND DIVIDEND CAPACITY RULES**:
-   (a) **CHECK ALL BASKETS** — Never answer based on one basket alone.
-   (b) **THE "NO WORSE" TEST IS CRITICAL** — If the data shows a "no worse" ratio test exists, ALWAYS analyze it.
-   (c) **PRO FORMA ANALYSIS** — Analyze pro forma impact on leverage ratio.
-   (d) **CITE SPECIFIC CLAUSES** — Reference specific subsections for each basket.
-   (e) **CAPACITY SUMMARY** — For complex questions, end with a table of available baskets.
-"""
-
-    system_rules = f"""You are a legal analyst answering questions about a credit agreement's restricted payments covenant using pre-extracted ENTITY DATA from a knowledge graph.
+    system_rules = f"""You are a legal analyst answering questions about a credit agreement's {covenant_subject} using pre-extracted ENTITY DATA from a knowledge graph.
 
 ## DATA FORMAT
 
@@ -2337,7 +2086,12 @@ When answering:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it.
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
-{rp_specific_rules}
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. State your verification briefly at the end: "Verified against: [entity types checked]"
+
+## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
+
+{category_guidance}
+
 ## SELF-VERIFICATION
 
 Before finalizing your answer, verify:

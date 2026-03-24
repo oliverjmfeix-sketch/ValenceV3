@@ -1,0 +1,138 @@
+################################################################################
+# VALENCE V3 — SYNTHESIS GUIDANCE (SSoT)
+#
+# Category-specific analysis rules for the /ask and /ask-graph synthesis prompts.
+# Loaded at runtime by TopicRouter and injected into the Claude system prompt.
+#
+# PRINCIPLE: Rules reference entity ATTRIBUTES and CLASSIFICATIONS, never
+# specific basket names, exclusion types, yield components, or dollar values.
+# The entity JSON Claude receives already contains the data — this guidance
+# tells Claude HOW to use it, not WHAT the data is.
+################################################################################
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RP CATEGORIES
+# ══════════════════════════════════════════════════════════════════════════════
+
+# RP (root) — broad questions about restricted payments
+match $cat isa ontology_category, has category_id "RP";
+insert $cat has synthesis_guidance "For broad questions about restricted payments structure, consider ALL basket types in the entity data. Use capacity_category on each basket entity to classify and aggregate. Present an overview of the entire RP covenant structure: general prohibition scope, available baskets by type, and key interactions between baskets.";
+
+# Category A: General Structure
+match $cat isa ontology_category, has category_id "A";
+insert $cat has synthesis_guidance "Check scalar answers for: existence of general prohibition, effective date, scope of restricted payment definition, and whether the prohibition covers dividends, distributions, and share repurchases. Cite section references for each finding.";
+
+# Category B: Intercompany Dividends
+match $cat isa ontology_category, has category_id "B";
+insert $cat has synthesis_guidance "Check intercompany_permission entities and scalar answers for upstream dividend permissions, intercompany transfer restrictions, and permitted payees. Note whether intercompany payments require pro forma compliance or are unconditioned.";
+
+# Category C: Management Equity
+match $cat isa ontology_category, has category_id "C";
+insert $cat has synthesis_guidance "Check management_equity_basket entity attributes for dollar caps, EBITDA percentages, covered persons, and any carryforward or carryback mechanics. Cite specific section references from entity attributes.";
+
+# Category D: Tax Distribution
+match $cat isa ontology_category, has category_id "D";
+insert $cat has synthesis_guidance "Check tax_distribution_basket entity attributes for distribution mechanics, gross-up provisions, permitted recipients, and whether distributions cover actual tax liability or hypothetical tax liability. Note any timing restrictions.";
+
+# Category E: Equity Awards
+match $cat isa ontology_category, has category_id "E";
+insert $cat has synthesis_guidance "Check equity_award_basket entity attributes for dollar caps, plan limitations, covered equity plans, and carryforward mechanics. Note whether the basket covers both repurchases and withholding obligations.";
+
+# Category F: Builder Basket / Cumulative Amount
+match $cat isa ontology_category, has category_id "F";
+insert $cat has synthesis_guidance "When answering about builder basket or cumulative amount capacity: Check the builder_basket entity and all its child entities (sources). Each source has attributes showing how capacity builds — read the annotations to understand what each source contributes. State when the basket starts growing (look for start date attributes on the entity). For capacity aggregation: use capacity_category on each basket entity. Sum ONLY general_purpose baskets. List restricted_purpose, unlimited_conditional, and categorical baskets separately. Show arithmetic explicitly.";
+
+# Category G: Ratio Basket
+match $cat isa ontology_category, has category_id "G";
+insert $cat has synthesis_guidance "When answering about ratio baskets or dividend capacity at specific leverage levels: Check ALL basket entities in the data. Use the capacity_category attribute to prioritize: 1. unlimited_conditional baskets first — check ratio thresholds and no-worse tests 2. general_purpose baskets — sum their dollar capacity 3. restricted_purpose baskets — check if their conditions match the scenario 4. categorical baskets — list separately. THE NO WORSE TEST IS CRITICAL — If any basket entity shows a no-worse ratio test, ALWAYS analyze whether the specific transaction would pass it. Key insight: disposing of a negative-EBITDA asset IMPROVES the leverage ratio (EBITDA increases), so no-worse may be satisfied above the absolute threshold. PRO FORMA ANALYSIS — Analyze pro forma impact on leverage ratio for any specified transaction. Removing EBITDA changes the denominator. Removing debt changes the numerator. State the directional impact. Never answer based on one basket alone. For capacity questions, show arithmetic explicitly.";
+
+# Category H: Holding Company Overhead
+match $cat isa ontology_category, has category_id "H";
+insert $cat has synthesis_guidance "Check holdco_overhead_basket entity attributes for dollar cap, covered expenses, and whether amount is per annum or aggregate. Note whether the basket covers advisory fees, management fees, and/or overhead expenses.";
+
+# Category I: Reallocation
+match $cat isa ontology_category, has category_id "I";
+insert $cat has synthesis_guidance "When answering about reallocation paths: Check basket_reallocation entities and basket_reallocates_to link edges between baskets. Each link has relation_attributes showing dollar amounts, section references, and capacity_effect. Follow the typed edges to show which baskets flow capacity to which other baskets. Include direction, dollar amounts, and whether reduction is dollar-for-dollar or while-outstanding-only. For cross-covenant baskets (investment, RDP), note when capacity crosses covenant boundaries.";
+
+# Category J: Unrestricted Subsidiaries
+match $cat isa ontology_category, has category_id "J";
+insert $cat has synthesis_guidance "Check unsub_designation entities and scalar answers for designation criteria, re-designation restrictions, and asset/equity value tests. Note the investment test threshold and whether designation requires pro forma compliance. Check for interaction with J.Crew blocker provisions.";
+
+# Category K: J.Crew Blocker
+match $cat isa ontology_category, has category_id "K";
+insert $cat has synthesis_guidance "When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as: BLOCKER PROVISION — State whether the blocker exists, quote it verbatim, cite the page. WHAT IT COVERS — State scope ONCE. What actions are prohibited, who is bound, what assets are protected, when it applies. A blocker covering only Intellectual Property (not broader material assets) is STANDARD MARKET PRACTICE — do not frame IP-only coverage as a gap. DEFINITION QUALITY — For each key definition, state: defined inline, by cross-reference, or not defined. Frame by practical impact. INVESTMENT PATHWAYS — ALWAYS include if pathway entity data is available. Show investment caps, hop chains, whether baskets stack or rebuild. If blocker binds ALL Restricted Subs, note this CLOSES the chain pathway. AMENDMENT VULNERABILITY — State the SPECIFIC amendment threshold from the entity data. 'Not a sacred right' alone is insufficient. LIEN RELEASE INTERACTION — CONNECT lien release to blocker: explain WHY automatic lien release matters for collateral protection. SYNTHESIS — End with 2-3 sentences connecting findings with cause-and-effect relationships. No subjective risk ratings. FORMATTING: Do NOT use 'Tier 1/2/3' labels. Do NOT frame IP-only coverage as a gap. ALWAYS include pathways if available. ALWAYS state amendment thresholds. ALWAYS connect lien release to blocker.";
+
+# Category L: Asset Sale Proceeds & Sweeps
+match $cat isa ontology_category, has category_id "L";
+insert $cat has synthesis_guidance "Check sweep_tier entities for percentage tiers, step-down thresholds, and reinvestment periods. Check sweep_exemption entities for carve-outs from sweep obligations. Check de_minimis_threshold entity for dollar amounts below which sweeps are not required. Present sweep tiers in order from highest to lowest percentage. Note reinvestment period length and whether it resets.";
+
+# Category M: Unrestricted Subsidiary Distributions
+match $cat isa ontology_category, has category_id "M";
+insert $cat has synthesis_guidance "Check scalar answers about unrestricted subsidiary distribution mechanics, basket carve-outs for unsub dividends, and interaction with designation/re-designation rules. Note whether distributions from unsubs are subject to the general RP prohibition or have a categorical carve-out.";
+
+# Category N: Dividend Capacity Calculation
+match $cat isa ontology_category, has category_id "N";
+insert $cat has synthesis_guidance "When answering about dividend capacity or the general RP basket: Check ALL basket entities for dollar amounts and grower formulas. Use capacity_category on each basket entity. Sum ONLY general_purpose baskets — show arithmetic explicitly. List restricted_purpose, unlimited_conditional, and categorical baskets separately. NEVER mix categories in the same total. If two baskets are connected by a shares_capacity_pool link, they share a single pool — count them ONCE at the larger cap. If NO shares_capacity_pool link exists between baskets, each general_purpose basket is independent capacity with its own cap. When basket_reallocates_to links appear, check capacity_effect: 'additive' = separate pools, sum them; 'fungible' = shared, take max.";
+
+# Category P: Unsub Distribution Basket Carve-outs
+match $cat isa ontology_category, has category_id "P";
+insert $cat has synthesis_guidance "Check scalar answers for unsub distribution basket carve-outs, including dollar caps, percentage limitations, and interaction with other RP baskets. Note whether the carve-out is a categorical permission or subject to conditions.";
+
+# Category S: RDP General
+match $cat isa ontology_category, has category_id "S";
+insert $cat has synthesis_guidance "Check scalar answers for subordinated debt payment restrictions, general prohibition scope, and interaction with restricted payment provisions. Note whether RDP restrictions apply to all junior debt or only specified subordinated indebtedness.";
+
+# Category T: RDP Baskets
+match $cat isa ontology_category, has category_id "T";
+insert $cat has synthesis_guidance "Check rdp_basket entities (refinancing, general, ratio, builder, equity-funded subtypes). Use capacity_category to classify. Note: RDP baskets use provision_has_rdp_basket relation, NOT provision_has_basket — these are a SEPARATE hierarchy from RP baskets.";
+
+# Category Z: Pattern Detection
+match $cat isa ontology_category, has category_id "Z";
+insert $cat has synthesis_guidance "Cross-reference pattern flags on the provision entity (jcrew_pattern_detected, serta_pattern_detected, collateral_leakage_pattern_detected). These are computed boolean signals — state what patterns are present and what they indicate. Check entity data for the underlying facts that triggered each pattern flag.";
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# J.CREW CATEGORIES
+# ══════════════════════════════════════════════════════════════════════════════
+
+# JC1: Structural Analysis
+match $cat isa ontology_category, has category_id "JC1";
+insert $cat has synthesis_guidance "Structure analysis around blocker existence, scope, binding parties, and asset coverage. Check jcrew_blocker entity boolean attributes for coverage assessment — read the annotations to understand what each boolean means. Check lien_release_mechanics entity for automatic release triggers and their interaction with blocker provisions.";
+
+# JC2: Definition Quality
+match $cat isa ontology_category, has category_id "JC2";
+insert $cat has synthesis_guidance "For each key definition referenced by the blocker, check definition_clause entities. State whether each definition is inline, by cross-reference to another document, or absent. Focus on practical impact of definition gaps — e.g., if 'Material' is determined by the Borrower Agent in good faith with no objective threshold, the borrower controls what is considered material.";
+
+# JC3: Interaction Patterns
+match $cat isa ontology_category, has category_id "JC3";
+insert $cat has synthesis_guidance "Check investment_pathway entities for multi-hop chain analysis. For each pathway show: source and destination entity types, dollar and percentage caps, whether uncapped, and section references. Check basket_reallocation entities for cross-covenant capacity flows. Analyze how J.Crew blocker interacts with investment baskets, unrestricted subsidiary designation, and lien covenants. If the blocker binds ALL Restricted Subsidiaries, note this closes multi-hop chain pathways.";
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MFN CATEGORIES
+# ══════════════════════════════════════════════════════════════════════════════
+
+# MFN1: Core Structure
+match $cat isa ontology_category, has category_id "MFN1";
+insert $cat has synthesis_guidance "Check mfn_provision scalar answers for: existence, threshold in basis points, whether adjustment is automatic. The threshold is the single most important number — always state it explicitly. State whether comparison is all-in yield or margin-only.";
+
+# MFN2: Facility & Debt Scope
+match $cat isa ontology_category, has category_id "MFN2";
+insert $cat has synthesis_guidance "Review each mfn_exclusion entity's exclusion_type attribute. Count total exclusions. Check excludes_from_mfn to identify which exclusions fully remove debt from MFN scope vs merely modify the calculation. Check can_stack_with_other_exclusions for stacking risk. Review mfn_freebie_basket entity for dollar_amount_usd and ebitda_pct — these represent quantifiable MFN-exempt capacity. Compute total exempt capacity from all sources.";
+
+# MFN3: Yield Mechanics
+match $cat isa ontology_category, has category_id "MFN3";
+insert $cat has synthesis_guidance "Check mfn_yield_definition entity's boolean attributes to determine yield coverage. More included components = stronger MFN. If both includes_oid and includes_floor_benefit are false, flag the yield exclusion pattern as a significant structural weakness. Check oid_amortization_method and comparison_baseline. Note who determines the yield calculation from scalar answers.";
+
+# MFN4: Sunset & Timing
+match $cat isa ontology_category, has category_id "MFN4";
+insert $cat has synthesis_guidance "Check mfn_sunset_provision entity: sunset_exists, sunset_period_months, sunset_trigger_event. Short sunset without reset on refinancing = temporal weakness. Check sunset_resets_on_refi and sunset_tied_to_maturity. If sunset_timing_loophole is true, explain that the borrower can time debt issuance to just after sunset expiry.";
+
+# MFN5: Governance & Waivers
+match $cat isa ontology_category, has category_id "MFN5";
+insert $cat has synthesis_guidance "Check scalar answers for sacred right status, amendment thresholds, agent discretion. Reference specific section numbers from entity section_reference attributes. State the specific consent threshold required to waive MFN.";
+
+# MFN6: Loopholes & Weaknesses
+match $cat isa ontology_category, has category_id "MFN6";
+insert $cat has synthesis_guidance "Cross-reference ACROSS entity types: mfn_exclusion entities with excludes_from_mfn=true = structural gaps. mfn_yield_definition with both OID and floor excluded = yield exclusion pattern. mfn_sunset_provision with short sunset = temporal weakness. mfn_freebie_basket total capacity = quantifiable exempt amount. Count and characterize each loophole. Present total MFN-exempt capacity as a dollar figure when data supports it. For reclassification risk, check whether ratio/IED debt is excluded from MFN scope.";
