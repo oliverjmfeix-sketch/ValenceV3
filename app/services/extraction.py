@@ -1952,15 +1952,46 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                 source_page = ans.get("source_page")
                 source_section = ans.get("source_section", "")
 
-                # Multiselect → concept_applicability
+                # Multiselect → unified concept routing + flat scalar
                 if isinstance(value, list):
+                    # Try entity boolean routing (same as RP store_extraction)
+                    concept_routing = GraphStorage._load_concept_routing_map()
+                    routed_any = False
                     for concept_id in value:
-                        success = self._store_concept_applicability_for_provision(
-                            provision_id, concept_id, source_text,
-                            source_page or 0
+                        routes = concept_routing.get(concept_id, [])
+                        if routes:
+                            for entity_type, attr_name in routes:
+                                storage._set_entity_attribute(
+                                    provision_id, entity_type, attr_name, True
+                                )
+                            routed_any = True
+
+                    # Always store as flat scalar (comma-separated string)
+                    flat_value = ", ".join(str(v) for v in value)
+                    try:
+                        storage.store_scalar_answer(
+                            provision_id=provision_id,
+                            question_id=qid,
+                            value=flat_value,
+                            source_text=source_text or None,
+                            source_page=source_page,
+                            source_section=source_section or None,
                         )
-                        if success:
-                            stored_concept += 1
+                        stored_scalar += 1
+                    except Exception as e:
+                        errors += 1
+                        if errors <= 3:
+                            logger.warning(f"MFN multiselect scalar store error ({qid}): {e}")
+
+                    # Write concept_applicability only for unmapped concepts
+                    if not routed_any:
+                        for concept_id in value:
+                            success = self._store_concept_applicability_for_provision(
+                                provision_id, concept_id, source_text,
+                                source_page or 0
+                            )
+                            if success:
+                                stored_concept += 1
                     continue
 
                 # Scalar → provision_has_answer via GraphStorage
