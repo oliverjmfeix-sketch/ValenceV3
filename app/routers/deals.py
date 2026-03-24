@@ -845,6 +845,203 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
 
 
 
+@router.post("/{deal_id}/re-extract-mfn")
+async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
+    """
+    Re-run MFN extraction from cached MFN universe text (or rebuild from PDF).
+
+    Steps:
+    1. Load cached MFN universe text, or rebuild from PDF via segmenter
+    2. Clean up existing MFN answers/entities
+    3. Run consolidated MFN scalar extraction (MFN1-MFN6)
+    4. Run MFN entity extraction (exclusions, yield def, sunset, freebie)
+    5. Compute MFN pattern flags via TypeDB functions
+    """
+    lock_key = f"{deal_id}_mfn"
+    logger.info(f"MFN re-extract requested for deal {deal_id}")
+
+    # Concurrency guard
+    if _extraction_locks.get(lock_key):
+        logger.warning(f"MFN re-extract REJECTED for {deal_id} — already in progress")
+        raise HTTPException(
+            status_code=409,
+            detail=f"MFN extraction already in progress for deal {deal_id}."
+        )
+
+    # 1. Find MFN universe text
+    mfn_universe_path = os.path.join(UPLOADS_DIR, f"{deal_id}_mfn_universe.txt")
+    mfn_universe_text = None
+
+    if os.path.exists(mfn_universe_path):
+        with open(mfn_universe_path, "r", encoding="utf-8") as f:
+            mfn_universe_text = f.read()
+        if mfn_universe_text and len(mfn_universe_text) >= 500:
+            logger.info(f"Loaded cached MFN universe: {len(mfn_universe_text)} chars")
+        else:
+            mfn_universe_text = None
+
+    # Fallback: rebuild from PDF via segmenter
+    if not mfn_universe_text:
+        pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+        if not os.path.exists(pdf_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"No cached MFN universe and no PDF at {pdf_path}."
+            )
+
+        logger.info(f"Rebuilding MFN universe from PDF: {pdf_path}")
+        extraction_svc = get_extraction_service()
+        document_text = extraction_svc.parse_document(pdf_path)
+        segment_map = extraction_svc.segment_document(document_text)
+
+        mfn_universe_text = extraction_svc._build_mfn_universe_from_segments(
+            document_text, segment_map
+        )
+        if not mfn_universe_text or len(mfn_universe_text) < 1000:
+            logger.warning("Segmenter MFN universe too small, falling back to Claude")
+            mfn_universe_text = extraction_svc.extract_mfn_universe(document_text)
+
+        if not mfn_universe_text:
+            raise HTTPException(
+                status_code=404,
+                detail="Could not extract MFN universe from PDF."
+            )
+
+        # Cache for next time
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
+        with open(mfn_universe_path, "w", encoding="utf-8") as f:
+            f.write(mfn_universe_text)
+        logger.info(f"MFN universe rebuilt and cached: {len(mfn_universe_text)} chars")
+
+    # Ensure deal entity exists
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            rows = list(tx.query(
+                f'match $d isa deal, has deal_id "{deal_id}"; select $d;'
+            ).resolve().as_concept_rows())
+            deal_exists = len(rows) > 0
+        finally:
+            tx.close()
+
+        if not deal_exists:
+            logger.info(f"Deal {deal_id} not in TypeDB — creating stub entity")
+            tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
+            try:
+                tx.query(
+                    f'insert $d isa deal, has deal_id "{deal_id}", has deal_name "re-extracted";'
+                ).resolve()
+                tx.commit()
+            except Exception:
+                if tx.is_open():
+                    tx.close()
+                raise
+    except Exception as e:
+        logger.warning(f"Could not ensure deal entity: {e}")
+
+    # 2. Clean up existing MFN data
+    provision_id = f"{deal_id}_mfn"
+    try:
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            rows = list(tx.query(
+                f'match $p isa mfn_provision, has provision_id "{provision_id}"; select $p;'
+            ).resolve().as_concept_rows())
+            mfn_exists = len(rows) > 0
+        finally:
+            tx.close()
+
+        if mfn_exists:
+            logger.info(f"MFN provision {provision_id} exists — cleaning up old data")
+            cleanup_queries = [
+                # Delete provision_has_answer relations
+                f'''match
+                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    $rel isa provision_has_answer, links (provision: $p);
+                delete $rel;''',
+                # Delete concept_applicability relations
+                f'''match
+                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    $rel isa concept_applicability, links (provision: $p);
+                delete $rel;''',
+                # Delete MFN entities via provision_has_extracted_entity (polymorphic)
+                f'''match
+                    $p isa mfn_provision, has provision_id "{provision_id}";
+                    $rel isa provision_has_extracted_entity, links (provision: $p, extracted: $e);
+                delete $e;''',
+            ]
+            for q in cleanup_queries:
+                try:
+                    tx = typedb_client.driver.transaction(
+                        settings.typedb_database, TransactionType.WRITE
+                    )
+                    try:
+                        tx.query(q).resolve()
+                        tx.commit()
+                    except Exception:
+                        if tx.is_open():
+                            tx.close()
+                except Exception as cleanup_err:
+                    logger.warning(f"MFN cleanup query failed (non-blocking): {cleanup_err}")
+    except Exception as e:
+        logger.warning(f"MFN cleanup check failed: {e}")
+
+    # 3-6. Run MFN extraction
+    extraction_svc = get_extraction_service()
+    _extraction_locks[lock_key] = True
+    try:
+        # Use full document text for consolidated extraction (needs it for Batch B context)
+        # If we rebuilt from PDF, we have document_text; otherwise pass empty string
+        doc_text_for_context = ""
+        pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
+        if os.path.exists(pdf_path):
+            doc_text_for_context = extraction_svc.parse_document(pdf_path)
+
+        # Step 3: Consolidated MFN scalar extraction (MFN1-MFN6)
+        mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
+            deal_id, mfn_universe_text, doc_text_for_context
+        )
+        logger.info(
+            f"MFN scalar extraction: {mfn_result['answered']}/{mfn_result['total_questions']} answers"
+        )
+
+        # Step 4: MFN entity extraction (Channel 3)
+        entity_result = {"entities_stored": 0}
+        if mfn_result["answers"]:
+            entity_result = await extraction_svc.run_mfn_entity_extraction(
+                deal_id, mfn_universe_text
+            )
+            logger.info(f"MFN entity extraction: {entity_result['entities_stored']} entities")
+
+        # Step 5: Compute MFN pattern flags
+        try:
+            extraction_svc._compute_mfn_pattern_flags(deal_id, provision_id)
+            logger.info("MFN pattern flags computed")
+        except Exception as flag_err:
+            logger.warning(f"MFN pattern flags failed (non-blocking): {flag_err}")
+
+        # Step 6: Cross-reference MFN ↔ RP if both exist
+        try:
+            extraction_svc._create_cross_references(deal_id)
+        except Exception as xref_err:
+            logger.warning(f"Cross-reference failed (non-blocking): {xref_err}")
+
+        return {
+            "status": "success",
+            "deal_id": deal_id,
+            "provision_id": provision_id,
+            "mfn_universe_chars": len(mfn_universe_text),
+            "scalar_answers": mfn_result.get("answered", 0),
+            "total_questions": mfn_result.get("total_questions", 0),
+            "entities_stored": entity_result.get("entities_stored", 0),
+        }
+    except Exception as e:
+        logger.error(f"MFN re-extraction failed for {deal_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _extraction_locks.pop(lock_key, None)
+
+
 @router.get("/{deal_id}/status", response_model=ExtractionStatus)
 async def get_extraction_status(deal_id: str) -> ExtractionStatus:
     """Get the extraction status for a deal."""
