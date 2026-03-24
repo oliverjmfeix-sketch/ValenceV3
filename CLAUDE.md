@@ -259,6 +259,26 @@ and extraction_output_v4.py. Includes:
 There is NO type_generator.py in this repo. To regenerate types, read
 schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.ts.
 
+## END-OF-DAY UPDATE WORKFLOW
+
+**Trigger: When the user says `eod`, run the workflow below. No confirmation needed.**
+
+1. Update CLAUDE.md:
+   - "Current State" section: what was completed today, merge any HANDOFF.md content here
+   - "Open Violations" section: grep for TODO/SSoT/hardcoded, cross-reference with schema
+   - "Next Steps" section: based on what's unfinished
+   - Fix any stale file references in Key Files table
+   - Do NOT change the Rules, Schema, or Pipeline sections unless I explicitly ask
+
+2. Update README.md:
+   - Sync the project structure tree with actual filesystem (run: `find app -type f -name '*.py' | sort`)
+   - Update API endpoints table if routes changed
+   - Do NOT change setup/deploy instructions unless they're wrong
+
+3. If HANDOFF.md still exists, merge its content into CLAUDE.md Current State, then `git rm HANDOFF.md`.
+
+4. Show me the diff for all changed files before committing.
+
 ## Known Issues
 
 - **Q5 now passes ($520M)**: Two-stage synthesis (Prompt 8d) + Opus 4.6 correctly identifies 4 × $130M general-purpose capacity. Self-verification block catches shared-pool errors.
