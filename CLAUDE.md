@@ -1,7 +1,12 @@
 # CLAUDE.md — Valence V3
 
 > Auto-loaded by Claude Code at session start. Read this first.
-> Session handoff context: @HANDOFF.md
+
+## SESSION START: Always run first
+
+Before doing ANYTHING else, run `git pull origin main` to get the latest code,
+then read `HANDOFF.md` in the repo root for session handoff context (previous
+session's state, pending tasks, gotchas). Do NOT rely on cached/stale versions.
 
 ## CRITICAL WARNINGS
 
