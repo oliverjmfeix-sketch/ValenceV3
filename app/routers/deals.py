@@ -2381,10 +2381,15 @@ Return ONLY the JSON object. No explanation."""
         )
         filter_duration_ms = (_time.time() - filter_start) * 1000
 
-        # Parse two-tier filter response
+        # Parse two-tier filter response (robust fence + boundary extraction)
         filter_text = filter_response.content[0].text.strip()
         if filter_text.startswith("```"):
-            filter_text = filter_text.strip("`").strip("json").strip()
+            filter_text = re.sub(r'^```(?:json)?\s*\n?', '', filter_text)
+            filter_text = re.sub(r'\n?```\s*$', '', filter_text)
+        start_idx = filter_text.find('{')
+        end_idx = filter_text.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            filter_text = filter_text[start_idx:end_idx + 1]
         try:
             tiers = json.loads(filter_text)
             primary_types = tiers.get("primary", [])

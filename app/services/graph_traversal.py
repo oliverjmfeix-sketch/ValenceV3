@@ -11,10 +11,99 @@ from typing import List, Optional, Tuple
 
 from typedb.driver import TransactionType
 
+from app.config import settings
 from app.services.trace_collector import TraceCollector
 from app.services.typedb_client import typedb_client
 
 logger = logging.getLogger(__name__)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# SCHEMA INTROSPECTION — child relation detection (SSoT)
+# ═════════════════════════════════════════════════════════════════════════════
+
+_provision_has_children_cache: dict = {}
+
+
+def _provision_has_child_relations(provision_type: str) -> bool:
+    """Check if any entity type linked to this provision type has child relations.
+
+    Introspects schema via TypeDB: finds entity types extracted from this
+    provision type, then checks if any play a parent role in an
+    entity_has_child sub-relation.
+
+    Cached after first call per provision_type.
+    """
+    if provision_type in _provision_has_children_cache:
+        return _provision_has_children_cache[provision_type]
+
+    if not typedb_client.driver:
+        _provision_has_children_cache[provision_type] = False
+        return False
+
+    try:
+        tx = typedb_client.driver.transaction(
+            settings.typedb_database, TransactionType.READ
+        )
+        try:
+            # Step 1: Get entity types linked to this provision type
+            rows = list(tx.query(
+                f'match $p isa {provision_type}; '
+                f'(provision: $p, extracted: $e) isa $rel; '
+                f'$rel sub provision_has_extracted_entity; '
+                f'$e isa! $etype; '
+                f'let $type_name = label($etype); '
+                f'select $type_name;'
+            ).resolve().as_concept_rows())
+            entity_types = set()
+            for r in rows:
+                tn = r.get("type_name")
+                if tn:
+                    entity_types.add(tn.as_value().get())
+
+            # Step 2: Get entity_has_child sub-relations
+            rows2 = list(tx.query(
+                'match relation $rel; $rel sub entity_has_child; '
+                'not { $rel label entity_has_child; }; '
+                'let $rname = label($rel); '
+                'select $rname;'
+            ).resolve().as_concept_rows())
+            child_rels = set()
+            for r in rows2:
+                rn = r.get("rname")
+                if rn:
+                    child_rels.add(rn.as_value().get())
+
+            # Step 3: Check if any parent role types overlap with our entity types
+            has_children = False
+            for child_rel in child_rels:
+                rows3 = list(tx.query(
+                    f'match relation $rel label {child_rel}; '
+                    f'$rel relates $parent_role; '
+                    f'entity $etype; $etype plays $parent_role; '
+                    f'let $etype_name = label($etype); '
+                    f'select $etype_name;'
+                ).resolve().as_concept_rows())
+                parent_types = set()
+                for r in rows3:
+                    pn = r.get("etype_name")
+                    if pn:
+                        parent_types.add(pn.as_value().get())
+                if entity_types & parent_types:
+                    has_children = True
+                    break
+        finally:
+            if tx.is_open():
+                tx.close()
+
+        _provision_has_children_cache[provision_type] = has_children
+        logger.info(f"Provision {provision_type} has child relations: {has_children}")
+        return has_children
+
+    except Exception as e:
+        logger.warning(f"Child relation introspection failed for {provision_type}: {e}")
+        # Safe default: assume children exist, use full query
+        _provision_has_children_cache[provision_type] = True
+        return True
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -134,28 +223,13 @@ def get_provision_entities(
             typedb_client.database, TransactionType.READ
         )
         try:
-            query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
-            try:
-                answer = tx.query(query).resolve()
-                docs = list(answer.as_concept_documents())
-            except Exception as qe:
-                # TypeDB type-inference fails if entity types don't support
-                # children/links subqueries (e.g. MFN entities have no
-                # entity_has_child relationships). Fall back to simple query.
-                if "type-inference" in str(qe).lower() or "INF11" in str(qe):
-                    logger.info(f"Full fetch failed for {provision_type}, using simple query: {qe}")
-                    tx.close()
-                    tx = typedb_client.driver.transaction(
-                        typedb_client.database, TransactionType.READ
-                    )
-                    simple_query = _FETCH_QUERY_SIMPLE.format(
-                        prov_type=provision_type, pid=provision_id
-                    )
-                    answer = tx.query(simple_query).resolve()
-                    docs = list(answer.as_concept_documents())
-                    query = simple_query  # for trace
-                else:
-                    raise
+            # SSoT: introspect schema to decide if children subquery is needed
+            if _provision_has_child_relations(provision_type):
+                query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
+            else:
+                query = _FETCH_QUERY_SIMPLE.format(prov_type=provision_type, pid=provision_id)
+            answer = tx.query(query).resolve()
+            docs = list(answer.as_concept_documents())
         finally:
             tx.close()
         duration_ms = (time.time() - start) * 1000
