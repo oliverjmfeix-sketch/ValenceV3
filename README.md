@@ -86,16 +86,29 @@ ValenceV3/
 │   ├── __init__.py
 │   ├── main.py                          # FastAPI app + startup
 │   ├── config.py                        # Settings from env
+│   ├── eval/
+│   │   ├── cc_questions.py              # Cross-covenant eval questions
+│   │   └── duck_creek_ablation.py       # Duck Creek ablation test
+│   ├── prompts/
+│   │   └── reasoning.py                 # Reasoning prompt templates
 │   ├── routers/
+│   │   ├── ablation.py                  # Ablation testing endpoints
+│   │   ├── deals.py                     # Deal CRUD + upload + extraction + /ask-graph
+│   │   ├── eval.py                      # Legacy eval endpoints
+│   │   ├── graph_eval.py                # Gold standard eval runner
 │   │   ├── health.py                    # Health checks + admin endpoints
-│   │   └── deals.py                     # Deal CRUD + upload + extraction
+│   │   ├── mfn_eval.py                  # MFN eval (legacy, use graph_eval)
+│   │   ├── ontology.py                  # Ontology query endpoints
+│   │   └── qa.py                        # Q&A endpoints
 │   ├── services/
 │   │   ├── typedb_client.py             # TypeDB connection
 │   │   ├── extraction.py                # Claude extraction pipeline
 │   │   ├── graph_storage.py             # TypeDB write (all 3 channels)
-│   │   ├── graph_reader.py              # TypeDB read (entity context for Q&A)
-│   │   ├── topic_router.py              # Question → attribute routing
+│   │   ├── graph_reader.py              # TypeDB read (legacy fetchers)
+│   │   ├── graph_traversal.py           # Polymorphic entity fetch + cross-covenant walk
+│   │   ├── topic_router.py              # Question → category routing (SSoT)
 │   │   ├── segment_introspector.py      # Schema introspection
+│   │   ├── trace_collector.py           # Trace/debug collector
 │   │   ├── cost_tracker.py              # Claude API cost tracking
 │   │   └── pdf_parser.py                # PDF text extraction
 │   ├── schemas/
@@ -103,20 +116,21 @@ ValenceV3/
 │   │   └── extraction_output_v4.py      # V4 extraction Pydantic models
 │   ├── scripts/
 │   │   ├── init_schema.py               # DB seeding (single entry point)
-│   │   └── test_functions.py            # TypeDB function tests
-│   └── data/
-│       ├── schema_unified.tql           # THE schema (single file)
-│       ├── questions.tql                # Base ontology (Categories A-K)
-│       ├── ontology_expanded.tql        # Expanded questions (F9+, G5+, I, L, N)
-│       ├── ontology_category_m.tql      # Category M: Unsub distributions
-│       ├── concepts.tql                 # Concept type seed instances
-│       ├── rp_basket_metadata.tql       # RP basket extraction metadata
-│       ├── rdp_basket_metadata.tql      # RDP basket extraction metadata
-│       ├── investment_pathway_metadata.tql  # Pathway extraction metadata
-│       ├── rp_functions.tql             # RP analytical functions
-│       ├── rp_analysis_functions.tql    # RP analysis functions (blocker gaps, etc.)
-│       ├── mfn_functions.tql            # MFN pattern detection functions
-│       └── gold_standard/               # Gold standard eval data
+│   │   └── (various verify_*.py)        # Verification scripts
+│   ├── data/
+│   │   ├── schema_unified.tql           # THE schema (single file)
+│   │   ├── questions.tql                # Base ontology (Categories A-K)
+│   │   ├── categories.tql               # Category definitions + links
+│   │   ├── mfn_ontology_questions.tql   # MFN questions (43 across 6 categories)
+│   │   ├── seed_synthesis_guidance.tql  # Per-category synthesis guidance
+│   │   ├── seed_mfn_annotations.tql     # MFN attribute annotations
+│   │   ├── seed_mfn_entity_list_questions.tql  # MFN entity-list extraction
+│   │   ├── rp_functions.tql             # RP analytical functions
+│   │   ├── mfn_functions.tql            # MFN pattern detection functions
+│   │   ├── annotation_functions.tql     # Entity annotation function
+│   │   └── gold_standard/               # Gold standard eval data (JSON)
+│   └── utils/
+│       └── ontology.py                  # Ontology utilities
 ├── src/
 │   └── types/
 │       └── mfn.generated.ts             # Generated TypeScript types
