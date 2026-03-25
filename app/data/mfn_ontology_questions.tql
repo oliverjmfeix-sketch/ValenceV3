@@ -434,6 +434,35 @@ insert $mfn_42 isa ontology_question,
     has extraction_prompt "Determine if the borrower could issue a bridge loan (which may be excluded from MFN) that converts to a term loan after closing. If bridge financing is excluded from MFN and the bridge converts to a term loan by its terms, the resulting term loan may not be subject to MFN even though it is economically identical to an incremental term loan. Look for bridge exclusions in MFN and for bridge-to-term conversion mechanics elsewhere.";
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# MFN3 YIELD DYNAMICS (Questions mfn_46 - mfn_48)
+# Whether the Effective Yield baseline is static or dynamic.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $mfn_46 isa ontology_question,
+    has question_id "mfn_46",
+    has covenant_type "MFN",
+    has question_text "Is the Effective Yield of the Initial Term Loans recalculated at the time of new incremental incurrence, or is it fixed as of the original Effective Date?",
+    has answer_type "boolean",
+    has display_order 46,
+    has extraction_prompt "Examine the Effective Yield definition and the MFN provision. Determine whether the Effective Yield of the EXISTING Initial Term Loans is measured as of the time of new incremental debt incurrence (answer: true) or frozen at the original closing/Effective Date (answer: false). Key indicators: if the definition says 'the applicable interest rate margins' (present tense, suggesting current margins), that suggests recalculation. If it references 'margins as of the Effective Date' or 'initial margins', that suggests frozen. Also check whether OID is amortized over 'remaining' weighted average life (suggesting dynamic) vs 'original' life (suggesting static).";
+
+insert $mfn_47 isa ontology_question,
+    has question_id "mfn_47",
+    has covenant_type "MFN",
+    has question_text "Do changes in the benchmark reference rate (e.g., SOFR, LIBOR) between closing and new incurrence affect the Effective Yield calculation for the Initial Term Loans?",
+    has answer_type "boolean",
+    has display_order 47,
+    has extraction_prompt "If the Initial Term Loans have an interest rate floor (e.g., SOFR floor of 0.50%), the floor's economic benefit depends on the current reference rate. When SOFR is below the floor, the floor adds value (lenders get the floor rate instead of SOFR). When SOFR rises above the floor, the floor benefit is zero. Determine whether the Effective Yield definition captures this dynamic — does the floor benefit component change as the reference rate moves? Look for: 'the effect of which floors shall be determined in a manner set forth in the proviso below' or similar language indicating a calculation methodology that could produce different results at different reference rate levels.";
+
+insert $mfn_48 isa ontology_question,
+    has question_id "mfn_48",
+    has covenant_type "MFN",
+    has question_text "Does a decline in the secondary market trading price of the Initial Term Loans affect the Effective Yield calculation for purposes of the MFN comparison?",
+    has answer_type "boolean",
+    has display_order 48,
+    has extraction_prompt "The Effective Yield definition is a CONTRACTUAL calculation based on specific enumerated components (margins, floors, OID, fees). Determine whether secondary market trading price or yield-to-maturity based on market price is included as a component. If the definition only references contractual terms (margin, floor, OID, upfront fees) and not market price, trading yield, or secondary market value, the answer is false — market price decline does not affect the contractual Effective Yield even though it changes the economic yield to a buyer in the secondary market.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION RELATIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -514,6 +543,12 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_26";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_27";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_46";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_47";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "MFN3"; $q isa ontology_question, has question_id "mfn_48";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # MFN4: Sunset & Timing

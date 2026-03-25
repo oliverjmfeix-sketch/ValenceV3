@@ -1222,6 +1222,9 @@ attribute mfn_de_minimis_threshold, value string;
 # MFN3: Yield (on mfn_yield_definition)
 attribute differentiates_fixed_floating, value boolean;
 attribute yield_determination_authority, value string;
+attribute yield_recalculated_at_incurrence, value boolean;
+attribute reference_rate_changes_affect_yield, value boolean;
+attribute market_price_affects_yield, value boolean;
 # MFN5: Governance
 attribute amendment_consent_threshold, value string;
 attribute sacred_right_status, value boolean;
@@ -1262,6 +1265,9 @@ entity mfn_yield_definition,
     owns comparison_baseline,
     owns differentiates_fixed_floating,
     owns yield_determination_authority,
+    owns yield_recalculated_at_incurrence,
+    owns reference_rate_changes_affect_yield,
+    owns market_price_affects_yield,
     owns section_reference,
     owns source_page,
     owns source_text,

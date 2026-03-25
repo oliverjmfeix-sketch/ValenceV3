@@ -282,6 +282,42 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "mfn_yield_definition",
     has target_attribute_name "yield_determination_authority";
 
+# ── MFN3: Yield Dynamics → mfn_yield_definition (Prompt 11) ──────────────────
+
+# mfn_46: "Is Effective Yield recalculated at incurrence or fixed at Effective Date?"
+match $q isa ontology_question, has question_id "mfn_46";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "yield_recalculated_at_incurrence";
+
+# mfn_47: "Do reference rate changes affect Effective Yield?"
+match $q isa ontology_question, has question_id "mfn_47";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "reference_rate_changes_affect_yield";
+
+# mfn_48: "Does market price decline affect Effective Yield?"
+match $q isa ontology_question, has question_id "mfn_48";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "market_price_affects_yield";
+
+# question_targets_field: store scalar answers as entity attributes
+match $q isa ontology_question, has question_id "mfn_46";
+insert (question: $q) isa question_targets_field,
+    has target_field_name "yield_recalculated_at_incurrence",
+    has target_entity_type "mfn_yield_definition";
+
+match $q isa ontology_question, has question_id "mfn_47";
+insert (question: $q) isa question_targets_field,
+    has target_field_name "reference_rate_changes_affect_yield",
+    has target_entity_type "mfn_yield_definition";
+
+match $q isa ontology_question, has question_id "mfn_48";
+insert (question: $q) isa question_targets_field,
+    has target_field_name "market_price_affects_yield",
+    has target_entity_type "mfn_yield_definition";
+
 # ── MFN4: Sunset → mfn_sunset_provision (2nd annotation source) ─────────────
 
 # mfn_33: "Can borrower issue after sunset to avoid MFN?"
