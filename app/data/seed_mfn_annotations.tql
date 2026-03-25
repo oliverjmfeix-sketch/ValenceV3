@@ -186,3 +186,159 @@ match $q isa ontology_question, has question_id "mfn_el_exclusions";
 insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "mfn_exclusion",
     has target_attribute_name "applies_when";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMPLETE MFN ANNOTATION COVERAGE (Prompt 10)
+# Fills gaps so ALL MFN scalar questions are visible to /ask-graph.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── MFN1: Core Structure → mfn_provision ─────────────────────────────────────
+
+# mfn_01: "Does an MFN provision exist?"
+match $q isa ontology_question, has question_id "mfn_01";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "mfn_exists";
+
+# mfn_03: "What is the MFN threshold in basis points?"
+match $q isa ontology_question, has question_id "mfn_03";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "threshold_bps";
+
+# mfn_04: "Does the threshold apply to margin only?"
+match $q isa ontology_question, has question_id "mfn_04";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "margin_only_threshold";
+
+# mfn_05: "Is the MFN adjustment automatic?"
+match $q isa ontology_question, has question_id "mfn_05";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "automatic_adjustment";
+
+# mfn_06: "Does MFN adjust spread only, or also floor?"
+match $q isa ontology_question, has question_id "mfn_06";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "adjustment_scope";
+
+# mfn_07: "Is the MFN protection bilateral?"
+match $q isa ontology_question, has question_id "mfn_07";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "bilateral_protection";
+
+# ── MFN2: Debt Scope → mfn_provision ────────────────────────────────────────
+
+# mfn_11: "Is refinancing debt excluded from MFN?"
+match $q isa ontology_question, has question_id "mfn_11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "refinancing_debt_excluded";
+
+# mfn_12: "Is ratio debt / IED excluded from MFN?"
+match $q isa ontology_question, has question_id "mfn_12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "ratio_debt_excluded";
+
+# mfn_13: "Is bridge financing excluded from MFN?"
+match $q isa ontology_question, has question_id "mfn_13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "bridge_financing_excluded";
+
+# mfn_14: "Are revolving facilities excluded from MFN?"
+match $q isa ontology_question, has question_id "mfn_14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "revolving_excluded";
+
+# mfn_16: "Does MFN apply only to same-currency debt?"
+match $q isa ontology_question, has question_id "mfn_16";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "same_currency_only";
+
+# mfn_17: "Is there a de minimis size threshold?"
+match $q isa ontology_question, has question_id "mfn_17";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "mfn_de_minimis_threshold";
+
+# ── MFN3: Yield → mfn_yield_definition ──────────────────────────────────────
+
+# mfn_26: "Does yield calculation differentiate fixed vs floating?"
+match $q isa ontology_question, has question_id "mfn_26";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "differentiates_fixed_floating";
+
+# mfn_27: "Who determines the yield calculation?"
+match $q isa ontology_question, has question_id "mfn_27";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_yield_definition",
+    has target_attribute_name "yield_determination_authority";
+
+# ── MFN4: Sunset → mfn_sunset_provision (2nd annotation source) ─────────────
+
+# mfn_33: "Can borrower issue after sunset to avoid MFN?"
+# (sunset_timing_loophole already annotated by mfn_39 — this adds 2nd source)
+match $q isa ontology_question, has question_id "mfn_33";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_sunset_provision",
+    has target_attribute_name "sunset_timing_loophole";
+
+# ── MFN5: Governance → mfn_provision ────────────────────────────────────────
+
+# mfn_34: "What consent threshold to waive MFN?"
+match $q isa ontology_question, has question_id "mfn_34";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "amendment_consent_threshold";
+
+# mfn_35: "Is MFN a sacred right?"
+match $q isa ontology_question, has question_id "mfn_35";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "sacred_right_status";
+
+# mfn_36: "Can MFN be waived per-transaction?"
+match $q isa ontology_question, has question_id "mfn_36";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "transaction_specific_waiver";
+
+# mfn_37: "Does the Admin Agent have discretion in applying MFN?"
+match $q isa ontology_question, has question_id "mfn_37";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "agent_discretion";
+
+# mfn_38: "Are there affected lender opt-out provisions?"
+match $q isa ontology_question, has question_id "mfn_38";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "affected_lender_optout";
+
+# ── MFN6: Loopholes → mfn_provision (existing pattern flags) ────────────────
+
+# mfn_40: "Can borrower reclassify incremental as ratio debt?"
+match $q isa ontology_question, has question_id "mfn_40";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "reclassification_loophole_detected";
+
+# mfn_41: "Is there a yield exclusion pattern (both OID and floor excluded)?"
+match $q isa ontology_question, has question_id "mfn_41";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "yield_exclusion_pattern_detected";
+
+# mfn_42: "Can borrower use bridge-to-term conversion to circumvent MFN?"
+match $q isa ontology_question, has question_id "mfn_42";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_provision",
+    has target_attribute_name "bridge_to_term_loophole_detected";

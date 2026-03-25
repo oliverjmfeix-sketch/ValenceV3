@@ -555,6 +555,7 @@ entity provision @abstract,
     plays answer_has_citation:cited_answer;
 
 entity mfn_provision sub provision,
+    # Computed pattern flags
     owns yield_exclusion_pattern_detected,
     owns reclassification_loophole_detected,
     owns mfn_amendment_vulnerable,
@@ -565,6 +566,27 @@ entity mfn_provision sub provision,
     owns freebie_oversized_detected,
     owns mfn_margin_only_weakness_detected,
     owns mfn_comprehensive_protection_detected,
+    # MFN1: Core Structure scalars
+    owns mfn_exists,
+    owns threshold_bps,
+    owns margin_only_threshold,
+    owns automatic_adjustment,
+    owns adjustment_scope,
+    owns bilateral_protection,
+    # MFN2: Debt Scope scalars
+    owns refinancing_debt_excluded,
+    owns ratio_debt_excluded,
+    owns bridge_financing_excluded,
+    owns revolving_excluded,
+    owns same_currency_only,
+    owns mfn_de_minimis_threshold,
+    # MFN5: Governance scalars
+    owns amendment_consent_threshold,
+    owns sacred_right_status,
+    owns transaction_specific_waiver,
+    owns agent_discretion,
+    owns affected_lender_optout,
+    # Relations
     plays provision_has_exclusion:provision,
     plays provision_has_yield_def:provision,
     plays provision_has_sunset:provision,
@@ -1181,6 +1203,32 @@ attribute total_mfn_exempt_capacity_usd, value double;
 
 attribute mfn_universe_field, value string;
 
+# ── MFN provision-level scalar attributes ────────────────────────────────────
+# Surfaced via question_annotates_attribute → polymorphic fetch annotations.
+# MFN1: Core Structure
+attribute mfn_exists, value boolean;
+attribute threshold_bps, value long;
+attribute margin_only_threshold, value boolean;
+attribute automatic_adjustment, value boolean;
+attribute adjustment_scope, value string;
+attribute bilateral_protection, value boolean;
+# MFN2: Debt Scope
+attribute refinancing_debt_excluded, value boolean;
+attribute ratio_debt_excluded, value boolean;
+attribute bridge_financing_excluded, value boolean;
+attribute revolving_excluded, value boolean;
+attribute same_currency_only, value boolean;
+attribute mfn_de_minimis_threshold, value string;
+# MFN3: Yield (on mfn_yield_definition)
+attribute differentiates_fixed_floating, value boolean;
+attribute yield_determination_authority, value string;
+# MFN5: Governance
+attribute amendment_consent_threshold, value string;
+attribute sacred_right_status, value boolean;
+attribute transaction_specific_waiver, value boolean;
+attribute agent_discretion, value boolean;
+attribute affected_lender_optout, value boolean;
+
 # ── MFN entity types ─────────────────────────────────────────────────────────
 
 entity mfn_exclusion,
@@ -1212,6 +1260,8 @@ entity mfn_yield_definition,
     owns oid_amortization_method,
     owns oid_amortization_years,
     owns comparison_baseline,
+    owns differentiates_fixed_floating,
+    owns yield_determination_authority,
     owns section_reference,
     owns source_page,
     owns source_text,

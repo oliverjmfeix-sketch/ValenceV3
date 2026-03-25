@@ -1107,7 +1107,12 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         if not key_attr:
             return
 
-        entity_id = f"{provision_id}_{entity_type}"
+        # Provision subtypes use provision_id directly as their key;
+        # child entities use {provision_id}_{entity_type} convention.
+        if key_attr == "provision_id":
+            entity_id = provision_id
+        else:
+            entity_id = f"{provision_id}_{entity_type}"
 
         # Use shared schema-based coercion (SSoT)
         attr_types = self.get_attr_value_types(entity_type)

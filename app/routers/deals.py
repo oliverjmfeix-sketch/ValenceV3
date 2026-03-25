@@ -1636,6 +1636,27 @@ async def deal_qa(deal_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
     return await ask_question(deal_id, AskRequest(question=question))
 
 
+# ════════════════════════════════════════════════════════════════
+# ARCHITECTURE NOTE: /ask (Channel 1 flat scalars) is the LEGACY
+# synthesis path. /ask-graph (Channel 3 typed entities) is the
+# PRODUCTION path for both RP and MFN.
+#
+# /ask exists for:
+# - Frontend comparison grids (need flat key-value format)
+# - Ablation testing (measuring what entity structure adds)
+# - Backward compatibility
+#
+# All annotation coverage is complete for both RP and MFN.
+# Every extracted scalar maps to an entity attribute via
+# question_annotates_attribute. /ask-graph sees all data
+# through the polymorphic entity fetch.
+#
+# New covenant types MUST have full annotation coverage before
+# /ask-graph synthesis is enabled.
+#
+# FRONTEND: src/api/client.ts askDealQuestion() currently calls
+# /ask — switch to /ask-graph AFTER annotation verification.
+# ════════════════════════════════════════════════════════════════
 @router.post("/{deal_id}/ask")
 async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
     """
