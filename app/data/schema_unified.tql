@@ -1207,7 +1207,7 @@ attribute mfn_universe_field, value string;
 # Surfaced via question_annotates_attribute → polymorphic fetch annotations.
 # MFN1: Core Structure
 attribute mfn_exists, value boolean;
-attribute threshold_bps, value long;
+attribute threshold_bps, value integer;
 attribute margin_only_threshold, value boolean;
 attribute automatic_adjustment, value boolean;
 attribute adjustment_scope, value string;
