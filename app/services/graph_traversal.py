@@ -223,6 +223,30 @@ def get_provision_entities(
             typedb_client.database, TransactionType.READ
         )
         try:
+            # ── Provision-level attributes (SSoT: reads whatever the provision has) ──
+            prov_header = ""
+            try:
+                prov_attr_query = (
+                    f'match $p isa {provision_type}, has provision_id "{provision_id}"; '
+                    f'$p has $attr; '
+                    f'let $attr_type = label(type($attr)); '
+                    f'select $attr_type, $attr;'
+                )
+                prov_rows = list(tx.query(prov_attr_query).resolve().as_concept_rows())
+                prov_attrs = {}
+                for row in prov_rows:
+                    attr_type = row.get("attr_type").as_value().get()
+                    attr_val = row.get("attr").as_attribute().get_value()
+                    if attr_type != "provision_id":
+                        prov_attrs[attr_type] = attr_val
+                if prov_attrs:
+                    lines = [f"## PROVISION: {provision_type} ({provision_id})"]
+                    for k, v in sorted(prov_attrs.items()):
+                        lines.append(f"- **{k}**: {v}")
+                    prov_header = "\n".join(lines) + "\n\n"
+            except Exception as e:
+                logger.warning(f"Provision attribute query failed: {e}")
+
             # SSoT: introspect schema to decide if children subquery is needed
             if _provision_has_child_relations(provision_type):
                 query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
@@ -248,7 +272,7 @@ def get_provision_entities(
             return [], "(No Channel 3 entities found for this provision)"
 
         entity_json = json.dumps(docs, indent=2, default=str)
-        context = f"## ENTITY DATA\n\n{entity_json}"
+        context = f"{prov_header}## ENTITY DATA\n\n{entity_json}"
 
         if trace:
             trace.entity_context = context

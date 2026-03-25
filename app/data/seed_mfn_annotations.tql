@@ -180,3 +180,9 @@ match $q isa ontology_question, has question_id "mfn_44";
 insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "mfn_exclusion",
     has target_attribute_name "exclusion_scope";
+
+# ── mfn_el_exclusions: applies_when (positive polarity framing) ──────────────
+match $q isa ontology_question, has question_id "mfn_el_exclusions";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "mfn_exclusion",
+    has target_attribute_name "applies_when";

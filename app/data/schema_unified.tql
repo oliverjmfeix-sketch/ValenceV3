@@ -544,6 +544,7 @@ entity provision @abstract,
     owns section_reference,
     owns source_page,
     owns extracted_at,
+    owns condition_logic,
     plays deal_has_provision:provision,
     plays provision_has_answer:provision,
     plays concept_applicability:provision,
@@ -1155,6 +1156,8 @@ attribute exclusion_conditions, value string;
 attribute can_stack_with_other_exclusions, value boolean;
 attribute excludes_from_mfn, value boolean;
 attribute exclusion_scope, value string;
+attribute applies_when, value string;
+attribute condition_logic, value string;
 
 attribute yield_def_id, value string;
 attribute defined_term, value string;
@@ -1190,6 +1193,7 @@ entity mfn_exclusion,
     owns can_stack_with_other_exclusions,
     owns excludes_from_mfn,
     owns exclusion_scope,
+    owns applies_when,
     owns section_reference,
     owns source_page,
     owns source_text,

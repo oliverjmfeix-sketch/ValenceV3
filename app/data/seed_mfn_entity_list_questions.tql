@@ -33,6 +33,16 @@ For EACH exclusion, determine exclusion_scope:
 - 'both': Applies regardless of incurrence vehicle
 This distinction is CRITICAL for ratio-type exclusions. The ratio prong determines HOW MUCH can be incurred, not WHETHER MFN applies.
 
+For EACH condition/exclusion, provide applies_when: state the POSITIVE framing of when MFN APPLIES for this condition. This is the INCLUSION condition — what must be TRUE about the debt for this condition to be satisfied (meaning MFN applies on this dimension).
+
+Examples:
+- Maturity: applies_when = 'debt is scheduled to mature on or prior to the Term Maturity Date'
+- Syndication: applies_when = 'debt is broadly syndicated'
+- Currency: applies_when = 'debt is denominated in U.S. Dollars'
+- Acquisition: applies_when = 'debt is not incurred in connection with a Permitted Acquisition or other Investment'
+
+The exclusion is the INVERSE: if applies_when is NOT satisfied, the debt is excluded from MFN on this dimension.
+
 Look in the Incremental Facility section for the MFN provision's exception list.";
 
 insert $mfn_el_yield_definition isa ontology_question,
