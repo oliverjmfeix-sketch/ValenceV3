@@ -228,14 +228,14 @@ def get_provision_entities(
             try:
                 prov_attr_query = (
                     f'match $p isa {provision_type}, has provision_id "{provision_id}"; '
-                    f'$p has $attr; '
-                    f'let $attr_type = label(type($attr)); '
-                    f'select $attr_type, $attr;'
+                    f'$p has $attr_type $attr; '
+                    f'let $atn = label($attr_type); '
+                    f'select $atn, $attr;'
                 )
                 prov_rows = list(tx.query(prov_attr_query).resolve().as_concept_rows())
                 prov_attrs = {}
                 for row in prov_rows:
-                    attr_type = row.get("attr_type").as_value().get()
+                    attr_type = row.get("atn").as_value().get()
                     attr_val = row.get("attr").as_attribute().get_value()
                     if attr_type != "provision_id":
                         prov_attrs[attr_type] = attr_val
