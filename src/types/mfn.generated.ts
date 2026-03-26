@@ -583,8 +583,7 @@ export interface ProvisionBase {
 export interface MFNProvision extends ProvisionBase {
   yield_exclusion_pattern_detected?: boolean;
   reclassification_loophole_detected?: boolean;
-  mfn_amendment_vulnerable?: boolean;
-  mfn_exclusion_stacking_detected?: boolean;
+  bridge_to_term_loophole_detected?: boolean;
   answers?: ProvisionAnswerMap;
   applicabilities?: Record<string, ConceptApplicability[]>;
   // Channel 3 entities

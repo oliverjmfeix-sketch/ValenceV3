@@ -666,12 +666,6 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     exc_info=True
                 )
 
-        # Compute MFN pattern flags from TypeDB functions
-        try:
-            extraction_svc._compute_mfn_pattern_flags(deal_id, f"{deal_id}_mfn")
-        except Exception as flag_err:
-            logger.warning(f"MFN pattern flags failed (non-blocking): {flag_err}")
-
         # Cross-reference MFN ↔ RP provisions if both exist
         try:
             extraction_svc._create_cross_references(deal_id)
@@ -1013,14 +1007,7 @@ async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
             )
             logger.info(f"MFN entity extraction: {entity_result['entities_stored']} entities")
 
-        # Step 5: Compute MFN pattern flags
-        try:
-            extraction_svc._compute_mfn_pattern_flags(deal_id, provision_id)
-            logger.info("MFN pattern flags computed")
-        except Exception as flag_err:
-            logger.warning(f"MFN pattern flags failed (non-blocking): {flag_err}")
-
-        # Step 6: Cross-reference MFN ↔ RP if both exist
+        # Step 5: Cross-reference MFN ↔ RP if both exist
         try:
             extraction_svc._create_cross_references(deal_id)
         except Exception as xref_err:

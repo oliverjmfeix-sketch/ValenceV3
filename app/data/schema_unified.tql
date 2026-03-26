@@ -164,14 +164,7 @@ attribute serta_pattern_detected, value boolean;
 attribute collateral_leakage_pattern_detected, value boolean;
 attribute yield_exclusion_pattern_detected, value boolean;
 attribute reclassification_loophole_detected, value boolean;
-attribute mfn_amendment_vulnerable, value boolean;
-attribute mfn_exclusion_stacking_detected, value boolean;
-attribute sunset_timing_loophole_detected, value boolean;
 attribute bridge_to_term_loophole_detected, value boolean;
-attribute currency_arbitrage_detected, value boolean;
-attribute freebie_oversized_detected, value boolean;
-attribute mfn_margin_only_weakness_detected, value boolean;
-attribute mfn_comprehensive_protection_detected, value boolean;
 
 # ─── Entity attributes ───────────────────────────────────────────────────────
 #
@@ -555,17 +548,10 @@ entity provision @abstract,
     plays answer_has_citation:cited_answer;
 
 entity mfn_provision sub provision,
-    # Computed pattern flags
+    # Annotation-routed pattern flags (via seed_mfn_annotations.tql)
     owns yield_exclusion_pattern_detected,
     owns reclassification_loophole_detected,
-    owns mfn_amendment_vulnerable,
-    owns mfn_exclusion_stacking_detected,
-    owns sunset_timing_loophole_detected,
     owns bridge_to_term_loophole_detected,
-    owns currency_arbitrage_detected,
-    owns freebie_oversized_detected,
-    owns mfn_margin_only_weakness_detected,
-    owns mfn_comprehensive_protection_detected,
     # MFN1: Core Structure scalars
     owns mfn_exists,
     owns threshold_bps,
