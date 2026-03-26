@@ -132,8 +132,10 @@ ValenceV3/
 │   │   ├── mfn_ontology_questions.tql   # MFN questions (43)
 │   │   ├── seed_*.tql                   # Seed data (annotations, mappings, etc.)
 │   │   ├── mfn_functions.tql            # MFN pattern detection functions
+│   │   ├── segment_types_seed.tql       # Document segment type definitions
 │   │   ├── annotation_functions.tql     # Entity annotation function
-│   │   └── gold_standard/               # Gold standard eval data (JSON)
+│   │   ├── gold_standard/               # Gold standard eval data (JSON)
+│   │   └── eval_results/               # Local copies of eval output files
 │   └── utils/
 │       └── ontology.py                  # Ontology utilities
 ├── tests/

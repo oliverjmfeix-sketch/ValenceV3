@@ -265,32 +265,54 @@ schema_unified.tql and extraction_response.py directly and write mfn.generated.t
 
 ## Current State (2026-03-26)
 
-### Codebase Cleanup (2026-03-26)
-- Deleted 24 one-time scripts from `app/scripts/` (migrate, test, verify, check, diagnostic)
-- Deleted 7 retired/stub `.tql` data files + cleaned `init_schema.py` (renumbered to 26 steps)
-- Removed dead `RPExtractionV4` interface from `mfn.generated.ts`
-- Removed placeholder `qa.py` router (returned hardcoded "coming soon")
-- Relocated `run_mfn_eval.py` → `app/scripts/`, `test_topic_router.py` → `tests/`
-- Renamed `test_extraction_output_v4.py` → `test_extraction_response.py`
+### Eval Pipeline Overhaul (2026-03-26)
+- Removed `key_signals` substring scoring from graph_eval.py, gold standard JSON, mfn_eval.py
+- Each eval run now saves 3 files: `_summary.txt`, `_verbatim.txt`, `_full.json` (shared timestamp)
+- Eval results endpoint serves `.txt` as PlainTextResponse, `.json` as parsed JSON
 
-### Previous Session (2026-03-24)
-- Cross-covenant graph walk for MFN→RP context
-- MFN gold standard eval (11 questions, ACP Tara)
-- Synthesis guidance SSoT (moved from Python to TypeDB)
+### MFN Schema Cleanup (2026-03-26)
+- Removed 7 computed pattern flags from `mfn_provision` (deleted `_compute_mfn_pattern_flags()`)
+- Removed 6 duplicated MFN2 Debt Scope attributes from `mfn_provision` (refinancing_debt_excluded, ratio_debt_excluded, bridge_financing_excluded, revolving_excluded, same_currency_only, mfn_de_minimis_threshold) — data lives in `mfn_exclusion` entities
+- Fixed "PURE ANCHORS" schema comment to accurately describe provision-scope scalars + pattern flags
+- Reseeded TypeDB to pick up schema changes
+
+### Cross-Covenant + Synthesis Pipeline Fixes (2026-03-26)
+- Fixed `_create_cross_references()` — now idempotent with explicit logging
+- Added `POST /{deal_id}/create-cross-references` admin endpoint for backfill
+- Fixed cross-covenant `.get()` crash in `graph_traversal.py` (was `.get_value()`)
+- Fixed provision header dropout: `prov_header` and `cross_context` now tracked as separate variables through metadata filter + entity filter + tiered context assembly
+- Fixed "both"-routed questions getting only RP header — now extracts both provision headers at fetch time
+- Entity filter now uses `all_docs` directly instead of re-parsing entity_context JSON
+
+### MFN Extraction Reordering (2026-03-26)
+- Deferred MFN scalar storage until after entity extraction (matches RP pattern)
+- Added annotation routing to `_store_mfn_answers()` via `_load_question_to_entity_map()` + `_set_entity_attribute()`
+- Re-extracted ACP Tara (RP + MFN) after reseed
+
+### Eval Results (2026-03-26)
+- ACP Tara MFN: 11/11 OK, $3.57, 739s (latest run with all fixes)
+- q2 (mfn-routed): now gets cross-covenant RP context in synthesis (107K char prompt)
+- q8 (both-routed): now gets both MFN + RP provision headers
+- `threshold_bps` still not in q8 prompt — MFN provision attributes not yet populated (next step)
+- Eval results saved locally in `app/data/eval_results/`
+
+### Previous Sessions
+- (2026-03-26 AM) Codebase cleanup: deleted 24 scripts, 7 retired .tql files, dead types, placeholder router
+- (2026-03-24) Cross-covenant graph walk, MFN gold standard eval, synthesis guidance SSoT
 
 ### Test Deals
-- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. 66 entities, 176 scalar answers.
-- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. MFN eval baseline: 38.8% key_signals.
+- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-26 (post-reseed).
+- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26 (post-reseed). 14 MFN entities, cross-reference to RP active.
 
 ### Eval Baselines
 - Duck Creek RP: 6/6 gold standard questions pass (Prompt 8d + Opus 4.6)
-- ACP Tara MFN: 38.8% key_signals hit rate (11 questions, pre-cross-covenant fix)
+- ACP Tara MFN: 11/11 OK, $3.57 per run (Opus 4.6 filter + synthesis)
 
 ## Open Violations
 
 ### Actionable TODOs in Code
 - `app/routers/ablation.py:721` — `total_cost_usd=0.0  # TODO: aggregate from cost_tracker`
-- `app/routers/deals.py:1885` — `# TODO: Persist QA cost to TypeDB`
+- `app/routers/deals.py:1913` — `# TODO: Persist QA cost to TypeDB`
 - `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 - `app/routers/mfn_eval.py:4` — `TODO: Delete this entire file once graph-eval handles MFN fully`
 
@@ -300,14 +322,16 @@ schema_unified.tql and extraction_response.py directly and write mfn.generated.t
 ### Schema Gap
 - **RP root category missing** — `category_id "RP"` entity not in TypeDB (27 categories exist, RP root not among them). Defined in `categories.tql` but insert may be failing silently. Non-blocking: no questions link to RP root directly.
 
+### Known Data Gap
+- **MFN provision scalars not populated** — `threshold_bps`, `mfn_exists`, etc. not on provision entity after extraction. Annotation routing added to `_store_mfn_answers()` but may need re-extraction to take effect. q8 synthesis prompt missing threshold data.
+
 ## Next Steps
 
-1. **Reseed TypeDB** — `init_schema --force` to load new schema (exclusion_scope attribute, mfn_44 question, updated synthesis guidance). Required before re-extraction.
-2. **Re-extract MFN for ACP Tara** — `POST /api/deals/8d0bf2f8/re-extract-mfn` to populate `exclusion_scope` on mfn_exclusion entities.
-3. **Re-run MFN eval** — `POST /api/graph-eval/acp_tara_mfn` to measure improvement from cross-covenant walk + ratio prong guidance.
-4. **Fix RP root category** — investigate why `category_id "RP"` insert fails in `categories.tql`.
-5. **Delete mfn_eval.py** — once graph-eval covers MFN fully.
-6. **RP regression test** — run `POST /api/graph-eval/87852625` to confirm Duck Creek RP still passes 6/6.
+1. **Re-extract MFN for ACP Tara** — `POST /api/deals/8d0bf2f8/re-extract-mfn` to populate provision scalars via annotation routing (code fix deployed, data not yet updated).
+2. **Re-run MFN eval** — verify `threshold_bps` appears in q8 synthesis prompt.
+3. **RP regression test** — `POST /api/graph-eval/87852625` to confirm Duck Creek RP still passes 6/6 after reseed.
+4. **Delete mfn_eval.py** — once graph-eval covers MFN fully.
+5. **Fix RP root category** — investigate why `category_id "RP"` insert fails in `categories.tql`.
 
 ## END-OF-DAY UPDATE WORKFLOW
 
@@ -370,12 +394,13 @@ Types: schema, extraction, api, types, data, fix, refactor
 
 ## Test Deals
 
-- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-20 — 66 entities, 176 scalar answers.
-- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-24.
+- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-26 (post-reseed). 36 entities, 165 scalar answers.
+- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26 (post-reseed). 14 MFN entities, cross-reference to RP active.
 
 ## Eval: Gold Standard Questions
 
 - **Duck Creek RP**: 6 questions. All pass as of Prompt 8d + Opus 4.6.
   Run via `POST /api/graph-eval/87852625`
-- **ACP Tara MFN**: 11 questions. Baseline: 38.8% key_signals hit rate.
+- **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
   Run via `POST /api/graph-eval/acp_tara_mfn`
+  Results saved locally: `app/data/eval_results/eval_acp_tara_mfn_20260326_*.{txt,json}`
