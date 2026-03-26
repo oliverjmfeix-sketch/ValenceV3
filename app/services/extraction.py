@@ -2133,17 +2133,32 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
     # =========================================================================
 
     def _create_cross_references(self, deal_id: str):
-        """Create provision_cross_reference between MFN and RP provisions."""
+        """Create provision_cross_reference between MFN and RP provisions.
+
+        Idempotent: skips if edge already exists.
+        Loud: logs explicitly at every branch.
+        """
         from typedb.driver import TransactionType
 
         mfn_id = f"{deal_id}_mfn"
 
-        # Check both provisions exist
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.READ
         )
         try:
-            query = f"""
+            # Check if cross-reference already exists
+            existing = list(tx.query(f'''
+                match
+                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
+                    (source_provision: $mfn, target_provision: $rp) isa provision_cross_reference;
+                select $rp;
+            ''').resolve().as_concept_rows())
+            if existing:
+                logger.info(f"Cross-reference already exists for {deal_id} — skipping")
+                return
+
+            # Check both provisions exist
+            result = list(tx.query(f'''
                 match
                     $d isa deal, has deal_id "{deal_id}";
                     $mfn isa mfn_provision, has provision_id "{mfn_id}";
@@ -2151,22 +2166,20 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                     (deal: $d, provision: $mfn) isa deal_has_provision;
                     (deal: $d, provision: $rp) isa deal_has_provision;
                 select $rpid;
-            """
-            result = list(tx.query(query).resolve().as_concept_rows())
+            ''').resolve().as_concept_rows())
             has_both = len(result) > 0
         finally:
             tx.close()
 
         if not has_both:
-            logger.debug(f"No cross-reference needed for {deal_id} (missing MFN or RP)")
+            logger.warning(f"Cannot create cross-reference for {deal_id}: missing MFN or RP provision")
             return
 
-        # Create cross-reference
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.WRITE
         )
         try:
-            query = f"""
+            tx.query(f'''
                 match
                     $d isa deal, has deal_id "{deal_id}";
                     $mfn isa mfn_provision, has provision_id "{mfn_id}";
@@ -2177,14 +2190,14 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                     (source_provision: $mfn, target_provision: $rp)
                         isa provision_cross_reference,
                         has cross_reference_type "depends_on",
-                        has cross_reference_explanation "MFN exclusion capacity shares debt incurrence covenant capacity with RP ratio baskets. Incremental equivalent debt incurred under ratio test avoids MFN but may consume RP debt incurrence capacity.";
-            """
-            tx.query(query).resolve()
+                        has cross_reference_explanation "MFN exclusions interact with RP debt incurrence capacity.";
+            ''').resolve()
             tx.commit()
-            logger.info(f"Created MFN↔RP cross-reference for deal {deal_id}")
+            logger.info(f"Created MFN→RP cross-reference for deal {deal_id}")
         except Exception as e:
             if tx.is_open():
                 tx.close()
+            logger.error(f"Failed to create cross-reference for {deal_id}: {e}")
             raise
 
     # =========================================================================
