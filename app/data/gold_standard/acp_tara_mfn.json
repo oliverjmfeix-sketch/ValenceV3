@@ -12,8 +12,10 @@
       "gold_answer": "No, assuming it is incurred within the agreement under the Incremental Facility and assuming no other carve-out applies, MFN will be triggered to the extent it exceeds the $147m/100% EBITDA carveout. But it depends on what you mean by \"non-fungible\". If non-fungible means separate class but with the same terms then MFN will be triggerred as per above. But as per the question/answer above, a 1L pari TL can be incurred under Incremental Equivalent Debt without triggering the MFN.",
       "source": "domain_expert_qa",
       "category": "ratio_prong_trigger",
-      "key_signals": ["MFN will be triggered", "$147m/100% EBITDA", "IED avoids MFN"],
-      "requires_entities": ["mfn_exclusion", "mfn_freebie_basket"]
+      "requires_entities": [
+        "mfn_exclusion",
+        "mfn_freebie_basket"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q2",
@@ -21,8 +23,10 @@
       "gold_answer": "Yes. Either under Incremental Equivalent Debt or Ratio Debt. And such amount is not only the $150m freebie, but also includes the general debt basket and debt under the 5.1x First Lien Net Leverage Ratio.\n\nAlso, the freebie basket under the Incremental Facility can also be used to incur incremental debt under this agreement without triggering MFN protection since the freebie is a carve-out.",
       "source": "domain_expert_qa",
       "category": "pari_bond_sidecar",
-      "key_signals": ["IED", "Ratio Debt", "general debt basket", "5.1x", "freebie"],
-      "requires_entities": ["mfn_exclusion", "mfn_freebie_basket"]
+      "requires_entities": [
+        "mfn_exclusion",
+        "mfn_freebie_basket"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q3",
@@ -30,8 +34,10 @@
       "gold_answer": "Yes, since it matures after the initial TL",
       "source": "domain_expert_qa",
       "category": "maturity_escape",
-      "key_signals": ["Yes", "matures after"],
-      "requires_entities": ["mfn_exclusion", "mfn_sunset_provision"]
+      "requires_entities": [
+        "mfn_exclusion",
+        "mfn_sunset_provision"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q4",
@@ -39,8 +45,11 @@
       "gold_answer": "(1) Ratio Debt\n(2) Incremental Equivalent Debt\n(3) Incremental Debt incurred 6 months after the Effective Date or later than 6 months\n(4) if incurred within 6 months then under the freebie, plus general debt basket plus the $147m/100% EBITDA carveout\n(5) If incurred within 6 months debt that does not meet any one of the following requirements (change any of these and MFN falls away):\n - broadly syndicated\n - floating rate term loan\n - matures on or prior to the Term Maturity Date\n - rank pari in right of payment and security with initial\n - USD denominated\n - incurred under the 5.1x First Lien Net Leverage Ratio\n - incurred 6 months after Closing\n - incurred to finance a Permitted Acquisition or other Investment\n - using baskets referenced in (4) above",
       "source": "domain_expert_qa",
       "category": "all_avoidance_methods",
-      "key_signals": ["Ratio Debt", "IED", "6 months", "freebie", "general debt basket", "conjunctive conditions"],
-      "requires_entities": ["mfn_exclusion", "mfn_freebie_basket", "mfn_sunset_provision"]
+      "requires_entities": [
+        "mfn_exclusion",
+        "mfn_freebie_basket",
+        "mfn_sunset_provision"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q5",
@@ -48,8 +57,9 @@
       "gold_answer": "Yes, MFN only applies to floating rate pari term loans.",
       "source": "domain_expert_qa",
       "category": "revolver_exclusion",
-      "key_signals": ["Yes", "floating rate pari term loans"],
-      "requires_entities": ["mfn_exclusion"]
+      "requires_entities": [
+        "mfn_exclusion"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q6",
@@ -57,8 +67,9 @@
       "gold_answer": "Correct, no MFN",
       "source": "domain_expert_qa",
       "category": "acquisition_maturity_carveout",
-      "key_signals": ["Correct", "no MFN"],
-      "requires_entities": ["mfn_exclusion"]
+      "requires_entities": [
+        "mfn_exclusion"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q7",
@@ -66,8 +77,10 @@
       "gold_answer": "There are so many ways to raise debt without triggering the MFN and most Lenders do not understand all the carve-outs, even if clearly legitimate under the plain language of the document.\n(1) Incur under Ratio Debt or Incremental Equivalent Debt,\n(2) Incur under Incremental Facility but use carve-out for freebie, plus general debt basket plus $147m/100% EBITDA = $382.2m,\n(3) structure new debt to mature after Term Maturity Date,\n(4) or use any of the other carve-outs - fixed rate, non-USD, not broadly syndicated (private credit), or alter priority so technically new debt does not rank equal in payment priority (but still gets pari passu lien on collateral).",
       "source": "domain_expert_qa",
       "category": "sponsor_loopholes",
-      "key_signals": ["Ratio Debt", "IED", "$382.2m", "maturity", "fixed rate", "non-USD", "private credit", "alter priority"],
-      "requires_entities": ["mfn_exclusion", "mfn_freebie_basket"]
+      "requires_entities": [
+        "mfn_exclusion",
+        "mfn_freebie_basket"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q8",
@@ -75,8 +88,9 @@
       "gold_answer": "Triggered by the Effective Yield on the Incremental Facility being 75bps greater than the Initial TL. But the MFN only applies to floating rate syndicated term loans.\n\n\"Effective Yield\" takes into account the margins, any floors, OID and any fees shared by lenders.",
       "source": "domain_expert_qa",
       "category": "effective_yield_definition",
-      "key_signals": ["Effective Yield", "75bps", "floating rate syndicated", "margins", "floors", "OID", "fees shared by lenders"],
-      "requires_entities": ["mfn_yield_definition"]
+      "requires_entities": [
+        "mfn_yield_definition"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q9",
@@ -84,8 +98,9 @@
       "gold_answer": "No, pari passu Incremental Equivalent Debt and Ratio Debt has no MFN protection",
       "source": "domain_expert_qa",
       "category": "separate_agreement_debt",
-      "key_signals": ["No", "no MFN protection"],
-      "requires_entities": ["mfn_exclusion"]
+      "requires_entities": [
+        "mfn_exclusion"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q10",
@@ -93,8 +108,9 @@
       "gold_answer": "provided that, for any First Lien Incremental Term Facility incurred prior to the date that is six (6) months after the Effective Date (other than First Lien Incremental Term Facilities together with First Lien Incremental Equivalent Debt in an aggregate principal amount not to exceed the greater of (i) $147,000,000 and (ii) 100% of Consolidated EBITDA...), that (u) is not incurred in connection with a Permitted Acquisition or other Investment not prohibited by this Agreement...",
       "source": "domain_expert_qa",
       "category": "acquisition_carveout_language",
-      "key_signals": ["verbatim provision text", "condition (u)", "Permitted Acquisition"],
-      "requires_entities": ["mfn_exclusion"]
+      "requires_entities": [
+        "mfn_exclusion"
+      ]
     },
     {
       "question_id": "acp_tara_mfn_q11",
@@ -102,8 +118,9 @@
       "gold_answer": "Need to understand what is meant by \"currently yielding\". If the yield increase is due to an uptick in SOFR, that is taken into account. But if the yield increase is due to a decline in the market price, that is not included.",
       "source": "domain_expert_qa",
       "category": "sofr_vs_market_price",
-      "key_signals": ["SOFR uptick taken into account", "market price not included"],
-      "requires_entities": ["mfn_yield_definition"]
+      "requires_entities": [
+        "mfn_yield_definition"
+      ]
     }
   ]
 }

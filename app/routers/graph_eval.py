@@ -60,7 +60,6 @@ class GoldStandardQuestion(BaseModel):
     source: str = Field("xtract_lawyer_report", description="Where this Q&A came from")
     category: Optional[str] = Field(None, description="e.g. 'builder_basket', 'reallocation'")
     requires_entities: List[str] = Field(default_factory=list, description="Entity types needed")
-    key_signals: List[str] = Field(default_factory=list, description="Key phrases expected in answer")
     added_date: str = Field(default_factory=lambda: datetime.utcnow().strftime("%Y-%m-%d"))
 
 
@@ -205,41 +204,130 @@ async def graph_trace(deal_id: str, request: TraceRequest = None):
 # EVAL RESULTS PERSISTENCE
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _save_eval_results(deal_id: str, results: dict) -> str:
+def _save_eval_results(deal_id: str, results: dict) -> dict:
+    """Save 3 eval output files: summary.txt, verbatim.txt, full.json.
+
+    Returns dict with paths to all 3 files.
+    """
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"eval_{deal_id}_{timestamp}.json"
-    filepath = EVAL_RESULTS_DIR / filename
-    with open(filepath, "w") as f:
+    prefix = f"eval_{deal_id}_{timestamp}"
+
+    # ── 1. Full JSON (complete trace data) ────────────────────────
+    json_path = EVAL_RESULTS_DIR / f"{prefix}_full.json"
+    with open(json_path, "w") as f:
         json.dump(results, f, indent=2, default=str)
-    logger.info(f"Eval results saved: {filepath}")
-    return str(filepath)
+
+    # ── 2. Summary TXT ────────────────────────────────────────────
+    summary_path = EVAL_RESULTS_DIR / f"{prefix}_summary.txt"
+    comparisons = results.get("comparisons", [])
+    total_cost = results.get("total_claude_cost_usd", 0)
+    elapsed = results.get("elapsed_seconds", 0)
+
+    summary_lines = [
+        f"EVAL SUMMARY: {results.get('deal_name', deal_id)}",
+        f"{'=' * 60}",
+        f"Deal ID:        {results.get('actual_deal_id', deal_id)}",
+        f"Covenant type:  {results.get('covenant_type', '?')}",
+        f"Gold standard:  v{results.get('gold_standard_version', '?')}",
+        f"Timestamp:      {results.get('timestamp', '?')}",
+        f"Questions:      {len(comparisons)}",
+        f"Total cost:     ${total_cost:.2f}",
+        f"Total time:     {elapsed:.0f}s",
+        f"",
+    ]
+
+    for i, c in enumerate(comparisons, 1):
+        qid = c.get("question_id", f"q{i}")
+        q_text = c.get("question", "")[:80]
+        has_answer = c.get("graph_answer", "") not in ("(error)", "")
+        status = "OK" if has_answer else "FAIL"
+        synth = c.get("trace", {}).get("step_5_6_claude_synthesis")
+        q_cost = synth.get("cost_usd", 0) if isinstance(synth, dict) else 0
+        summary_lines.append(f"  [{status}] {qid}: {q_text} (${q_cost:.2f})")
+
+    with open(summary_path, "w") as f:
+        f.write("\n".join(summary_lines) + "\n")
+
+    # ── 3. Verbatim TXT (gold + Valence answers side by side) ────
+    verbatim_path = EVAL_RESULTS_DIR / f"{prefix}_verbatim.txt"
+    verbatim_lines = [
+        f"EVAL VERBATIM: {results.get('deal_name', deal_id)}",
+        f"{'=' * 60}",
+        f"",
+    ]
+
+    for i, c in enumerate(comparisons, 1):
+        qid = c.get("question_id", f"q{i}")
+        verbatim_lines.extend([
+            f"{'─' * 60}",
+            f"Q{i} [{qid}]: {c.get('question', '')}",
+            f"{'─' * 60}",
+            f"",
+            f"GOLD ANSWER:",
+            c.get("gold_answer", "(none)"),
+            f"",
+            f"GRAPH ANSWER:",
+            c.get("graph_answer", "(none)"),
+            f"",
+            f"SCALAR ANSWER:",
+            c.get("scalar_answer", "(none)"),
+            f"",
+        ])
+
+    with open(verbatim_path, "w") as f:
+        f.write("\n".join(verbatim_lines) + "\n")
+
+    logger.info(
+        f"Eval results saved: {prefix}_summary.txt, "
+        f"{prefix}_verbatim.txt, {prefix}_full.json"
+    )
+
+    return {
+        "summary": str(summary_path),
+        "verbatim": str(verbatim_path),
+        "full_json": str(json_path),
+    }
 
 
 @router.get("/eval-results/{deal_id}")
 async def list_eval_results(deal_id: str):
-    """List saved eval result files for a deal."""
-    results = sorted(EVAL_RESULTS_DIR.glob(f"eval_{deal_id}_*.json"), reverse=True)
-    return {
-        "deal_id": deal_id,
-        "results": [
-            {
-                "filename": r.name,
-                "size_bytes": r.stat().st_size,
-                "created": datetime.fromtimestamp(r.stat().st_mtime).isoformat(),
-            }
-            for r in results[:20]
-        ]
-    }
+    """List saved eval result sets for a deal."""
+    json_files = sorted(
+        EVAL_RESULTS_DIR.glob(f"eval_{deal_id}_*_full.json"),
+        reverse=True
+    )
+    results = []
+    for jf in json_files[:20]:
+        base = jf.name.replace("_full.json", "")
+        summary_path = EVAL_RESULTS_DIR / f"{base}_summary.txt"
+        verbatim_path = EVAL_RESULTS_DIR / f"{base}_verbatim.txt"
+        results.append({
+            "prefix": base,
+            "created": datetime.fromtimestamp(jf.stat().st_mtime).isoformat(),
+            "files": {
+                "summary": summary_path.name if summary_path.exists() else None,
+                "verbatim": verbatim_path.name if verbatim_path.exists() else None,
+                "full_json": jf.name,
+            },
+            "size_bytes": jf.stat().st_size,
+        })
+    return {"deal_id": deal_id, "results": results}
 
 
 @router.get("/eval-results/{deal_id}/{filename}")
 async def get_eval_result(deal_id: str, filename: str):
-    """Return a saved eval result file with full traces."""
+    """Return a saved eval result file."""
     filepath = EVAL_RESULTS_DIR / filename
     if not filepath.exists() or not filename.startswith(f"eval_{deal_id}_"):
         raise HTTPException(404, "Eval result not found")
-    with open(filepath) as f:
-        return json.load(f)
+
+    if filename.endswith(".json"):
+        with open(filepath) as f:
+            return json.load(f)
+    else:
+        from fastapi.responses import PlainTextResponse
+        with open(filepath) as f:
+            return PlainTextResponse(f.read())
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -307,12 +395,6 @@ async def run_graph_eval(deal_id: str):
         if trace_dict and trace_dict.get("step_7_answer"):
             trace_dict["step_7_answer"]["scalar_answer"] = scalar_answer
 
-        # Key signals scoring
-        key_signals = question_data.get("key_signals", [])
-        answer_lower = graph_result.get("answer", "").lower()
-        signals_found = [s for s in key_signals if s.lower() in answer_lower]
-        signals_missed = [s for s in key_signals if s.lower() not in answer_lower]
-
         comparison = {
             "question_id": question_data.get("question_id", ""),
             "question": q,
@@ -321,12 +403,6 @@ async def run_graph_eval(deal_id: str):
             "requires_entities": question_data.get("requires_entities", []),
             "graph_answer": graph_result.get("answer", ""),
             "scalar_answer": scalar_answer,
-            "key_signals_total": len(key_signals),
-            "key_signals_found": signals_found,
-            "key_signals_missed": signals_missed,
-            "key_signals_hit_rate": (
-                len(signals_found) / len(key_signals) if key_signals else 1.0
-            ),
             "trace": trace_dict,
         }
         comparisons.append(comparison)
@@ -340,14 +416,6 @@ async def run_graph_eval(deal_id: str):
         if synth and isinstance(synth, dict):
             total_cost += synth.get("cost_usd", 0.0)
 
-    # Aggregate key_signals metrics
-    total_signals = sum(c["key_signals_total"] for c in comparisons)
-    total_found = sum(len(c["key_signals_found"]) for c in comparisons)
-    avg_hit_rate = (
-        sum(c["key_signals_hit_rate"] for c in comparisons) / len(comparisons)
-        if comparisons else 0.0
-    )
-
     full_results = {
         "deal_id": deal_id,
         "actual_deal_id": actual_deal_id,
@@ -356,18 +424,13 @@ async def run_graph_eval(deal_id: str):
         "gold_standard_version": gold.get("version", ""),
         "timestamp": datetime.utcnow().isoformat(),
         "num_questions": len(comparisons),
-        "key_signals_summary": {
-            "total_signals": total_signals,
-            "total_found": total_found,
-            "avg_hit_rate": round(avg_hit_rate, 3),
-        },
         "comparisons": comparisons,
         "elapsed_seconds": round(total_elapsed, 1),
         "total_claude_cost_usd": round(total_cost, 4),
     }
 
     # Persist results
-    results_path = _save_eval_results(deal_id, full_results)
-    full_results["results_file"] = results_path
+    results_paths = _save_eval_results(deal_id, full_results)
+    full_results["results_files"] = results_paths
 
     return full_results
