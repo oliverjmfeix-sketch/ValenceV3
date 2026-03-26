@@ -654,37 +654,3 @@ export interface OntologyCategory {
   questions?: OntologyQuestion[];
 }
 
-// ============================================================================
-// RP EXTRACTION OUTPUT (matches extraction_output_v4.py)
-// ============================================================================
-
-export interface RPExtractionV4 {
-  // RP Baskets (7 subtypes)
-  builder_basket?: BuilderBasket;
-  ratio_basket?: RatioBasket;
-  general_rp_basket?: GeneralRPBasket;
-  management_equity_basket?: ManagementEquityBasket;
-  tax_distribution_basket?: TaxDistributionBasket;
-  holdco_overhead_basket?: HoldcoOverheadBasket;
-  equity_award_basket?: EquityAwardBasket;
-  // J.Crew Blocker
-  jcrew_blocker?: JCrewBlocker;
-  // Unrestricted Subsidiary
-  unsub_designation?: UnsubDesignation;
-  // Sweep & Prepayment
-  sweep_tiers?: SweepTier[];
-  de_minimis_thresholds?: DeMinimisThreshold[];
-  // Reallocation
-  reallocations?: BasketReallocation[];
-  // RDP Baskets (5 subtypes — separate hierarchy)
-  refinancing_rdp_basket?: RefinancingRDPBasket;
-  general_rdp_basket?: GeneralRDPBasket;
-  ratio_rdp_basket?: RatioRDPBasket;
-  builder_rdp_basket?: BuilderRDPBasket;
-  equity_funded_rdp_basket?: EquityFundedRDPBasket;
-  // Investment Pathways
-  investment_pathways?: InvestmentPathway[];
-  // Metadata
-  extraction_version?: string;
-  extraction_confidence?: Confidence;
-}
