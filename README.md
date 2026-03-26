@@ -94,18 +94,18 @@ ValenceV3/
 │   ├── routers/
 │   │   ├── ablation.py                  # Ablation testing endpoints
 │   │   ├── deals.py                     # Deal CRUD + upload + extraction + /ask-graph
-│   │   ├── eval.py                      # Legacy eval endpoints
+│   │   ├── eval.py                      # Auto-eval pipeline
 │   │   ├── graph_eval.py                # Gold standard eval runner
 │   │   ├── health.py                    # Health checks + admin endpoints
 │   │   ├── mfn_eval.py                  # MFN eval (legacy, use graph_eval)
-│   │   ├── ontology.py                  # Ontology query endpoints
-│   │   └── qa.py                        # Q&A endpoints
+│   │   └── ontology.py                  # Ontology query endpoints
 │   ├── services/
 │   │   ├── typedb_client.py             # TypeDB connection
 │   │   ├── extraction.py                # Claude extraction pipeline
 │   │   ├── graph_storage.py             # TypeDB write (all 3 channels)
-│   │   ├── graph_reader.py              # TypeDB read (legacy fetchers)
+│   │   ├── graph_reader.py              # TypeDB read + annotation cache
 │   │   ├── graph_traversal.py           # Polymorphic entity fetch + cross-covenant walk
+│   │   ├── graph_queries.py             # Reusable TypeDB query helpers
 │   │   ├── topic_router.py              # Question → category routing (SSoT)
 │   │   ├── segment_introspector.py      # Schema introspection
 │   │   ├── trace_collector.py           # Trace/debug collector
@@ -113,24 +113,32 @@ ValenceV3/
 │   │   └── pdf_parser.py                # PDF text extraction
 │   ├── schemas/
 │   │   ├── models.py                    # Pydantic API models
-│   │   └── extraction_output_v4.py      # V4 extraction Pydantic models
+│   │   └── extraction_response.py       # Extraction response Pydantic models
 │   ├── scripts/
-│   │   ├── init_schema.py               # DB seeding (single entry point)
-│   │   └── (various verify_*.py)        # Verification scripts
+│   │   ├── init_schema.py               # DB seeding (single entry point, 26 steps)
+│   │   ├── gap_report.py                # Reusable diagnostic
+│   │   └── run_mfn_eval.py              # Standalone MFN eval runner
 │   ├── data/
-│   │   ├── schema_unified.tql           # THE schema (single file)
+│   │   ├── schema_unified.tql           # THE schema (single file, ~1800 lines)
+│   │   ├── concepts.tql                 # ~170 concept instances
+│   │   ├── jcrew_concepts_seed.tql      # 72 J.Crew concept instances
 │   │   ├── questions.tql                # Base ontology (Categories A-K)
 │   │   ├── categories.tql               # Category definitions + links
-│   │   ├── mfn_ontology_questions.tql   # MFN questions (43 across 6 categories)
-│   │   ├── seed_synthesis_guidance.tql  # Per-category synthesis guidance
-│   │   ├── seed_mfn_annotations.tql     # MFN attribute annotations
-│   │   ├── seed_mfn_entity_list_questions.tql  # MFN entity-list extraction
-│   │   ├── rp_functions.tql             # RP analytical functions
+│   │   ├── ontology_expanded.tql        # Extended questions
+│   │   ├── ontology_category_m.tql      # Category M questions
+│   │   ├── ontology_category_p.tql      # Category P questions
+│   │   ├── jcrew_questions_seed.tql     # J.Crew questions (69)
+│   │   ├── mfn_concepts_extended.tql    # MFN-specific concepts
+│   │   ├── mfn_ontology_questions.tql   # MFN questions (43)
+│   │   ├── seed_*.tql                   # Seed data (annotations, mappings, etc.)
 │   │   ├── mfn_functions.tql            # MFN pattern detection functions
 │   │   ├── annotation_functions.tql     # Entity annotation function
 │   │   └── gold_standard/               # Gold standard eval data (JSON)
 │   └── utils/
 │       └── ontology.py                  # Ontology utilities
+├── tests/
+│   ├── test_extraction_response.py      # Extraction response schema tests
+│   └── test_topic_router.py             # TopicRouter SSoT compliance tests
 ├── src/
 │   └── types/
 │       └── mfn.generated.ts             # Generated TypeScript types

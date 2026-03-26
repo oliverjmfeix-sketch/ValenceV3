@@ -4,9 +4,8 @@
 
 ## SESSION START: Always run first
 
-Before doing ANYTHING else, run `git pull origin main` to get the latest code,
-then read `HANDOFF.md` in the repo root for session handoff context (previous
-session's state, pending tasks, gotchas). Do NOT rely on cached/stale versions.
+Before doing ANYTHING else, run `git pull origin main` to get the latest code.
+Do NOT rely on cached/stale versions.
 
 ## CRITICAL WARNINGS
 
@@ -156,28 +155,28 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | **Schema** (single file) | `app/data/schema_unified.tql` |
 | **DB seeding (SSoT)** | `app/scripts/init_schema.py` |
 | **Entity context builder** | `app/services/graph_traversal.py` |
-| **Entity read (legacy fetchers)** | `app/services/graph_reader.py` |
+| **Entity read + annotation cache** | `app/services/graph_reader.py` |
 | **Graph write (all 3 channels)** | `app/services/graph_storage.py` |
 | **Extraction pipeline** | `app/services/extraction.py` |
 | **Deal API + synthesis prompt** | `app/routers/deals.py` |
 | **TypeDB client** | `app/services/typedb_client.py` |
 | **App startup (connection only)** | `app/main.py` |
 | **Config** | `app/config.py` |
-| **V4 Pydantic models** | `app/schemas/extraction_output_v4.py` |
+| **Extraction response models** | `app/schemas/extraction_response.py` |
 | **Frontend types** | `src/types/mfn.generated.ts` |
 | **Trace collector** | `app/services/trace_collector.py` |
 | **Topic router** | `app/services/topic_router.py` |
 | **Annotation function** | `app/data/annotation_functions.tql` |
-| **RP analytical functions** | `app/data/rp_analysis_functions.tql` |
+| **Segment introspector** | `app/services/segment_introspector.py` |
 | **Graph eval runner** | `app/routers/graph_eval.py` |
 | **MFN eval (legacy)** | `app/routers/mfn_eval.py` |
 | **Gold standard data** | `app/data/gold_standard/*.json` |
 | **Cost tracker** | `app/services/cost_tracker.py` |
 
-### Data Files (loaded by init_schema.py in order)
+### Data Files (loaded by init_schema.py — 26 steps)
 | File | Contents |
 |------|----------|
-| `schema_unified.tql` | THE schema (996 lines) |
+| `schema_unified.tql` | THE schema (~1800 lines) |
 | `concepts.tql` | ~170 concept instances |
 | `jcrew_concepts_seed.tql` | 72 J.Crew concept instances |
 | `questions.tql` | Base ontology (Categories A-K) |
@@ -191,21 +190,18 @@ Category resolution uses TypeQL join through category_has_question — NOT prefi
 | `mfn_concepts_extended.tql` | MFN-specific concepts |
 | `mfn_ontology_questions.tql` | 43 MFN questions across 6 categories (incl. mfn_44) |
 | `segment_types_seed.tql` | 21 document segment types |
-| `mfn_extraction_metadata.tql` | MFN extraction metadata |
 | `seed_attribute_annotations.tql` | Question → attribute annotations (batch 1) |
 | `seed_complete_annotations.tql` | Complete annotation coverage (batch 2) |
 | `seed_new_questions.tql` | ~66 new questions + ~55 annotation catch-ups |
-| `seed_entity_list_questions.tql` | Entity-list extraction questions (incl. `rp_el_reallocations` with `{basket_subtypes}` template) |
+| `seed_entity_list_questions.tql` | Entity-list extraction questions |
 | `seed_cross_covenant_mappings.tql` | SSoT: basket_type → provision_type (1 mapping) |
 | `seed_capacity_classifications.tql` | SSoT: basket_type → capacity_category (15 mappings) |
-| `seed_new_questions_008.tql` | Prompt 8: `rp_g5b` question for `no_worse_is_uncapped` boolean (Category G) |
-| `mfn_functions.tql` | 10 MFN pattern detection functions |
-| `rp_functions.tql` | Dividend capacity functions |
-| `rp_analysis_functions.tql` | 4 RP analytical functions |
-| `annotation_functions.tql` | `get_entity_annotations()` function |
-| `seed_synthesis_guidance.tql` | Per-category synthesis guidance (28 entries) |
+| `seed_new_questions_008.tql` | Prompt 8: `rp_g5b` question for `no_worse_is_uncapped` boolean |
 | `seed_mfn_annotations.tql` | MFN entity attribute → question annotations |
 | `seed_mfn_entity_list_questions.tql` | MFN entity-list extraction questions |
+| `seed_synthesis_guidance.tql` | Per-category synthesis guidance (28 entries) |
+| `mfn_functions.tql` | 10 MFN pattern detection functions |
+| `annotation_functions.tql` | `get_entity_annotations()` function |
 
 ## DB Seeding
 
@@ -258,29 +254,33 @@ Extraction metadata loaded from TypeDB (SSoT). Pydantic validates. graph_storage
 
 ## TypeScript Types: mfn.generated.ts
 
-613-line file reflecting all three data channels. Generated from schema_unified.tql
-and extraction_output_v4.py. Includes:
+Reflects all three data channels. Generated from schema_unified.tql
+and extraction_response.py. Includes:
 - ProvisionAnswer + ProvisionAnswerMap (Channel 1)
 - ConceptApplicability + 30 concept type literals (Channel 2)
 - All basket/blocker/pathway entity interfaces (Channel 3)
-- RPExtractionV4 matching Pydantic models
 
 There is NO type_generator.py in this repo. To regenerate types, read
-schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.ts.
+schema_unified.tql and extraction_response.py directly and write mfn.generated.ts.
 
-## Current State (2026-03-24)
+## Current State (2026-03-26)
 
-### Completed Today (Prompts 5-7 + Hotfixes)
-- **Prompt 5**: MFN concept routing — yield_component concepts routed through unified pipeline, flat scalar fallback for unmapped concepts (facility_prong, lien_priority, etc.)
-- **Prompt 6**: MFN gold standard eval — 11 expert Q&A questions for ACP Tara (`acp_tara_mfn`), key_signals scoring, graph_eval.py wired for MFN
-- **Hotfix**: Children subquery introspection — `_provision_has_child_relations()` uses schema introspection instead of try/catch fallback; robust JSON filter parsing (replaced `.strip("json")` with regex)
-- **Prompt 7 Part 1**: Ratio prong vs Ratio Debt distinction — MFN2 synthesis guidance with CRITICAL DISTINCTION paragraph, `exclusion_scope` attribute on `mfn_exclusion`, `mfn_44` ontology question
-- **Prompt 7 Part 2**: Cross-covenant graph walk — `get_cross_covenant_entities()` walks `provision_cross_reference` MFN→RP (unidirectional), integrated in `/ask-graph` for MFN/both questions only
-- **Prompt 4 (previous session, merged)**: Synthesis guidance SSoT — moved hardcoded rules from Python to TypeDB `synthesis_guidance` attribute on `ontology_category`
+### Codebase Cleanup (2026-03-26)
+- Deleted 24 one-time scripts from `app/scripts/` (migrate, test, verify, check, diagnostic)
+- Deleted 7 retired/stub `.tql` data files + cleaned `init_schema.py` (renumbered to 26 steps)
+- Removed dead `RPExtractionV4` interface from `mfn.generated.ts`
+- Removed placeholder `qa.py` router (returned hardcoded "coming soon")
+- Relocated `run_mfn_eval.py` → `app/scripts/`, `test_topic_router.py` → `tests/`
+- Renamed `test_extraction_output_v4.py` → `test_extraction_response.py`
+
+### Previous Session (2026-03-24)
+- Cross-covenant graph walk for MFN→RP context
+- MFN gold standard eval (11 questions, ACP Tara)
+- Synthesis guidance SSoT (moved from Python to TypeDB)
 
 ### Test Deals
-- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-20. 66 entities, 176 scalar answers.
-- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. MFN eval baseline: 18/42 key signals (38.8%).
+- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. 66 entities, 176 scalar answers.
+- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. MFN eval baseline: 38.8% key_signals.
 
 ### Eval Baselines
 - Duck Creek RP: 6/6 gold standard questions pass (Prompt 8d + Opus 4.6)
@@ -295,7 +295,6 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 - `app/routers/mfn_eval.py:4` — `TODO: Delete this entire file once graph-eval handles MFN fully`
 
 ### Stale Code
-- `app/services/graph_reader.py` — 10 individual fetcher functions (fetch_rp_baskets, etc.) no longer called. Only `fetch_dividend_capacity` still used. Safe to delete.
 - `app/routers/health.py:443` — hardcoded `target_fields` dict (legacy, now SSoT via TypeDB)
 
 ### Schema Gap
@@ -307,7 +306,7 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 2. **Re-extract MFN for ACP Tara** — `POST /api/deals/8d0bf2f8/re-extract-mfn` to populate `exclusion_scope` on mfn_exclusion entities.
 3. **Re-run MFN eval** — `POST /api/graph-eval/acp_tara_mfn` to measure improvement from cross-covenant walk + ratio prong guidance.
 4. **Fix RP root category** — investigate why `category_id "RP"` insert fails in `categories.tql`.
-5. **Delete legacy code** — `graph_reader.py` fetcher functions, `mfn_eval.py` (once graph-eval covers MFN fully).
+5. **Delete mfn_eval.py** — once graph-eval covers MFN fully.
 6. **RP regression test** — run `POST /api/graph-eval/87852625` to confirm Duck Creek RP still passes 6/6.
 
 ## END-OF-DAY UPDATE WORKFLOW
@@ -335,7 +334,6 @@ schema_unified.tql and extraction_output_v4.py directly and write mfn.generated.
 - **Q5 now passes ($520M)**: Two-stage synthesis (Prompt 8d) + Opus 4.6 correctly identifies 4 × $130M general-purpose capacity. Self-verification block catches shared-pool errors.
 - **Q6 now passes (Yes, permitted)**: Opus 4.6 correctly reasons that removing negative-EBITDA asset improves leverage, passing the uncapped no-worse test. Opus 4.5 got this wrong (said removing negative EBITDA "worsens" leverage).
 - **All 6 gold standard questions pass** as of Prompt 8d + Opus 4.6 (2026-03-23).
-- **Old fetcher functions in graph_reader.py**: 10 individual fetcher functions (fetch_rp_baskets, etc.) are still present but no longer called. Only `fetch_dividend_capacity` is still used. Safe to delete in cleanup pass.
 - **J.Crew Tier 3 prompt too long**: 212K > 200K token limit. Needs context trimming or split extraction.
 - **Filter cost**: Using Opus 4.6 for both filter and synthesis costs ~$0.55–0.71 per question (vs ~$0.35 with Sonnet filter). Worth it for reasoning quality.
 
