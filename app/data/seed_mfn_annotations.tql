@@ -230,44 +230,6 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "mfn_provision",
     has target_attribute_name "bilateral_protection";
 
-# ── MFN2: Debt Scope → mfn_provision ────────────────────────────────────────
-
-# mfn_11: "Is refinancing debt excluded from MFN?"
-match $q isa ontology_question, has question_id "mfn_11";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "refinancing_debt_excluded";
-
-# mfn_12: "Is ratio debt / IED excluded from MFN?"
-match $q isa ontology_question, has question_id "mfn_12";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "ratio_debt_excluded";
-
-# mfn_13: "Is bridge financing excluded from MFN?"
-match $q isa ontology_question, has question_id "mfn_13";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "bridge_financing_excluded";
-
-# mfn_14: "Are revolving facilities excluded from MFN?"
-match $q isa ontology_question, has question_id "mfn_14";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "revolving_excluded";
-
-# mfn_16: "Does MFN apply only to same-currency debt?"
-match $q isa ontology_question, has question_id "mfn_16";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "same_currency_only";
-
-# mfn_17: "Is there a de minimis size threshold?"
-match $q isa ontology_question, has question_id "mfn_17";
-insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "mfn_provision",
-    has target_attribute_name "mfn_de_minimis_threshold";
-
 # ── MFN3: Yield → mfn_yield_definition ──────────────────────────────────────
 
 # mfn_26: "Does yield calculation differentiate fixed vs floating?"

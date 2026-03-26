@@ -499,15 +499,22 @@ attribute target_entity_attribute, value string;
 ################################################################################
 # §2  CORE ENTITIES
 #
-#   Provision types are PURE ANCHORS.
-#   They own no extracted values — only:
-#     - Identity (provision_id @key, inherited)
-#     - Location (section_reference, source_page, inherited)
-#     - Lifecycle (extracted_at, inherited)
-#     - Computed pattern flags (derived, not extracted)
-#     - Role assignments for entity relations
+#   Provision types are ANCHORS with two classes of owned attributes:
 #
-#   All extracted data goes through the three channels.
+#   1. PROVISION-SCOPE SCALARS — facts about the provision itself that have
+#      no entity counterpart. Populated by annotation routing from ontology
+#      questions (question_annotates_attribute → _set_entity_attribute).
+#      Examples: restricts_borrower, threshold_bps, sacred_right_status.
+#
+#   2. PATTERN FLAGS — scalar answers from extraction (e.g., rp_z1..z3,
+#      mfn_40..42), also annotation-routed. Not computed by TypeDB functions.
+#
+#   Structured data (baskets, exclusions, yield definitions, etc.) goes
+#   through typed entities via provision_has_extracted_entity sub-relations.
+#   Scalar answers also stored in provision_has_answer for the comparison grid.
+#
+#   Provision attributes are surfaced in the PROVISION header block during
+#   synthesis via the $p.* wildcard fetch in get_provision_entities().
 ################################################################################
 
 entity deal,
@@ -559,13 +566,6 @@ entity mfn_provision sub provision,
     owns automatic_adjustment,
     owns adjustment_scope,
     owns bilateral_protection,
-    # MFN2: Debt Scope scalars
-    owns refinancing_debt_excluded,
-    owns ratio_debt_excluded,
-    owns bridge_financing_excluded,
-    owns revolving_excluded,
-    owns same_currency_only,
-    owns mfn_de_minimis_threshold,
     # MFN5: Governance scalars
     owns amendment_consent_threshold,
     owns sacred_right_status,
@@ -1198,13 +1198,6 @@ attribute margin_only_threshold, value boolean;
 attribute automatic_adjustment, value boolean;
 attribute adjustment_scope, value string;
 attribute bilateral_protection, value boolean;
-# MFN2: Debt Scope
-attribute refinancing_debt_excluded, value boolean;
-attribute ratio_debt_excluded, value boolean;
-attribute bridge_financing_excluded, value boolean;
-attribute revolving_excluded, value boolean;
-attribute same_currency_only, value boolean;
-attribute mfn_de_minimis_threshold, value string;
 # MFN3: Yield (on mfn_yield_definition)
 attribute differentiates_fixed_floating, value boolean;
 attribute yield_determination_authority, value string;
