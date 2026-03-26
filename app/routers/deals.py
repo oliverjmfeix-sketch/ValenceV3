@@ -1042,7 +1042,8 @@ async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
 async def create_cross_references(deal_id: str):
     """Create MFN→RP cross-reference edge for a deal. Idempotent."""
     try:
-        extraction_svc._create_cross_references(deal_id)
+        svc = get_extraction_service()
+        svc._create_cross_references(deal_id)
         return {"status": "ok", "deal_id": deal_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
