@@ -1,5 +1,0 @@
-# RP COVENANT FUNCTIONS
-#
-# Previously contained dividend_capacity_components and total_fixed_dividend_capacity.
-# Deleted in Prompt 3: polymorphic fetch replaces pre-computed capacity aggregation.
-# Claude now derives capacity from raw entity JSON + annotations.

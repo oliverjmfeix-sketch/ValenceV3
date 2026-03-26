@@ -1,5 +1,0 @@
-# RP COVENANT ANALYSIS FUNCTIONS
-#
-# Previously contained blocker_binding_gap_evidence, blocker_exception_swallow_evidence,
-# unsub_distribution_evidence, and pathway_chain_summary.
-# Deleted in Prompt 3: polymorphic fetch returns all entity data directly.
