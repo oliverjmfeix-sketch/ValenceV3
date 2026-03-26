@@ -345,7 +345,7 @@ def get_cross_covenant_entities(
         all_cross_docs = []
         for row in result:
             target_pid = row.get("target_pid").as_attribute().get_value()
-            target_type = row.get("ttype").as_value().get_value()
+            target_type = row.get("ttype").as_value().get()
 
             # Extract deal_id from provision_id (format: "{deal_id}_{suffix}")
             target_deal_id = target_pid.rsplit("_", 1)[0]

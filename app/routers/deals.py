@@ -2427,6 +2427,7 @@ Return ONLY the JSON object. No explanation."""
 
         # Parse two-tier filter response (robust fence + boundary extraction)
         filter_text = filter_response.content[0].text.strip()
+        logger.debug(f"Raw filter response: {repr(filter_text[:300])}")
         if filter_text.startswith("```"):
             filter_text = re.sub(r'^```(?:json)?\s*\n?', '', filter_text)
             filter_text = re.sub(r'\n?```\s*$', '', filter_text)
@@ -2434,12 +2435,13 @@ Return ONLY the JSON object. No explanation."""
         end_idx = filter_text.rfind('}')
         if start_idx != -1 and end_idx != -1:
             filter_text = filter_text[start_idx:end_idx + 1]
+        logger.debug(f"Filter text to parse ({len(filter_text)} chars): {repr(filter_text[:200])}")
         try:
             tiers = json.loads(filter_text)
             primary_types = tiers.get("primary", [])
             supplementary_types = tiers.get("supplementary", [])
         except json.JSONDecodeError:
-            logger.warning(f"Filter response not valid JSON, using all as primary: {filter_text[:200]}")
+            logger.warning(f"Filter response not valid JSON, using all as primary: {repr(filter_text[:200])}")
             primary_types = [e.get("type_name", "") for e in all_entities]
             supplementary_types = []
 
