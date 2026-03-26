@@ -52,14 +52,16 @@ Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers v
 
 **Single schema file** (996 lines, 156 attributes, 78 entities, 27 relations).
 
-### Provisions are PURE ANCHORS
+### Provision Attributes
 
-Provisions own ZERO extracted values. Only identity + computed pattern flags:
+Provisions own identity attrs, computed pattern flags, and provision-scope scalars:
 
-- `rp_provision`: provision_id @key, section_reference, source_page, extracted_at,
-  jcrew_pattern_detected, serta_pattern_detected, collateral_leakage_pattern_detected
-- `mfn_provision`: provision_id @key, section_reference, source_page, extracted_at,
-  yield_exclusion_pattern_detected
+- `rp_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
+  pattern flags (jcrew_pattern_detected, serta_pattern_detected, collateral_leakage_pattern_detected),
+  16 provision-scope booleans (restricts_borrower, includes_cash_dividends, etc.)
+- `mfn_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
+  pattern flags (yield_exclusion_pattern_detected, reclassification_loophole_detected, bridge_to_term_loophole_detected),
+  11 provision-scope scalars (mfn_exists, threshold_bps, sacred_right_status, etc.)
 
 ### Three Data Channels
 

@@ -6,15 +6,15 @@
 #
 # DESIGN PRINCIPLES:
 #
-#   1. Provision types are PURE ANCHORS — they own no extracted values.
-#      All extracted data lives in exactly one of three channels:
+#   1. Provisions own identity attrs + computed pattern flags +
+#      provision-scope scalars (e.g. restricts_borrower, threshold_bps).
+#      Multi-field extracted data lives in one of three channels:
 #
 #        Channel 1: provision_has_answer    → scalar  (boolean, number, string)
 #        Channel 2: concept_applicability   → multiselect (closed set from seed)
 #        Channel 3: typed entities          → structured (variable-length)
 #
-#      No duplication. No flat attributes on provisions. ONE canonical home
-#      for every extracted fact.
+#      No duplication. ONE canonical home for every extracted fact.
 #
 #   2. Schema introspection drives the entire pipeline.
 #      Adding an attribute to an entity here is the ONLY change needed.

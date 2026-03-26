@@ -1153,7 +1153,7 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             if extraction_complete:
                 stored_values = _load_provision_answers(tx, provision_id)
 
-            # LEGACY: concept_applicability will be removed entirely once all covenant types
+            # ACTIVE FALLBACK: concept_applicability still needed until all covenant types
             # route multiselect answers through entity booleans.
             # RP already has full routing. MFN needs target_entity_type/target_entity_attribute
             # seed data on its concept instances before this can be removed.
@@ -1384,7 +1384,7 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                 except Exception:
                     pass  # Flag not set on this provision
 
-            # LEGACY: concept_applicability will be removed entirely once all covenant types
+            # ACTIVE FALLBACK: concept_applicability still needed until all covenant types
             # route multiselect answers through entity booleans.
             # RP already has full routing. MFN needs target_entity_type/target_entity_attribute
             # seed data on its concept instances before this can be removed.
@@ -1474,14 +1474,7 @@ async def get_mfn_provision(deal_id: str) -> Dict[str, Any]:
             for flag_name in (
                 "yield_exclusion_pattern_detected",
                 "reclassification_loophole_detected",
-                "mfn_amendment_vulnerable",
-                "mfn_exclusion_stacking_detected",
-                "sunset_timing_loophole_detected",
                 "bridge_to_term_loophole_detected",
-                "currency_arbitrage_detected",
-                "freebie_oversized_detected",
-                "mfn_margin_only_weakness_detected",
-                "mfn_comprehensive_protection_detected",
             ):
                 try:
                     flag_query = f"""
