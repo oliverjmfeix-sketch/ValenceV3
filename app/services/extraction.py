@@ -1934,6 +1934,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
 
             # 2. Store answers using GraphStorage (SSoT pattern)
             storage = GraphStorage(deal_id)
+            q_to_entity = storage._load_question_to_entity_map()
             stored_scalar = 0
             stored_concept = 0
             errors = 0
@@ -2009,6 +2010,14 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
                             source_section=source_section or None,
                         )
                         stored_scalar += 1
+                        # Annotation routing: populate entity attribute if mapped
+                        routing = q_to_entity.get(qid)
+                        if routing:
+                            entity_type, attr_name = routing
+                            if attr_name not in ("_exists", "_entity_list"):
+                                storage._set_entity_attribute(
+                                    provision_id, entity_type, attr_name, coerced
+                                )
                 except Exception as e:
                     errors += 1
                     if errors <= 3:  # Only log first few errors

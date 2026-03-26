@@ -2272,7 +2272,10 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
             if filtered_docs:  # only apply filter if it doesn't empty the set
                 all_docs = filtered_docs
                 entity_json = json.dumps(all_docs, indent=2, default=str)
-                entity_context = f"## ENTITY DATA\n\n{entity_json}"
+                # Preserve the provision header (everything before ## ENTITY DATA)
+                prov_header_parts = entity_context.split("## ENTITY DATA", 1)
+                prov_header = prov_header_parts[0] if len(prov_header_parts) > 1 else ""
+                entity_context = f"{prov_header}## ENTITY DATA\n\n{entity_json}"
             if collector:
                 collector.metadata_filter = {
                     "relevant_types": sorted(relevant_types),
@@ -2368,10 +2371,14 @@ This block MUST appear at the very end of your response."""
         model_used = settings.claude_model
 
         # ── Stage 1: Entity Filter (Sonnet) ──────────────────────────
-        # Parse entity context into header + JSON array
-        parts = entity_context.split("\n\n", 1)
-        header = parts[0] if len(parts) > 1 else ""
-        entities_json_str = parts[1] if len(parts) > 1 else parts[0]
+        # Split on ## ENTITY DATA to separate provision header from JSON
+        if "## ENTITY DATA" in entity_context:
+            parts = entity_context.split("## ENTITY DATA", 1)
+            header = parts[0].rstrip()  # provision header (may be empty)
+            entities_json_str = parts[1].lstrip()  # JSON array after ## ENTITY DATA
+        else:
+            header = ""
+            entities_json_str = entity_context
         try:
             all_entities = json.loads(entities_json_str)
         except json.JSONDecodeError:
@@ -2446,8 +2453,10 @@ Return ONLY the JSON object. No explanation."""
             elif linked_types & supplementary_set:
                 supplementary_entities.append(entity)
 
-        # Build tiered context
-        tiered_context = header + "\n\n"
+        # Build tiered context (provision header + tiered entities)
+        tiered_context = ""
+        if header:
+            tiered_context = header + "\n\n"
         tiered_context += "## PRIMARY ENTITIES\nBase your core analysis on these entities.\n\n"
         tiered_context += json.dumps(primary_entities, indent=2)
         tiered_context += "\n\n## SUPPLEMENTARY ENTITIES\nCheck these for additional detail, qualifications, or corrections during self-verification.\n\n"
