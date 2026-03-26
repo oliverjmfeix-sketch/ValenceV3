@@ -2247,24 +2247,33 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
 
     # Step 2+3+4: Fetch entity context (provision-type-aware)
     start = _time.time()
+    prov_header = ""
     if covenant_type == "mfn":
         all_docs, entity_context = get_provision_entities(deal_id, "mfn_provision", trace=collector)
+        if "## ENTITY DATA" in entity_context:
+            prov_header = entity_context.split("## ENTITY DATA", 1)[0]
     elif covenant_type == "both":
         rp_docs, rp_ctx = get_provision_entities(deal_id, "rp_provision", trace=collector)
         mfn_docs, mfn_ctx = get_provision_entities(deal_id, "mfn_provision", trace=collector)
         all_docs = rp_docs + mfn_docs
         entity_context = rp_ctx + "\n\n" + mfn_ctx if rp_ctx and mfn_ctx else rp_ctx or mfn_ctx or ""
+        # Extract BOTH provision headers
+        rp_hdr = rp_ctx.split("## ENTITY DATA", 1)[0] if "## ENTITY DATA" in rp_ctx else ""
+        mfn_hdr = mfn_ctx.split("## ENTITY DATA", 1)[0] if "## ENTITY DATA" in mfn_ctx else ""
+        prov_header = rp_hdr + mfn_hdr
     else:
         all_docs, entity_context = get_provision_entities(deal_id, "rp_provision", trace=collector)
+        if "## ENTITY DATA" in entity_context:
+            prov_header = entity_context.split("## ENTITY DATA", 1)[0]
 
-    # Cross-covenant entities — only for MFN questions (walk MFN→RP, unidirectional)
+    # Cross-covenant entities — keep context separate, never merge into entity_context
+    cross_context = ""
     if covenant_type in ("mfn", "both"):
         cross_docs, cross_context = get_cross_covenant_entities(
             deal_id, "mfn_provision", trace=collector
         )
         if cross_docs:
             all_docs.extend(cross_docs)
-            entity_context += "\n\n" + cross_context
 
     if collector:
         collector.provision_lookup_ms = (_time.time() - start) * 1000
@@ -2279,19 +2288,20 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
         relevant_types = topic_router.get_relevant_entity_types(route_result.matched_categories)
         if relevant_types:
             filtered_docs = [d for d in all_docs if d.get("type_name") in relevant_types]
-            if filtered_docs:  # only apply filter if it doesn't empty the set
+            if filtered_docs:
                 all_docs = filtered_docs
-                entity_json = json.dumps(all_docs, indent=2, default=str)
-                # Preserve the provision header (everything before ## ENTITY DATA)
-                prov_header_parts = entity_context.split("## ENTITY DATA", 1)
-                prov_header = prov_header_parts[0] if len(prov_header_parts) > 1 else ""
-                entity_context = f"{prov_header}## ENTITY DATA\n\n{entity_json}"
             if collector:
                 collector.metadata_filter = {
                     "relevant_types": sorted(relevant_types),
                 }
     except Exception as e:
         logger.warning(f"Metadata entity filter failed (using all entities): {e}")
+
+    # Assemble entity_context from preserved components
+    entity_json = json.dumps(all_docs, indent=2, default=str)
+    entity_context = f"{prov_header}## ENTITY DATA\n\n{entity_json}"
+    if cross_context:
+        entity_context += "\n\n" + cross_context
 
     # Build synthesis prompt — load category-specific guidance from TypeDB (SSoT)
     if route_result and topic_router:
@@ -2380,20 +2390,12 @@ This block MUST appear at the very end of your response."""
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         model_used = settings.claude_model
 
-        # ── Stage 1: Entity Filter (Sonnet) ──────────────────────────
-        # Split on ## ENTITY DATA to separate provision header from JSON
-        if "## ENTITY DATA" in entity_context:
-            parts = entity_context.split("## ENTITY DATA", 1)
-            header = parts[0].rstrip()  # provision header (may be empty)
-            entities_json_str = parts[1].lstrip()  # JSON array after ## ENTITY DATA
-        else:
-            header = ""
-            entities_json_str = entity_context
-        try:
-            all_entities = json.loads(entities_json_str)
-        except json.JSONDecodeError:
-            all_entities = []
-            logger.warning("Could not parse entity context as JSON for filtering")
+        # ── Stage 1: Entity Filter ──────────────────────────────────
+        # Use prov_header (extracted earlier) and all_docs directly
+        # — avoids re-splitting entity_context which would lose cross_context
+        header = prov_header.rstrip() if prov_header else ""
+        all_entities = all_docs
+        entities_json_str = json.dumps(all_docs, indent=2, default=str)
 
         filter_prompt = """You are a legal data analyst. Given a question about a credit agreement and a set of extracted entities, classify each entity into one of three categories:
 
@@ -2465,7 +2467,7 @@ Return ONLY the JSON object. No explanation."""
             elif linked_types & supplementary_set:
                 supplementary_entities.append(entity)
 
-        # Build tiered context (provision header + tiered entities)
+        # Build tiered context (provision header + tiered entities + cross-covenant)
         tiered_context = ""
         if header:
             tiered_context = header + "\n\n"
@@ -2473,6 +2475,8 @@ Return ONLY the JSON object. No explanation."""
         tiered_context += json.dumps(primary_entities, indent=2)
         tiered_context += "\n\n## SUPPLEMENTARY ENTITIES\nCheck these for additional detail, qualifications, or corrections during self-verification.\n\n"
         tiered_context += json.dumps(supplementary_entities, indent=2)
+        if cross_context:
+            tiered_context += "\n\n" + cross_context
 
         # Trace filter stage
         excluded_count = len(all_entities) - len(primary_entities) - len(supplementary_entities)
