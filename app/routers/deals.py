@@ -625,7 +625,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
                     logger.info(f"MFN universe saved: {len(mfn_universe_text)} chars")
 
                     # Consolidated MFN extraction (2 calls instead of 6)
-                    # Stores answers internally via _store_mfn_answers
+                    # Returns answers — scalar storage deferred to after entity extraction
                     mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
                         deal_id, mfn_universe_text, document_text
                     )
@@ -650,6 +650,10 @@ async def run_extraction(deal_id: str, pdf_path: str):
                             f"MFN entity extraction: "
                             f"{mfn_entity_result['entities_stored']} entities stored"
                         )
+
+                        # Store scalars WITH annotation routing (entities exist)
+                        extraction_svc._store_mfn_answers(deal_id, mfn_result["answers"])
+                        logger.info("MFN scalar storage with annotation routing complete")
                     else:
                         logger.warning(
                             f"MFN extraction returned no answers: "
@@ -991,7 +995,7 @@ async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
         if os.path.exists(pdf_path):
             doc_text_for_context = extraction_svc.parse_document(pdf_path)
 
-        # Step 3: Consolidated MFN scalar extraction (MFN1-MFN6)
+        # Step 3: Extract MFN scalars (returns answers, does NOT store — creates provision only)
         mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
             deal_id, mfn_universe_text, doc_text_for_context
         )
@@ -999,7 +1003,7 @@ async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
             f"MFN scalar extraction: {mfn_result['answered']}/{mfn_result['total_questions']} answers"
         )
 
-        # Step 4: MFN entity extraction (Channel 3)
+        # Step 4: Extract and store MFN entities (entities now exist in TypeDB)
         entity_result = {"entities_stored": 0}
         if mfn_result["answers"]:
             entity_result = await extraction_svc.run_mfn_entity_extraction(
@@ -1007,7 +1011,12 @@ async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
             )
             logger.info(f"MFN entity extraction: {entity_result['entities_stored']} entities")
 
-        # Step 5: Cross-reference MFN ↔ RP if both exist
+        # Step 5: Store MFN scalars WITH annotation routing (entities exist → routing succeeds)
+        if mfn_result["answers"]:
+            extraction_svc._store_mfn_answers(deal_id, mfn_result["answers"])
+            logger.info("MFN scalar storage with annotation routing complete")
+
+        # Step 6: Cross-reference MFN ↔ RP if both exist
         try:
             extraction_svc._create_cross_references(deal_id)
         except Exception as xref_err:

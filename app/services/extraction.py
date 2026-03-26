@@ -1715,7 +1715,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             so it can reason about patterns (e.g., "given the MFN floor is X
             and OID is excluded, does this create a timing loophole?").
 
-        Stores answers via _store_mfn_answers (existing SSoT storage pattern).
+        Returns answers — scalar storage deferred to caller (after entity extraction).
         """
         # Load MFN questions from TypeDB (SSoT)
         questions_by_cat = self.load_questions_by_category("MFN")
@@ -1782,9 +1782,11 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         all_answers = batch_a_answers + batch_b_answers
         logger.info(f"MFN consolidated extraction complete: {len(all_answers)}/{total_questions} answers")
 
-        # Store answers
+        # Ensure provision exists (needed before entity extraction can link to it)
+        # Scalar storage deferred to after entity extraction — caller handles ordering
         if all_answers:
-            self._store_mfn_answers(deal_id, all_answers)
+            provision_id = f"{deal_id}_mfn"
+            self._ensure_mfn_provision_exists(deal_id, provision_id)
 
         # Aggregate cost tracking for MFN pipeline
         from app.services.cost_tracker import ExtractionCostSummary
@@ -1929,10 +1931,8 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         provision_id = f"{deal_id}_mfn"
 
         try:
-            # 1. Create mfn_provision + link to deal
-            self._ensure_mfn_provision_exists(deal_id, provision_id)
-
-            # 2. Store answers using GraphStorage (SSoT pattern)
+            # Provision must already exist (created by caller before entity extraction)
+            # Store answers using GraphStorage (SSoT pattern)
             storage = GraphStorage(deal_id)
             q_to_entity = storage._load_question_to_entity_map()
             stored_scalar = 0
