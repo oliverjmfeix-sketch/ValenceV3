@@ -334,11 +334,21 @@ async def get_eval_result(deal_id: str, filename: str):
 # GRAPH EVAL — FULL PIPELINE WITH TRACING
 # ═══════════════════════════════════════════════════════════════════════════
 
+class GraphEvalRequest(BaseModel):
+    """Optional request body for filtering which questions to run."""
+    question_ids: Optional[List[str]] = Field(
+        None,
+        description="Run only these question_ids. If omitted, runs all questions in the gold standard."
+    )
+
+
 @router.post("/graph-eval/{deal_id}")
-async def run_graph_eval(deal_id: str):
+async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = None):
     """
     Run graph eval using the stored gold standard Q&A set.
     Each question gets a full pipeline trace. Results are persisted.
+
+    Optional body: {"question_ids": ["q1", "q2"]} to run a subset.
     """
     filepath = GOLD_STANDARD_DIR / f"{deal_id}.json"
     if not filepath.exists():
@@ -363,6 +373,15 @@ async def run_graph_eval(deal_id: str):
         logger.info(f"Resolved {deal_id} → deal_id {actual_deal_id}")
 
     questions = gold["questions"]
+
+    # Filter to specific question_ids if requested
+    if request and request.question_ids:
+        id_set = set(request.question_ids)
+        questions = [q for q in questions if q["question_id"] in id_set]
+        if not questions:
+            raise HTTPException(400, "No matching question_ids found in gold standard")
+        logger.info(f"Filtered to {len(questions)}/{len(gold['questions'])} questions")
+
     eval_start = time.time()
     comparisons = []
 
