@@ -1,0 +1,143 @@
+{
+  "deal_id": "duck_creek_rp_mfn",
+  "resolve_deal_id": "87852625",
+  "deal_name": "Duck Creek Technologies",
+  "covenant_type": "rp_mfn",
+  "version": "2.0",
+  "source": "xtract_lawyer_report_2025-07-31",
+  "last_updated": "2026-03-27T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "duck_creek_rp_q1",
+      "question": "What are the three alternative tests for the build-up basket and what is the starter amount?",
+      "gold_answer": "The build-up basket is based on the greater of: (1) 50% of CNI from first day of the fiscal quarter in which the closing occurs, ignoring any FQ with a loss; (2) Retained ECF from last day of the first full fiscal year after the closing occurs, ignoring any FY with negative ECF; (3) EBITDA minus 1.4x Interest Expense from first day of the fiscal quarter in which the closing occurs, ignoring any FQ with a loss. The starter amount is $130m/100% EBITDA.",
+      "category": "builder_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q2",
+      "question": "What additional sources feed into the build-up basket beyond the three tests and starter amount?",
+      "gold_answer": "The build-up basket also includes: Retained Asset Sale Proceeds (including proceeds below the de minimis amount), Declined Asset Sale Proceeds, Declined ECF Sweep Proceeds, returns on ALL investments (even if not made out of this basket, even if included in the builder basket, and even though they also refill the basket used), proceeds from sale/leasebacks and sales of receivables or royalties or licenses, and the FMV of assets of an Unrestricted Subsidiary redesignated as Restricted or transferred to Borrower or a Restricted Subsidiary.",
+      "category": "builder_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q3",
+      "question": "Are there any conditions or blockers to usage of the build-up basket for restricted payments?",
+      "gold_answer": "No, there are no conditions to usage of the build-up basket.",
+      "category": "builder_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q4",
+      "question": "Which baskets can be reallocated for restricted payments?",
+      "gold_answer": "The general prepayment of debt basket ($130m/100% EBITDA) and general investment basket ($130m/100% EBITDA) can be reallocated for dividends.",
+      "category": "reallocation"
+    },
+    {
+      "question_id": "duck_creek_rp_q5",
+      "question": "What is the size of the general RP basket?",
+      "gold_answer": "The general RP basket is $130m/100% EBITDA.",
+      "category": "general_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q6",
+      "question": "What are the limits on management/employee equity repurchases for restricted payments?",
+      "gold_answer": "Management/Employee Equity Repurchase starts at $20m/15% EBITDA per fiscal year. Up to $20m/15% EBITDA may be carried forward and up to $20m/15% EBITDA may be carried back from later years.",
+      "category": "management_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q7",
+      "question": "What ratio test governs the unlimited ratio restricted payments basket?",
+      "gold_answer": "Restricted payments are permitted as long as the First Lien Leverage Ratio does not exceed 5.75x or if the Ratio does not get worse as a result of the transaction.",
+      "category": "ratio_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q8",
+      "question": "Can asset sale proceeds be used for restricted payments?",
+      "gold_answer": "Yes, proceeds of unlimited asset sales can be used for RPs if the First Lien Net Leverage Ratio does not exceed 6.0x or does not increase. However, the Xtract report notes this needs to be removed since it contradicts the mandatory prepayment provisions which indicates those proceeds must be used to repay debt or reinvested.",
+      "category": "asset_sale_proceeds"
+    },
+    {
+      "question_id": "duck_creek_rp_q9",
+      "question": "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+      "gold_answer": "Yes, the Borrower is permitted to dividend the equity of unrestricted subsidiaries.",
+      "category": "unsub_distribution"
+    },
+    {
+      "question_id": "duck_creek_rp_q10",
+      "question": "What restricted payments are permitted after an IPO?",
+      "gold_answer": "After IPO, dividends not to exceed per annum the sum of 7% of IPO proceeds and 7% of market cap.",
+      "category": "post_ipo_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q11",
+      "question": "Is there a limitation on the RP basket for payment of parent company expenses?",
+      "gold_answer": "The RP basket for payment of parent company expenses, other than salaries, is NOT limited to those attributed to ownership of Borrower. The Xtract report flags this as a concern.",
+      "category": "parent_expense_basket"
+    },
+    {
+      "question_id": "duck_creek_rp_q12",
+      "question": "What is the total Day One restricted payments capacity?",
+      "gold_answer": "$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. This comprises: (1) RP starter: $130m/100% EBITDA; (2) General RP basket: $130m/100% EBITDA; (3) General prepayment of debt basket: $130m/100% EBITDA; (4) General investment basket: $130m/100% EBITDA.",
+      "category": "day_one_capacity"
+    },
+    {
+      "question_id": "duck_creek_mfn_q1",
+      "question": "What is the MFN yield protection threshold and sunset period?",
+      "gold_answer": "100bps MFN protection with a 6 month sunset.",
+      "category": "mfn_threshold"
+    },
+    {
+      "question_id": "duck_creek_mfn_q2",
+      "question": "Does debt incurred under the freebie basket trigger MFN protection?",
+      "gold_answer": "No, debt out of the freebie is not triggered by MFN. The freebie is $130m/100% EBITDA.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q3",
+      "question": "Does debt that matures later than the initial Term Loans trigger MFN?",
+      "gold_answer": "No, debt that matures later than the Term Loans does not trigger MFN.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q4",
+      "question": "Is there a dollar cap carve-out for MFN protection?",
+      "gold_answer": "Yes, debt that does not exceed $325m/250% EBITDA does not trigger MFN.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q5",
+      "question": "Does debt incurred in connection with an acquisition trigger MFN?",
+      "gold_answer": "No, debt that is incurred in connection with an acquisition does not trigger MFN.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q6",
+      "question": "Does debt incurred for dividend or distribution purposes trigger MFN?",
+      "gold_answer": "No, debt incurred for dividend or distribution does not trigger MFN.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q7",
+      "question": "Is there a carve-out for debt that doesn't require significant cash interest payments?",
+      "gold_answer": "Yes, debt that does not require that at least 50% of interest be paid in cash does not trigger MFN.",
+      "category": "mfn_exclusion"
+    },
+    {
+      "question_id": "duck_creek_mfn_q8",
+      "question": "Does Incremental Equivalent Debt trigger MFN protection?",
+      "gold_answer": "No, there is no MFN protection for Incremental Equivalent Debt.",
+      "category": "mfn_scope"
+    },
+    {
+      "question_id": "duck_creek_mfn_q9",
+      "question": "Does Ratio Debt trigger MFN protection?",
+      "gold_answer": "No, there is no MFN protection for Ratio Debt.",
+      "category": "mfn_scope"
+    },
+    {
+      "question_id": "duck_creek_mfn_q10",
+      "question": "Does Xtract consider the MFN protection in this agreement to be effective?",
+      "gold_answer": "No. Xtract's Key Comments state that 'the purported call protection, MFN protection and mandatory prepayment provisions are illusory. 100bps MFN protection has a six month sunset, is almost impossible to trigger and is not triggered by incremental equivalent debt, ratio debt or acquisition debt.'",
+      "category": "mfn_analysis"
+    }
+  ]
+}
