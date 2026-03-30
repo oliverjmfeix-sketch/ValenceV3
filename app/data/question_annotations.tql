@@ -1,0 +1,1132 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUESTION → ENTITY ATTRIBUTE ANNOTATIONS
+#
+# Maps ontology questions to the entity attributes they populate.
+# graph_reader queries these at startup to build the annotation cache.
+#
+# Pattern: question_id → (target_entity_type, target_attribute_name)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Core RP entity annotations ────────────────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_g2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "ratio_threshold";
+
+match $q isa ontology_question, has question_id "rp_g4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "is_unlimited_if_met";
+
+match $q isa ontology_question, has question_id "rp_g5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "has_no_worse_test";
+
+match $q isa ontology_question, has question_id "rp_g6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "no_worse_is_uncapped";
+
+match $q isa ontology_question, has question_id "rp_n1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "basket_amount_usd";
+
+match $q isa ontology_question, has question_id "rp_j2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "basket_grower_pct";
+
+match $q isa ontology_question, has question_id "rp_c4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "annual_cap_usd";
+
+match $q isa ontology_question, has question_id "rp_c5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "annual_cap_pct_ebitda";
+
+match $q isa ontology_question, has question_id "rp_c6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "cap_uses_greater_of";
+
+match $q isa ontology_question, has question_id "rp_c7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "carryforward_permitted";
+
+match $q isa ontology_question, has question_id "rp_f14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "uses_greatest_of_tests";
+
+match $q isa ontology_question, has question_id "rp_f15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "start_date_language";
+
+match $q isa ontology_question, has question_id "rp_f2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "starter_amount_source",
+    has target_attribute_name "dollar_amount";
+
+match $q isa ontology_question, has question_id "rp_f3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "starter_amount_source",
+    has target_attribute_name "ebitda_percentage";
+
+match $q isa ontology_question, has question_id "rp_f4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "starter_amount_source",
+    has target_attribute_name "uses_greater_of";
+
+match $q isa ontology_question, has question_id "rp_f5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "cni_source",
+    has target_attribute_name "percentage";
+
+match $q isa ontology_question, has question_id "rp_f6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_proceeds_source",
+    has target_attribute_name "percentage";
+
+match $q isa ontology_question, has question_id "rp_f11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ecf_source",
+    has target_attribute_name "retained_ecf_formula";
+
+match $q isa ontology_question, has question_id "rp_f13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ebitda_fc_source",
+    has target_attribute_name "fc_multiplier";
+
+match $q isa ontology_question, has question_id "rp_k9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_transfer";
+
+match $q isa ontology_question, has question_id "rp_k10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_designation";
+
+match $q isa ontology_question, has question_id "rp_k2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_ip";
+
+match $q isa ontology_question, has question_id "rp_k3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_material_assets";
+
+match $q isa ontology_question, has question_id "rp_k8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "is_sacred_right";
+
+match $q isa ontology_question, has question_id "rp_j4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "dollar_cap_usd";
+
+match $q isa ontology_question, has question_id "rp_j5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "pct_cap_assets";
+
+match $q isa ontology_question, has question_id "rp_p4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "is_categorical";
+
+match $q isa ontology_question, has question_id "rp_p2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_equity_interests";
+
+match $q isa ontology_question, has question_id "rp_p3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_assets";
+
+match $q isa ontology_question, has question_id "rp_i3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "rdp";
+
+match $q isa ontology_question, has question_id "rp_i5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "investment";
+
+
+# ── Existence triggers and extended annotations ──────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_a1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_c1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_d1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_f1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_g1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_j1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_k1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_m1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_i7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_l1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_proceeds_source",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_l2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_f10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ecf_source",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_f12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ebitda_fc_source",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_f16";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_proceeds_source",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_f17";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "investment_returns_source",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t2_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t2_19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_d3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "standalone_taxpayer_limit";
+
+match $q isa ontology_question, has question_id "rp_j3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "requires_board_approval";
+
+match $q isa ontology_question, has question_id "rp_i4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reallocation_amount_usd";
+
+match $q isa ontology_question, has question_id "rp_i6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "is_bidirectional";
+
+match $q isa ontology_question, has question_id "rp_g3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "interest_coverage_threshold";
+
+match $q isa ontology_question, has question_id "rp_g7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "has_multiple_tiers";
+
+match $q isa ontology_question, has question_id "rp_l8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "ratio_basket_avoids_sweep";
+
+match $q isa ontology_question, has question_id "rp_l9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "sweep_exempt_ratio_threshold";
+
+match $q isa ontology_question, has question_id "rp_m2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "rebuilds_builder_basket";
+
+match $q isa ontology_question, has question_id "rp_m3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "includes_noncash_at_fmv";
+
+match $q isa ontology_question, has question_id "rp_m4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "reduces_investment_basket";
+
+match $q isa ontology_question, has question_id "rp_m5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "rebuild_is_capped";
+
+match $q isa ontology_question, has question_id "rp_m6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "rebuild_cap_formula";
+
+match $q isa ontology_question, has question_id "rp_m7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "redesignation_returns_investment";
+
+match $q isa ontology_question, has question_id "rp_m8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "redesignation_valuation_method";
+
+match $q isa ontology_question, has question_id "rp_m9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "distributions_can_cascade";
+
+match $q isa ontology_question, has question_id "rp_m10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "has_anti_duplication";
+
+match $q isa ontology_question, has question_id "jc_t1_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "redesignation_permitted";
+
+match $q isa ontology_question, has question_id "jc_t1_19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "auto_release_on_transfer";
+
+match $q isa ontology_question, has question_id "jc_t1_20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "requires_agent_consent";
+
+match $q isa ontology_question, has question_id "jc_t1_21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "requires_lender_consent";
+
+match $q isa ontology_question, has question_id "jc_t1_22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "requires_all_lender_consent_for_ip";
+
+match $q isa ontology_question, has question_id "jc_t1_23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "amendment_threshold",
+    has target_attribute_name "requires_all_lender_consent";
+
+match $q isa ontology_question, has question_id "jc_t1_24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "amendment_threshold",
+    has target_attribute_name "requires_supermajority";
+
+match $q isa ontology_question, has question_id "jc_t1_25";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "amendment_threshold",
+    has target_attribute_name "supermajority_threshold";
+
+match $q isa ontology_question, has question_id "jc_t1_26";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "amendment_threshold",
+    has target_attribute_name "required_lenders_sufficient";
+
+match $q isa ontology_question, has question_id "jc_t2_07";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "is_subjective";
+
+match $q isa ontology_question, has question_id "jc_t2_08";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "has_dollar_threshold";
+
+match $q isa ontology_question, has question_id "jc_t2_09";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "has_percentage_threshold";
+
+match $q isa ontology_question, has question_id "jc_t2_10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "determined_by_board";
+
+match $q isa ontology_question, has question_id "jc_t2_11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "enumerated_on_schedule";
+
+match $q isa ontology_question, has question_id "jc_t2_12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "defined_negatively";
+
+match $q isa ontology_question, has question_id "jc_t2_14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "can_be_manipulated";
+
+match $q isa ontology_question, has question_id "jc_t2_29";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "uses_greater_of";
+
+match $q isa ontology_question, has question_id "jc_t2_18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "has_standalone_definition";
+
+match $q isa ontology_question, has question_id "jc_t2_20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "excludes_trade_secrets";
+
+match $q isa ontology_question, has question_id "jc_t2_21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "excludes_know_how";
+
+match $q isa ontology_question, has question_id "jc_t2_22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "excludes_software";
+
+match $q isa ontology_question, has question_id "jc_t2_27";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "excludes_inbound_licenses";
+
+match $q isa ontology_question, has question_id "jc_t2_28";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ip_definition",
+    has target_attribute_name "excludes_customer_data";
+
+match $q isa ontology_question, has question_id "jc_t2_19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "has_standalone_definition";
+
+match $q isa ontology_question, has question_id "jc_t2_23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "excludes_exclusive_licensing";
+
+match $q isa ontology_question, has question_id "jc_t2_24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "excludes_any_licensing";
+
+match $q isa ontology_question, has question_id "jc_t2_25";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "excludes_pledge";
+
+match $q isa ontology_question, has question_id "jc_t2_26";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "transfer_definition",
+    has target_attribute_name "excludes_abandonment";
+
+match $q isa ontology_question, has question_id "jc_t2_15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_designation",
+    has target_attribute_name "requires_no_default";
+
+
+# ── Prompt 8 annotation ────────────────────────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_g5b";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "no_worse_is_uncapped";
+
+
+# ── Entity annotations from extended questions ─────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_g8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "ratio_type";
+
+match $q isa ontology_question, has question_id "rp_g9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "pro_forma_basis";
+
+match $q isa ontology_question, has question_id "rp_g10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "test_date_type";
+
+match $q isa ontology_question, has question_id "rp_g11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "lct_treatment_available";
+
+match $q isa ontology_question, has question_id "rp_g12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_basket",
+    has target_attribute_name "no_worse_threshold";
+
+match $q isa ontology_question, has question_id "rp_h3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_h4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "annual_cap_usd";
+
+match $q isa ontology_question, has question_id "rp_h5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_management_fees";
+
+match $q isa ontology_question, has question_id "rp_h6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_admin_expenses";
+
+match $q isa ontology_question, has question_id "rp_h7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_franchise_taxes";
+
+match $q isa ontology_question, has question_id "rp_h8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "requires_arms_length";
+
+match $q isa ontology_question, has question_id "rp_h9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "requires_board_approval";
+
+match $q isa ontology_question, has question_id "rp_h10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_insurance_premiums";
+
+match $q isa ontology_question, has question_id "rp_h11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_director_fees";
+
+match $q isa ontology_question, has question_id "rp_h12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_audit_fees";
+
+match $q isa ontology_question, has question_id "rp_h13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "covers_legal_fees";
+
+match $q isa ontology_question, has question_id "rp_h14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "holdco_overhead_basket",
+    has target_attribute_name "management_fee_recipient_scope";
+
+match $q isa ontology_question, has question_id "rp_e2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_e3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "annual_cap_usd";
+
+match $q isa ontology_question, has question_id "rp_e4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "carryforward_permitted";
+
+match $q isa ontology_question, has question_id "rp_e5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_cashless_exercise";
+
+match $q isa ontology_question, has question_id "rp_e6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_tax_withholding";
+
+match $q isa ontology_question, has question_id "rp_e7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_net_settlement";
+
+match $q isa ontology_question, has question_id "rp_e8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_clawback";
+
+match $q isa ontology_question, has question_id "rp_e9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_award_basket",
+    has target_attribute_name "covers_forfeiture";
+
+match $q isa ontology_question, has question_id "rp_c8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "carryforward_max_years";
+
+match $q isa ontology_question, has question_id "rp_c9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "eligible_person_scope";
+
+match $q isa ontology_question, has question_id "rp_d4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "hypothetical_tax_rate";
+
+match $q isa ontology_question, has question_id "rp_d5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "tax_sharing_permitted";
+
+match $q isa ontology_question, has question_id "rp_d6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "estimated_taxes_permitted";
+
+match $q isa ontology_question, has question_id "rp_f18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_rp_usage";
+
+match $q isa ontology_question, has question_id "rp_f19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_rdp_usage";
+
+match $q isa ontology_question, has question_id "rp_f20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_investment_usage";
+
+match $q isa ontology_question, has question_id "rp_f21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "reduced_by_designation";
+
+match $q isa ontology_question, has question_id "rp_p5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_indebtedness";
+
+match $q isa ontology_question, has question_id "rp_p6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "covers_proceeds";
+
+match $q isa ontology_question, has question_id "rp_p7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "unsub_distribution_basket",
+    has target_attribute_name "requires_valid_designation";
+
+match $q isa ontology_question, has question_id "rp_t2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_same_or_lower_priority";
+
+match $q isa ontology_question, has question_id "rp_t3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_same_or_later_maturity";
+
+match $q isa ontology_question, has question_id "rp_t4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_no_increase_in_principal";
+
+match $q isa ontology_question, has question_id "rp_t5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "permits_refinancing_with_equity";
+
+match $q isa ontology_question, has question_id "rp_t6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "requires_qualified_stock_only";
+
+match $q isa ontology_question, has question_id "rp_t7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "subject_to_intercreditor";
+
+match $q isa ontology_question, has question_id "rp_t8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "not_otherwise_applied";
+
+match $q isa ontology_question, has question_id "rp_t9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "ratio_threshold";
+
+match $q isa ontology_question, has question_id "rp_t10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "ratio_type";
+
+match $q isa ontology_question, has question_id "rp_t11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "is_unlimited_if_met";
+
+match $q isa ontology_question, has question_id "rp_t12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "pro_forma_basis";
+
+match $q isa ontology_question, has question_id "rp_t13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "test_date_type";
+
+match $q isa ontology_question, has question_id "rp_t14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "uses_closing_ratio_alternative";
+
+match $q isa ontology_question, has question_id "rp_t15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_rdp_basket",
+    has target_attribute_name "shares_with_rp_builder";
+
+match $q isa ontology_question, has question_id "rp_t16";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_rdp_basket",
+    has target_attribute_name "subject_to_intercreditor";
+
+match $q isa ontology_question, has question_id "rp_t17";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "requires_cash_common_equity";
+
+match $q isa ontology_question, has question_id "rp_t18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "not_otherwise_applied";
+
+match $q isa ontology_question, has question_id "rp_t19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "requires_qualified_stock_only";
+
+match $q isa ontology_question, has question_id "rp_t20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "basket_amount_usd";
+
+match $q isa ontology_question, has question_id "rp_t21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "basket_grower_pct";
+
+match $q isa ontology_question, has question_id "rp_l10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "leverage_threshold";
+
+match $q isa ontology_question, has question_id "rp_l11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "sweep_percentage";
+
+match $q isa ontology_question, has question_id "rp_l12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sweep_tier",
+    has target_attribute_name "is_highest_tier";
+
+match $q isa ontology_question, has question_id "rp_i9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reallocation_source";
+
+match $q isa ontology_question, has question_id "rp_i10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduces_source_basket";
+
+match $q isa ontology_question, has question_id "rp_i11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduction_is_dollar_for_dollar";
+
+match $q isa ontology_question, has question_id "rp_i12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "basket_reallocation",
+    has target_attribute_name "reduction_while_outstanding_only";
+
+match $q isa ontology_question, has question_id "rp_n6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "is_per_annum";
+
+match $q isa ontology_question, has question_id "rp_k11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_licenses_granted";
+
+match $q isa ontology_question, has question_id "rp_k12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_licenses_received";
+
+match $q isa ontology_question, has question_id "rp_k13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_post_designation";
+
+
+# ── Multiselect catch-up annotations ───────────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "restricts_borrower";
+
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "restricts_guarantors";
+
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "restricts_restricted_subs";
+
+match $q isa ontology_question, has question_id "rp_a2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "restricts_holdings";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_cash_dividends";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_share_buybacks";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_distributions";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_debt_prepayments";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_investments";
+
+match $q isa ontology_question, has question_id "rp_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "includes_guarantees";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_voluntary_payments";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_optional_payments";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_prepayments";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_redemptions";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_defeasance";
+
+match $q isa ontology_question, has question_id "rp_s1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "rp_provision",
+    has target_attribute_name "rdp_includes_open_market_purchases";
+
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "permits_to_borrower";
+
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "permits_to_guarantors";
+
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "permits_to_holdings";
+
+match $q isa ontology_question, has question_id "rp_b1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "permits_to_non_guarantor_subs";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_employees";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_officers";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_directors";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_consultants";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_estates";
+
+match $q isa ontology_question, has question_id "rp_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "covers_sponsor_employees";
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "trigger_death";
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "trigger_disability";
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "trigger_termination";
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "trigger_retirement";
+
+match $q isa ontology_question, has question_id "rp_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "management_equity_basket",
+    has target_attribute_name "trigger_change_of_control";
+
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "covers_consolidated_group";
+
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "covers_combined_group";
+
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "covers_similar_groups";
+
+match $q isa ontology_question, has question_id "rp_d2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "tax_distribution_basket",
+    has target_attribute_name "covers_disregarded_entities";
+
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "binds_loan_parties";
+
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "binds_restricted_subs";
+
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "binds_holdings";
+
+match $q isa ontology_question, has question_id "rp_k4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "binds_borrower_only";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_patents";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_trademarks";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_copyrights";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_trade_secrets";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_software";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_domain_names";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_know_how";
+
+match $q isa ontology_question, has question_id "rp_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_customer_data";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_exclusive_licensing";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_nonexclusive_licensing";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_pledge";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_abandonment";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_assignment";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_sale";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_contribution_to_capital";
+
+match $q isa ontology_question, has question_id "rp_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "jcrew_blocker",
+    has target_attribute_name "covers_non_renewal";
+
+match $q isa ontology_question, has question_id "rp_n0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_b0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_dividend_permission",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t2_30";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "materiality_definition",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "jc_t1_34";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lien_release_mechanics",
+    has target_attribute_name "_exists";
