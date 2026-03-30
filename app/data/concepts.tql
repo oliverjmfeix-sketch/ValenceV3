@@ -1085,3 +1085,104 @@ $lt12 isa loophole_type,
     has name "Amendment Risk",
     has description "MFN can be waived or modified by simple majority vote without sacred right protection",
     has display_order 12;
+################################################################################
+# EXEMPT_SALE_TYPE - Asset sale categories exempt from sweep
+################################################################################
+
+$es1 isa exempt_sale_type,
+    has concept_id "es_non_collateral",
+    has name "Non-Collateral Assets",
+    has description "Asset sales of property not pledged as collateral",
+    has display_order 1;
+
+$es2 isa exempt_sale_type,
+    has concept_id "es_ordinary_course",
+    has name "Ordinary Course Sales",
+    has description "Sales of assets in ordinary course of business",
+    has display_order 2;
+
+$es3 isa exempt_sale_type,
+    has concept_id "es_casualty",
+    has name "Casualty Events",
+    has description "Dispositions from casualty or condemnation events",
+    has display_order 3;
+
+$es4 isa exempt_sale_type,
+    has concept_id "es_de_minimis",
+    has name "Below De Minimis Threshold",
+    has description "Asset sales below de minimis threshold",
+    has display_order 4;
+
+$es5 isa exempt_sale_type,
+    has concept_id "es_intercompany",
+    has name "Intercompany Sales",
+    has description "Asset transfers between borrower and restricted subsidiaries",
+    has display_order 5;
+
+$es6 isa exempt_sale_type,
+    has concept_id "es_sale_leaseback",
+    has name "Sale-Leasebacks",
+    has description "Sale-leaseback transactions",
+    has display_order 6;
+
+$es7 isa exempt_sale_type,
+    has concept_id "es_ratio_basket",
+    has name "Ratio Basket Sales",
+    has description "Asset sales under ratio-based basket not subject to sweep",
+    has display_order 7;
+
+################################################################################
+# RATIO_REQUIRED_BASKET - Baskets requiring ratio test
+################################################################################
+
+$rt1 isa ratio_required_basket,
+    has concept_id "rt_unlimited",
+    has name "Ratio Unlimited Basket",
+    has description "Unlimited capacity basket conditioned on ratio test",
+    has display_order 1;
+
+$rt2 isa ratio_required_basket,
+    has concept_id "rt_builder",
+    has name "Builder Basket",
+    has description "Builder basket requiring ratio test",
+    has display_order 2;
+
+$rt3 isa ratio_required_basket,
+    has concept_id "rt_asset_sale",
+    has name "Asset Sale Basket",
+    has description "Asset sale basket conditioned on ratio test",
+    has display_order 3;
+
+$rt4 isa ratio_required_basket,
+    has concept_id "rt_acquisition",
+    has name "Acquisition Basket",
+    has description "Acquisition basket requiring ratio test",
+    has display_order 4;
+
+################################################################################
+# NO_DEFAULT_BASKET - Baskets requiring no default
+################################################################################
+
+$nd1 isa no_default_basket,
+    has concept_id "nd_builder",
+    has name "Builder Basket",
+    has description "Builder basket conditioned on no default",
+    has display_order 1;
+
+$nd2 isa no_default_basket,
+    has concept_id "nd_ratio",
+    has name "Ratio Basket",
+    has description "Ratio basket requiring no default",
+    has display_order 2;
+
+$nd3 isa no_default_basket,
+    has concept_id "nd_general",
+    has name "General Basket",
+    has description "General RP basket conditioned on no default",
+    has display_order 3;
+
+$nd4 isa no_default_basket,
+    has concept_id "nd_mgmt_equity",
+    has name "Management Equity Basket",
+    has description "Management equity basket requiring no default",
+    has display_order 4;

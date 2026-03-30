@@ -285,3 +285,174 @@ insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "Z"; $q isa ontology_question, has question_id "rp_z3";
 insert (category: $cat, question: $q) isa category_has_question;
+
+# ── Categories and mappings from consolidated files ───────────────────────────
+
+insert $cat_l isa ontology_category,
+    has category_id "L",
+    has name "Asset Sale Proceeds & Sweeps",
+    has display_order 12;
+
+insert $cat_n isa ontology_category,
+    has category_id "N",
+    has name "Dividend Capacity Calculation",
+    has display_order 14;
+
+insert $cat_m isa ontology_category,
+    has category_id "M",
+    has name "Unrestricted Subsidiary Distributions",
+    has description "How distributions from unrestricted subsidiaries flow back to the restricted group. Covers carve-outs from the RP prohibition, builder basket rebuilding, reinvestment requirements, and investment basket reduction. Critical for assessing whether J.Crew-style transactions can be reversed or whether value exits permanently.",
+    has display_order 13;
+
+insert $cat_p isa ontology_category,
+    has category_id "P",
+    has name "Unrestricted Subsidiary Distribution Basket",
+    has description "Carve-outs permitting distribution of equity interests, indebtedness, and assets of already-designated unrestricted subsidiaries. These operate independently of the J.Crew blocker and may permit uncapped distributions that bypass RP restrictions entirely.",
+    has display_order 15;
+
+
+# ── Category → Question mappings ─────────────────────────────────────────────
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f11";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f13";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f14";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f15";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f16";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f17";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "K"; $q isa ontology_question, has question_id "rp_k10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_g7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_i6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_n5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m9";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "M"; $q isa ontology_question, has question_id "rp_m10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_p4";
+insert (category: $cat, question: $q) isa category_has_question;
