@@ -29,3 +29,6 @@ htmlcov/
 
 # Uploads
 uploads/
+
+# Eval results (runtime artifacts, stored on Railway Volume)
+app/data/eval_results/
