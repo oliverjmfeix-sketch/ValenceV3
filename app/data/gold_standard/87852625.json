@@ -64,7 +64,6 @@
       "source": "xtract_lawyer_report",
       "category": "total_capacity",
       "requires_entities": [
-        "dividend_capacity_summary",
         "general_rp_basket",
         "builder_basket",
         "general_rdp_basket",
