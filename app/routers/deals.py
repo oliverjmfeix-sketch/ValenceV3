@@ -574,7 +574,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
             current_step="Running V4 unified extraction (entities + answers)..."
         )
 
-        v4_result = await extraction_svc.extract_rp_v4_unified(
+        v4_result = await extraction_svc.extract_rp_unified(
             deal_id=deal_id,
             document_text=document_text,
             rp_universe=rp_universe,
@@ -818,7 +818,7 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
     extraction_svc = get_extraction_service()
     _extraction_locks[deal_id] = True
     try:
-        v4_result = await extraction_svc.extract_rp_v4_unified(
+        v4_result = await extraction_svc.extract_rp_unified(
             deal_id=deal_id,
             document_text="",  # No full PDF text — JC tiers 2-3 will be skipped
             rp_universe=rp_universe,

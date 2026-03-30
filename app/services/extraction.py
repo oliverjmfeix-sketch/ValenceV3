@@ -127,28 +127,6 @@ class AnswerTracker:
     def get_all_answers(self) -> List[AnsweredQuestion]:
         """Get all tracked answers."""
         return list(self.answers.values())
-
-
-@dataclass
-class ExtractionResult:
-    """Complete extraction result."""
-    deal_id: str
-    covenant_type: str
-    category_answers: List[CategoryAnswers]
-    extraction_time_seconds: float
-    chunks_processed: int = 0
-    total_questions: int = 0
-    high_confidence_answers: int = 0
-    rp_universe_chars: int = 0
-    rp_universe: Optional['RPUniverse'] = None  # Retained for J.Crew pipeline
-    document_text: Optional[str] = None         # Retained for J.Crew pipeline
-    segment_map: Optional[dict] = None          # Reused for MFN universe extraction
-
-
-# =============================================================================
-# EXTRACTION SERVICE
-# =============================================================================
-
 class ExtractionService:
     """
     Format-agnostic RP Universe extraction pipeline.
@@ -445,7 +423,7 @@ CRITICAL:
         return result
 
     def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000,
-                               step: str = "legacy_extraction",
+                               step: str = "extraction",
                                deal_id: str = None) -> str:
         """Call Claude with streaming to handle long operations."""
         from app.services.cost_tracker import extract_usage
@@ -686,33 +664,6 @@ CRITICAL:
     # =========================================================================
     # STEP 4: Answer Questions Against RP Universe
     # =========================================================================
-
-    def _retired_answer_questions_against_universe(
-        self,
-        rp_universe: RPUniverse,
-        questions_by_category: Dict[str, List[Dict]]
-    ) -> List[CategoryAnswers]:
-        """Answer ALL questions against the focused RP universe."""
-        category_answers = []
-
-        for cat_id, questions in sorted(questions_by_category.items()):
-            cat_name = questions[0]["category_name"] if questions else cat_id
-            logger.info(f"Answering {len(questions)} questions for {cat_name}")
-
-            answers = self._answer_category_questions(
-                rp_universe.raw_text,
-                questions,
-                cat_name
-            )
-
-            category_answers.append(CategoryAnswers(
-                category_id=cat_id,
-                category_name=cat_name,
-                answers=answers
-            ))
-
-        return category_answers
-
     def _answer_category_questions(
         self,
         context: str,
@@ -1148,207 +1099,6 @@ Return ONLY the JSON array."""
 
         logger.warning("No definitions found for J.Crew analysis — will fall back to RP universe definitions")
         return ""
-
-    async def _retired_run_jcrew_deep_analysis(
-        self,
-        deal_id: str,
-        rp_universe: RPUniverse,
-        document_text: str,
-    ) -> Dict[str, Any]:
-        """
-        Run J.Crew 3-tier deep analysis on a deal.
-
-        Pass 1 (Tier 1 — Structural): JC1 questions against RP universe text
-        Pass 2 (Tier 2 — Definition Quality): JC2 questions against definitions text
-        Pass 3 (Tier 3 — Cross-Reference): JC3 questions against both + prior answers
-
-        Reuses existing _answer_category_questions and store_extraction_result.
-        Loads its own copy of JC questions from TypeDB (SSoT).
-
-        Args:
-            deal_id: The deal being analyzed
-            rp_universe: Already-extracted RP universe from the main pipeline
-            document_text: Full parsed document text (for definitions extraction)
-
-        Returns:
-            Summary dict with counts and timing
-        """
-        start_time = time.time()
-
-        # Load all RP questions and filter to J.Crew tiers
-        all_questions = self.load_questions_by_category("RP")
-        jc1_questions = all_questions.get("JC1", [])
-        jc2_questions = all_questions.get("JC2", [])
-        jc3_questions = all_questions.get("JC3", [])
-
-        jc_total = len(jc1_questions) + len(jc2_questions) + len(jc3_questions)
-        if jc_total == 0:
-            logger.info("No J.Crew questions loaded — skipping deep analysis")
-            return {"skipped": True, "reason": "no_jcrew_questions"}
-
-        logger.info(
-            f"J.Crew deep analysis: {len(jc1_questions)} T1, "
-            f"{len(jc2_questions)} T2, {len(jc3_questions)} T3 questions"
-        )
-
-        all_category_answers: List[CategoryAnswers] = []
-        prior_answers_summary: List[str] = []
-        definitions_text = ""
-
-        _XREF_T1 = (
-            "DEFINITIONS RULE: A term defined by cross-reference (e.g., "
-            "'shall have the meaning assigned in the Security Agreement') "
-            "IS a defined term. Return cross-reference text verbatim when "
-            "asked to extract definitions. Answer true when asked if a term "
-            "is defined, even if defined by cross-reference."
-        )
-        _XREF_T2 = (
-            "CRITICAL DEFINITIONS RULE: Terms can be defined three ways:\n"
-            "(a) INLINE — full text in this document ('X means...')\n"
-            "(b) CROSS-REFERENCE — defined by reference to another document "
-            "('X shall have the meaning assigned in the Security Agreement')\n"
-            "(c) NOT DEFINED — term does not appear at all\n"
-            "A cross-reference IS a definition. When extracting definitions, "
-            "return the cross-reference language verbatim. When asked if a "
-            "term is defined, answer true for both inline and cross-reference. "
-            "When asked to analyze what a definition includes or excludes, and "
-            "the definition is a cross-reference, state that the analysis "
-            "requires the referenced document and answer SILENT for all "
-            "inclusion/exclusion checks (not EXCLUDED — we don't know what's "
-            "excluded without reading the other document)."
-        )
-        _XREF_T3 = (
-            "DEFINITIONS RULE: Cross-reference definitions (defined by "
-            "reference to another document) are definitions but cannot be "
-            "fully analyzed from this document alone. When a Tier 2 answer "
-            "shows a cross-reference definition, note this as a limitation — "
-            "the definition quality cannot be assessed without the referenced "
-            "document. Do not treat cross-reference definitions as gaps; "
-            "treat them as unknowns."
-        )
-
-        # ── Pass 1: Tier 1 (Structural) against RP universe ──────────────
-        if jc1_questions:
-            logger.info("J.Crew Pass 1: Tier 1 structural analysis against RP universe...")
-            t1_answers = self._answer_category_questions(
-                rp_universe.raw_text,
-                jc1_questions,
-                "J.Crew Tier 1 — Structural Vulnerability",
-                system_instruction=_XREF_T1,
-            )
-            all_category_answers.append(CategoryAnswers(
-                category_id="JC1",
-                category_name="J.Crew Tier 1 — Structural Vulnerability",
-                answers=t1_answers,
-            ))
-            # Summarize T1 answers for T3 cross-reference
-            for a in t1_answers:
-                if a.confidence in ("high", "medium"):
-                    prior_answers_summary.append(
-                        f"[{a.question_id}] = {a.value} ({a.confidence})"
-                    )
-            logger.info(f"Pass 1 complete: {len(t1_answers)} answers")
-
-        # ── Pass 2: Tier 2 (Definition Quality) against definitions text ──
-        if jc2_questions:
-            logger.info("J.Crew Pass 2: Tier 2 definition quality analysis...")
-            definitions_text = self.extract_definitions_section(document_text)
-
-            # Fall back to RP universe definitions if regex extraction found nothing
-            if not definitions_text:
-                logger.warning(
-                    "No definitions extracted — falling back to RP universe definitions"
-                )
-                definitions_text = rp_universe.definitions or rp_universe.raw_text
-
-            t2_answers = self._answer_category_questions(
-                definitions_text,
-                jc2_questions,
-                "J.Crew Tier 2 — Definition Quality",
-                system_instruction=_XREF_T2,
-            )
-            all_category_answers.append(CategoryAnswers(
-                category_id="JC2",
-                category_name="J.Crew Tier 2 — Definition Quality",
-                answers=t2_answers,
-            ))
-            # Summarize T2 answers for T3 cross-reference
-            for a in t2_answers:
-                if a.confidence in ("high", "medium"):
-                    prior_answers_summary.append(
-                        f"[{a.question_id}] = {a.value} ({a.confidence})"
-                    )
-            logger.info(f"Pass 2 complete: {len(t2_answers)} answers")
-
-        # ── Pass 3: Tier 3 (Cross-Reference) against definitions + prior answers ─
-        # (NOT full RP universe — T3 analyzes interactions between extracted
-        # provisions, not raw covenant language. Full text would exceed 200K tokens.)
-        if jc3_questions:
-            logger.info("J.Crew Pass 3: Tier 3 cross-reference analysis...")
-
-            combined_parts = []
-
-            if definitions_text:
-                combined_parts.append("## DEFINITIONS (from document)\n\n")
-                combined_parts.append(definitions_text)
-
-            if prior_answers_summary:
-                combined_parts.append("\n\n## PRIOR TIER 1 & 2 FINDINGS\n\n")
-                combined_parts.append(
-                    "These findings from earlier analysis tiers are "
-                    "provided for cross-reference:\n"
-                )
-                combined_parts.append("\n".join(prior_answers_summary))
-
-            if not combined_parts:
-                combined_parts.append("No prior findings available.")
-
-            combined_context = "\n".join(combined_parts)
-
-            t3_answers = self._answer_category_questions(
-                combined_context,
-                jc3_questions,
-                "J.Crew Tier 3 — Cross-Reference Interactions",
-                system_instruction=_XREF_T3,
-            )
-            all_category_answers.append(CategoryAnswers(
-                category_id="JC3",
-                category_name="J.Crew Tier 3 — Cross-Reference Interactions",
-                answers=t3_answers,
-            ))
-            logger.info(f"Pass 3 complete: {len(t3_answers)} answers")
-
-        # ── Store all J.Crew answers ──────────────────────────────────────
-        logger.info("Storing J.Crew deep analysis results...")
-        self.store_extraction_result(deal_id, all_category_answers)
-
-        elapsed = time.time() - start_time
-        total_answers = sum(len(ca.answers) for ca in all_category_answers)
-        high_conf = sum(
-            1 for ca in all_category_answers
-            for a in ca.answers if a.confidence == "high"
-        )
-
-        logger.info(
-            f"J.Crew deep analysis complete in {elapsed:.1f}s: "
-            f"{total_answers} answers ({high_conf} high confidence)"
-        )
-
-        return {
-            "total_answers": total_answers,
-            "high_confidence": high_conf,
-            "tier_counts": {
-                "JC1": len(jc1_questions),
-                "JC2": len(jc2_questions),
-                "JC3": len(jc3_questions),
-            },
-            "elapsed_seconds": round(elapsed, 1),
-        }
-
-    # =========================================================================
-    # MFN EXTRACTION PIPELINE
-    # =========================================================================
-
     def extract_mfn_universe(self, document_text: str) -> Optional[str]:
         """
         Extract the MFN-relevant universe from a credit agreement.
@@ -1808,70 +1558,6 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             "total_questions": total_questions,
             "answered": len(all_answers),
         }
-
-    async def _retired_run_mfn_extraction(
-        self,
-        deal_id: str,
-        mfn_universe_text: str,
-        document_text: str
-    ) -> dict:
-        """
-        RETIRED: Old 6-batch MFN extraction. Replaced by run_mfn_extraction_consolidated().
-
-        Extract MFN provision data by answering 42 ontology questions.
-
-        Splits into domain-driven batches by category (MFN1-MFN6).
-        Each batch gets focused context from the relevant universe sections.
-        MFN6 (Loopholes) receives entity data from earlier batches.
-        """
-        # Load MFN questions from TypeDB (SSoT)
-        questions_by_cat = self.load_questions_by_category("MFN")
-        if not questions_by_cat:
-            logger.error("No MFN questions found in TypeDB")
-            return {"answers": [], "errors": ["No MFN questions in TypeDB"]}
-
-        total_questions = sum(len(qs) for qs in questions_by_cat.values())
-        logger.info(
-            f"MFN extraction: {total_questions} questions in "
-            f"{len(questions_by_cat)} batches"
-        )
-
-        # Parse universe into sections for focused context per batch
-        universe_sections = self._parse_mfn_universe_sections(mfn_universe_text)
-
-        all_answers = []
-        prior_analysis_parts = []  # Accumulated for MFN6
-
-        for cat_id in sorted(questions_by_cat.keys()):
-            cat_questions = questions_by_cat[cat_id]
-            cat_questions.sort(key=lambda q: q.get("display_order", 0))
-
-            # MFN6 gets prior analysis from batches 2-4
-            entity_context = None
-            if cat_id == "MFN6" and prior_analysis_parts:
-                entity_context = "\n\n".join(prior_analysis_parts)
-
-            batch_answers = self._extract_mfn_batch(
-                cat_id, cat_questions, mfn_universe_text,
-                universe_sections, entity_context=entity_context
-            )
-            all_answers.extend(batch_answers)
-
-            # Accumulate entity-relevant answers for MFN6
-            if cat_id in ("MFN2", "MFN3", "MFN4"):
-                summary = self._summarize_batch_answers(cat_id, batch_answers)
-                if summary:
-                    prior_analysis_parts.append(summary)
-
-        logger.info(f"MFN extraction complete: {len(all_answers)}/{total_questions} answers")
-
-        return {
-            "answers": all_answers,
-            "errors": [],
-            "total_questions": total_questions,
-            "answered": len(all_answers)
-        }
-
     def _ensure_mfn_provision_exists(self, deal_id: str, provision_id: str):
         """Create mfn_provision entity linked to deal if not exists."""
         from typedb.driver import TransactionType
@@ -2150,7 +1836,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             raise
 
     # =========================================================================
-    # MFN ENTITY EXTRACTION (Channel 3)
+    # MFN ENTITY EXTRACTION
     # =========================================================================
 
     async def run_mfn_entity_extraction(
@@ -2158,7 +1844,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         deal_id: str,
         mfn_universe_text: str,
     ) -> dict:
-        """Extract MFN Channel 3 entities via unified entity_list pipeline.
+        """Extract MFN entities via unified entity_list pipeline.
 
         Same flow as RP: load entity_list questions → build_entity_list_prompt
         (schema introspection) → Claude → parse → store_extraction.
@@ -2184,7 +1870,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
 
         # 3. Call Claude (synchronous — matches RP pattern)
         model = settings.claude_model
-        entity_response = self._call_claude_v4_unified(
+        entity_response = self._call_claude_unified(
             entity_prompt, model, deal_id, step_name="mfn_entity_list"
         )
         logger.info(f"MFN entity list response: {len(entity_response)} chars")
@@ -2200,133 +1886,16 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             "answers_stored": result.get("answers_stored", 0),
         }
 
-    # =========================================================================
-    # MAIN EXTRACTION FLOW
-    # =========================================================================
-
-    async def _retired_extract_rp_provision(
-        self,
-        pdf_path: str,
-        deal_id: str,
-        questions_by_category: Optional[Dict[str, List[Dict]]] = None,
-        store_results: bool = True
-    ) -> ExtractionResult:
-        """
-        Full RP extraction pipeline using format-agnostic universe extraction.
-
-        1. Parse PDF
-        2. Extract RP-Relevant Universe (definitions + covenants + mechanics)
-        3. Load questions from TypeDB
-        4. Answer ALL questions against the focused RP universe
-        5. Store results to TypeDB
-        """
-        start_time = time.time()
-
-        # Step 1: Parse PDF
-        document_text = self.parse_document(pdf_path)
-
-        # Step 2: Extract RP Universe
-        logger.info("Step 2: Extracting RP-Relevant Universe...")
-        rp_universe = self.extract_rp_universe(document_text)
-        segment_map = getattr(self, '_last_segment_map', None)
-        universe_chars = len(rp_universe.raw_text)
-        logger.info(f"RP Universe extracted: {universe_chars} chars")
-
-        # Cache RP universe text to disk for eval pipeline reuse
-        try:
-            import os
-            universe_path = os.path.join("/app/uploads", f"{deal_id}_rp_universe.txt")
-            os.makedirs("/app/uploads", exist_ok=True)
-            with open(universe_path, "w", encoding="utf-8") as f:
-                f.write(rp_universe.raw_text)
-            logger.info(f"Cached RP universe text: {universe_path} ({universe_chars} chars)")
-        except Exception as e:
-            logger.warning(f"Could not cache RP universe text: {e}")
-
-        if universe_chars < 1000:
-            logger.warning("RP Universe extraction yielded minimal content - extraction may fail")
-
-        # Step 3: Load questions from TypeDB
-        if questions_by_category is None:
-            logger.info("Step 3: Loading questions from TypeDB...")
-            questions_by_category = self.load_questions_by_category("RP")
-
-        total_questions = sum(len(qs) for qs in questions_by_category.values())
-        logger.info(f"Loaded {total_questions} questions in {len(questions_by_category)} categories")
-
-        # Step 4: Answer ALL questions against RP Universe
-        logger.info("Step 4: Answering questions against RP Universe...")
-        category_answers = self._retired_answer_questions_against_universe(
-            rp_universe,
-            questions_by_category
-        )
-
-        # Count high confidence answers
-        high_conf_count = sum(
-            1 for cat in category_answers
-            for ans in cat.answers
-            if ans.confidence == "high"
-        )
-
-        # Step 5: Store results to TypeDB
-        if store_results:
-            logger.info("Step 5: Storing results to TypeDB...")
-            self.store_extraction_result(deal_id, category_answers)
-
-        extraction_time = time.time() - start_time
-        logger.info(
-            f"Extraction complete in {extraction_time:.1f}s: "
-            f"{high_conf_count}/{total_questions} HIGH confidence"
-        )
-
-        return ExtractionResult(
-            deal_id=deal_id,
-            covenant_type="RP",
-            category_answers=category_answers,
-            extraction_time_seconds=extraction_time,
-            chunks_processed=1,  # Universe extraction counts as 1
-            total_questions=total_questions,
-            high_confidence_answers=high_conf_count,
-            rp_universe_chars=universe_chars,
-            rp_universe=rp_universe,
-            document_text=document_text,
-            segment_map=segment_map,
-        )
-
-    # =========================================================================
-    # V4 UNIFIED EXTRACTION (single Claude call for entities + answers)
-    # =========================================================================
-
-    _V4_SYSTEM_PROMPT = """You are a legal analyst extracting covenant data from credit agreements.
-
-RULES:
-1. Return ONLY valid JSON - no markdown code blocks, no explanation before/after
-2. Include provenance (section_reference, source_page) for every major finding
-3. Quote verbatim_text exactly as it appears (max 500 chars)
-4. If a field is not found, omit it entirely (don't include null)
-5. For percentages, use decimals (50% = 0.5, 140% = 1.4)
-6. For dollar amounts, use raw numbers (130000000 not "130M")
-7. Be precise about "no worse" test - this is CRITICAL for risk analysis
-8. For ratio thresholds, use the decimal number (5.75x = 5.75)
-9. For reallocation_cap: use null (not "unlimited") if there is no cap
-10. DEFINITIONS: Terms can be defined three ways in credit agreements:
-    (a) INLINE — full definition text appears in this document (e.g., "Material Intellectual Property" means...)
-    (b) CROSS-REFERENCE — defined by reference to another document (e.g., "Intellectual Property" shall have the meaning assigned to such term in the Security Agreement)
-    (c) NOT DEFINED — term does not appear in the defined terms section at all
-    A cross-reference IS a definition. When asked if a term is defined, answer true for both inline and cross-reference definitions. When asked to extract a definition, return the cross-reference text verbatim — do not say "NOT DEFINED" for cross-referenced terms. When a term is defined by cross-reference, note which document contains the full definition.
-11. For flat answers: value types must match answer_type exactly. Booleans are true/false (not strings). Numbers are numeric. Multiselect values are arrays of concept IDs.
-12. source_text in answers MUST be exact verbatim quotes from the document text, not paraphrases or references."""
-
-    async def extract_rp_v4_unified(
+    async def extract_rp_unified(
         self,
         deal_id: str,
         document_text: str,
         rp_universe: 'RPUniverse',
         segment_map: Optional[dict] = None,
         model: Optional[str] = None,
-    ) -> 'ExtractionResultV4':
+    ) -> 'ExtractionResult':
         """
-        V4 Batched extraction pipeline — multiple Claude calls, unified answer format.
+        Batched extraction pipeline — multiple Claude calls, unified answer format.
 
         Splits extraction into batched calls sharing the same document text:
         - Call 0: Entity list extraction (dedicated call for full entity coverage)
@@ -2344,7 +1913,7 @@ RULES:
             model: Claude model to use (default from settings)
 
         Returns:
-            ExtractionResultV4 with extraction, storage results, and cost data
+            ExtractionResult with extraction, storage results, and cost data
         """
         from app.services.graph_storage import GraphStorage
 
@@ -2390,29 +1959,13 @@ RULES:
                 entity_list_questions, rp_universe.raw_text
             )
             logger.info(f"Entity list prompt built: {len(entity_prompt)} chars")
-
-            # DEBUG: Write entity prompt to file for inspection
-            try:
-                with open("/app/uploads/debug_prompt.txt", "w") as f:
-                    f.write(entity_prompt)
-            except Exception:
-                pass
-
-            entity_response = self._call_claude_v4_unified(
+            entity_response = self._call_claude_unified(
                 entity_prompt, model, deal_id, step_name="rp_entity_list"
             )
             logger.info(f"Entity list response: {len(entity_response)} chars")
-
-            # DEBUG: Write entity response to file for inspection
-            try:
-                with open("/app/uploads/debug_response.txt", "w") as f:
-                    f.write(entity_response)
-            except Exception:
-                pass
-
-            if getattr(self, '_last_v4_usage', None):
-                self._last_v4_usage.deal_id = deal_id
-                cost_summary.add(self._last_v4_usage)
+            if getattr(self, '_last_usage', None):
+                self._last_usage.deal_id = deal_id
+                cost_summary.add(self._last_usage)
 
             entity_extraction = GraphStorage.parse_extraction_response(entity_response)
             all_answers.extend(entity_extraction.answers)
@@ -2433,19 +1986,12 @@ RULES:
                 f"{batch_q_count} questions, {len(batch_prompt)} chars prompt"
             )
 
-            batch_response = self._call_claude_v4_unified(
+            batch_response = self._call_claude_unified(
                 batch_prompt, model, deal_id, step_name=f"rp_scalar_batch_{i+1}"
             )
-
-            try:
-                with open(f"/app/uploads/debug_scalar_batch_{i}.txt", "w") as f:
-                    f.write(batch_response)
-            except Exception:
-                pass
-
-            if getattr(self, '_last_v4_usage', None):
-                self._last_v4_usage.deal_id = deal_id
-                cost_summary.add(self._last_v4_usage)
+            if getattr(self, '_last_usage', None):
+                self._last_usage.deal_id = deal_id
+                cost_summary.add(self._last_usage)
 
             batch_extraction = GraphStorage.parse_extraction_response(batch_response)
             all_answers.extend(batch_extraction.answers)
@@ -2487,7 +2033,7 @@ RULES:
         logger.info(f"Unified V4 extraction complete in {extraction_time:.1f}s")
         cost_summary.log_summary()
 
-        return ExtractionResultV4(
+        return ExtractionResult(
             deal_id=deal_id,
             extraction=extraction,
             storage_result=storage_result,
@@ -2543,7 +2089,7 @@ RULES:
 
         return batches
 
-    def _call_claude_v4_unified(self, prompt: str, model: str, deal_id: Optional[str] = None, step_name: str = "rp_unified_v4") -> str:
+    def _call_claude_unified(self, prompt: str, model: str, deal_id: Optional[str] = None, step_name: str = "rp_unified") -> str:
         """Call Claude API for V4 extraction (entities or scalar batch).
 
         Uses max_tokens=16384 and 10-minute timeout.
@@ -2565,13 +2111,13 @@ RULES:
                 timeout=600.0  # 10 minute timeout
             )
             duration = time.time() - start
-            self._last_v4_usage = extract_usage(
+            self._last_usage = extract_usage(
                 response, model, step_name, deal_id=deal_id, duration=duration
             )
             return response.content[0].text
         except Exception as e:
             logger.error(f"Claude API error ({step_name}): {e}")
-            self._last_v4_usage = None
+            self._last_usage = None
             raise
 
     async def _run_jcrew_tiers_2_3(
@@ -2757,7 +2303,7 @@ RULES:
 
 
 @dataclass
-class ExtractionResultV4:
+class ExtractionResult:
     """Result of V4 graph-native extraction."""
     deal_id: str
     extraction: Any  # ExtractionResponse
