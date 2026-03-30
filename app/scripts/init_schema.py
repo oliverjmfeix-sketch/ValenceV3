@@ -5,7 +5,7 @@ Run this once after setting up TypeDB Cloud:
     python -m app.scripts.init_schema
 
 This creates the database (if needed), loads schema, and seeds all data.
-Loads all TQL files in dependency order (26 steps).
+Loads all TQL files in dependency order (23 steps).
 """
 import os
 import sys
@@ -48,18 +48,16 @@ CATEGORY_P_FILE = DATA_DIR / "ontology_category_p.tql"
 JCREW_CONCEPTS_FILE = DATA_DIR / "jcrew_concepts_seed.tql"
 JCREW_QUESTIONS_FILE = DATA_DIR / "jcrew_questions_seed.tql"
 
-# 9-10. V4 seed data + concept → entity mapping
-SEED_V4_DATA_FILE = DATA_DIR / "seed_v4_data.tql"
+# 9. Concept → entity mapping
 CONCEPT_ENTITY_MAPPING_FILE = DATA_DIR / "seed_concept_entity_mapping.tql"
 
-# 11-12. MFN extended data
-MFN_CONCEPTS_EXTENDED_FILE = DATA_DIR / "mfn_concepts_extended.tql"
+# 10. MFN ontology questions
 MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 
-# 13. Document segmentation types
+# 11. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
-# 14-23. Seed data (annotations, questions, mappings, guidance)
+# 12-21. Seed data (annotations, questions, mappings, guidance)
 ATTRIBUTE_ANNOTATIONS_FILE = DATA_DIR / "seed_attribute_annotations.tql"
 COMPLETE_ANNOTATIONS_FILE = DATA_DIR / "seed_complete_annotations.tql"
 NEW_QUESTIONS_FILE = DATA_DIR / "seed_new_questions.tql"
@@ -71,8 +69,7 @@ MFN_ANNOTATIONS_FILE = DATA_DIR / "seed_mfn_annotations.tql"
 MFN_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_mfn_entity_list_questions.tql"
 SYNTHESIS_GUIDANCE_FILE = DATA_DIR / "seed_synthesis_guidance.tql"
 
-# 24-25. Functions (SCHEMA transactions)
-MFN_FUNCTIONS_FILE = DATA_DIR / "mfn_functions.tql"
+# 22. Functions (SCHEMA transaction)
 ANNOTATION_FUNCTIONS_FILE = DATA_DIR / "annotation_functions.tql"
 
 
@@ -257,7 +254,7 @@ def init_database():
     force = "--force" in sys.argv
 
     logger.info("=" * 60)
-    logger.info("ValenceV3 Schema Initialization (26 steps)")
+    logger.info("ValenceV3 Schema Initialization (23 steps)")
     logger.info("=" * 60)
 
     driver = get_driver()
@@ -364,28 +361,18 @@ def init_database():
         if JCREW_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, JCREW_QUESTIONS_FILE)
 
-        # 9. Load V4 seed data
-        logger.info("\n9. Loading seed_v4_data.tql...")
-        if SEED_V4_DATA_FILE.exists():
-            _load_multi_insert_file(driver, TYPEDB_DATABASE, SEED_V4_DATA_FILE)
-
-        # 10. Load concept → entity boolean mapping
-        logger.info("\n10. Loading seed_concept_entity_mapping.tql...")
+        # 9. Load concept → entity boolean mapping
+        logger.info("\n9. Loading seed_concept_entity_mapping.tql...")
         if CONCEPT_ENTITY_MAPPING_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, CONCEPT_ENTITY_MAPPING_FILE)
 
-        # 11. Load MFN extended concepts (after concepts.tql)
-        logger.info("\n11. Loading mfn_concepts_extended.tql...")
-        if MFN_CONCEPTS_EXTENDED_FILE.exists():
-            _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_CONCEPTS_EXTENDED_FILE)
-
-        # 12. Load MFN ontology questions (after all concepts and questions)
-        logger.info("\n12. Loading mfn_ontology_questions.tql...")
+        # 10. Load MFN ontology questions (after all concepts and questions)
+        logger.info("\n10. Loading mfn_ontology_questions.tql...")
         if MFN_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_QUESTIONS_FILE)
 
-        # 13. Load document segment types
-        logger.info("\n13. Loading segment_types_seed.tql...")
+        # 11. Load document segment types
+        logger.info("\n11. Loading segment_types_seed.tql...")
         if SEGMENT_TYPES_FILE.exists():
             seg_tql = load_tql_file(SEGMENT_TYPES_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
@@ -398,73 +385,58 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Segment types: {e}")
 
-        # 14. Load attribute annotations
-        logger.info("\n14. Loading seed_attribute_annotations.tql...")
+        # 12. Load attribute annotations
+        logger.info("\n12. Loading seed_attribute_annotations.tql...")
         if ATTRIBUTE_ANNOTATIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, ATTRIBUTE_ANNOTATIONS_FILE)
 
-        # 15. Load complete attribute annotations
-        logger.info("\n15. Loading seed_complete_annotations.tql...")
+        # 13. Load complete attribute annotations
+        logger.info("\n13. Loading seed_complete_annotations.tql...")
         if COMPLETE_ANNOTATIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, COMPLETE_ANNOTATIONS_FILE)
 
-        # 16. Load new questions
-        logger.info("\n16. Loading seed_new_questions.tql...")
+        # 14. Load new questions
+        logger.info("\n14. Loading seed_new_questions.tql...")
         if NEW_QUESTIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_FILE)
 
-        # 17. Load entity-list questions
-        logger.info("\n17. Loading seed_entity_list_questions.tql...")
+        # 15. Load entity-list questions
+        logger.info("\n15. Loading seed_entity_list_questions.tql...")
         if ENTITY_LIST_QUESTIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, ENTITY_LIST_QUESTIONS_FILE)
 
-        # 18. Load cross-covenant mappings
-        logger.info("\n18. Loading seed_cross_covenant_mappings.tql...")
+        # 16. Load cross-covenant mappings
+        logger.info("\n16. Loading seed_cross_covenant_mappings.tql...")
         if CROSS_COVENANT_MAPPINGS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, CROSS_COVENANT_MAPPINGS_FILE)
 
-        # 19. Load capacity classifications
-        logger.info("\n19. Loading seed_capacity_classifications.tql...")
+        # 17. Load capacity classifications
+        logger.info("\n17. Loading seed_capacity_classifications.tql...")
         if CAPACITY_CLASSIFICATIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, CAPACITY_CLASSIFICATIONS_FILE)
 
-        # 20. Load Prompt 8 questions (no_worse_is_uncapped)
-        logger.info("\n20. Loading seed_new_questions_008.tql...")
+        # 18. Load Prompt 8 questions (no_worse_is_uncapped)
+        logger.info("\n18. Loading seed_new_questions_008.tql...")
         if NEW_QUESTIONS_008_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, NEW_QUESTIONS_008_FILE)
 
-        # 21. Load MFN entity annotations
-        logger.info("\n21. Loading seed_mfn_annotations.tql...")
+        # 19. Load MFN entity annotations
+        logger.info("\n19. Loading seed_mfn_annotations.tql...")
         if MFN_ANNOTATIONS_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, MFN_ANNOTATIONS_FILE)
 
-        # 22. Load MFN entity-list questions
-        logger.info("\n22. Loading seed_mfn_entity_list_questions.tql...")
+        # 20. Load MFN entity-list questions
+        logger.info("\n20. Loading seed_mfn_entity_list_questions.tql...")
         if MFN_ENTITY_LIST_QUESTIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_ENTITY_LIST_QUESTIONS_FILE)
 
-        # 23. Load synthesis guidance (category-specific analysis rules)
-        logger.info("\n23. Loading seed_synthesis_guidance.tql...")
+        # 21. Load synthesis guidance (category-specific analysis rules)
+        logger.info("\n21. Loading seed_synthesis_guidance.tql...")
         if SYNTHESIS_GUIDANCE_FILE.exists():
             _load_mixed_tql_file(driver, TYPEDB_DATABASE, SYNTHESIS_GUIDANCE_FILE)
 
-        # 24. Load MFN inference functions (SCHEMA transaction)
-        logger.info("\n24. Loading mfn_functions.tql...")
-        if MFN_FUNCTIONS_FILE.exists():
-            functions_tql = load_tql_file(MFN_FUNCTIONS_FILE)
-            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
-            try:
-                tx.query(functions_tql).resolve()
-                tx.commit()
-                logger.info(f"   Loaded MFN functions ({len(functions_tql)} chars)")
-            except Exception as e:
-                if tx.is_open():
-                    tx.close()
-                logger.warning(f"   MFN functions: {e}")
-                logger.warning("   MFN pattern detection functions not available.")
-
-        # 25. Load annotation functions (SCHEMA transaction)
-        logger.info("\n25. Loading annotation_functions.tql...")
+        # 22. Load annotation functions (SCHEMA transaction)
+        logger.info("\n22. Loading annotation_functions.tql...")
         if ANNOTATION_FUNCTIONS_FILE.exists():
             annotation_tql = load_tql_file(ANNOTATION_FUNCTIONS_FILE)
             tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
@@ -478,8 +450,8 @@ def init_database():
                 logger.warning(f"   Annotation functions: {e}")
                 logger.warning("   Annotation functions not available.")
 
-        # 26. Seed storage_value_type on ontology_question (derived from answer_type)
-        logger.info("\n26. Seeding storage_value_type on ontology_questions...")
+        # 23. Seed storage_value_type on ontology_question (derived from answer_type)
+        logger.info("\n23. Seeding storage_value_type on ontology_questions...")
         svt_mappings = {
             "double": ["number", "currency", "percentage"],
             "boolean": ["boolean"],
