@@ -1,0 +1,26 @@
+EVAL SUMMARY: Duck Creek Technologies
+============================================================
+Deal ID:        87852625
+Covenant type:  rp_mfn
+Gold standard:  v2.0
+Timestamp:      2026-03-27T15:23:02.208873
+Questions:      16
+Total cost:     $6.82
+Total time:     844s
+
+  [OK] duck_creek_rp_q7: What ratio test governs the unlimited ratio restricted payments basket? ($0.19)
+  [OK] duck_creek_rp_q8: Can asset sale proceeds be used for restricted payments? ($0.17)
+  [OK] duck_creek_rp_q9: Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidi ($0.17)
+  [OK] duck_creek_rp_q10: What restricted payments are permitted after an IPO? ($0.24)
+  [OK] duck_creek_rp_q11: Is there a limitation on the RP basket for payment of parent company expenses? ($0.22)
+  [OK] duck_creek_rp_q12: What is the total Day One restricted payments capacity? ($0.16)
+  [OK] duck_creek_mfn_q1: What is the MFN yield protection threshold and sunset period? ($0.54)
+  [OK] duck_creek_mfn_q2: Does debt incurred under the freebie basket trigger MFN protection? ($0.56)
+  [OK] duck_creek_mfn_q3: Does debt that matures later than the initial Term Loans trigger MFN? ($0.56)
+  [OK] duck_creek_mfn_q4: Is there a dollar cap carve-out for MFN protection? ($0.54)
+  [OK] duck_creek_mfn_q5: Does debt incurred in connection with an acquisition trigger MFN? ($0.58)
+  [OK] duck_creek_mfn_q6: Does debt incurred for dividend or distribution purposes trigger MFN? ($0.69)
+  [OK] duck_creek_mfn_q7: Is there a carve-out for debt that doesn't require significant cash interest pay ($0.49)
+  [OK] duck_creek_mfn_q8: Does Incremental Equivalent Debt trigger MFN protection? ($0.54)
+  [OK] duck_creek_mfn_q9: Does Ratio Debt trigger MFN protection? ($0.60)
+  [OK] duck_creek_mfn_q10: Does Xtract consider the MFN protection in this agreement to be effective? ($0.56)
