@@ -98,7 +98,7 @@ def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
     """
     Load a TQL file that contains both standalone insert and match-insert statements.
 
-    Handles files like ontology_expanded.tql where each question is a separate
+    Handles files like questions.tql where each question is a separate
     multi-line `insert` statement. Parses into individual statements, executes
     ALL standalone inserts first (so entities exist), then match-inserts.
     """
