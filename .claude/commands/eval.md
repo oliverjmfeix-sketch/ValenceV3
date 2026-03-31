@@ -17,9 +17,13 @@ The user wants to run an eval. Present the available eval sets and let them pick
 
 ## Instructions
 
-1. If the user provided an argument (e.g. `/eval 1`, `/eval lawyer_dc_rp`), map it to the eval set ID and skip the selection step. Accept numbers 1-3 or the full ID.
+1. **ALWAYS start by showing the user which eval sets are available.** Call the Railway backend to get the live list:
+   ```
+   curl -s https://valencev3-production.up.railway.app/api/eval-sets
+   ```
+   Display the results as a numbered list showing: name, covenant type, source, question count.
 
-2. If no argument, use AskUserQuestion to ask which eval set to run. Include an option for "All three (sequential)".
+2. Then use AskUserQuestion to ask which eval set to run. Options should be built from the API response (one per eval set, plus "All (sequential)"). If the user provided an argument (e.g. `/eval 1`, `/eval lawyer_dc_rp`), skip the question and map directly.
 
 3. Run the eval by calling the Railway backend:
    ```
