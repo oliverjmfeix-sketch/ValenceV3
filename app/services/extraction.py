@@ -364,33 +364,23 @@ This is NOT the Debt section if it only contains:
         """
         Validate universe contains expected content using Sonnet.
 
-        Returns True if valid, False if validation fails.
-        Cost: ~$0.10 per validation (30K input tokens on Sonnet).
+        Sends the full universe text to Sonnet (fits within 200K token context).
+        Cost: ~$0.30 for a 400K char RP universe, less for MFN.
         """
         validation_prompt = self._VALIDATION_PROMPTS.get(
             universe.covenant_type,
             f"Validate this contains actual {universe.covenant_type} covenant language with restriction mechanics and permitted baskets/exceptions."
         )
 
-        # Sample from each section (not just first 30K) so Sonnet sees
-        # covenant baskets, not just definitions that come first in raw_text.
-        sample_parts = []
-        chars_per_section = max(2000, 30000 // max(len(universe.sections), 1))
-        for section_name, content in universe.sections.items():
-            sample_parts.append(f"=== {section_name.upper()} (first {chars_per_section} chars) ===\n{content[:chars_per_section]}")
-        sample_text = "\n\n".join(sample_parts)
-
         prompt = f"""{validation_prompt}
 
-## EXTRACTED TEXT (sampled from {len(universe.sections)} sections)
+## EXTRACTED TEXT ({len(universe.sections)} sections, {len(universe.raw_text)} chars)
 
-{sample_text}
+{universe.raw_text}
 
 ## QUESTION
 
-Does this extracted text contain the ACTUAL {universe.covenant_type} provision mechanics (the covenant clause itself with restrictions and permitted baskets/exceptions)?
-
-Note: The text above is sampled from multiple sections. Definitions sections alone are expected — the key question is whether at least one section contains the actual covenant restriction language.
+Does this text contain the ACTUAL {universe.covenant_type} provision mechanics (the clause itself with restrictions and exceptions), not just cross-references or definitions?
 
 Answer ONLY: YES or NO"""
 
