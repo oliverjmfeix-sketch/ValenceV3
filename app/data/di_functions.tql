@@ -1,0 +1,105 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI CAPACITY FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Total incremental freebie capacity (free-and-clear amount)
+fun total_incremental_capacity($pid: string) -> double:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, incremental: $incr) isa provision_has_incremental;
+        $incr has free_and_clear_amount_usd $fac;
+    return first $fac;
+
+# Single basket capacity by type label
+fun basket_capacity($pid: string, $basket_type: string) -> double:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket isa! $btype;
+        label($btype) == $basket_type;
+        $basket has basket_cap_usd $cap;
+    return first $cap;
+
+# Projected grower capacity at given EBITDA
+fun projected_grower_capacity($pid: string, $ebitda: double) -> double:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket has is_grower true,
+            has basket_cap_pct_ebitda $pct;
+    reduce $total_pct = sum($pct);
+    let $capacity = $total_pct * $ebitda / 100.0;
+    return first $capacity;
+
+# Total capped basket capacity (sum of all baskets with dollar caps)
+fun total_capped_basket_capacity($pid: string) -> double:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket has basket_cap_usd $cap;
+    reduce $total = sum($cap);
+    return first $total;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI VULNERABILITY FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# IED permitted but doesn't trigger MFN — priming risk
+fun has_ied_priming_risk($pid: string) -> boolean:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, incremental: $incr) isa provision_has_incremental;
+        $incr has ied_permitted true;
+        (incremental: $incr, mfn_prov: $mfn) isa incremental_triggers_mfn,
+            has triggers_for_ied false;
+    return check;
+
+# Ratio basket with is_unlimited_if_met and no dollar cap — trapdoor risk
+fun has_trapdoor_basket($pid: string) -> boolean:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket isa ratio_debt_basket,
+            has is_unlimited_if_met true;
+        not { $basket has basket_cap_usd $cap; };
+    return check;
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI AGGREGATION FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Count of permitted debt baskets
+fun count_permitted_baskets($pid: string) -> long:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+    reduce $count = count($basket);
+    return first $count;
+
+# Count of grower baskets
+fun count_grower_baskets($pid: string) -> long:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket has is_grower true;
+    reduce $count = count($basket);
+    return first $count;
+
+# Stream of basket type labels for a provision
+fun get_basket_types($pid: string) -> { string }:
+    match
+        $di isa di_provision, has provision_id $dpid;
+        $dpid == $pid;
+        (provision: $di, di_basket: $basket) isa provision_has_di_basket;
+        $basket isa! $btype;
+    return { label($btype) };
