@@ -277,31 +277,31 @@ curl "https://valencev3-production.up.railway.app/api/eval-results/duck_creek_rp
 
 ## Current State (2026-03-31)
 
-### Unified Extraction Refactor (Prompts 1-4)
+### Entity Architecture SSoT Compliance Fix
 
-Major refactor replacing separate RP/MFN extraction paths with unified architecture:
+Major refactor converting 6 incorrectly-modeled entity_list questions to proper patterns:
 
-* `RPUniverse` dataclass -> `CovenantUniverse` (sections dict, JSON cache)
-* `extract_rp_unified()` + `run_mfn_extraction_consolidated()` -> single `extract_covenant()`
-* Scalar batches now run in parallel via `asyncio.gather` + `AsyncAnthropic`
-* Cache format: `.txt` -> `.json` with metadata
-* API: `/re-extract` + `/re-extract-mfn` -> `/extract/{covenant_type}`
-* JC2/JC3 (J.Crew analysis) temporarily removed — will be reimplemented later
+* **Phase 1:** `de_minimis_threshold` + `sweep_exemption` (5 subtypes) → new `asset_sale_sweep` single-instance entity with 13 scalar attrs
+* **Phase 2:** `rdp_basket` (5 subtypes) → `_exists` single-instance pattern (5 new boolean questions)
+* **Phase 3:** `amendment_threshold` → `_exists` single-instance; `has_amendment_threshold` refactored to sub `provision_has_extracted_entity`
+* **Phase 4:** `builder_basket_source` (8 subtypes) → flattened as 25 attrs on `builder_basket` entity
+* **Phase 5:** `basket_reallocation` entity → `basket_reallocates_to` relation (keeps entity_list extraction, stores as relation)
+* **Parser fix:** `_load_mixed_tql_file()` — `has_insert_clause` flag prevents merging standalone inserts into match-insert blocks
+* **Provision type generalization:** `_load_entity_relation_map()` + `_create_single_instance_entity()` now work with both `rp_provision` and `mfn_provision`
 
-### Duck Creek RP Extraction (2026-03-31)
-* First successful run through unified pipeline: 189 answers, 21 entities, $14.25, 496s
-* 7 API calls (1 entity + 6 scalar batches) — sequential; parallel batching deployed but not yet tested
+Removed: 15 entity types, 4 relations, 6 entity_list questions.
+Added: 1 entity (`asset_sale_sweep`), 1 relation (`provision_has_asset_sale_sweep`), 25 new questions, 25+ annotations.
+Schema reseeded successfully. 293 questions, 27 categories, 273 annotations.
+
+### Unified Extraction Refactor (earlier today)
+
+* First successful Duck Creek RP extraction through unified pipeline: 189 answers, 21 entities, $14.25, 496s
+* Eval baseline: 6/6 lawyer_dc_rp, $4.40/run
 
 ### Test Deals
 
-* **Duck Creek** (RP+MFN): deal_id `87852625`. Primary test deal for extraction and eval.
+* **Duck Creek** (RP+MFN): deal_id `87852625`. Primary test deal.
 * **ACP Tara** (MFN): deal_id `8d0bf2f8`. Secondary MFN test deal.
-
-### Eval Baselines (pre-refactor)
-
-* Duck Creek RP+MFN: 16/16 OK (q7-q12 RP + q1-q10 MFN), $6.82/run
-* Duck Creek RP (original): 6/6 pass
-* ACP Tara MFN: 11/11 OK, $3.57/run
 
 ## Open Violations
 
@@ -309,18 +309,23 @@ Major refactor replacing separate RP/MFN extraction paths with unified architect
 
 * `app/routers/deals.py` — hardcoded pattern flag name lists for RP and MFN provisions. Should introspect from TypeDB schema attributes.
 
+### Stale Entity References (from SSoT refactor)
+
+* `app/services/graph_storage.py` lines 2242-2441 — legacy methods reference removed entity types (`de_minimis_threshold`, `basket_reallocation`, `builder_basket_source`, `sweep_exemption`). Not in active code path (prefixed `_legacy_`) but should be cleaned up.
+
 ### Actionable TODOs
 
-* `app/routers/deals.py` — `# TODO: Persist QA cost to TypeDB`
+* `app/routers/deals.py:1585` — `# TODO: Persist QA cost to TypeDB`
 * `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
 ## Next Steps
 
-1. **Test parallel scalar batches** — Re-run Duck Creek RP extraction, verify speedup from asyncio.gather
-2. **Test MFN extraction** — `POST /api/deals/87852625/extract/mfn`
-3. **Run full eval** — Verify extraction quality matches pre-refactor baseline
-4. **RP regression test** — `POST /api/graph-eval/lawyer_dc_rp` to confirm Duck Creek RP still passes 6/6
-5. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
+1. **Re-extract Duck Creek RP** — `POST /api/deals/87852625/extract/rp` (~$14) to test new entity architecture
+2. **Run eval** — `/eval lawyer_dc_rp` to verify 6/6 still passes with new entity storage
+3. **Test MFN extraction** — `POST /api/deals/87852625/extract/mfn`
+4. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn`
+5. **Clean up legacy methods** — Remove `_legacy_*` methods in graph_storage.py that reference deleted entity types
+6. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
 
 ## END-OF-DAY UPDATE WORKFLOW
 
@@ -370,15 +375,16 @@ Types: schema, extraction, api, types, data, fix, refactor
 
 ## Test Deals
 
-- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-26 (post-reseed). 36 entities, 165 scalar answers.
+- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-31 (unified pipeline). 189 answers, 21 entities. Needs re-extraction after entity SSoT refactor.
 - **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26 (post-reseed). 14 MFN entities, cross-reference to RP active.
 
 ## Eval: Gold Standard Questions
 
-- **Duck Creek RP**: 6 questions. All pass as of Prompt 8d + Opus 4.6.
+- **Duck Creek RP**: 6 questions. 6/6 OK as of 2026-03-31 (pre-SSoT-refactor), $4.40/run.
   Run via `POST /api/graph-eval/lawyer_dc_rp`
+  Results: `app/data/eval_results/eval_lawyer_dc_rp_20260331_093203_*.{txt,json}`
 - **Duck Creek RP+MFN**: 22 questions (Xtract report).
   Run via `POST /api/graph-eval/xtract_dc_rp_mfn`
 - **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
   Run via `POST /api/graph-eval/lawyer_acp_mfn`
-  Results saved locally: `app/data/eval_results/eval_lawyer_acp_mfn_*.{txt,json}`
+  Results: `app/data/eval_results/eval_lawyer_acp_mfn_*.{txt,json}`
