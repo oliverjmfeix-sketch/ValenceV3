@@ -87,63 +87,58 @@ ValenceV3/
 │   ├── main.py                          # FastAPI app + startup
 │   ├── config.py                        # Settings from env
 │   ├── eval/
-│   │   ├── cc_questions.py              # Cross-covenant eval questions
+│   │   ├── __init__.py
 │   │   └── duck_creek_ablation.py       # Duck Creek ablation test
 │   ├── prompts/
+│   │   ├── __init__.py
 │   │   └── reasoning.py                 # Reasoning prompt templates
 │   ├── routers/
+│   │   ├── __init__.py
 │   │   ├── ablation.py                  # Ablation testing endpoints
 │   │   ├── deals.py                     # Deal CRUD + upload + extraction + /ask-graph
-│   │   ├── eval.py                      # Auto-eval pipeline
 │   │   ├── graph_eval.py                # Gold standard eval runner
 │   │   ├── health.py                    # Health checks + admin endpoints
-│   │   ├── mfn_eval.py                  # MFN eval (legacy, use graph_eval)
 │   │   └── ontology.py                  # Ontology query endpoints
 │   ├── services/
+│   │   ├── __init__.py
 │   │   ├── typedb_client.py             # TypeDB connection
-│   │   ├── extraction.py                # Claude extraction pipeline
-│   │   ├── graph_storage.py             # TypeDB write (all 3 channels)
+│   │   ├── extraction.py                # Unified covenant extraction pipeline
+│   │   ├── graph_storage.py             # TypeDB write (all relation types)
 │   │   ├── graph_reader.py              # TypeDB read + annotation cache
 │   │   ├── graph_traversal.py           # Polymorphic entity fetch + cross-covenant walk
 │   │   ├── graph_queries.py             # Reusable TypeDB query helpers
-│   │   ├── topic_router.py              # Question → category routing (SSoT)
-│   │   ├── segment_introspector.py      # Schema introspection
+│   │   ├── topic_router.py              # Question -> category routing (SSoT)
+│   │   ├── segment_introspector.py      # Segment type introspection from TypeDB
 │   │   ├── trace_collector.py           # Trace/debug collector
 │   │   ├── cost_tracker.py              # Claude API cost tracking
 │   │   └── pdf_parser.py                # PDF text extraction
 │   ├── schemas/
+│   │   ├── __init__.py
 │   │   ├── models.py                    # Pydantic API models
 │   │   └── extraction_response.py       # Extraction response Pydantic models
 │   ├── scripts/
-│   │   ├── init_schema.py               # DB seeding (single entry point, 26 steps)
-│   │   ├── gap_report.py                # Reusable diagnostic
-│   │   └── run_mfn_eval.py              # Standalone MFN eval runner
+│   │   ├── __init__.py
+│   │   └── init_schema.py               # DB seeding (single entry point)
 │   ├── data/
 │   │   ├── schema_unified.tql           # THE schema (single file, ~1800 lines)
 │   │   ├── concepts.tql                 # ~170 concept instances
 │   │   ├── jcrew_concepts_seed.tql      # 72 J.Crew concept instances
 │   │   ├── questions.tql                # Base ontology (Categories A-K)
 │   │   ├── categories.tql               # Category definitions + links
-│   │   ├── ontology_expanded.tql        # Extended questions
-│   │   ├── ontology_category_m.tql      # Category M questions
-│   │   ├── ontology_category_p.tql      # Category P questions
 │   │   ├── jcrew_questions_seed.tql     # J.Crew questions (69)
-│   │   ├── mfn_concepts_extended.tql    # MFN-specific concepts
 │   │   ├── mfn_ontology_questions.tql   # MFN questions (43)
-│   │   ├── seed_*.tql                   # Seed data (annotations, mappings, etc.)
-│   │   ├── mfn_functions.tql            # MFN pattern detection functions
 │   │   ├── segment_types_seed.tql       # Document segment type definitions
+│   │   ├── seed_*.tql                   # Seed data (annotations, mappings, etc.)
+│   │   ├── question_annotations.tql     # Question -> attribute annotations
 │   │   ├── annotation_functions.tql     # Entity annotation function
 │   │   ├── gold_standard/               # Gold standard eval data (JSON)
-│   │   └── eval_results/               # Local copies of eval output files
+│   │   └── eval_results/                # Local copies of eval output files
 │   └── utils/
+│       ├── __init__.py
 │       └── ontology.py                  # Ontology utilities
 ├── tests/
 │   ├── test_extraction_response.py      # Extraction response schema tests
 │   └── test_topic_router.py             # TopicRouter SSoT compliance tests
-├── src/
-│   └── types/
-│       └── mfn.generated.ts             # Generated TypeScript types
 ├── requirements.txt
 ├── Dockerfile
 ├── railway.toml
