@@ -568,37 +568,11 @@ async def run_extraction(deal_id: str, pdf_path: str):
         else:
             logger.warning(f"RP universe build/validation failed for {deal_id}")
 
-        # Step 4: MFN extraction (non-blocking)
-        mfn_result = None
-        try:
-            extraction_status[deal_id] = ExtractionStatus(
-                deal_id=deal_id, status="extracting", progress=75,
-                current_step="Building MFN universe..."
-            )
-            mfn_universe = extraction_svc.get_or_build_universe(
-                deal_id=deal_id, covenant_type="MFN",
-                document_text=document_text, segment_map=segment_map,
-    
-            )
-
-            if mfn_universe:
-                extraction_status[deal_id] = ExtractionStatus(
-                    deal_id=deal_id, status="extracting", progress=85,
-                    current_step="Extracting MFN covenant..."
-                )
-                mfn_result = await extraction_svc.extract_covenant(
-                    deal_id=deal_id, covenant_type="MFN", universe=mfn_universe,
-                )
-            else:
-                logger.warning(f"MFN universe build/validation failed for {deal_id}")
-        except Exception as mfn_err:
-            logger.error(f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}", exc_info=True)
-
-        # Step 5: DI extraction (non-blocking)
+        # Step 4: DI extraction (before MFN — creates incremental_facility for MFN linkage)
         di_result = None
         try:
             extraction_status[deal_id] = ExtractionStatus(
-                deal_id=deal_id, status="extracting", progress=90,
+                deal_id=deal_id, status="extracting", progress=55,
                 current_step="Building DI universe..."
             )
             di_universe = extraction_svc.get_or_build_universe(
@@ -608,7 +582,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
 
             if di_universe:
                 extraction_status[deal_id] = ExtractionStatus(
-                    deal_id=deal_id, status="extracting", progress=95,
+                    deal_id=deal_id, status="extracting", progress=65,
                     current_step="Extracting DI covenant..."
                 )
                 di_result = await extraction_svc.extract_covenant(
@@ -618,6 +592,31 @@ async def run_extraction(deal_id: str, pdf_path: str):
                 logger.warning(f"DI universe build/validation failed for {deal_id}")
         except Exception as di_err:
             logger.error(f"DI extraction failed for {deal_id} (non-blocking): {di_err}", exc_info=True)
+
+        # Step 5: MFN extraction (after DI — can link to incremental_facility via incremental_triggers_mfn)
+        mfn_result = None
+        try:
+            extraction_status[deal_id] = ExtractionStatus(
+                deal_id=deal_id, status="extracting", progress=80,
+                current_step="Building MFN universe..."
+            )
+            mfn_universe = extraction_svc.get_or_build_universe(
+                deal_id=deal_id, covenant_type="MFN",
+                document_text=document_text, segment_map=segment_map,
+            )
+
+            if mfn_universe:
+                extraction_status[deal_id] = ExtractionStatus(
+                    deal_id=deal_id, status="extracting", progress=90,
+                    current_step="Extracting MFN covenant..."
+                )
+                mfn_result = await extraction_svc.extract_covenant(
+                    deal_id=deal_id, covenant_type="MFN", universe=mfn_universe,
+                )
+            else:
+                logger.warning(f"MFN universe build/validation failed for {deal_id}")
+        except Exception as mfn_err:
+            logger.error(f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}", exc_info=True)
 
         # Complete
         rp_info = f"{rp_result.answers_stored}a/{rp_result.entities_created}e" if rp_result else "skipped"
