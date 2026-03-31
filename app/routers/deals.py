@@ -493,12 +493,12 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             logger.info(f"Deleted PDF: {pdf_path}")
 
         # 10. Delete RP universe file
-        rp_path = Path(UPLOADS_DIR) / f"{deal_id}_rp_universe.txt"
+        rp_path = Path(UPLOADS_DIR) / f"{deal_id}_rp_universe.json"
         if rp_path.exists():
             rp_path.unlink()
 
         # 11. Delete MFN universe file
-        mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.txt"
+        mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.json"
         if mfn_path.exists():
             mfn_path.unlink()
 
@@ -515,186 +515,99 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
 
 async def run_extraction(deal_id: str, pdf_path: str):
     """
-    Background task: extract RP provision from PDF and store in TypeDB.
+    Background task: extract all covenants from PDF and store in TypeDB.
 
-    V4 Unified pipeline:
+    Unified pipeline:
     1. Parse PDF → text with page markers
-    2. Segment document → extract RP universe
-    3. Single Claude call → entities (baskets, blockers, etc.) + flat answers (~200 Q)
-    4. Store entities + answers to TypeDB in one pass
-    5. Run J.Crew Tiers 2-3 (separate context needed)
-    6. Run MFN extraction (separate provision type)
+    2. Segment document
+    3. Build + validate RP universe → extract_covenant("RP")
+    4. Build + validate MFN universe → extract_covenant("MFN")
     """
-    # Concurrency guard — skip if extraction already running for this deal
     if _extraction_locks.get(deal_id):
-        logger.warning(f"Background extraction SKIPPED for {deal_id} — extraction already in progress")
+        logger.warning(f"Background extraction SKIPPED for {deal_id} — already in progress")
         return
 
     extraction_svc = get_extraction_service()
     _extraction_locks[deal_id] = True
 
     try:
-        # Update status: parsing PDF
+        # Step 1: Parse PDF
         extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="extracting",
-            progress=10,
+            deal_id=deal_id, status="extracting", progress=10,
             current_step="Parsing PDF..."
         )
-
-        # Step 1: Parse PDF
         document_text = extraction_svc.parse_document(pdf_path)
 
-        # Step 2: Extract RP Universe
+        # Step 2: Segment document
         extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="extracting",
-            progress=20,
-            current_step="Extracting RP-relevant content..."
+            deal_id=deal_id, status="extracting", progress=20,
+            current_step="Segmenting document..."
         )
-        rp_universe = extraction_svc.extract_rp_universe(document_text)
-        segment_map = getattr(extraction_svc, '_last_segment_map', None)
-        universe_chars = len(rp_universe.raw_text)
-        universe_kb = universe_chars // 1024
+        segment_map = extraction_svc.segment_document(document_text)
 
-        # Cache RP universe text to disk
-        try:
-            universe_path = os.path.join(settings.upload_dir, f"{deal_id}_rp_universe.txt")
-            os.makedirs(settings.upload_dir, exist_ok=True)
-            with open(universe_path, "w", encoding="utf-8") as f:
-                f.write(rp_universe.raw_text)
-        except Exception as e:
-            logger.warning(f"Could not cache RP universe text: {e}")
-
-        # Steps 3-5: V4 Unified extraction (entities + answers + JC tiers 2-3)
+        # Step 3: RP extraction
         extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="extracting",
-            progress=40,
-            current_step="Running V4 unified extraction (entities + answers)..."
+            deal_id=deal_id, status="extracting", progress=30,
+            current_step="Building RP universe..."
+        )
+        rp_universe = extraction_svc.get_or_build_universe(
+            deal_id=deal_id, covenant_type="RP",
+            document_text=document_text, segment_map=segment_map,
+            validate=True,
         )
 
-        v4_result = await extraction_svc.extract_rp_unified(
-            deal_id=deal_id,
-            document_text=document_text,
-            rp_universe=rp_universe,
-            segment_map=segment_map,
-        )
-
-        answers_stored = v4_result.storage_result.get("answers_stored", 0)
-        entities_stored = v4_result.storage_result.get("entities_created", 0)
-
-        logger.info(
-            f"V4 unified extraction for {deal_id}: "
-            f"{answers_stored} answers, {entities_stored} entities "
-            f"in {v4_result.extraction_time_seconds:.1f}s"
-        )
-
-        # ── MFN Extraction (non-blocking) ─────────────────────────────
-        # Separate provision type — not affected by RP unification
-        if document_text:
-            try:
-                extraction_status[deal_id] = ExtractionStatus(
-                    deal_id=deal_id,
-                    status="extracting",
-                    progress=85,
-                    current_step="Extracting MFN provision..."
-                )
-                # Reuse segmentation from RP extraction
-                if not segment_map:
-                    segment_map = extraction_svc.segment_document(document_text)
-
-                mfn_universe_text = extraction_svc._build_mfn_universe_from_segments(
-                    document_text, segment_map
-                )
-
-                # Fallback: if segmenter yields too little, use Claude-based extraction
-                if not mfn_universe_text or len(mfn_universe_text) < 1000:
-                    logger.warning("Segmenter MFN universe too small, falling back to Claude")
-                    mfn_universe_text = extraction_svc.extract_mfn_universe(
-                        document_text
-                    )
-                if mfn_universe_text:
-                    # Persist MFN universe text for eval pipeline
-                    mfn_universe_path = os.path.join(
-                        settings.upload_dir, f"{deal_id}_mfn_universe.txt"
-                    )
-                    os.makedirs(settings.upload_dir, exist_ok=True)
-                    with open(mfn_universe_path, "w", encoding="utf-8") as f:
-                        f.write(mfn_universe_text)
-                    logger.info(f"MFN universe saved: {len(mfn_universe_text)} chars")
-
-                    # Consolidated MFN extraction (2 calls instead of 6)
-                    # Returns answers — scalar storage deferred to after entity extraction
-                    mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
-                        deal_id, mfn_universe_text, document_text
-                    )
-
-                    if mfn_result["answers"]:
-                        logger.info(
-                            f"MFN extraction complete: "
-                            f"{mfn_result['answered']}/{mfn_result['total_questions']} answers"
-                        )
-
-                        # MFN entity extraction (Channel 3)
-                        extraction_status[deal_id] = ExtractionStatus(
-                            deal_id=deal_id,
-                            status="extracting",
-                            progress=95,
-                            current_step="Extracting MFN entities..."
-                        )
-                        mfn_entity_result = await extraction_svc.run_mfn_entity_extraction(
-                            deal_id, mfn_universe_text
-                        )
-                        logger.info(
-                            f"MFN entity extraction: "
-                            f"{mfn_entity_result['entities_stored']} entities stored"
-                        )
-
-                        # Store scalars WITH annotation routing (entities exist)
-                        extraction_svc._store_mfn_answers(deal_id, mfn_result["answers"])
-                        logger.info("MFN scalar storage with annotation routing complete")
-                    else:
-                        logger.warning(
-                            f"MFN extraction returned no answers: "
-                            f"{mfn_result.get('errors')}"
-                        )
-                else:
-                    logger.warning(
-                        "MFN universe extraction returned empty — "
-                        "no MFN provision found or extraction failed"
-                    )
-            except Exception as mfn_err:
-                logger.error(
-                    f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}",
-                    exc_info=True
-                )
-
-        # Cross-reference MFN ↔ RP provisions if both exist
-        try:
-            extraction_svc._create_cross_references(deal_id)
-        except Exception as xref_err:
-            logger.warning(f"Cross-reference creation failed (non-blocking): {xref_err}")
-
-        # Update status: complete
-        extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="complete",
-            progress=100,
-            current_step=(
-                f"V4 unified: {answers_stored} answers, {entities_stored} baskets, "
-                f"{universe_kb}KB universe in {v4_result.extraction_time_seconds:.1f}s"
+        rp_result = None
+        if rp_universe:
+            extraction_status[deal_id] = ExtractionStatus(
+                deal_id=deal_id, status="extracting", progress=50,
+                current_step="Extracting RP covenant..."
             )
+            rp_result = await extraction_svc.extract_covenant(
+                deal_id=deal_id, covenant_type="RP", universe=rp_universe,
+            )
+        else:
+            logger.warning(f"RP universe build/validation failed for {deal_id}")
+
+        # Step 4: MFN extraction (non-blocking)
+        mfn_result = None
+        try:
+            extraction_status[deal_id] = ExtractionStatus(
+                deal_id=deal_id, status="extracting", progress=75,
+                current_step="Building MFN universe..."
+            )
+            mfn_universe = extraction_svc.get_or_build_universe(
+                deal_id=deal_id, covenant_type="MFN",
+                document_text=document_text, segment_map=segment_map,
+                validate=True,
+            )
+
+            if mfn_universe:
+                extraction_status[deal_id] = ExtractionStatus(
+                    deal_id=deal_id, status="extracting", progress=85,
+                    current_step="Extracting MFN covenant..."
+                )
+                mfn_result = await extraction_svc.extract_covenant(
+                    deal_id=deal_id, covenant_type="MFN", universe=mfn_universe,
+                )
+            else:
+                logger.warning(f"MFN universe build/validation failed for {deal_id}")
+        except Exception as mfn_err:
+            logger.error(f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}", exc_info=True)
+
+        # Complete
+        rp_info = f"{rp_result.answers_stored}a/{rp_result.entities_created}e" if rp_result else "skipped"
+        mfn_info = f"{mfn_result.answers_stored}a/{mfn_result.entities_created}e" if mfn_result else "skipped"
+
+        extraction_status[deal_id] = ExtractionStatus(
+            deal_id=deal_id, status="complete", progress=100,
+            current_step=f"Complete: RP({rp_info}), MFN({mfn_info})"
         )
 
     except Exception as e:
-        logger.error(f"Extraction failed for deal {deal_id}: {e}")
+        logger.error(f"Extraction failed for deal {deal_id}: {e}", exc_info=True)
         extraction_status[deal_id] = ExtractionStatus(
-            deal_id=deal_id,
-            status="error",
-            progress=0,
-            current_step=None,
-            error=str(e)
+            deal_id=deal_id, status="error", progress=0,
+            current_step=None, error=str(e)
         )
     finally:
         _extraction_locks.pop(deal_id, None)
@@ -756,48 +669,74 @@ async def upload_pdf_for_deal(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{deal_id}/re-extract")
-async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
+@router.post("/{deal_id}/extract/{covenant_type}")
+async def extract_covenant_endpoint(
+    deal_id: str,
+    covenant_type: str,
+    force_rebuild_universe: bool = False,
+    validate_universe: bool = True,
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
     """
-    Re-run V4 entity extraction from cached RP universe text.
+    Extract a specific covenant type. Replaces re-extract and re-extract-mfn.
 
-    Skips PDF parsing and universe extraction (~$0.50).
-    Re-runs the Claude entity+answers call (~$0.10) and re-stores to TypeDB.
-    Useful when Channel 3 entities are missing but Channel 1 scalars exist.
+    Args:
+        covenant_type: "rp" or "mfn" (case insensitive)
+        force_rebuild_universe: Rebuild from PDF even if cached
+        validate_universe: Run Sonnet validation (~$0.10)
     """
-    logger.info(f"Re-extract requested for deal {deal_id}")
+    covenant_type = covenant_type.upper()
+    valid_types = ["RP", "MFN"]
+    if covenant_type not in valid_types:
+        raise HTTPException(400, f"Invalid covenant type. Valid: {valid_types}")
 
-    # Concurrency guard — reject if extraction already running for this deal
-    if _extraction_locks.get(deal_id):
-        logger.warning(f"Re-extract REJECTED for {deal_id} — extraction already in progress")
-        raise HTTPException(
-            status_code=409,
-            detail=f"Extraction already in progress for deal {deal_id}. Wait for it to complete."
+    lock_key = f"{deal_id}_{covenant_type.lower()}"
+    if _extraction_locks.get(lock_key):
+        raise HTTPException(409, f"{covenant_type} extraction already in progress for {deal_id}")
+
+    _extraction_locks[lock_key] = True
+    try:
+        svc = get_extraction_service()
+
+        # Ensure deal entity exists
+        _ensure_deal_exists(deal_id)
+
+        universe = svc.get_or_build_universe(
+            deal_id=deal_id,
+            covenant_type=covenant_type,
+            force_rebuild=force_rebuild_universe,
+            validate=validate_universe,
         )
 
-    from app.services.extraction import RPUniverse
+        if not universe:
+            raise HTTPException(400, f"Could not build valid {covenant_type} universe for {deal_id}")
 
-    # Check cached RP universe text exists
-    universe_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
-    if not os.path.exists(universe_path):
-        raise HTTPException(
-            status_code=404,
-            detail=f"No cached RP universe text at {universe_path}. Full re-extraction from PDF required."
+        result = await svc.extract_covenant(
+            deal_id=deal_id,
+            covenant_type=covenant_type,
+            universe=universe,
+            model=model,
         )
 
-    with open(universe_path, "r", encoding="utf-8") as f:
-        raw_text = f.read()
+        return {"status": "success", **result.to_dict()}
 
-    if not raw_text or len(raw_text) < 100:
-        raise HTTPException(status_code=400, detail="Cached RP universe text is empty or too short")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"{covenant_type} extraction failed for {deal_id}: {e}", exc_info=True)
+        raise HTTPException(500, str(e))
+    finally:
+        _extraction_locks.pop(lock_key, None)
 
-    rp_universe = RPUniverse(raw_text=raw_text)
 
-    # Ensure deal entity exists in TypeDB (may have been wiped by init_schema)
+def _ensure_deal_exists(deal_id: str):
+    """Create deal entity in TypeDB if it doesn't exist (may have been wiped by init_schema)."""
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
-            rows = list(tx.query(f'match $d isa deal, has deal_id "{deal_id}"; select $d;').resolve().as_concept_rows())
+            rows = list(tx.query(
+                f'match $d isa deal, has deal_id "{deal_id}"; select $d;'
+            ).resolve().as_concept_rows())
             deal_exists = len(rows) > 0
         finally:
             tx.close()
@@ -814,239 +753,6 @@ async def re_extract_deal(deal_id: str) -> Dict[str, Any]:
                 raise
     except Exception as e:
         logger.warning(f"Could not ensure deal entity: {e}")
-
-    extraction_svc = get_extraction_service()
-    _extraction_locks[deal_id] = True
-    try:
-        v4_result = await extraction_svc.extract_rp_unified(
-            deal_id=deal_id,
-            document_text="",  # No full PDF text — JC tiers 2-3 will be skipped
-            rp_universe=rp_universe,
-            segment_map=None,
-            model="claude-sonnet-4-6",  # Use Sonnet for re-extraction (~$0.10 vs $4.60)
-        )
-
-        return {
-            "status": "success",
-            "deal_id": deal_id,
-            "universe_chars": len(raw_text),
-            "storage_result": v4_result.storage_result,
-            "extraction_time_seconds": v4_result.extraction_time_seconds,
-            "model_used": v4_result.model_used,
-            "total_cost_usd": v4_result.total_cost_usd,
-        }
-    except Exception as e:
-        logger.error(f"Re-extraction failed for {deal_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        _extraction_locks.pop(deal_id, None)
-
-
-
-@router.post("/{deal_id}/re-extract-mfn")
-async def re_extract_mfn(deal_id: str) -> Dict[str, Any]:
-    """
-    Re-run MFN extraction from cached MFN universe text (or rebuild from PDF).
-
-    Steps:
-    1. Load cached MFN universe text, or rebuild from PDF via segmenter
-    2. Clean up existing MFN answers/entities
-    3. Run consolidated MFN scalar extraction (MFN1-MFN6)
-    4. Run MFN entity extraction (exclusions, yield def, sunset, freebie)
-    5. Compute MFN pattern flags via TypeDB functions
-    """
-    lock_key = f"{deal_id}_mfn"
-    logger.info(f"MFN re-extract requested for deal {deal_id}")
-
-    # Concurrency guard
-    if _extraction_locks.get(lock_key):
-        logger.warning(f"MFN re-extract REJECTED for {deal_id} — already in progress")
-        raise HTTPException(
-            status_code=409,
-            detail=f"MFN extraction already in progress for deal {deal_id}."
-        )
-
-    # 1. Find MFN universe text
-    mfn_universe_path = os.path.join(UPLOADS_DIR, f"{deal_id}_mfn_universe.txt")
-    mfn_universe_text = None
-
-    if os.path.exists(mfn_universe_path):
-        with open(mfn_universe_path, "r", encoding="utf-8") as f:
-            mfn_universe_text = f.read()
-        if mfn_universe_text and len(mfn_universe_text) >= 500:
-            logger.info(f"Loaded cached MFN universe: {len(mfn_universe_text)} chars")
-        else:
-            mfn_universe_text = None
-
-    # Fallback: rebuild from PDF via segmenter
-    if not mfn_universe_text:
-        pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
-        if not os.path.exists(pdf_path):
-            raise HTTPException(
-                status_code=404,
-                detail=f"No cached MFN universe and no PDF at {pdf_path}."
-            )
-
-        logger.info(f"Rebuilding MFN universe from PDF: {pdf_path}")
-        extraction_svc = get_extraction_service()
-        document_text = extraction_svc.parse_document(pdf_path)
-        segment_map = extraction_svc.segment_document(document_text)
-
-        mfn_universe_text = extraction_svc._build_mfn_universe_from_segments(
-            document_text, segment_map
-        )
-        if not mfn_universe_text or len(mfn_universe_text) < 1000:
-            logger.warning("Segmenter MFN universe too small, falling back to Claude")
-            mfn_universe_text = extraction_svc.extract_mfn_universe(document_text)
-
-        if not mfn_universe_text:
-            raise HTTPException(
-                status_code=404,
-                detail="Could not extract MFN universe from PDF."
-            )
-
-        # Cache for next time
-        os.makedirs(UPLOADS_DIR, exist_ok=True)
-        with open(mfn_universe_path, "w", encoding="utf-8") as f:
-            f.write(mfn_universe_text)
-        logger.info(f"MFN universe rebuilt and cached: {len(mfn_universe_text)} chars")
-
-    # Ensure deal entity exists
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            rows = list(tx.query(
-                f'match $d isa deal, has deal_id "{deal_id}"; select $d;'
-            ).resolve().as_concept_rows())
-            deal_exists = len(rows) > 0
-        finally:
-            tx.close()
-
-        if not deal_exists:
-            logger.info(f"Deal {deal_id} not in TypeDB — creating stub entity")
-            tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
-            try:
-                tx.query(
-                    f'insert $d isa deal, has deal_id "{deal_id}", has deal_name "re-extracted";'
-                ).resolve()
-                tx.commit()
-            except Exception:
-                if tx.is_open():
-                    tx.close()
-                raise
-    except Exception as e:
-        logger.warning(f"Could not ensure deal entity: {e}")
-
-    # 2. Clean up existing MFN data
-    provision_id = f"{deal_id}_mfn"
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            rows = list(tx.query(
-                f'match $p isa mfn_provision, has provision_id "{provision_id}"; select $p;'
-            ).resolve().as_concept_rows())
-            mfn_exists = len(rows) > 0
-        finally:
-            tx.close()
-
-        if mfn_exists:
-            logger.info(f"MFN provision {provision_id} exists — cleaning up old data")
-            cleanup_queries = [
-                # Delete provision_has_answer relations
-                f'''match
-                    $p isa mfn_provision, has provision_id "{provision_id}";
-                    $rel isa provision_has_answer, links (provision: $p);
-                delete $rel;''',
-                # Delete concept_applicability relations
-                f'''match
-                    $p isa mfn_provision, has provision_id "{provision_id}";
-                    $rel isa concept_applicability, links (provision: $p);
-                delete $rel;''',
-                # Delete MFN entities via provision_has_extracted_entity (polymorphic)
-                f'''match
-                    $p isa mfn_provision, has provision_id "{provision_id}";
-                    $rel isa provision_has_extracted_entity, links (provision: $p, extracted: $e);
-                delete $e;''',
-            ]
-            for q in cleanup_queries:
-                try:
-                    tx = typedb_client.driver.transaction(
-                        settings.typedb_database, TransactionType.WRITE
-                    )
-                    try:
-                        tx.query(q).resolve()
-                        tx.commit()
-                    except Exception:
-                        if tx.is_open():
-                            tx.close()
-                except Exception as cleanup_err:
-                    logger.warning(f"MFN cleanup query failed (non-blocking): {cleanup_err}")
-    except Exception as e:
-        logger.warning(f"MFN cleanup check failed: {e}")
-
-    # 3-6. Run MFN extraction
-    extraction_svc = get_extraction_service()
-    _extraction_locks[lock_key] = True
-    try:
-        # Use full document text for consolidated extraction (needs it for Batch B context)
-        # If we rebuilt from PDF, we have document_text; otherwise pass empty string
-        doc_text_for_context = ""
-        pdf_path = os.path.join(UPLOADS_DIR, f"{deal_id}.pdf")
-        if os.path.exists(pdf_path):
-            doc_text_for_context = extraction_svc.parse_document(pdf_path)
-
-        # Step 3: Extract MFN scalars (returns answers, does NOT store — creates provision only)
-        mfn_result = await extraction_svc.run_mfn_extraction_consolidated(
-            deal_id, mfn_universe_text, doc_text_for_context
-        )
-        logger.info(
-            f"MFN scalar extraction: {mfn_result['answered']}/{mfn_result['total_questions']} answers"
-        )
-
-        # Step 4: Extract and store MFN entities (entities now exist in TypeDB)
-        entity_result = {"entities_stored": 0}
-        if mfn_result["answers"]:
-            entity_result = await extraction_svc.run_mfn_entity_extraction(
-                deal_id, mfn_universe_text
-            )
-            logger.info(f"MFN entity extraction: {entity_result['entities_stored']} entities")
-
-        # Step 5: Store MFN scalars WITH annotation routing (entities exist → routing succeeds)
-        if mfn_result["answers"]:
-            extraction_svc._store_mfn_answers(deal_id, mfn_result["answers"])
-            logger.info("MFN scalar storage with annotation routing complete")
-
-        # Step 6: Cross-reference MFN ↔ RP if both exist
-        try:
-            extraction_svc._create_cross_references(deal_id)
-        except Exception as xref_err:
-            logger.warning(f"Cross-reference failed (non-blocking): {xref_err}")
-
-        return {
-            "status": "success",
-            "deal_id": deal_id,
-            "provision_id": provision_id,
-            "mfn_universe_chars": len(mfn_universe_text),
-            "scalar_answers": mfn_result.get("answered", 0),
-            "total_questions": mfn_result.get("total_questions", 0),
-            "entities_stored": entity_result.get("entities_stored", 0),
-        }
-    except Exception as e:
-        logger.error(f"MFN re-extraction failed for {deal_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        _extraction_locks.pop(lock_key, None)
-
-
-@router.post("/{deal_id}/create-cross-references")
-async def create_cross_references(deal_id: str):
-    """Create MFN→RP cross-reference edge for a deal. Idempotent."""
-    try:
-        svc = get_extraction_service()
-        svc._create_cross_references(deal_id)
-        return {"status": "ok", "deal_id": deal_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{deal_id}/status", response_model=ExtractionStatus)
@@ -1561,64 +1267,40 @@ async def get_deal_mfn(deal_id: str) -> Dict[str, Any]:
         raise
 
 
-@router.get("/{deal_id}/rp-universe")
-async def get_rp_universe_text(deal_id: str):
-    """Serve the cached RP universe text. No regeneration."""
-    rp_path = Path(UPLOADS_DIR) / f"{deal_id}_rp_universe.txt"
-    if not rp_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"RP universe text not cached for deal {deal_id}. "
-                   f"Re-upload the PDF to generate it."
-        )
-    text = rp_path.read_text(encoding="utf-8")
-    return {"deal_id": deal_id, "text": text, "chars": len(text)}
+@router.get("/{deal_id}/{covenant_type}-universe")
+async def get_universe_text(deal_id: str, covenant_type: str):
+    """Serve cached universe text for any covenant type. Regenerates from PDF if needed."""
+    covenant_type = covenant_type.upper()
+    cache_path = Path(UPLOADS_DIR) / f"{deal_id}_{covenant_type.lower()}_universe.json"
 
+    if cache_path.exists():
+        import json
+        data = json.loads(cache_path.read_text(encoding="utf-8"))
+        return {
+            "deal_id": deal_id,
+            "covenant_type": covenant_type,
+            "text": data.get("raw_text", ""),
+            "chars": len(data.get("raw_text", "")),
+            "sections": list(data.get("sections", {}).keys()),
+            "validated": data.get("validated", False),
+        }
 
-@router.get("/{deal_id}/mfn-universe")
-async def get_mfn_universe_text(deal_id: str):
-    """Serve the cached MFN universe text for a deal (eval pipeline).
+    # Try to regenerate from PDF
+    svc = get_extraction_service()
+    universe = svc.get_or_build_universe(
+        deal_id=deal_id, covenant_type=covenant_type, validate=False,
+    )
+    if not universe:
+        raise HTTPException(404, f"{covenant_type} universe not cached and could not be regenerated")
 
-    If the cached file doesn't exist but the PDF does, regenerates it
-    from the PDF using the segmenter-based extraction.
-    """
-    mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.txt"
-
-    if not mfn_path.exists():
-        # Try to regenerate from PDF
-        pdf_path = Path(UPLOADS_DIR) / f"{deal_id}.pdf"
-        if not pdf_path.exists():
-            raise HTTPException(
-                status_code=404,
-                detail="MFN universe text not found and PDF not available for regeneration"
-            )
-        logger.info(f"Regenerating MFN universe for {deal_id} from PDF...")
-        from app.services.pdf_parser import PDFParser
-        svc = get_extraction_service()
-        parser = PDFParser()
-        pages = parser.extract_pages(str(pdf_path))
-        document_text = parser.get_full_text(pages)
-
-        segment_map = svc.segment_document(document_text)
-        mfn_text = svc._build_mfn_universe_from_segments(
-            document_text, segment_map
-        )
-        if not mfn_text or len(mfn_text) < 1000:
-            logger.warning("Segmenter MFN universe too small, falling back to Claude")
-            mfn_text = svc.extract_mfn_universe(document_text)
-
-        if mfn_text:
-            os.makedirs(UPLOADS_DIR, exist_ok=True)
-            mfn_path.write_text(mfn_text, encoding="utf-8")
-            logger.info(f"MFN universe regenerated and saved: {len(mfn_text)} chars")
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to regenerate MFN universe from PDF"
-            )
-
-    text = mfn_path.read_text(encoding="utf-8")
-    return {"deal_id": deal_id, "text": text, "chars": len(text)}
+    return {
+        "deal_id": deal_id,
+        "covenant_type": covenant_type,
+        "text": universe.raw_text,
+        "chars": len(universe.raw_text),
+        "sections": list(universe.sections.keys()),
+        "validated": universe.validated,
+    }
 
 
 @router.post("/{deal_id}/qa")

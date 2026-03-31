@@ -492,41 +492,6 @@ Answer ONLY: YES or NO"""
         logger.info(f"Parsed {len(pages)} pages, {len(full_text)} chars")
         return full_text
 
-    # =========================================================================
-    # STEP 2: Extract RP-Relevant Universe (Segmenter-Based)
-    # =========================================================================
-
-    def extract_rp_universe(self, document_text: str) -> CovenantUniverse:
-        """
-        Extract RP-relevant universe using document segmentation.
-
-        Segment definitions loaded from TypeDB (SSoT).
-        Claude identifies section locations (page numbers),
-        Python slices the original text.
-        """
-        doc_len = len(document_text)
-        logger.info(f"Segmenting {doc_len} char document for RP universe")
-
-        segment_map = self.segment_document(document_text)
-        self._last_segment_map = segment_map  # Retained for MFN universe reuse
-
-        found_count = sum(
-            1 for s in segment_map.get("segments", [])
-            if s.get("found", True)
-        )
-        logger.info(f"Segmentation complete: {found_count} sections found")
-
-        universe = self._build_rp_universe_from_segments(document_text, segment_map)
-
-        logger.info(
-            f"RP Universe built: definitions={len(universe.definitions)}, "
-            f"dividend={len(universe.dividend_covenant)}, "
-            f"investment={len(universe.investment_covenant)}, "
-            f"rdp={len(universe.rdp_covenant)} chars"
-        )
-
-        return universe
-
     def segment_document(self, document_text: str) -> dict:
         """
         Send full document to Claude. Get back JSON with page numbers for each section.
