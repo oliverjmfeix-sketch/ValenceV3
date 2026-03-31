@@ -215,48 +215,6 @@ class ExtractionService:
         self.parser = parser or get_pdf_parser()
 
     # =========================================================================
-    # VALIDATION PROMPTS (per covenant type)
-    # =========================================================================
-
-    _VALIDATION_PROMPTS = {
-        "RP": """You are validating whether extracted text contains the ACTUAL Restricted Payments covenant.
-
-The RP covenant MUST contain:
-- Restriction language ("shall not declare or pay any dividend", "shall not make any Restricted Payment")
-- Permitted baskets (labeled exceptions like (a), (b), (c) through (z) or numbered clauses)
-- Capacity mechanics (dollar amounts, percentage of Consolidated Net Income, leverage tests, etc.)
-
-This is NOT the RP section if it only contains:
-- Cross-references TO the RP covenant
-- Definitions that mention Restricted Payments
-- Other covenants that reference RP""",
-
-        "MFN": """You are validating whether extracted text contains the ACTUAL MFN (Most Favored Nation) provision.
-
-The MFN provision MUST contain:
-- Yield comparison language ("Effective Yield shall not exceed...", "if the yield exceeds...")
-- A threshold (typically in basis points: 25, 50, 75, 100 bps)
-- What happens when triggered (spread adjustment, lender option, etc.)
-
-This is NOT the MFN section if it only contains:
-- Cross-references TO the MFN provision (e.g., "subject to Section 2.20(f)")
-- Definitions of Effective Yield without the comparison mechanics
-- Defaulting Lender provisions or other unrelated sections""",
-
-        "DEBT_INCURRENCE": """You are validating whether extracted text contains the ACTUAL Debt Incurrence covenant (typically Section 6.01 or 7.01).
-
-The Debt covenant MUST contain:
-- Restriction language ("shall not create, incur, assume or permit to exist any Indebtedness")
-- Permitted debt baskets (labeled exceptions with dollar amounts or ratio tests)
-- Ratio-based capacity (Consolidated Total Debt to EBITDA, First Lien Leverage Ratio, Secured Leverage Ratio)
-
-This is NOT the Debt section if it only contains:
-- Cross-references TO the debt covenant
-- Definitions of Indebtedness without the restriction mechanics
-- Lien covenants or other negative covenants""",
-    }
-
-    # =========================================================================
     # UNIFIED UNIVERSE: get_or_build_universe (single entry point)
     # =========================================================================
 
@@ -362,27 +320,16 @@ This is NOT the Debt section if it only contains:
 
     def _validate_universe(self, universe: CovenantUniverse) -> bool:
         """
-        Validate universe contains expected content using Sonnet.
+        Validate universe contains expected content using Haiku.
 
-        Sends the full universe text to Haiku (fits within 200K token context).
+        Sends the full universe text (fits within Haiku's 200K token context).
         Cost: ~$0.11 for a 400K char RP universe, less for MFN.
         """
-        validation_prompt = self._VALIDATION_PROMPTS.get(
-            universe.covenant_type,
-            f"Validate this contains actual {universe.covenant_type} covenant language with restriction mechanics and permitted baskets/exceptions."
-        )
+        prompt = f"""You are a senior leveraged finance attorney. The text below was extracted from a credit agreement and is supposed to contain the {universe.covenant_type} provision.
 
-        prompt = f"""{validation_prompt}
+Using your domain knowledge, does this text actually contain the {universe.covenant_type} provision? Answer YES or NO.
 
-## EXTRACTED TEXT ({len(universe.sections)} sections, {len(universe.raw_text)} chars)
-
-{universe.raw_text}
-
-## QUESTION
-
-Does this text contain the ACTUAL {universe.covenant_type} provision mechanics (the clause itself with restrictions and exceptions), not just cross-references or definitions?
-
-Answer ONLY: YES or NO"""
+{universe.raw_text}"""
 
         try:
             response = self.client.messages.create(
