@@ -54,6 +54,9 @@ MFN_QUESTIONS_FILE = DATA_DIR / "mfn_ontology_questions.tql"
 # 8. Document segmentation types
 SEGMENT_TYPES_FILE = DATA_DIR / "segment_types_seed.tql"
 
+# 9b. DI reference entities
+DI_REFERENCE_ENTITIES_FILE = DATA_DIR / "seed_di_reference_entities.tql"
+
 # 9-16. Seed data (questions, mappings, annotations, guidance)
 NEW_QUESTIONS_FILE = DATA_DIR / "seed_new_questions.tql"
 ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_entity_list_questions.tql"
@@ -356,6 +359,20 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Segment types: {e}")
 
+        # 9b. Load DI reference entities
+        logger.info("\n9b. Loading seed_di_reference_entities.tql...")
+        if DI_REFERENCE_ENTITIES_FILE.exists():
+            di_ref_tql = load_tql_file(DI_REFERENCE_ENTITIES_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.WRITE)
+            try:
+                tx.query(di_ref_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded DI reference entities ({len(di_ref_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   DI reference entities: {e}")
+
         # 10. Load new questions
         logger.info("\n10. Loading seed_new_questions.tql...")
         if NEW_QUESTIONS_FILE.exists():
@@ -459,6 +476,10 @@ def init_database():
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),
                 ("Attribute annotations", "match $r isa question_annotates_attribute; select $r;", 210),
+                ("DI ratio_test_type", "match $r isa ratio_test_type; select $r;", 5),
+                ("DI debt_condition_type", "match $c isa debt_condition_type; select $c;", 16),
+                ("DI di_lien_priority", "match $p isa di_lien_priority; select $p;", 4),
+                ("DI di_facility_type", "match $f isa di_facility_type; select $f;", 10),
             ]
             for label, query, min_expected in checks:
                 try:
