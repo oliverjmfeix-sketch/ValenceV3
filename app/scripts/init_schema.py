@@ -109,9 +109,10 @@ def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
     match_insert_statements = []  # match ... insert ... pairs
     current_lines = []
     current_type = None  # 'insert' or 'match'
+    has_insert_clause = False  # tracks whether a match block already has its insert clause
 
     def flush():
-        nonlocal current_lines, current_type
+        nonlocal current_lines, current_type, has_insert_clause
         if current_lines and current_type:
             stmt = '\n'.join(current_lines)
             if current_type == 'insert':
@@ -120,6 +121,7 @@ def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
                 match_insert_statements.append(stmt)
         current_lines = []
         current_type = None
+        has_insert_clause = False
 
     for line in lines:
         stripped = line.strip()
@@ -131,11 +133,12 @@ def _load_mixed_tql_file(driver, db_name: str, filepath: Path):
             current_type = 'match'
             current_lines = [stripped]
         elif stripped == 'insert' or stripped.startswith('insert '):
-            if current_type == 'match':
+            if current_type == 'match' and not has_insert_clause:
                 # This insert is the INSERT clause of a match-insert pair
                 current_lines.append(stripped)
+                has_insert_clause = True
             else:
-                # New standalone insert statement
+                # New standalone insert statement (or match-insert already complete)
                 flush()
                 current_type = 'insert'
                 current_lines = [stripped]
