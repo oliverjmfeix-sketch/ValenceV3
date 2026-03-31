@@ -80,53 +80,64 @@ class CrossCovenantService:
         di_pid = f"{deal_id}_di"
         mfn_pid = f"{deal_id}_mfn"
 
-        # Read trigger values from incremental_facility attributes (SSoT)
+        # Read ALL required trigger values from TypeDB (SSoT — no defaults)
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             result = tx.query(f'''
                 match
                     $di isa di_provision, has provision_id "{di_pid}";
                     (provision: $di, incremental: $incr) isa provision_has_incremental;
-                    try {{ $incr has ied_triggers_mfn $ied_mfn; }};
+                    $incr has ied_triggers_mfn $ied_mfn;
+                    $incr has mfn_sunset_months $sunset;
+                    $incr has permits_term_loans $term;
+                    $incr has permits_revolving $rev;
                     try {{ $incr has mfn_excludes_freebie $excl_free; }};
-                    try {{ $incr has mfn_sunset_months $sunset; }};
-                    try {{ $incr has ied_permitted $ied_perm; }};
-                select $ied_mfn, $excl_free, $sunset, $ied_perm;
+                select $ied_mfn, $sunset, $term, $rev, $excl_free;
             ''').resolve()
 
             rows = list(result.as_concept_rows())
             if not rows:
-                logger.info(f"No incremental_facility found for {deal_id}")
+                logger.warning(f"Skipping incremental_triggers_mfn for {deal_id}: "
+                               f"missing required attributes (ied_triggers_mfn, mfn_sunset_months, "
+                               f"permits_term_loans, permits_revolving) on incremental_facility")
                 return False
 
             row = rows[0]
-            # Derive trigger attributes from incremental_facility data
-            ied_triggers = row.get("ied_mfn")
-            triggers_for_ied = ied_triggers.as_attribute().get_value() if ied_triggers else False
+            triggers_for_ied = row.get("ied_mfn").as_attribute().get_value()
+            sunset_months = row.get("sunset").as_attribute().get_value()
+            triggers_term = str(row.get("term").as_attribute().get_value()).lower()
+            triggers_rev = str(row.get("rev").as_attribute().get_value()).lower()
 
-            excl_free = row.get("excl_free")
-            freebie_exempt = not excl_free.as_attribute().get_value() if excl_free else False
-
-            sunset_concept = row.get("sunset")
-            sunset_months = sunset_concept.as_attribute().get_value() if sunset_concept else 0
-
-            ied_perm = row.get("ied_perm")
-            ied_permitted = ied_perm.as_attribute().get_value() if ied_perm else False
+            excl_free_concept = row.get("excl_free")
+            # freebie_exempt_usd: read from mfn_freebie_basket if it exists
+            freebie_usd = 0.0
         except Exception as e:
             logger.warning(f"Could not read incremental_facility trigger data for {deal_id}: {e}")
             return False
         finally:
             tx.close()
 
-        # Create the relation with derived attributes
+        # Read freebie_exempt_usd from mfn_freebie_basket entity if available
+        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
+        try:
+            result = tx.query(f'''
+                match
+                    $mfn isa mfn_provision, has provision_id "{mfn_pid}";
+                    (provision: $mfn, freebie: $fb) isa provision_has_freebie;
+                    $fb has dollar_amount_usd $amt;
+                select $amt;
+            ''').resolve()
+            rows = list(result.as_concept_rows())
+            if rows:
+                freebie_usd = rows[0].get("amt").as_attribute().get_value()
+        except Exception:
+            pass  # freebie_exempt_usd is optional — relation still created without it
+        finally:
+            tx.close()
+
+        # Create the relation with TypeDB-sourced attributes
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
-            # Term loans always trigger MFN; revolvers typically don't
-            triggers_term = "true"
-            triggers_rev = "false"
-            triggers_ied_str = str(triggers_for_ied).lower()
-            freebie_usd = 0.0  # Default; could read from mfn_freebie_basket entity if needed
-
             result = tx.query(f'''
                 match
                     $di isa di_provision, has provision_id "{di_pid}";
@@ -137,7 +148,7 @@ class CrossCovenantService:
                     (incremental: $incr, mfn_prov: $mfn) isa incremental_triggers_mfn,
                         has triggers_for_term_loans {triggers_term},
                         has triggers_for_revolvers {triggers_rev},
-                        has triggers_for_ied {triggers_ied_str},
+                        has triggers_for_ied {str(triggers_for_ied).lower()},
                         has freebie_exempt_usd {freebie_usd},
                         has mfn_sunset_months {sunset_months};
             ''').resolve()
@@ -145,7 +156,8 @@ class CrossCovenantService:
             tx.commit()
             if rows:
                 logger.info(f"Created incremental_triggers_mfn for {deal_id} "
-                            f"(ied_triggers={triggers_for_ied}, sunset={sunset_months}mo)")
+                            f"(term={triggers_term}, rev={triggers_rev}, "
+                            f"ied={triggers_for_ied}, sunset={sunset_months}mo)")
             return bool(rows)
         except Exception as e:
             logger.warning(f"Could not create incremental_triggers_mfn for {deal_id}: {e}")
@@ -161,7 +173,7 @@ class CrossCovenantService:
         di_pid = f"{deal_id}_di"
         rp_pid = f"{deal_id}_rp"
 
-        # Read is_dollar_for_dollar from DI provision answers
+        # Read is_dollar_for_dollar from TypeDB (SSoT — no defaults)
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             result = tx.query(f'''
@@ -171,14 +183,19 @@ class CrossCovenantService:
                 select $d4d;
             ''').resolve()
             rows = list(result.as_concept_rows())
-            is_d4d = rows[0].get("d4d").as_attribute().get_value() if rows else True
+            if not rows:
+                logger.warning(f"Skipping di_feeds_rp_builder for {deal_id}: "
+                               f"contribution_rp_dollar_for_dollar not found in TypeDB")
+                return False
+            is_d4d = rows[0].get("d4d").as_attribute().get_value()
         except Exception as e:
-            logger.debug(f"Could not read contribution_rp_dollar_for_dollar: {e}")
-            is_d4d = True  # Default assumption
+            logger.warning(f"Skipping di_feeds_rp_builder for {deal_id}: "
+                           f"could not read contribution_rp_dollar_for_dollar: {e}")
+            return False
         finally:
             tx.close()
 
-        # Create the relation
+        # Create the relation with TypeDB-sourced attribute
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.WRITE)
         try:
             result = tx.query(f'''
