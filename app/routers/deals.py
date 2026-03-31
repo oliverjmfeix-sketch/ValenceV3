@@ -594,13 +594,39 @@ async def run_extraction(deal_id: str, pdf_path: str):
         except Exception as mfn_err:
             logger.error(f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}", exc_info=True)
 
+        # Step 5: DI extraction (non-blocking)
+        di_result = None
+        try:
+            extraction_status[deal_id] = ExtractionStatus(
+                deal_id=deal_id, status="extracting", progress=90,
+                current_step="Building DI universe..."
+            )
+            di_universe = extraction_svc.get_or_build_universe(
+                deal_id=deal_id, covenant_type="DI",
+                document_text=document_text, segment_map=segment_map,
+            )
+
+            if di_universe:
+                extraction_status[deal_id] = ExtractionStatus(
+                    deal_id=deal_id, status="extracting", progress=95,
+                    current_step="Extracting DI covenant..."
+                )
+                di_result = await extraction_svc.extract_covenant(
+                    deal_id=deal_id, covenant_type="DI", universe=di_universe,
+                )
+            else:
+                logger.warning(f"DI universe build/validation failed for {deal_id}")
+        except Exception as di_err:
+            logger.error(f"DI extraction failed for {deal_id} (non-blocking): {di_err}", exc_info=True)
+
         # Complete
         rp_info = f"{rp_result.answers_stored}a/{rp_result.entities_created}e" if rp_result else "skipped"
         mfn_info = f"{mfn_result.answers_stored}a/{mfn_result.entities_created}e" if mfn_result else "skipped"
+        di_info = f"{di_result.answers_stored}a/{di_result.entities_created}e" if di_result else "skipped"
 
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id, status="complete", progress=100,
-            current_step=f"Complete: RP({rp_info}), MFN({mfn_info})"
+            current_step=f"Complete: RP({rp_info}), MFN({mfn_info}), DI({di_info})"
         )
 
     except Exception as e:

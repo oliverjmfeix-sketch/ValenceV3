@@ -916,7 +916,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         return expanded
 
     # Provision types to discover entity relations for
-    _PROVISION_TYPES = ("rp_provision", "mfn_provision")
+    _PROVISION_TYPES = ("rp_provision", "mfn_provision", "di_provision")
 
     @classmethod
     def _load_entity_relation_map(cls, _tx=None) -> Dict[str, tuple]:
@@ -1042,9 +1042,9 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
     @staticmethod
     def _provision_type_from_id(provision_id: str) -> str:
         """Determine provision type from provision_id suffix convention."""
-        if provision_id.endswith("_mfn"):
-            return "mfn_provision"
-        return "rp_provision"
+        suffix = provision_id.rsplit("_", 1)[-1]
+        suffix_map = {"mfn": "mfn_provision", "di": "di_provision"}
+        return suffix_map.get(suffix, "rp_provision")
 
     def _create_single_instance_entity(self, provision_id: str, entity_type: str,
                                         source_text: str = None, source_page: int = None,
@@ -1718,7 +1718,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             else:
                 routing = q_to_entity.get(answer.question_id)
                 if routing and routing[1] == "_exists" and answer.value is True:
-                    if routing[0] not in entity_list_types and routing[0] != "rp_provision":
+                    if routing[0] not in entity_list_types and routing[0] not in cls._PROVISION_TYPES:
                         exists_answers.append(answer)
                 scalar_answers.append(answer)
 
