@@ -42,7 +42,8 @@ def get_segment_types() -> List[Dict]:
                         has display_order $order;
                     try { $s has rp_universe_field $rpf; };
                     try { $s has mfn_universe_field $mfnf; };
-                select $sid, $name, $desc, $order, $rpf, $mfnf;
+                    try { $s has di_universe_field $dif; };
+                select $sid, $name, $desc, $order, $rpf, $mfnf, $dif;
             """).resolve()
 
             segments = []
@@ -58,6 +59,9 @@ def get_segment_types() -> List[Dict]:
                 mfnf_concept = row.get("mfnf")
                 mfnf = mfnf_concept.as_attribute().get_value() if mfnf_concept else None
 
+                dif_concept = row.get("dif")
+                dif = dif_concept.as_attribute().get_value() if dif_concept else None
+
                 segments.append({
                     "segment_type_id": sid,
                     "name": name,
@@ -65,6 +69,7 @@ def get_segment_types() -> List[Dict]:
                     "display_order": order,
                     "rp_universe_field": rpf,
                     "mfn_universe_field": mfnf,
+                    "di_universe_field": dif,
                 })
 
             segments.sort(key=lambda x: x["display_order"])
