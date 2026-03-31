@@ -617,7 +617,9 @@ entity mfn_provision sub provision,
     plays provision_has_yield_def:provision,
     plays provision_has_sunset:provision,
     plays provision_has_freebie:provision,
-    plays has_amendment_threshold:entity_with_threshold;
+    plays has_amendment_threshold:entity_with_threshold,
+    plays di_provision_links_mfn:mfn_prov,
+    plays incremental_triggers_mfn:mfn_prov;
 
 entity rp_provision sub provision,
     owns jcrew_pattern_detected,
@@ -649,7 +651,8 @@ entity rp_provision sub provision,
     plays provision_has_intercompany_permission:provision,
     plays provision_has_definition:provision,
     plays provision_has_lien_release:provision,
-    plays has_amendment_threshold:entity_with_threshold;
+    plays has_amendment_threshold:entity_with_threshold,
+    plays di_provision_links_rp:rp_prov;
 
 
 ################################################################################
@@ -725,7 +728,8 @@ entity builder_basket sub rp_basket,
     owns asset_proceeds_pct,
     owns asset_proceeds_sweep_section,
     owns asset_proceeds_ratio_disposition,
-    owns asset_proceeds_ratio_threshold;
+    owns asset_proceeds_ratio_threshold,
+    plays di_feeds_rp_builder:builder;
 
 entity ratio_basket sub rp_basket,
     owns ratio_threshold,
@@ -1240,6 +1244,88 @@ attribute sacred_right_status, value boolean;
 attribute transaction_specific_waiver, value boolean;
 attribute agent_discretion, value boolean;
 attribute affected_lender_optout, value boolean;
+
+# ── DI (Debt Incurrence) identifiers ────────────────────────────────────────
+attribute ratio_test_type_id, value string;
+attribute condition_type_id, value string;
+attribute priority_id, value string;
+attribute facility_type_id, value string;
+attribute incremental_id, value string;
+
+# ── DI provision-level flags ────────────────────────────────────────────────
+attribute di_covenant_exists, value boolean;
+attribute has_separate_secured_covenant, value boolean;
+attribute has_separate_unsecured_covenant, value boolean;
+attribute unlimited_ratio_debt_detected, value boolean;
+attribute ied_avoids_mfn_detected, value boolean;
+attribute basket_stacking_risk_detected, value boolean;
+attribute trapdoor_basket_detected, value boolean;
+
+# ── DI reference entity attributes ──────────────────────────────────────────
+attribute numerator_formula, value string;
+attribute denominator_formula, value string;
+attribute comparison_operator, value string;          # <= | >=
+attribute is_financial_test, value boolean;
+attribute is_structural, value boolean;
+attribute rank, value integer;
+attribute is_term, value boolean;
+attribute is_revolving, value boolean;
+attribute is_incremental, value boolean;
+
+# ── DI incremental facility attributes ──────────────────────────────────────
+attribute free_and_clear_amount_usd, value double;
+attribute free_and_clear_pct_ebitda, value double;
+attribute free_and_clear_is_grower, value boolean;
+attribute prepayments_prong_exists, value boolean;
+attribute prepayments_includes_junior, value boolean;
+attribute prepayments_includes_buybacks, value boolean;
+attribute ratio_prong_exists, value boolean;
+attribute ratio_prong_threshold, value double;
+attribute ratio_prong_test_type, value string;
+attribute ratio_prong_unlimited, value boolean;
+attribute ied_permitted, value boolean;
+attribute ied_triggers_mfn, value boolean;
+attribute ied_requires_intercreditor, value boolean;
+attribute mfn_threshold_bps, value integer;
+attribute mfn_sunset_months, value integer;
+attribute mfn_excludes_freebie, value boolean;
+attribute mfn_excludes_acquisitions, value boolean;
+attribute mfn_excludes_maturity_outside, value boolean;
+attribute reclassification_permitted, value boolean;
+attribute reclassification_automatic, value boolean;
+attribute reclassification_bidirectional, value boolean;
+
+# ── DI basket attributes ────────────────────────────────────────────────────
+attribute basket_cap_usd, value double;
+attribute basket_cap_pct_ebitda, value double;
+attribute is_grower, value boolean;
+attribute permits_secured, value boolean;
+attribute permits_unsecured, value boolean;
+attribute requires_pro_forma_ratio, value boolean;
+attribute pro_forma_threshold, value double;
+
+# ── DI leverage tier attributes ─────────────────────────────────────────────
+attribute tier_number, value integer;
+attribute leverage_floor, value double;
+attribute leverage_ceiling, value double;
+attribute capacity_usd, value double;
+attribute capacity_pct_ebitda, value double;
+attribute is_unlimited, value boolean;
+
+# ── DI relation attributes ──────────────────────────────────────────────────
+attribute threshold_value, value double;
+attribute is_incurrence_test, value boolean;
+attribute is_mandatory, value boolean;
+attribute is_maximum, value boolean;
+attribute reduction_is_permanent, value boolean;
+attribute pool_name, value string;
+attribute triggers_for_term_loans, value boolean;
+attribute triggers_for_revolvers, value boolean;
+attribute triggers_for_ied, value boolean;
+attribute freebie_exempt_usd, value double;
+attribute shares_capacity, value boolean;
+attribute max_lien_priority, value string;
+attribute is_dollar_for_dollar, value boolean;
 
 # ── MFN entity types ─────────────────────────────────────────────────────────
 
@@ -1793,4 +1879,270 @@ entity material_threshold_basis sub concept;
 #   Scalar answers → provision_has_answer (question_ids: jc_t1_*, jc_t2_*, jc_t3_*)
 #   Multiselect   → concept_applicability (blocker_prohibition_type, etc.)
 #   Provision     → rp_provision (JC data attaches to the RP provision)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+################################################################################
+# §11  DEBT INCURRENCE (DI)
+#
+#   Models the debt incurrence negative covenant in credit agreements.
+#   Covers: incremental facilities, permitted debt baskets, ratio tests,
+#   leverage tiers, and cross-covenant links to MFN/RP.
+#
+#   Data flows through the SAME three channels as RP/MFN:
+#     Channel 1: provision_has_answer    → scalar answers
+#     Channel 2: concept_applicability   → multiselect
+#     Channel 3: typed entities          → structured (below)
+################################################################################
+
+# ── DI Reference Entities (seeded once, shared across deals) ────────────────
+
+entity ratio_test_type,
+    owns ratio_test_type_id @key,
+    owns name,
+    owns numerator_formula,
+    owns denominator_formula,
+    owns comparison_operator,
+    owns description,
+    plays basket_uses_ratio_test:ratio_test,
+    plays tier_uses_ratio_test:ratio_test;
+
+entity debt_condition_type,
+    owns condition_type_id @key,
+    owns name,
+    owns is_financial_test,
+    owns is_structural,
+    owns description,
+    plays basket_requires_condition:condition;
+
+entity di_lien_priority,
+    owns priority_id @key,
+    owns name,
+    owns rank,
+    owns description,
+    plays basket_permits_lien:priority;
+
+entity di_facility_type,
+    owns facility_type_id @key,
+    owns name,
+    owns is_term,
+    owns is_revolving,
+    owns is_incremental,
+    plays incremental_permits_facility:fac_type;
+
+# ── DI Provision (pure anchor — owns only computed flags) ───────────────────
+
+entity di_provision sub provision,
+    # Scope
+    owns di_covenant_exists,
+    owns has_separate_secured_covenant,
+    owns has_separate_unsecured_covenant,
+    # Pattern flags (computed post-extraction)
+    owns unlimited_ratio_debt_detected,
+    owns ied_avoids_mfn_detected,
+    owns basket_stacking_risk_detected,
+    owns trapdoor_basket_detected,
+    # Relations
+    plays provision_has_incremental:provision,
+    plays provision_has_di_basket:provision,
+    plays provision_has_leverage_tier:provision,
+    plays di_provision_links_mfn:di_prov,
+    plays di_provision_links_rp:di_prov;
+
+# ── Incremental Facility (single-instance entity per provision) ─────────────
+
+entity incremental_facility,
+    owns incremental_id @key,
+    # Free-and-clear prong
+    owns free_and_clear_amount_usd,
+    owns free_and_clear_pct_ebitda,
+    owns free_and_clear_is_grower,
+    # Prepayments prong
+    owns prepayments_prong_exists,
+    owns prepayments_includes_junior,
+    owns prepayments_includes_buybacks,
+    # Ratio prong
+    owns ratio_prong_exists,
+    owns ratio_prong_threshold,
+    owns ratio_prong_test_type,
+    owns ratio_prong_unlimited,
+    # IED (Incremental Equivalent Debt)
+    owns ied_permitted,
+    owns ied_triggers_mfn,
+    owns ied_requires_intercreditor,
+    # MFN linkage
+    owns mfn_threshold_bps,
+    owns mfn_sunset_months,
+    owns mfn_excludes_freebie,
+    owns mfn_excludes_acquisitions,
+    owns mfn_excludes_maturity_outside,
+    # Reclassification
+    owns reclassification_permitted,
+    owns reclassification_automatic,
+    owns reclassification_bidirectional,
+    # Provenance
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    # Relations
+    plays provision_has_incremental:incremental,
+    plays incremental_triggers_mfn:incremental,
+    plays incremental_permits_facility:incremental;
+
+# ── DI Basket Hierarchy ─────────────────────────────────────────────────────
+
+entity di_basket @abstract,
+    owns basket_id @key,
+    owns display_name,
+    owns basket_cap_usd,
+    owns basket_cap_pct_ebitda,
+    owns is_grower,
+    owns permits_secured,
+    owns permits_unsecured,
+    owns requires_pro_forma_ratio,
+    owns pro_forma_threshold,
+    owns is_unlimited_if_met,
+    owns default_condition,
+    owns requires_ratio_test,
+    owns capacity_category,
+    # Provenance
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    # Relations
+    plays provision_has_di_basket:di_basket,
+    plays basket_uses_ratio_test:basket,
+    plays basket_requires_condition:basket,
+    plays basket_permits_lien:basket,
+    plays di_shares_capacity_pool:pool_member,
+    plays basket_reduces_basket:source_basket,
+    plays basket_reduces_basket:target_basket;
+
+# 20 concrete basket subtypes
+entity credit_agreement_basket sub di_basket;
+entity incremental_basket sub di_basket;
+entity ratio_debt_basket sub di_basket;
+entity general_basket sub di_basket;
+entity acquisition_basket sub di_basket;
+entity capital_lease_basket sub di_basket;
+entity purchase_money_basket sub di_basket;
+entity intercompany_basket sub di_basket;
+entity refinancing_basket sub di_basket;
+entity hedging_basket sub di_basket;
+entity lc_basket sub di_basket;
+entity sale_leaseback_basket sub di_basket;
+entity foreign_subsidiary_basket sub di_basket;
+entity earnout_basket sub di_basket;
+entity working_capital_basket sub di_basket;
+entity contribution_basket sub di_basket,
+    plays di_feeds_rp_builder:contrib;
+entity ied_basket sub di_basket;
+entity non_guarantor_basket sub di_basket;
+entity ratio_secured_basket sub di_basket;
+entity ratio_unsecured_basket sub di_basket;
+
+# ── Leverage Tier (entity_list — multiple per provision) ────────────────────
+
+entity leverage_tier,
+    owns tier_id @key,
+    owns tier_number,
+    owns leverage_floor,
+    owns leverage_ceiling,
+    owns capacity_usd,
+    owns capacity_pct_ebitda,
+    owns is_unlimited,
+    # Provenance
+    owns section_reference,
+    owns source_page,
+    owns source_text,
+    owns confidence,
+    # Relations
+    plays provision_has_leverage_tier:tier,
+    plays tier_uses_ratio_test:tier;
+
+# ── DI Entity Relations (sub provision_has_extracted_entity) ────────────────
+#    Enables polymorphic fetch via abstract parent query.
+
+relation provision_has_incremental sub provision_has_extracted_entity,
+    relates provision,
+    relates incremental as extracted;
+
+relation provision_has_di_basket sub provision_has_extracted_entity,
+    relates provision,
+    relates di_basket as extracted;
+
+relation provision_has_leverage_tier sub provision_has_extracted_entity,
+    relates provision,
+    relates tier as extracted;
+
+# ── DI Structural Relations (entity-to-reference joins) ─────────────────────
+
+relation basket_uses_ratio_test,
+    relates basket,
+    relates ratio_test,
+    owns threshold_value,
+    owns is_incurrence_test;
+
+relation basket_requires_condition,
+    relates basket,
+    relates condition,
+    owns is_mandatory;
+
+relation basket_permits_lien,
+    relates basket,
+    relates priority,
+    owns is_maximum;
+
+relation basket_reduces_basket,
+    relates source_basket,
+    relates target_basket,
+    owns reduction_is_permanent;
+
+relation di_shares_capacity_pool,
+    relates pool_member,
+    owns pool_name;
+
+relation incremental_permits_facility,
+    relates incremental,
+    relates fac_type;
+
+relation tier_uses_ratio_test,
+    relates tier,
+    relates ratio_test,
+    owns threshold_value,
+    owns is_incurrence_test;
+
+# ── DI Cross-Covenant Relations ─────────────────────────────────────────────
+
+relation incremental_triggers_mfn,
+    relates incremental,
+    relates mfn_prov,
+    owns triggers_for_term_loans,
+    owns triggers_for_revolvers,
+    owns triggers_for_ied,
+    owns freebie_exempt_usd,
+    owns mfn_sunset_months;
+
+relation di_provision_links_mfn,
+    relates di_prov,
+    relates mfn_prov;
+
+relation di_provision_links_rp,
+    relates di_prov,
+    relates rp_prov;
+
+relation di_feeds_rp_builder,
+    relates contrib,
+    relates builder,
+    owns is_dollar_for_dollar;
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DI data flows through the SAME channels as RP/MFN:
+#   Scalar answers → provision_has_answer (question_ids: di_*)
+#   Multiselect   → concept_applicability
+#   Typed entities → provision_has_incremental, provision_has_di_basket,
+#                    provision_has_leverage_tier
+#   Provision     → di_provision
 # ══════════════════════════════════════════════════════════════════════════════

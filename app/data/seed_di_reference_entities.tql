@@ -1,0 +1,262 @@
+################################################################################
+# DI Reference Entities — Debt Incurrence
+#
+# Seeded once; referenced by deal-specific DI entities via relations.
+# Loaded by init_schema.py as a single insert block.
+################################################################################
+
+insert
+
+# ── ratio_test_type (5) ─────────────────────────────────────────────────────
+
+$rt1 isa ratio_test_type,
+    has ratio_test_type_id "first_lien_leverage",
+    has name "First Lien Net Leverage",
+    has numerator_formula "First Lien Net Debt",
+    has denominator_formula "Consolidated EBITDA",
+    has comparison_operator "<=",
+    has description "First lien net leverage ratio test — most common for secured debt baskets";
+
+$rt2 isa ratio_test_type,
+    has ratio_test_type_id "senior_secured_leverage",
+    has name "Senior Secured Net Leverage",
+    has numerator_formula "Senior Secured Net Debt",
+    has denominator_formula "Consolidated EBITDA",
+    has comparison_operator "<=",
+    has description "Senior secured net leverage ratio — includes all secured debt regardless of lien priority";
+
+$rt3 isa ratio_test_type,
+    has ratio_test_type_id "total_leverage",
+    has name "Total Net Leverage",
+    has numerator_formula "Total Net Debt",
+    has denominator_formula "Consolidated EBITDA",
+    has comparison_operator "<=",
+    has description "Total net leverage ratio — used for unsecured and general debt capacity";
+
+$rt4 isa ratio_test_type,
+    has ratio_test_type_id "interest_coverage",
+    has name "Interest Coverage",
+    has numerator_formula "Consolidated EBITDA",
+    has denominator_formula "Consolidated Interest Expense",
+    has comparison_operator ">=",
+    has description "Interest coverage ratio — measures ability to service debt interest payments";
+
+$rt5 isa ratio_test_type,
+    has ratio_test_type_id "fixed_charge_coverage",
+    has name "Fixed Charge Coverage",
+    has numerator_formula "Consolidated EBITDA",
+    has denominator_formula "Fixed Charges",
+    has comparison_operator ">=",
+    has description "Fixed charge coverage ratio — broader than interest coverage, includes scheduled principal and other fixed charges";
+
+# ── debt_condition_type (16) ────────────────────────────────────────────────
+
+$dc1 isa debt_condition_type,
+    has condition_type_id "no_default",
+    has name "No Default",
+    has is_financial_test false,
+    has is_structural false,
+    has description "No event of default or default shall have occurred and be continuing";
+
+$dc2 isa debt_condition_type,
+    has condition_type_id "no_eod",
+    has name "No Event of Default",
+    has is_financial_test false,
+    has is_structural false,
+    has description "No event of default (narrower than no_default — excludes incipient defaults)";
+
+$dc3 isa debt_condition_type,
+    has condition_type_id "pro_forma_ratio",
+    has name "Pro Forma Ratio Compliance",
+    has is_financial_test true,
+    has is_structural false,
+    has description "Must satisfy specified leverage or coverage ratio on a pro forma basis after giving effect to incurrence";
+
+$dc4 isa debt_condition_type,
+    has condition_type_id "pro_forma_no_worse",
+    has name "Pro Forma No Worse",
+    has is_financial_test true,
+    has is_structural false,
+    has description "Ratio must not be worse after giving effect to incurrence than immediately prior (no fixed threshold)";
+
+$dc5 isa debt_condition_type,
+    has condition_type_id "maturity_restriction",
+    has name "Maturity Restriction",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt must mature no earlier than specified date relative to existing credit facility maturity";
+
+$dc6 isa debt_condition_type,
+    has condition_type_id "wal_restriction",
+    has name "Weighted Average Life Restriction",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt weighted average life to maturity must be no shorter than existing facility";
+
+$dc7 isa debt_condition_type,
+    has condition_type_id "amortization_restriction",
+    has name "Amortization Restriction",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt must not have more aggressive mandatory amortization than existing facility";
+
+$dc8 isa debt_condition_type,
+    has condition_type_id "covenant_parity",
+    has name "Covenant Parity",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt must be subject to covenants no more restrictive than existing credit agreement";
+
+$dc9 isa debt_condition_type,
+    has condition_type_id "lien_parity",
+    has name "Lien Parity",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt liens must have same or lower priority than existing facility liens";
+
+$dc10 isa debt_condition_type,
+    has condition_type_id "collateral_parity",
+    has name "Collateral Parity",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt collateral package must not exceed existing facility collateral";
+
+$dc11 isa debt_condition_type,
+    has condition_type_id "guarantor_parity",
+    has name "Guarantor Parity",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt guarantors must be limited to existing facility guarantors";
+
+$dc12 isa debt_condition_type,
+    has condition_type_id "currency_restriction",
+    has name "Currency Restriction",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt must be denominated in permitted currencies";
+
+$dc13 isa debt_condition_type,
+    has condition_type_id "mfn_compliance",
+    has name "MFN Compliance",
+    has is_financial_test false,
+    has is_structural false,
+    has description "Incremental debt subject to most favored nation pricing protection";
+
+$dc14 isa debt_condition_type,
+    has condition_type_id "agent_consent",
+    has name "Agent Consent",
+    has is_financial_test false,
+    has is_structural false,
+    has description "Administrative agent consent required for incurrence";
+
+$dc15 isa debt_condition_type,
+    has condition_type_id "lender_consent",
+    has name "Lender Consent",
+    has is_financial_test false,
+    has is_structural false,
+    has description "Lender consent (majority or supermajority) required for incurrence";
+
+$dc16 isa debt_condition_type,
+    has condition_type_id "intercreditor_required",
+    has name "Intercreditor Agreement Required",
+    has is_financial_test false,
+    has is_structural true,
+    has description "New debt must be subject to intercreditor agreement satisfactory to existing lenders";
+
+# ── di_lien_priority (4) ───────────────────────────────────────────────────
+
+$lp1 isa di_lien_priority,
+    has priority_id "first_lien",
+    has name "First Lien",
+    has rank 1,
+    has description "Senior secured with first-priority lien on collateral";
+
+$lp2 isa di_lien_priority,
+    has priority_id "junior_lien",
+    has name "Junior Lien",
+    has rank 2,
+    has description "Secured with junior-priority lien on collateral (second lien or lower)";
+
+$lp3 isa di_lien_priority,
+    has priority_id "unsecured",
+    has name "Unsecured",
+    has rank 3,
+    has description "No lien on collateral — structurally subordinated to secured debt";
+
+$lp4 isa di_lien_priority,
+    has priority_id "subordinated",
+    has name "Subordinated",
+    has rank 4,
+    has description "Contractually subordinated in right of payment to senior debt";
+
+# ── di_facility_type (10) ──────────────────────────────────────────────────
+
+$ft1 isa di_facility_type,
+    has facility_type_id "term_loan_a",
+    has name "Term Loan A",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental false;
+
+$ft2 isa di_facility_type,
+    has facility_type_id "term_loan_b",
+    has name "Term Loan B",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental false;
+
+$ft3 isa di_facility_type,
+    has facility_type_id "delayed_draw",
+    has name "Delayed Draw Term Loan",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental false;
+
+$ft4 isa di_facility_type,
+    has facility_type_id "revolver",
+    has name "Revolving Credit Facility",
+    has is_term false,
+    has is_revolving true,
+    has is_incremental false;
+
+$ft5 isa di_facility_type,
+    has facility_type_id "swingline",
+    has name "Swingline",
+    has is_term false,
+    has is_revolving true,
+    has is_incremental false;
+
+$ft6 isa di_facility_type,
+    has facility_type_id "lc_sublimit",
+    has name "Letter of Credit Sublimit",
+    has is_term false,
+    has is_revolving true,
+    has is_incremental false;
+
+$ft7 isa di_facility_type,
+    has facility_type_id "incremental_term",
+    has name "Incremental Term Loan",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental true;
+
+$ft8 isa di_facility_type,
+    has facility_type_id "incremental_revolver",
+    has name "Incremental Revolving Commitments",
+    has is_term false,
+    has is_revolving true,
+    has is_incremental true;
+
+$ft9 isa di_facility_type,
+    has facility_type_id "ied_term",
+    has name "Incremental Equivalent Debt — Term",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental true;
+
+$ft10 isa di_facility_type,
+    has facility_type_id "ied_notes",
+    has name "Incremental Equivalent Debt — Notes",
+    has is_term true,
+    has is_revolving false,
+    has is_incremental true;
