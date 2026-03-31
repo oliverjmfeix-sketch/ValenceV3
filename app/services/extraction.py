@@ -161,18 +161,35 @@ class AnswerTracker:
 
 @dataclass
 class ExtractionResult:
-    """Complete extraction result."""
+    """Unified extraction result for any covenant type."""
     deal_id: str
     covenant_type: str
-    category_answers: List[CategoryAnswers]
+    provision_id: str
+    answers_stored: int
+    entities_created: int
     extraction_time_seconds: float
-    chunks_processed: int = 0
-    total_questions: int = 0
-    high_confidence_answers: int = 0
-    rp_universe_chars: int = 0
-    rp_universe: Optional['CovenantUniverse'] = None  # Retained for J.Crew pipeline
-    document_text: Optional[str] = None         # Retained for J.Crew pipeline
-    segment_map: Optional[dict] = None          # Reused for MFN universe extraction
+    universe_chars: int
+    model_used: str
+    total_cost_usd: float
+    cost_breakdown: dict = field(default_factory=dict)
+    validated: bool = False
+    errors: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "deal_id": self.deal_id,
+            "covenant_type": self.covenant_type,
+            "provision_id": self.provision_id,
+            "answers_stored": self.answers_stored,
+            "entities_created": self.entities_created,
+            "extraction_time_seconds": self.extraction_time_seconds,
+            "universe_chars": self.universe_chars,
+            "model_used": self.model_used,
+            "total_cost_usd": self.total_cost_usd,
+            "cost_breakdown": self.cost_breakdown,
+            "validated": self.validated,
+            "errors": self.errors,
+        }
 
 
 # =============================================================================
@@ -1046,7 +1063,7 @@ Return ONLY the JSON array."""
         try:
             from app.services.graph_storage import GraphStorage
 
-            self._ensure_provision_exists(deal_id, provision_id)
+            self._ensure_provision_exists_unified(deal_id, provision_id, "RP")
             storage = GraphStorage(deal_id)
 
             scalar_count = 0
@@ -1107,49 +1124,6 @@ Return ONLY the JSON array."""
         except Exception as e:
             logger.error(f"Storage error: {e}")
             return False
-
-    def _ensure_provision_exists(self, deal_id: str, provision_id: str):
-        """Create rp_provision entity linked to deal if not exists."""
-        from typedb.driver import TransactionType
-        from datetime import datetime, timezone
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.READ
-        )
-        try:
-            query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
-                select $p;
-            """
-            result = list(tx.query(query).resolve().as_concept_rows())
-            exists = len(result) > 0
-        finally:
-            tx.close()
-
-        if exists:
-            logger.debug(f"Provision {provision_id} already exists")
-            return
-
-        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $d isa deal, has deal_id "{deal_id}";
-                insert
-                    $p isa rp_provision,
-                        has provision_id "{provision_id}",
-                        has extracted_at {now_iso};
-                    (deal: $d, provision: $p) isa deal_has_provision;
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.info(f"Created rp_provision: {provision_id}")
-        except Exception as e:
-            tx.close()
-            logger.error(f"Error creating provision: {e}")
-            raise
 
     def _coerce_answer_value(self, value: Any, answer_type: str) -> Any:
         """Coerce an answer value to the correct Python type for store_scalar_answer."""
@@ -1307,718 +1281,138 @@ Return ONLY the JSON array."""
         return ""
 
     # =========================================================================
-    # MFN EXTRACTION PIPELINE
+    # UNIFIED COVENANT EXTRACTION
     # =========================================================================
 
-    def extract_mfn_universe(self, document_text: str) -> Optional[str]:
-        """
-        Extract the MFN-relevant universe from a credit agreement.
-
-        MFN provisions are in the INCREMENTAL FACILITY section of the
-        agreement, NOT in the covenants section. The MFN universe
-        is much shorter than RP — typically 5-15 pages vs 20+.
-        """
-        MFN_UNIVERSE_PROMPT = """You are a senior leveraged finance attorney. Extract the complete MFN
-(Most Favored Nation) universe from this credit agreement.
-
-## WHAT TO EXTRACT
-
-Return the COMPLETE text of all sections relevant to MFN analysis:
-
-1. **The Incremental Facility Section** — Extract the ENTIRE section,
-   not just the MFN sub-clause. The full incremental facility mechanics
-   provide context for which debt types are subject to MFN. This section
-   is titled variations of "Incremental Facilities", "Incremental
-   Commitments and Loans", or "Additional Credit Extensions". The section
-   number varies by document.
-
-2. **The Effective Yield / All-In Yield Definition** (in the Definitions
-   section) — This defines exactly which components are included in the
-   yield calculation for MFN comparison.
-
-3. **Amendment Provisions** — Only the subsections about what constitutes
-   a "sacred right" or what requires all-lender consent vs. Required
-   Lender consent. This determines how easily MFN can be waived.
-
-4. **Debt Incurrence Covenant** — Only the portions relevant to
-   "Incremental Equivalent Debt", "Ratio Debt", or similar defined terms
-   that describe debt incurred outside the credit agreement framework.
-   This is needed to assess the reclassification loophole.
-
-5. **Related Definitions** from the Definitions section:
-   - "Incremental Facility", "Incremental Term Loan", "Incremental
-     Revolving Commitment"
-   - "Incremental Equivalent Debt" or "Credit Agreement Refinancing
-     Indebtedness"
-   - "Effective Yield" or "All-In Yield"
-   - "Required Lenders"
-   - "Applicable Rate" or "Applicable Margin"
-
-## WHAT NOT TO EXTRACT
-
-- Restricted Payments covenant — not relevant to MFN
-- Financial covenants — not relevant
-- Representations and warranties — not relevant
-- Events of default — not relevant (unless cross-referenced by MFN)
-- Administrative provisions — not relevant
-
-## OUTPUT FORMAT
-
-Return the extracted text preserving:
-- Section numbers and headings
-- Page markers ([PAGE X])
-- Defined term capitalization
-- Cross-references to other sections
-
-The MFN universe is typically 5-15 pages (much shorter than RP)."""
-
-        try:
-            # MFN sections are shorter so we can send more document context
-            trimmed = document_text[:600000]
-
-            prompt = f"{MFN_UNIVERSE_PROMPT}\n\n## DOCUMENT TEXT\n\n{trimmed}"
-            raw_text = self._call_claude_streaming(
-                prompt, max_tokens=30000, step="mfn_universe_extraction"
-            )
-
-            if not raw_text:
-                logger.warning("MFN universe extraction returned empty response")
-                return None
-
-            logger.info(f"MFN universe extracted: {len(raw_text)} chars")
-            return raw_text
-
-        except Exception as e:
-            logger.error(f"MFN universe extraction failed: {e}")
-            return None
-
-    # ── MFN Batch Configuration ─────────────────────────────────────────────
-    # Batch sections and hints loaded from TypeDB (SSoT) via
-    # ontology_category.extraction_context_sections and extraction_batch_hint.
-    # See _get_batch_metadata().
-    _mfn_batch_metadata_cache: Dict[str, Dict[str, str]] = {}
-
-    def _get_batch_metadata(self, cat_id: str) -> Dict[str, str]:
-        """Load extraction_context_sections and extraction_batch_hint for a category from TypeDB."""
-        if cat_id in self._mfn_batch_metadata_cache:
-            return self._mfn_batch_metadata_cache[cat_id]
-
-        from typedb.driver import TransactionType
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.READ
-        )
-        try:
-            result = tx.query(f"""
-                match
-                    $cat isa ontology_category,
-                        has category_id "{cat_id}";
-                    try {{ $cat has extraction_context_sections $secs; }};
-                    try {{ $cat has extraction_batch_hint $hint; }};
-                select $secs, $hint;
-            """).resolve()
-
-            for row in result.as_concept_rows():
-                secs = row.get("secs")
-                hint = row.get("hint")
-                metadata = {
-                    "extraction_context_sections": secs.as_attribute().get_value() if secs else "",
-                    "extraction_batch_hint": hint.as_attribute().get_value() if hint else "",
-                }
-                self._mfn_batch_metadata_cache[cat_id] = metadata
-                return metadata
-            return {"extraction_context_sections": "", "extraction_batch_hint": ""}
-        finally:
-            tx.close()
-
-    _MFN_EXTRACTION_SYSTEM_PROMPT = """You are a senior leveraged finance attorney specializing in credit agreement
-analysis. You are extracting Most Favored Nation (MFN) provision data from
-a credit agreement.
-
-## WHERE TO FIND THE MFN PROVISION
-
-MFN clauses are located in the INCREMENTAL FACILITY section of a credit
-agreement, NOT in the covenants section. Look in these locations:
-
-MFN clauses are in the INCREMENTAL FACILITY section of a credit
-agreement, NOT in the covenants section. This section is titled
-variations of "Incremental Facilities", "Incremental Commitments and
-Loans", "Incremental Term Loans", or "Additional Credit Extensions".
-It is in the Loans/Commitments article, not the Negative Covenants
-article. The section number varies by document — do NOT assume any
-specific number.
-
-Within the incremental facility section, MFN is typically a sub-clause
-that starts with language like:
-- "the Effective Yield applicable to any Incremental Term Loan shall not
-   exceed..."
-- "if the All-In Yield applicable to any Incremental Term Loan exceeds..."
-- "the Applicable Rate for any Incremental Term Loan shall not be more
-   than [X] basis points greater than..."
-
-## KEY TERMS TO RECOGNIZE
-
-- **Effective Yield / All-In Yield**: The total annualized return to a
-  lender, including spread, floor benefit, OID, and fees. The definition
-  of what's included is the most contested part of MFN.
-
-- **Applicable Rate / Applicable Margin**: The contractual interest rate
-  spread over the reference rate (SOFR/LIBOR). Some MFN clauses compare
-  only the Applicable Rate (margin-only, borrower-friendly) rather than
-  all-in yield.
-
-- **MFN Threshold**: The permitted pricing differential (e.g., 50bps).
-  New incremental debt can be priced UP TO this amount above existing
-  debt without triggering MFN adjustment.
-
-- **Incremental Equivalent Debt**: Debt incurred outside the credit
-  agreement (e.g., under the debt incurrence covenant in the Negative
-  Covenants article)
-  that is treated as equivalent to incremental facility debt. Whether
-  this is subject to MFN is critical — if not, it creates a major
-  reclassification loophole.
-
-- **Sunset**: A time limit after which MFN protection expires.
-  Common periods: 6, 12, 18, 24 months from closing.
-
-## EXTRACTION RULES
-
-1. Extract ONLY what the document states. Do not infer or assume.
-2. For boolean questions: answer true/false based on document language.
-3. For string questions: extract verbatim language where possible.
-4. For integer questions: extract exact numbers.
-5. For multiselect questions: return an array of concept_ids that apply.
-6. Always provide source_text — a verbatim quote (30-500 chars).
-7. Always provide source_page — use the [PAGE X] markers in the text.
-8. Always provide source_section — the section reference as it appears in THIS document.
-9. If the MFN provision does not exist, answer mfn_01 as false and
-   answer remaining questions as null.
-10. If information is genuinely not specified, answer null."""
-
-    def _parse_mfn_universe_sections(self, mfn_universe_text: str) -> Dict[str, str]:
-        """Parse MFN universe text into sections by === HEADER === markers."""
-        sections: Dict[str, str] = {}
-        current_key: Optional[str] = None
-        current_lines: list = []
-
-        for line in mfn_universe_text.split('\n'):
-            if line.startswith('=== ') and line.endswith(' ==='):
-                if current_key:
-                    sections[current_key] = '\n'.join(current_lines)
-                current_key = line.strip('= ').strip()
-                current_lines = []
-            else:
-                current_lines.append(line)
-
-        if current_key:
-            sections[current_key] = '\n'.join(current_lines)
-
-        return sections
-
-    def _build_mfn_batch_context(
-        self,
-        cat_id: str,
-        full_universe: str,
-        sections: Dict[str, str]
-    ) -> str:
-        """Build focused MFN universe context for a specific batch."""
-        metadata = self._get_batch_metadata(cat_id)
-        sections_str = metadata.get("extraction_context_sections", "")
-        needed = sections_str.split(",") if sections_str else None
-        if not needed or not sections:
-            return full_universe
-
-        parts = []
-        for section_key in needed:
-            if section_key in sections:
-                parts.append(f"=== {section_key} ===\n{sections[section_key]}")
-
-        if not parts:
-            return full_universe
-
-        return "\n\n".join(parts)
-
-    def _summarize_batch_answers(self, cat_id: str, answers: list) -> str:
-        """Summarize batch answers for cross-reference by MFN6."""
-        if not answers:
-            return ""
-        lines = [f"## Prior Analysis: {cat_id}"]
-        for a in answers:
-            qid = a.get("question_id", "")
-            val = a.get("value")
-            if val is not None:
-                lines.append(f"- {qid}: {val}")
-        return "\n".join(lines)
-
-    def _extract_mfn_batch(
-        self,
-        cat_id: str,
-        questions: List[Dict],
-        full_universe: str,
-        universe_sections: Dict[str, str],
-        entity_context: Optional[str] = None
-    ) -> list:
-        """Extract answers for one MFN category batch."""
-        context_text = self._build_mfn_batch_context(
-            cat_id, full_universe, universe_sections
-        )
-        questions_text = self._format_questions_for_prompt(questions)
-        metadata = self._get_batch_metadata(cat_id)
-        batch_hint = metadata.get("extraction_batch_hint", "")
-
-        entity_section = ""
-        if entity_context:
-            entity_section = f"\n\n## PRIOR ANALYSIS (from earlier batches)\n\n{entity_context}"
-
-        user_prompt = f"""## MFN UNIVERSE TEXT
-
-{context_text}
-{entity_section}
-
----
-
-## BATCH FOCUS: {cat_id}
-{batch_hint}
-
-## QUESTIONS
-
-{questions_text}
-
-## RESPONSE FORMAT
-
-Return a JSON object with an "answers" array. Each answer:
-{{
-  "question_id": "mfn_01",
-  "value": true,
-  "source_text": "verbatim quote from document (30-500 chars)",
-  "source_page": 45,
-  "source_section": "e.g., Section X.XX(a)"
-}}
-
-For multiselect questions, value is an array of concept_ids:
-{{
-  "question_id": "mfn_08",
-  "value": ["incremental_term_loans", "ratio_debt"],
-  "source_text": "...",
-  "source_page": 45,
-  "source_section": "e.g., Section X.XX(a)"
-}}
-
-IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, explanation, or preamble before or after the JSON."""
-
-        from app.services.cost_tracker import extract_usage
-        try:
-            context_chars = len(context_text)
-            logger.info(
-                f"MFN batch {cat_id}: {len(questions)} questions, "
-                f"context={context_chars} chars"
-            )
-
-            mfn_model = "claude-sonnet-4-6"
-            start = time.time()
-            response = self.client.messages.create(
-                model=mfn_model,
-                max_tokens=8000,
-                system=self._MFN_EXTRACTION_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
-            duration = time.time() - start
-            self._last_mfn_batch_usage = extract_usage(
-                response, mfn_model, "mfn_extraction", deal_id=None, duration=duration
-            )
-
-            text = response.content[0].text.strip()
-            stop = response.stop_reason
-            logger.info(
-                f"MFN batch {cat_id}: response {len(text)} chars, "
-                f"stop_reason={stop}"
-            )
-
-            if not text:
-                logger.error(
-                    f"MFN batch {cat_id}: empty response "
-                    f"(stop_reason={stop})"
-                )
-                return []
-
-            if text.startswith("```"):
-                text = text.split("\n", 1)[1].rsplit("```", 1)[0]
-
-            result = json.loads(text)
-            answers = result.get("answers", [])
-            logger.info(f"MFN batch {cat_id}: {len(answers)}/{len(questions)} answers")
-            return answers
-
-        except json.JSONDecodeError as e:
-            logger.error(
-                f"MFN batch {cat_id} JSON parse failed: {e}. "
-                f"Raw response (first 500 chars): {text[:500] if text else 'EMPTY'}"
-            )
-            return []
-        except Exception as e:
-            logger.error(f"MFN batch {cat_id} failed: {e}")
-            return []
-
-    async def run_mfn_extraction_consolidated(
+    async def extract_covenant(
         self,
         deal_id: str,
-        mfn_universe_text: str,
-        document_text: str,
-    ) -> dict:
+        covenant_type: str,
+        universe: CovenantUniverse,
+        model: Optional[str] = None,
+    ) -> 'ExtractionResult':
         """
-        Consolidated MFN extraction: 2 Claude calls instead of 6.
+        Unified extraction for any covenant type.
 
-        Batch A (MFN1-MFN4): Structural questions — factual extraction of MFN
-            existence, prongs, floor, yield mechanics, exclusions. Independent
-            questions that don't need prior answers.
-
-        Batch B (MFN5-MFN6): Pattern detection — loophole identification and
-            cross-reference analysis. Receives Batch A answers as prior context
-            so it can reason about patterns (e.g., "given the MFN floor is X
-            and OID is excluded, does this create a timing loophole?").
-
-        Returns answers — scalar storage deferred to caller (after entity extraction).
+        1. Load questions from TypeDB (SSoT)
+        2. Ensure provision exists
+        3. Extract entities (Call 0)
+        4. Extract scalars (dynamic batching by token budget)
+        5. Store everything to TypeDB
+        6. Return unified result
         """
-        # Load MFN questions from TypeDB (SSoT)
-        questions_by_cat = self.load_questions_by_category("MFN")
-        if not questions_by_cat:
-            logger.error("No MFN questions found in TypeDB")
-            return {"answers": [], "errors": ["No MFN questions in TypeDB"], "total_questions": 0, "answered": 0}
+        from app.services.graph_storage import GraphStorage
+        from app.services.cost_tracker import ExtractionCostSummary
+        from app.schemas.extraction_response import ExtractionResponse
 
-        total_questions = sum(len(qs) for qs in questions_by_cat.values())
+        covenant_type = covenant_type.upper()
+        model = model or settings.claude_model
+        start_time = time.time()
+        provision_id = f"{deal_id}_{covenant_type.lower()}"
+
         logger.info(
-            f"MFN consolidated extraction: {total_questions} questions in "
-            f"{len(questions_by_cat)} categories → 2 batches"
+            f"Unified extraction starting: deal={deal_id}, covenant={covenant_type}, "
+            f"universe={len(universe.raw_text)} chars, model={model}"
         )
 
-        # Parse universe into sections for focused context
-        universe_sections = self._parse_mfn_universe_sections(mfn_universe_text)
-
-        # ── Batch A: Structural (MFN1-MFN4) ──────────────────────────────
-        self._mfn_batch_usages = []  # Accumulate per-batch usage for cost summary
-        batch_a_questions = []
-        for cat_id in ["MFN1", "MFN2", "MFN3", "MFN4"]:
-            cat_qs = questions_by_cat.get(cat_id, [])
-            cat_qs.sort(key=lambda q: q.get("display_order", 0))
-            batch_a_questions.extend(cat_qs)
-
-        batch_a_answers = []
-        if batch_a_questions:
-            logger.info(f"MFN Batch A (structural): {len(batch_a_questions)} questions")
-            batch_a_answers = self._extract_mfn_batch(
-                "MFN_structural",
-                batch_a_questions,
-                mfn_universe_text,
-                universe_sections,
-            )
-            if getattr(self, '_last_mfn_batch_usage', None):
-                self._mfn_batch_usages.append(self._last_mfn_batch_usage)
-            logger.info(f"MFN Batch A complete: {len(batch_a_answers)} answers")
-
-        # ── Batch B: Patterns (MFN5-MFN6) with prior context ─────────────
-        batch_b_questions = []
-        for cat_id in ["MFN5", "MFN6"]:
-            cat_qs = questions_by_cat.get(cat_id, [])
-            cat_qs.sort(key=lambda q: q.get("display_order", 0))
-            batch_b_questions.extend(cat_qs)
-
-        batch_b_answers = []
-        if batch_b_questions:
-            # Build prior context from Batch A answers
-            entity_context = self._summarize_batch_answers("MFN_structural", batch_a_answers)
-            logger.info(
-                f"MFN Batch B (patterns): {len(batch_b_questions)} questions, "
-                f"prior context={len(entity_context)} chars"
-            )
-            batch_b_answers = self._extract_mfn_batch(
-                "MFN_patterns",
-                batch_b_questions,
-                mfn_universe_text,
-                universe_sections,
-                entity_context=entity_context if entity_context else None,
-            )
-            if getattr(self, '_last_mfn_batch_usage', None):
-                self._mfn_batch_usages.append(self._last_mfn_batch_usage)
-            logger.info(f"MFN Batch B complete: {len(batch_b_answers)} answers")
-
-        all_answers = batch_a_answers + batch_b_answers
-        logger.info(f"MFN consolidated extraction complete: {len(all_answers)}/{total_questions} answers")
-
-        # Ensure provision exists (needed before entity extraction can link to it)
-        # Scalar storage deferred to after entity extraction — caller handles ordering
-        if all_answers:
-            provision_id = f"{deal_id}_mfn"
-            self._ensure_mfn_provision_exists(deal_id, provision_id)
-
-        # Aggregate cost tracking for MFN pipeline
-        from app.services.cost_tracker import ExtractionCostSummary
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
-        # Add MFN universe streaming usage (if Claude-based extraction was used)
-        for usage in getattr(self, '_streaming_usages', []):
-            usage.deal_id = deal_id
-            cost_summary.add(usage)
-        self._streaming_usages = []
-        for usage in getattr(self, '_mfn_batch_usages', []):
-            usage.deal_id = deal_id
-            cost_summary.add(usage)
-        if cost_summary.steps:
-            cost_summary.log_summary()
 
-        return {
-            "answers": all_answers,
-            "errors": [],
-            "total_questions": total_questions,
-            "answered": len(all_answers),
-        }
-    def _ensure_mfn_provision_exists(self, deal_id: str, provision_id: str):
-        """Create mfn_provision entity linked to deal if not exists."""
+        # Load questions from TypeDB (SSoT)
+        scalar_questions = self.load_questions_by_category(covenant_type)
+        entity_questions = self._load_entity_list_questions(covenant_type)
+
+        total_scalar = sum(len(qs) for qs in scalar_questions.values())
+        total_entity = len(entity_questions)
+        logger.info(f"Loaded questions: {total_scalar} scalar, {total_entity} entity_list")
+
+        # Ensure provision exists
+        self._ensure_provision_exists_unified(deal_id, provision_id, covenant_type)
+
+        all_answers = []
+
+        # ── STEP 1: Entity extraction (Call 0) ──────────────────────────
+        if entity_questions:
+            logger.info(f"Call 0: Entity extraction ({len(entity_questions)} questions)")
+            entity_answers = await self._extract_entities_unified(
+                universe=universe,
+                questions=entity_questions,
+                model=model,
+                deal_id=deal_id,
+                cost_summary=cost_summary,
+            )
+            all_answers.extend(entity_answers)
+            logger.info(f"Call 0 complete: {len(entity_answers)} entity answers")
+
+        # ── STEP 2: Scalar extraction (dynamic batching) ────────────────
+        if scalar_questions:
+            logger.info("Scalar extraction: dynamic batching")
+            scalar_answers = await self._extract_scalars_dynamic(
+                universe=universe,
+                questions_by_cat=scalar_questions,
+                model=model,
+                deal_id=deal_id,
+                cost_summary=cost_summary,
+            )
+            all_answers.extend(scalar_answers)
+            logger.info(f"Scalar extraction complete: {len(scalar_answers)} answers")
+
+        # ── STEP 3: Store everything to TypeDB ──────────────────────────
+        logger.info(f"Storing {len(all_answers)} total answers to TypeDB")
+
+        storage = GraphStorage(deal_id)
+        extraction = ExtractionResponse(answers=all_answers)
+        storage_result = storage.store_extraction(deal_id, provision_id, extraction)
+
+        # ── STEP 4: Build and return result ─────────────────────────────
+        extraction_time = time.time() - start_time
+        cost_summary.log_summary()
+
+        result = ExtractionResult(
+            deal_id=deal_id,
+            covenant_type=covenant_type,
+            provision_id=provision_id,
+            answers_stored=storage_result.get("answers_stored", 0),
+            entities_created=storage_result.get("entities_created", 0),
+            extraction_time_seconds=round(extraction_time, 2),
+            universe_chars=len(universe.raw_text),
+            model_used=model,
+            total_cost_usd=round(cost_summary.total_cost_usd, 4),
+            cost_breakdown={
+                "num_api_calls": len(cost_summary.steps),
+                "total_input_tokens": cost_summary.total_input_tokens,
+                "total_output_tokens": cost_summary.total_output_tokens,
+            },
+            validated=universe.validated,
+        )
+
+        logger.info(
+            f"Unified extraction complete: {result.answers_stored} answers, "
+            f"{result.entities_created} entities in {extraction_time:.1f}s "
+            f"(${result.total_cost_usd:.4f})"
+        )
+
+        return result
+
+    def _ensure_provision_exists_unified(
+        self, deal_id: str, provision_id: str, covenant_type: str
+    ):
+        """Ensure provision entity exists for any covenant type."""
         from typedb.driver import TransactionType
+
+        provision_type = f"{covenant_type.lower()}_provision"
 
         tx = typedb_client.driver.transaction(
             settings.typedb_database, TransactionType.READ
         )
         try:
-            query = f"""
-                match $p isa mfn_provision, has provision_id "{provision_id}";
-                select $p;
-            """
-            result = list(tx.query(query).resolve().as_concept_rows())
-            exists = len(result) > 0
+            check = f'match $p isa {provision_type}, has provision_id "{provision_id}"; select $p;'
+            rows = list(tx.query(check).resolve().as_concept_rows())
+            exists = len(rows) > 0
         finally:
             tx.close()
 
         if exists:
-            logger.debug(f"MFN provision {provision_id} already exists")
-            return
-
-        from datetime import datetime, timezone
-        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match $d isa deal, has deal_id "{deal_id}";
-                insert
-                    $p isa mfn_provision,
-                        has provision_id "{provision_id}",
-                        has extracted_at {now_iso};
-                    (deal: $d, provision: $p) isa deal_has_provision;
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            logger.info(f"Created mfn_provision: {provision_id}")
-        except Exception as e:
-            if tx.is_open():
-                tx.close()
-            logger.error(f"Error creating MFN provision: {e}")
-            raise
-
-    def _store_mfn_answers(self, deal_id: str, answers: list):
-        """
-        Store MFN extraction answers in TypeDB.
-
-        Creates mfn_provision (if not exists), links to deal via
-        deal_has_provision, then creates provision_has_answer relations
-        for each answer. Uses existing GraphStorage.store_scalar_answer
-        for the SSoT storage pattern.
-        """
-        from app.services.graph_storage import GraphStorage
-
-        provision_id = f"{deal_id}_mfn"
-
-        try:
-            # Provision must already exist (created by caller before entity extraction)
-            # Store answers using GraphStorage (SSoT pattern)
-            storage = GraphStorage(deal_id)
-            q_to_entity = storage._load_question_to_entity_map()
-            stored_scalar = 0
-            stored_concept = 0
-            errors = 0
-
-            for ans in answers:
-                qid = ans.get("question_id")
-                value = ans.get("value")
-                if value is None:
-                    continue
-
-                confidence = ans.get("confidence", "medium")
-                if confidence == "not_found":
-                    continue
-
-                source_text = ans.get("source_text", "")
-                source_page = ans.get("source_page")
-                source_section = ans.get("source_section", "")
-
-                # Multiselect → unified concept routing + flat scalar
-                if isinstance(value, list):
-                    # Try entity boolean routing (same as RP store_extraction)
-                    concept_routing = GraphStorage._load_concept_routing_map()
-                    routed_any = False
-                    for concept_id in value:
-                        routes = concept_routing.get(concept_id, [])
-                        if routes:
-                            for entity_type, attr_name in routes:
-                                storage._set_entity_attribute(
-                                    provision_id, entity_type, attr_name, True
-                                )
-                            routed_any = True
-
-                    # Always store as flat scalar (comma-separated string)
-                    flat_value = ", ".join(str(v) for v in value)
-                    try:
-                        storage.store_scalar_answer(
-                            provision_id=provision_id,
-                            question_id=qid,
-                            value=flat_value,
-                            source_text=source_text or None,
-                            source_page=source_page,
-                            source_section=source_section or None,
-                        )
-                        stored_scalar += 1
-                    except Exception as e:
-                        errors += 1
-                        if errors <= 3:
-                            logger.warning(f"MFN multiselect scalar store error ({qid}): {e}")
-
-                    # Write concept_applicability only for unmapped concepts
-                    if not routed_any:
-                        for concept_id in value:
-                            success = self._store_concept_applicability_for_provision(
-                                provision_id, concept_id, source_text,
-                                source_page or 0
-                            )
-                            if success:
-                                stored_concept += 1
-                    continue
-
-                # Scalar → provision_has_answer via GraphStorage
-                try:
-                    coerced = self._coerce_answer_value(
-                        value, self._infer_answer_type(value)
-                    )
-                    if coerced is not None:
-                        storage.store_scalar_answer(
-                            provision_id=provision_id,
-                            question_id=qid,
-                            value=coerced,
-                            source_text=source_text or None,
-                            source_page=source_page,
-                            source_section=source_section or None,
-                        )
-                        stored_scalar += 1
-                        # Annotation routing: populate entity attribute if mapped
-                        routing = q_to_entity.get(qid)
-                        if routing:
-                            entity_type, attr_name = routing
-                            if attr_name not in ("_exists", "_entity_list"):
-                                storage._set_entity_attribute(
-                                    provision_id, entity_type, attr_name, coerced
-                                )
-                except Exception as e:
-                    errors += 1
-                    if errors <= 3:  # Only log first few errors
-                        logger.warning(f"MFN answer store error ({qid}): {e}")
-
-            logger.info(
-                f"Stored {stored_scalar} MFN scalar + "
-                f"{stored_concept} concept answers"
-            )
-
-        except Exception as e:
-            logger.error(f"MFN answer storage failed: {e}")
-
-    def _store_concept_applicability_for_provision(
-        self,
-        provision_id: str,
-        concept_id: str,
-        source_text: str,
-        source_page: int
-    ) -> bool:
-        """Store concept_applicability for any provision type (uses parent type)."""
-        from typedb.driver import TransactionType
-
-        escaped_text = source_text.replace('\\', '\\\\').replace('"', '\\"')[:500]
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.WRITE
-        )
-        try:
-            query = f"""
-                match
-                    $p isa provision, has provision_id "{provision_id}";
-                    $c isa concept, has concept_id "{concept_id}";
-                insert
-                    (provision: $p, concept: $c) isa concept_applicability,
-                        has applicability_status "INCLUDED",
-                        has source_text "{escaped_text}",
-                        has source_page {source_page};
-            """
-            tx.query(query).resolve()
-            tx.commit()
-            return True
-        except Exception as e:
-            if tx.is_open():
-                tx.close()
-            logger.warning(f"MFN concept store error ({concept_id}): {e}")
-            return False
-
-    @staticmethod
-    def _infer_answer_type(value) -> str:
-        """Infer answer type from Python value type."""
-        if isinstance(value, bool):
-            return "boolean"
-        elif isinstance(value, int):
-            return "integer"
-        elif isinstance(value, float):
-            return "double"
-        return "string"
-
-    # =========================================================================
-    # CROSS-REFERENCES
-    # =========================================================================
-
-    def _create_cross_references(self, deal_id: str):
-        """Create provision_cross_reference between MFN and RP provisions.
-
-        Idempotent: skips if edge already exists.
-        Loud: logs explicitly at every branch.
-        """
-        from typedb.driver import TransactionType
-
-        mfn_id = f"{deal_id}_mfn"
-
-        tx = typedb_client.driver.transaction(
-            settings.typedb_database, TransactionType.READ
-        )
-        try:
-            # Check if cross-reference already exists
-            existing = list(tx.query(f'''
-                match
-                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
-                    (source_provision: $mfn, target_provision: $rp) isa provision_cross_reference;
-                select $rp;
-            ''').resolve().as_concept_rows())
-            if existing:
-                logger.info(f"Cross-reference already exists for {deal_id} — skipping")
-                return
-
-            # Check both provisions exist
-            result = list(tx.query(f'''
-                match
-                    $d isa deal, has deal_id "{deal_id}";
-                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
-                    $rp isa rp_provision, has provision_id $rpid;
-                    (deal: $d, provision: $mfn) isa deal_has_provision;
-                    (deal: $d, provision: $rp) isa deal_has_provision;
-                select $rpid;
-            ''').resolve().as_concept_rows())
-            has_both = len(result) > 0
-        finally:
-            tx.close()
-
-        if not has_both:
-            logger.warning(f"Cannot create cross-reference for {deal_id}: missing MFN or RP provision")
+            logger.debug(f"Provision {provision_id} already exists")
             return
 
         tx = typedb_client.driver.transaction(
@@ -2026,242 +1420,112 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         )
         try:
             tx.query(f'''
-                match
-                    $d isa deal, has deal_id "{deal_id}";
-                    $mfn isa mfn_provision, has provision_id "{mfn_id}";
-                    $rp isa rp_provision, has provision_id $rpid;
-                    (deal: $d, provision: $mfn) isa deal_has_provision;
-                    (deal: $d, provision: $rp) isa deal_has_provision;
+                match $d isa deal, has deal_id "{deal_id}";
                 insert
-                    (source_provision: $mfn, target_provision: $rp)
-                        isa provision_cross_reference,
-                        has cross_reference_type "depends_on",
-                        has cross_reference_explanation "MFN exclusions interact with RP debt incurrence capacity.";
+                    $p isa {provision_type}, has provision_id "{provision_id}";
+                    (deal: $d, provision: $p) isa deal_has_provision;
             ''').resolve()
             tx.commit()
-            logger.info(f"Created MFN→RP cross-reference for deal {deal_id}")
+            logger.info(f"Created {provision_type}: {provision_id}")
         except Exception as e:
             if tx.is_open():
                 tx.close()
-            logger.error(f"Failed to create cross-reference for {deal_id}: {e}")
+            logger.error(f"Failed to create provision {provision_id}: {e}")
             raise
 
-    # =========================================================================
-    # MFN ENTITY EXTRACTION
-    # =========================================================================
-
-    async def run_mfn_entity_extraction(
+    async def _extract_entities_unified(
         self,
+        universe: CovenantUniverse,
+        questions: List[dict],
+        model: str,
         deal_id: str,
-        mfn_universe_text: str,
-    ) -> dict:
-        """Extract MFN entities via unified entity_list pipeline.
-
-        Same flow as RP: load entity_list questions → build_entity_list_prompt
-        (schema introspection) → Claude → parse → store_extraction.
-        """
+        cost_summary: 'ExtractionCostSummary',
+    ) -> List[dict]:
+        """Extract entities — unified for all covenant types."""
         from app.services.graph_storage import GraphStorage
 
-        provision_id = f"{deal_id}_mfn"
+        prompt = GraphStorage.build_entity_list_prompt(questions, universe.raw_text)
+        logger.info(f"Entity extraction prompt: {len(prompt)} chars")
 
-        # 1. Load MFN entity_list questions
-        entity_list_questions = self._load_entity_list_questions("MFN")
-        if not entity_list_questions:
-            logger.warning("No MFN entity_list questions found")
-            return {"entities_stored": 0, "errors": ["No MFN entity_list questions"]}
-
-        # 2. Build prompt (schema introspection adds fields automatically)
-        entity_prompt = GraphStorage.build_entity_list_prompt(
-            entity_list_questions, mfn_universe_text
-        )
-        logger.info(
-            f"MFN entity list prompt: {len(entity_prompt)} chars, "
-            f"{len(entity_list_questions)} questions"
+        response = self._call_claude_extract(
+            prompt=prompt,
+            model=model,
+            deal_id=deal_id,
+            step_name="entity_list",
+            cost_summary=cost_summary,
         )
 
-        # 3. Call Claude (synchronous — matches RP pattern)
-        model = settings.claude_model
-        entity_response = self._call_claude_unified(
-            entity_prompt, model, deal_id, step_name="mfn_entity_list"
-        )
-        logger.info(f"MFN entity list response: {len(entity_response)} chars")
+        extraction = GraphStorage.parse_extraction_response(response)
+        return extraction.answers
 
-        # 4. Parse and store via unified store_extraction
-        entity_extraction = GraphStorage.parse_extraction_response(entity_response)
-        storage = GraphStorage(deal_id)
-        result = storage.store_extraction(deal_id, provision_id, entity_extraction)
-        logger.info(f"MFN entity storage: {result}")
-
-        return {
-            "entities_stored": result.get("entities_created", 0),
-            "answers_stored": result.get("answers_stored", 0),
-        }
-
-    async def extract_rp_unified(
+    async def _extract_scalars_dynamic(
         self,
+        universe: CovenantUniverse,
+        questions_by_cat: Dict[str, List],
+        model: str,
         deal_id: str,
-        document_text: str,
-        rp_universe: 'CovenantUniverse',
-        segment_map: Optional[dict] = None,
-        model: Optional[str] = None,
-    ) -> 'ExtractionResult':
-        """
-        Batched extraction pipeline — multiple Claude calls, unified answer format.
-
-        Splits extraction into batched calls sharing the same document text:
-        - Call 0: Entity list extraction (dedicated call for full entity coverage)
-        - Calls 1-N: Scalar/multiselect questions in category-grouped batches
-        - JC2/JC3: Separate calls (different context needed)
-
-        ALL answers flow through {"answers": [...]} response format.
-        Entity field lists come from TypeDB schema introspection.
-
-        Args:
-            deal_id: The deal being extracted
-            document_text: Full parsed document text
-            rp_universe: Already-extracted RP universe
-            segment_map: Segment map from segmentation (for reuse)
-            model: Claude model to use (default from settings)
-
-        Returns:
-            ExtractionResult with extraction, storage results, and cost data
-        """
+        cost_summary: 'ExtractionCostSummary',
+    ) -> List[dict]:
+        """Dynamic batched scalar extraction."""
         from app.services.graph_storage import GraphStorage
 
-        start_time = time.time()
-        model = model or settings.claude_model
-        universe_chars = len(rp_universe.raw_text)
-
-        logger.info(f"Unified V4 extraction starting for deal {deal_id}")
-
-        # Step 1: Load all RP questions (scalar/multiselect, via category_has_question)
-        all_questions = self.load_questions_by_category("RP")
-
-        # JC1 goes into the unified call (same RP universe context).
-        # JC2/JC3 need separate context, handled after.
-        jc2_questions = all_questions.pop("JC2", [])
-        jc3_questions = all_questions.pop("JC3", [])
-
-        # Step 2: Load entity_list questions (separate — no category relations)
-        entity_list_questions = self._load_entity_list_questions("RP")
-
-        total_scalar = sum(len(qs) for qs in all_questions.values())
-        logger.info(
-            f"Loaded {total_scalar} scalar/multiselect questions "
-            f"({len(all_questions)} categories), "
-            f"{len(entity_list_questions)} entity_list questions, "
-            f"JC2={len(jc2_questions)}, JC3={len(jc3_questions)} deferred"
-        )
-
-        # Collect cost tracking
-        from app.services.cost_tracker import ExtractionCostSummary
-        from app.schemas.extraction_response import ExtractionResponse
-        cost_summary = ExtractionCostSummary(deal_id=deal_id)
-        for usage in getattr(self, '_streaming_usages', []):
-            usage.deal_id = deal_id
-            cost_summary.add(usage)
-        self._streaming_usages = []
-
+        batches = self._batch_questions_by_category(questions_by_cat)
         all_answers = []
 
-        # Step 3: Call 0 — Entity list extraction (dedicated call)
-        if entity_list_questions:
-            entity_prompt = GraphStorage.build_entity_list_prompt(
-                entity_list_questions, rp_universe.raw_text
-            )
-            logger.info(f"Entity list prompt built: {len(entity_prompt)} chars")
-            entity_response = self._call_claude_unified(
-                entity_prompt, model, deal_id, step_name="rp_entity_list"
-            )
-            logger.info(f"Entity list response: {len(entity_response)} chars")
-            if getattr(self, '_last_usage', None):
-                self._last_usage.deal_id = deal_id
-                cost_summary.add(self._last_usage)
-
-            entity_extraction = GraphStorage.parse_extraction_response(entity_response)
-            all_answers.extend(entity_extraction.answers)
-            logger.info(f"Call 0 (entity_list): {len(entity_extraction.answers)} answers")
-
-        # Step 4: Calls 1-N — Scalar/multiselect in batches
-        batches = self._batch_questions_by_category(all_questions)
-        logger.info(f"Scalar extraction: {len(batches)} batches from {total_scalar} questions")
-
         for i, batch_questions in enumerate(batches):
-            batch_prompt = GraphStorage.build_scalar_prompt(
-                batch_questions, rp_universe.raw_text
-            )
-            batch_q_count = sum(len(qs) for qs in batch_questions.values())
             batch_cats = sorted(batch_questions.keys())
+            batch_count = sum(len(qs) for qs in batch_questions.values())
+
+            prompt = GraphStorage.build_scalar_prompt(batch_questions, universe.raw_text)
             logger.info(
-                f"Batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
-                f"{batch_q_count} questions, {len(batch_prompt)} chars prompt"
+                f"Scalar batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
+                f"{batch_count} questions, {len(prompt)} chars"
             )
 
-            batch_response = self._call_claude_unified(
-                batch_prompt, model, deal_id, step_name=f"rp_scalar_batch_{i+1}"
-            )
-            if getattr(self, '_last_usage', None):
-                self._last_usage.deal_id = deal_id
-                cost_summary.add(self._last_usage)
-
-            batch_extraction = GraphStorage.parse_extraction_response(batch_response)
-            all_answers.extend(batch_extraction.answers)
-            logger.info(
-                f"Batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
-                f"{len(batch_extraction.answers)}/{batch_q_count} answers"
+            response = self._call_claude_extract(
+                prompt=prompt,
+                model=model,
+                deal_id=deal_id,
+                step_name=f"scalar_batch_{i+1}",
+                cost_summary=cost_summary,
             )
 
-        # Merge all answers
-        extraction = ExtractionResponse(answers=all_answers)
-        entity_count = sum(1 for a in extraction.answers if a.answer_type == "entity_list")
-        scalar_count = len(extraction.answers) - entity_count
-        logger.info(f"Total: {scalar_count} scalar/multiselect, {entity_count} entity_list answers from {1 + len(batches)} calls")
+            extraction = GraphStorage.parse_extraction_response(response)
+            all_answers.extend(extraction.answers)
+            logger.info(f"Batch {i+1} complete: {len(extraction.answers)} answers")
 
-        # Step 6: Ensure provision exists, then store
-        storage = GraphStorage(deal_id)
-        provision_id = f"{deal_id}_rp"
-        storage._ensure_rp_provision_v4(provision_id)
-        logger.info("Storing unified extraction to TypeDB...")
-        storage_result = storage.store_extraction(deal_id, provision_id, extraction)
-        logger.info(f"Storage complete: {storage_result}")
+        return all_answers
 
-        # Step 7: Run JC Tiers 2 & 3 (separate Claude calls — different context)
-        jc_result = await self._run_jcrew_tiers_2_3(
-            deal_id=deal_id,
-            provision_id=f"{deal_id}_rp",
-            document_text=document_text,
-            rp_universe=rp_universe,
-            jc2_questions=jc2_questions,
-            jc3_questions=jc3_questions,
+    def _call_claude_extract(
+        self,
+        prompt: str,
+        model: str,
+        deal_id: str,
+        step_name: str,
+        cost_summary: 'ExtractionCostSummary',
+    ) -> str:
+        """Unified Claude API call with cost tracking for extraction."""
+        from app.services.cost_tracker import extract_usage
+
+        start = time.time()
+        response = self.client.messages.create(
+            model=model,
+            max_tokens=16000,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=600.0,
         )
-        if jc_result:
-            if getattr(self, '_last_jc2_usage', None):
-                cost_summary.add(self._last_jc2_usage)
-            if getattr(self, '_last_jc3_usage', None):
-                cost_summary.add(self._last_jc3_usage)
+        duration = time.time() - start
 
-        extraction_time = time.time() - start_time
-        logger.info(f"Unified V4 extraction complete in {extraction_time:.1f}s")
-        cost_summary.log_summary()
+        usage = extract_usage(response, model, step_name, deal_id=deal_id, duration=duration)
+        cost_summary.add(usage)
 
-        return ExtractionResult(
-            deal_id=deal_id,
-            extraction=extraction,
-            storage_result=storage_result,
-            extraction_time_seconds=extraction_time,
-            rp_universe_chars=universe_chars,
-            model_used=model,
-            total_cost_usd=round(cost_summary.total_cost_usd, 4),
-            cost_breakdown={
-                "num_api_calls": len(cost_summary.steps),
-                "total_input_tokens": cost_summary.total_input_tokens,
-                "total_output_tokens": cost_summary.total_output_tokens,
-                "steps": [
-                    {"step": s.step, "model": s.model, "cost_usd": round(s.cost_usd, 4)}
-                    for s in cost_summary.steps
-                ],
-            },
+        text = response.content[0].text.strip()
+        logger.info(
+            f"Claude {step_name}: {len(text)} chars, "
+            f"stop_reason={response.stop_reason}, {duration:.1f}s"
         )
+
+        return text
 
     def _batch_questions_by_category(self, questions_by_cat: Dict[str, List], max_tokens_budget: int = 10000) -> List[Dict[str, List]]:
         """Split scalar/multiselect questions into batches that fit within output token budget.
@@ -2299,160 +1563,6 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
             batches.append(current_batch)
 
         return batches
-
-    def _call_claude_unified(self, prompt: str, model: str, deal_id: Optional[str] = None, step_name: str = "rp_unified") -> str:
-        """Call Claude API for V4 extraction (entities or scalar batch).
-
-        Uses max_tokens=16384 and 10-minute timeout.
-
-        Args:
-            prompt: The formatted extraction prompt
-            model: Claude model to use
-            deal_id: Deal being extracted (for cost tracking)
-            step_name: Label for cost tracking (e.g. "rp_entity_list", "rp_scalar_batch_1")
-        """
-        from app.services.cost_tracker import extract_usage
-        try:
-            start = time.time()
-            response = self.client.messages.create(
-                model=model,
-                max_tokens=16384,
-                system=self._V4_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
-                timeout=600.0  # 10 minute timeout
-            )
-            duration = time.time() - start
-            self._last_usage = extract_usage(
-                response, model, step_name, deal_id=deal_id, duration=duration
-            )
-            return response.content[0].text
-        except Exception as e:
-            logger.error(f"Claude API error ({step_name}): {e}")
-            self._last_usage = None
-            raise
-
-    async def _run_jcrew_tiers_2_3(
-        self,
-        deal_id: str,
-        provision_id: str,
-        document_text: str,
-        rp_universe: 'CovenantUniverse',
-        jc2_questions: List[Dict],
-        jc3_questions: List[Dict],
-    ) -> Optional[Dict[str, Any]]:
-        """Run J.Crew Tiers 2 & 3 as separate Claude calls.
-
-        Tier 2 needs definitions section context (not RP universe).
-        Tier 3 needs combined context + prior Tier 1/2 answers.
-        JC Tier 1 is absorbed into the unified extraction call.
-
-        Returns summary dict or None if no JC2/JC3 questions.
-        """
-        if not jc2_questions and not jc3_questions:
-            logger.info("No JC2/JC3 questions — skipping tiers 2-3")
-            return None
-
-        start_time = time.time()
-        all_category_answers: List[CategoryAnswers] = []
-        prior_answers_summary: List[str] = []
-        definitions_text = ""
-
-        _XREF_T2 = (
-            "CRITICAL DEFINITIONS RULE: Terms can be defined three ways:\n"
-            "(a) INLINE — full text in this document ('X means...')\n"
-            "(b) CROSS-REFERENCE — defined by reference to another document "
-            "('X shall have the meaning assigned in the Security Agreement')\n"
-            "(c) NOT DEFINED — term does not appear at all\n"
-            "A cross-reference IS a definition. When extracting definitions, "
-            "return the cross-reference language verbatim. When asked if a "
-            "term is defined, answer true for both inline and cross-reference. "
-            "When asked to analyze what a definition includes or excludes, and "
-            "the definition is a cross-reference, state that the analysis "
-            "requires the referenced document and answer SILENT for all "
-            "inclusion/exclusion checks (not EXCLUDED — we don't know what's "
-            "excluded without reading the other document)."
-        )
-        _XREF_T3 = (
-            "DEFINITIONS RULE: Cross-reference definitions (defined by "
-            "reference to another document) are definitions but cannot be "
-            "fully analyzed from this document alone. When a Tier 2 answer "
-            "shows a cross-reference definition, note this as a limitation — "
-            "the definition quality cannot be assessed without the referenced "
-            "document. Do not treat cross-reference definitions as gaps; "
-            "treat them as unknowns."
-        )
-
-        # Tier 2: Definition quality against definitions text
-        if jc2_questions:
-            logger.info(f"J.Crew Tier 2: {len(jc2_questions)} questions against definitions...")
-            definitions_text = self.extract_definitions_section(document_text)
-            if not definitions_text:
-                definitions_text = rp_universe.definitions or rp_universe.raw_text
-
-            t2_answers = self._answer_category_questions(
-                definitions_text,
-                jc2_questions,
-                "J.Crew Tier 2 — Definition Quality",
-                system_instruction=_XREF_T2,
-            )
-            self._last_jc2_usage = getattr(self, '_last_qa_usage', None)
-            all_category_answers.append(CategoryAnswers(
-                category_id="JC2",
-                category_name="J.Crew Tier 2 — Definition Quality",
-                answers=t2_answers,
-            ))
-            for a in t2_answers:
-                if a.confidence in ("high", "medium"):
-                    prior_answers_summary.append(
-                        f"[{a.question_id}] = {a.value} ({a.confidence})"
-                    )
-            logger.info(f"Tier 2 complete: {len(t2_answers)} answers")
-
-        # Tier 3: Cross-reference against definitions + prior answers only
-        # (NOT full RP universe — T3 analyzes interactions between extracted
-        # provisions, not raw covenant language. Full text would exceed 200K tokens.)
-        if jc3_questions:
-            logger.info(f"J.Crew Tier 3: {len(jc3_questions)} questions (cross-reference)...")
-            combined_parts = []
-            if definitions_text:
-                combined_parts.append("## DEFINITIONS (from document)\n\n")
-                combined_parts.append(definitions_text)
-            if prior_answers_summary:
-                combined_parts.append("\n\n## PRIOR TIER 1 & 2 FINDINGS\n\n")
-                combined_parts.append(
-                    "These findings from earlier analysis tiers are "
-                    "provided for cross-reference:\n"
-                )
-                combined_parts.append("\n".join(prior_answers_summary))
-            if not combined_parts:
-                combined_parts.append("No prior findings available.")
-
-            t3_answers = self._answer_category_questions(
-                "\n".join(combined_parts),
-                jc3_questions,
-                "J.Crew Tier 3 — Cross-Reference Interactions",
-                system_instruction=_XREF_T3,
-            )
-            self._last_jc3_usage = getattr(self, '_last_qa_usage', None)
-            all_category_answers.append(CategoryAnswers(
-                category_id="JC3",
-                category_name="J.Crew Tier 3 — Cross-Reference Interactions",
-                answers=t3_answers,
-            ))
-            logger.info(f"Tier 3 complete: {len(t3_answers)} answers")
-
-        # Store JC2/JC3 answers
-        if all_category_answers:
-            self.store_extraction_result(deal_id, all_category_answers)
-
-        elapsed = time.time() - start_time
-        total = sum(len(ca.answers) for ca in all_category_answers)
-        logger.info(f"J.Crew Tiers 2-3 complete in {elapsed:.1f}s: {total} answers")
-
-        return {
-            "total_answers": total,
-            "elapsed_seconds": round(elapsed, 1),
-        }
 
     def _load_entity_list_questions(self, covenant_type: str) -> List[Dict]:
         """Load entity_list questions from TypeDB (no category relations).
@@ -2511,19 +1621,6 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         except Exception as e:
             logger.error(f"Error loading entity_list questions: {e}")
             return []
-
-
-@dataclass
-class ExtractionResult:
-    """Result of V4 graph-native extraction."""
-    deal_id: str
-    extraction: Any  # ExtractionResponse
-    storage_result: Dict[str, Any]
-    extraction_time_seconds: float
-    rp_universe_chars: int
-    model_used: str
-    total_cost_usd: Optional[float] = None
-    cost_breakdown: Optional[Dict] = None
 
 
 # =============================================================================
