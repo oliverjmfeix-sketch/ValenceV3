@@ -15,3 +15,27 @@ insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_basket", has bask
 insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_rdp_basket", has basket_type_name "ratio_rdp_basket", has capacity_category "unlimited_conditional";
 
 insert $m isa basket_capacity_class, has mapping_id "bcc_unsub_distribution_basket", has basket_type_name "unsub_distribution_basket", has capacity_category "categorical";
+
+# DI basket capacity classifications
+insert $m isa basket_capacity_class, has mapping_id "bcc_credit_agreement_basket", has basket_type_name "credit_agreement_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_incremental_basket", has basket_type_name "incremental_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_general_basket", has basket_type_name "general_basket", has capacity_category "general_purpose";
+
+insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_debt_basket", has basket_type_name "ratio_debt_basket", has capacity_category "unlimited_conditional";
+insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_secured_basket", has basket_type_name "ratio_secured_basket", has capacity_category "unlimited_conditional";
+insert $m isa basket_capacity_class, has mapping_id "bcc_ratio_unsecured_basket", has basket_type_name "ratio_unsecured_basket", has capacity_category "unlimited_conditional";
+
+insert $m isa basket_capacity_class, has mapping_id "bcc_acquisition_basket", has basket_type_name "acquisition_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_capital_lease_basket", has basket_type_name "capital_lease_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_purchase_money_basket", has basket_type_name "purchase_money_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_intercompany_basket", has basket_type_name "intercompany_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_refinancing_basket", has basket_type_name "refinancing_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_hedging_basket", has basket_type_name "hedging_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_lc_basket", has basket_type_name "lc_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_sale_leaseback_basket", has basket_type_name "sale_leaseback_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_foreign_subsidiary_basket", has basket_type_name "foreign_subsidiary_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_earnout_basket", has basket_type_name "earnout_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_working_capital_basket", has basket_type_name "working_capital_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_contribution_basket", has basket_type_name "contribution_basket", has capacity_category "restricted_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_ied_basket", has basket_type_name "ied_basket", has capacity_category "general_purpose";
+insert $m isa basket_capacity_class, has mapping_id "bcc_non_guarantor_basket", has basket_type_name "non_guarantor_basket", has capacity_category "restricted_purpose";
