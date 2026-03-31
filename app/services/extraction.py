@@ -25,7 +25,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from anthropic import Anthropic
+import asyncio
+
+from anthropic import Anthropic, AsyncAnthropic
 
 from app.config import settings
 from app.services.pdf_parser import PDFParser, get_pdf_parser
@@ -210,7 +212,9 @@ class ExtractionService:
         model: Optional[str] = None,
         parser: Optional[PDFParser] = None
     ):
-        self.client = Anthropic(api_key=api_key or settings.anthropic_api_key)
+        key = api_key or settings.anthropic_api_key
+        self.client = Anthropic(api_key=key)
+        self.async_client = AsyncAnthropic(api_key=key)
         self.model = model or settings.claude_model
         self.parser = parser or get_pdf_parser()
 
@@ -1297,12 +1301,9 @@ Return ONLY the JSON array."""
         prompt = GraphStorage.build_entity_list_prompt(questions, universe.raw_text)
         logger.info(f"Entity extraction prompt: {len(prompt)} chars")
 
-        response = self._call_claude_extract(
-            prompt=prompt,
-            model=model,
-            deal_id=deal_id,
-            step_name="entity_list",
-            cost_summary=cost_summary,
+        response = await self._call_claude_extract_async(
+            prompt=prompt, model=model, deal_id=deal_id,
+            step_name="entity_list", cost_summary=cost_summary,
         )
 
         extraction = GraphStorage.parse_extraction_response(response)
@@ -1316,37 +1317,40 @@ Return ONLY the JSON array."""
         deal_id: str,
         cost_summary: 'ExtractionCostSummary',
     ) -> List[dict]:
-        """Dynamic batched scalar extraction."""
+        """Dynamic batched scalar extraction — all batches run in parallel."""
         from app.services.graph_storage import GraphStorage
 
         batches = self._batch_questions_by_category(questions_by_cat)
-        all_answers = []
+        logger.info(f"Scalar extraction: {len(batches)} batches in parallel")
 
-        for i, batch_questions in enumerate(batches):
+        async def extract_batch(i: int, batch_questions: Dict[str, List]) -> List[dict]:
             batch_cats = sorted(batch_questions.keys())
             batch_count = sum(len(qs) for qs in batch_questions.values())
-
             prompt = GraphStorage.build_scalar_prompt(batch_questions, universe.raw_text)
             logger.info(
                 f"Scalar batch {i+1}/{len(batches)} ({','.join(batch_cats)}): "
                 f"{batch_count} questions, {len(prompt)} chars"
             )
 
-            response = self._call_claude_extract(
-                prompt=prompt,
-                model=model,
-                deal_id=deal_id,
-                step_name=f"scalar_batch_{i+1}",
-                cost_summary=cost_summary,
+            response = await self._call_claude_extract_async(
+                prompt=prompt, model=model, deal_id=deal_id,
+                step_name=f"scalar_batch_{i+1}", cost_summary=cost_summary,
             )
 
             extraction = GraphStorage.parse_extraction_response(response)
-            all_answers.extend(extraction.answers)
             logger.info(f"Batch {i+1} complete: {len(extraction.answers)} answers")
+            return extraction.answers
 
+        results = await asyncio.gather(*[
+            extract_batch(i, batch) for i, batch in enumerate(batches)
+        ])
+
+        all_answers = []
+        for batch_answers in results:
+            all_answers.extend(batch_answers)
         return all_answers
 
-    def _call_claude_extract(
+    async def _call_claude_extract_async(
         self,
         prompt: str,
         model: str,
@@ -1354,11 +1358,11 @@ Return ONLY the JSON array."""
         step_name: str,
         cost_summary: 'ExtractionCostSummary',
     ) -> str:
-        """Unified Claude API call with cost tracking for extraction."""
+        """Async Claude API call with cost tracking for extraction."""
         from app.services.cost_tracker import extract_usage
 
         start = time.time()
-        response = self.client.messages.create(
+        response = await self.async_client.messages.create(
             model=model,
             max_tokens=16000,
             messages=[{"role": "user", "content": prompt}],
