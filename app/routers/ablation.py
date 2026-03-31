@@ -598,7 +598,7 @@ async def run_ablation_test(deal_id: str, request: AblationRequest) -> AblationR
 
     # === PRE-FLIGHT: Verify RP universe text exists ===
     uploads_dir = settings.upload_dir
-    rp_universe_path = os.path.join(uploads_dir, f"{deal_id}_rp_universe.txt")
+    rp_universe_path = os.path.join(uploads_dir, f"{deal_id}_rp_universe.json")
     if not os.path.exists(rp_universe_path):
         raise HTTPException(
             status_code=404,
@@ -748,7 +748,7 @@ async def run_duck_creek_ablation(deal_id: str) -> AblationResult:
     from app.eval.duck_creek_ablation import DUCK_CREEK_ABLATION_QUESTIONS
 
     resolved_deal_id = deal_id
-    rp_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
+    rp_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.json")
 
     if not os.path.exists(rp_path):
         logger.info(
@@ -765,7 +765,7 @@ async def run_duck_creek_ablation(deal_id: str) -> AblationResult:
                 ),
             )
 
-        rp_path = os.path.join(UPLOADS_DIR, f"{resolved_deal_id}_rp_universe.txt")
+        rp_path = os.path.join(UPLOADS_DIR, f"{resolved_deal_id}_rp_universe.json")
         if not os.path.exists(rp_path):
             raise HTTPException(
                 status_code=404,
@@ -793,14 +793,14 @@ async def debug_segmenter(deal_id: str):
     """Run the segmenter on a deal's PDF and return detailed diagnostics.
 
     Re-runs segmentation (~$0.76, ~30s) and traces every step from
-    PDF parse → segment_document → _build_rp_universe_from_segments
-    → _build_combined_context. Compares fresh result against cached file.
+    PDF parse → segment_document → get_or_build_universe.
+    Compares fresh result against cached file.
 
     Does NOT re-extract or store anything. Read-only diagnostic.
     """
     import math
 
-    from app.services.extraction import get_extraction_service, RPUniverse
+    from app.services.extraction import get_extraction_service, CovenantUniverse
     from app.services.pdf_parser import PDFParser
     from app.services.segment_introspector import (
         get_segment_types, get_rp_segment_mapping,
@@ -875,28 +875,25 @@ async def debug_segmenter(deal_id: str):
 
         segment_diagnostics.append(diag)
 
-    # ── Step 4: Build RPUniverse and check each field ──────────────────
-    universe = svc._build_rp_universe_from_segments(document_text, segment_map)
-
-    universe_fields = {
-        "definitions": len(universe.definitions),
-        "dividend_covenant": len(universe.dividend_covenant),
-        "investment_covenant": len(universe.investment_covenant),
-        "asset_sale_covenant": len(universe.asset_sale_covenant),
-        "rdp_covenant": len(universe.rdp_covenant),
-        "unsub_mechanics": len(universe.unsub_mechanics),
-        "pro_forma_mechanics": len(universe.pro_forma_mechanics),
-        "raw_text": len(universe.raw_text),
-    }
-
-    raw_rp_mentions = universe.raw_text.lower().count("restricted payment")
-    dividend_rp_mentions = (
-        universe.dividend_covenant.lower().count("restricted payment")
-        if universe.dividend_covenant else 0
+    # ── Step 4: Build CovenantUniverse and check each section ───────────
+    universe = svc.get_or_build_universe(
+        deal_id=deal_id, covenant_type="RP",
+        document_text=document_text, segment_map=segment_map,
+        validate=False,
     )
 
+    universe_fields = {}
+    if universe:
+        for section_name, content in universe.sections.items():
+            universe_fields[section_name] = len(content)
+        universe_fields["raw_text"] = len(universe.raw_text)
+
+    raw_rp_mentions = universe.raw_text.lower().count("restricted payment") if universe else 0
+    dividend_text = universe.sections.get("dividend_covenant", "") if universe else ""
+    dividend_rp_mentions = dividend_text.lower().count("restricted payment") if dividend_text else 0
+
     # ── Step 5: Compare against cached file ────────────────────────────
-    cached_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.txt")
+    cached_path = os.path.join(UPLOADS_DIR, f"{deal_id}_rp_universe.json")
     if os.path.exists(cached_path):
         cached_text = open(cached_path, "r", encoding="utf-8").read()
         cached_comparison = {
