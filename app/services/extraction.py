@@ -325,21 +325,21 @@ class ExtractionService:
         Sends the full universe text (fits within Haiku's 200K token context).
         Cost: ~$0.11 for a 400K char RP universe, less for MFN.
         """
-        prompt = f"""You are a senior leveraged finance attorney. The text below was extracted from a credit agreement and is supposed to contain the {universe.covenant_type} provision.
+        prompt = f"""The text below was extracted from a credit agreement.
 
-Using your domain knowledge, does this text actually contain the {universe.covenant_type} provision? Answer YES or NO.
+{universe.raw_text}
 
-{universe.raw_text}"""
+Using your domain knowledge as a leveraged finance attorney, does this text contain the {universe.covenant_type} provision? Answer only YES or NO."""
 
         try:
             response = self.client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=10,
+                max_tokens=50,
                 messages=[{"role": "user", "content": prompt}]
             )
 
-            answer = response.content[0].text.strip().upper()
-            is_valid = answer.startswith("YES")
+            answer = response.content[0].text.strip()
+            is_valid = "YES" in answer.upper()
 
             if is_valid:
                 logger.info(f"{universe.covenant_type} universe validation PASSED for {universe.deal_id}")
