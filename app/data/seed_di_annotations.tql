@@ -1,0 +1,966 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEBT INCURRENCE QUESTION → ENTITY ATTRIBUTE ANNOTATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Routes scalar questions to entity attributes for the extraction pipeline.
+# Pattern: question_annotates_attribute relation links question_id to
+# (target_entity_type, target_attribute_name) pair.
+#
+# The extraction pipeline uses these annotations to:
+# 1. Create single-instance entities when _exists questions return true
+# 2. Populate entity attributes from scalar question answers
+# 3. Route multiselect answers to boolean flags on entities
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI1: CORE STRUCTURE → di_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_a1: "Does a debt incurrence negative covenant exist?"
+match $q isa ontology_question, has question_id "di_a1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "di_covenant_exists";
+
+# di_a2: "What is the section reference for the debt incurrence covenant?"
+match $q isa ontology_question, has question_id "di_a2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "section_reference";
+
+# di_a3: "Does the covenant bind the Borrower?"
+match $q isa ontology_question, has question_id "di_a3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "binds_borrower";
+
+# di_a4: "Does the covenant bind Guarantors?"
+match $q isa ontology_question, has question_id "di_a4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "binds_guarantors";
+
+# di_a5: "Does the covenant bind all Restricted Subsidiaries?"
+match $q isa ontology_question, has question_id "di_a5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "binds_restricted_subs";
+
+# di_a6: "Is there a separate covenant for secured debt incurrence?"
+match $q isa ontology_question, has question_id "di_a6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "has_separate_secured_covenant";
+
+# di_a7: "Is the definition of 'Indebtedness' broad?"
+match $q isa ontology_question, has question_id "di_a7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "indebtedness_definition_broad";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI2: INCREMENTAL FACILITY → incremental_facility
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_b0: "Does the agreement include an incremental facility provision?"
+match $q isa ontology_question, has question_id "di_b0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "_exists";
+
+# di_b1: "What is the section reference for the incremental facility?"
+match $q isa ontology_question, has question_id "di_b1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "section_reference";
+
+# di_b2: "What is the free-and-clear (freebie) amount in USD?"
+match $q isa ontology_question, has question_id "di_b2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "free_and_clear_amount_usd";
+
+# di_b3: "What is the free-and-clear amount as a percentage of EBITDA?"
+match $q isa ontology_question, has question_id "di_b3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "free_and_clear_pct_ebitda";
+
+# di_b4: "Is the free-and-clear basket a 'grower'?"
+match $q isa ontology_question, has question_id "di_b4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "free_and_clear_is_grower";
+
+# di_b5: "Does a prepayments prong exist (dry powder)?"
+match $q isa ontology_question, has question_id "di_b5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "prepayments_prong_exists";
+
+# di_b6: "Does the prepayments prong include prepayment of junior lien debt?"
+match $q isa ontology_question, has question_id "di_b6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "prepayments_includes_junior";
+
+# di_b7: "Does the prepayments prong include debt buybacks?"
+match $q isa ontology_question, has question_id "di_b7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "prepayments_includes_buybacks";
+
+# di_b8: "Does a ratio prong exist (unlimited if ratio met)?"
+match $q isa ontology_question, has question_id "di_b8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ratio_prong_exists";
+
+# di_b9: "What is the leverage threshold for the ratio prong (first lien)?"
+match $q isa ontology_question, has question_id "di_b9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ratio_prong_first_lien_threshold";
+
+# di_b10: "What is the leverage threshold for the ratio prong (total)?"
+match $q isa ontology_question, has question_id "di_b10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ratio_prong_total_threshold";
+
+# di_b11: "Is the ratio prong truly unlimited (no dollar cap when ratio met)?"
+match $q isa ontology_question, has question_id "di_b11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ratio_prong_unlimited";
+
+# di_b12: "Can the general debt basket be added to incremental capacity?"
+match $q isa ontology_question, has question_id "di_b12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "general_basket_addable";
+
+# di_b13: "Is the freebie excluded from pro forma ratio calculation?"
+match $q isa ontology_question, has question_id "di_b13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "freebie_excluded_from_ratio";
+
+# di_b14: "Does incremental require no Default or Event of Default?"
+match $q isa ontology_question, has question_id "di_b14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "requires_no_default";
+
+# di_b15: "Does incremental require only no Event of Default (not Defaults)?"
+match $q isa ontology_question, has question_id "di_b15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "requires_no_eod_only";
+
+# di_b16: "Can incremental mature inside the existing term loan maturity?"
+match $q isa ontology_question, has question_id "di_b16";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "maturity_inside_permitted";
+
+# di_b17: "Must incremental have WAL at least equal to existing term loans?"
+match $q isa ontology_question, has question_id "di_b17";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "requires_wal_parity";
+
+# di_b18: "Is scheduled amortization prohibited on incremental?"
+match $q isa ontology_question, has question_id "di_b18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "amortization_prohibited";
+
+# di_b19: "Must incremental covenants be no more restrictive than existing?"
+match $q isa ontology_question, has question_id "di_b19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "requires_covenant_parity";
+
+# di_b20: "Does incremental permit term loans?"
+match $q isa ontology_question, has question_id "di_b20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "permits_term_loans";
+
+# di_b21: "Does incremental permit revolving commitments?"
+match $q isa ontology_question, has question_id "di_b21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "permits_revolving";
+
+# di_b22: "Is incremental subject to customary NURD terms?"
+match $q isa ontology_question, has question_id "di_b22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "agent_consent_nurd";
+
+# di_b23: "Is there a minimum tranche size for incremental?"
+match $q isa ontology_question, has question_id "di_b23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "minimum_tranche_size";
+
+# di_b24: "Can existing lenders be required to participate in incremental?"
+match $q isa ontology_question, has question_id "di_b24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "lender_participation_voluntary";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI3: MFN PROTECTION → incremental_facility
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_c1: "Does MFN protection apply to incremental term loans?"
+match $q isa ontology_question, has question_id "di_c1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_applies";
+
+# di_c2: "What is the MFN threshold in basis points?"
+match $q isa ontology_question, has question_id "di_c2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_threshold_bps";
+
+# di_c3: "Does MFN use all-in yield (not just margin)?"
+match $q isa ontology_question, has question_id "di_c3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_uses_all_in_yield";
+
+# di_c4: "What is the MFN sunset period in months?"
+match $q isa ontology_question, has question_id "di_c4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_sunset_months";
+
+# di_c5: "Is the freebie basket excluded from MFN?"
+match $q isa ontology_question, has question_id "di_c5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_excludes_freebie";
+
+# di_c6: "Is acquisition-related incremental excluded from MFN?"
+match $q isa ontology_question, has question_id "di_c6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_excludes_acquisitions";
+
+# di_c7: "Is incremental maturing 2+ years after existing excluded from MFN?"
+match $q isa ontology_question, has question_id "di_c7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_excludes_maturity_outside";
+
+# di_c8: "What is the maturity exclusion period for MFN (months)?"
+match $q isa ontology_question, has question_id "di_c8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_maturity_exclusion_months";
+
+# di_c9: "Is fixed-rate incremental excluded from MFN?"
+match $q isa ontology_question, has question_id "di_c9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_excludes_fixed_rate";
+
+# di_c10: "Does OID count in the all-in yield calculation?"
+match $q isa ontology_question, has question_id "di_c10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_includes_oid";
+
+# di_c11: "What is the assumed OID amortization period (years)?"
+match $q isa ontology_question, has question_id "di_c11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_oid_amortization_years";
+
+# di_c12: "Do interest rate floors count in yield calculation?"
+match $q isa ontology_question, has question_id "di_c12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_includes_floors";
+
+# di_c13: "Are upfront fees included in yield calculation?"
+match $q isa ontology_question, has question_id "di_c13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_includes_upfront_fees";
+
+# di_c14: "Are arrangement/structuring fees excluded from yield calculation?"
+match $q isa ontology_question, has question_id "di_c14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_excludes_arranger_fees";
+
+# di_c15: "Does a de minimis amount of incremental avoid MFN?"
+match $q isa ontology_question, has question_id "di_c15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "mfn_de_minimis_amount";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI4: IED & SIDECAR → incremental_facility
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_d1: "Is Incremental Equivalent Debt (IED) permitted?"
+match $q isa ontology_question, has question_id "di_d1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_permitted";
+
+# di_d2: "Does IED share the same incremental cap?"
+match $q isa ontology_question, has question_id "di_d2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_shares_cap";
+
+# di_d3: "Does IED trigger MFN protection?" (CRITICAL)
+match $q isa ontology_question, has question_id "di_d3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_triggers_mfn";
+
+# di_d4: "Does IED require an acceptable intercreditor agreement?"
+match $q isa ontology_question, has question_id "di_d4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_requires_intercreditor";
+
+# di_d5: "What forms of IED are permitted?"
+match $q isa ontology_question, has question_id "di_d5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_permitted_forms";
+
+# di_d6: "Must IED have maturity no earlier than existing term loans?"
+match $q isa ontology_question, has question_id "di_d6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_maturity_restriction";
+
+# di_d7: "Must IED covenants be no more restrictive?"
+match $q isa ontology_question, has question_id "di_d7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_covenant_parity";
+
+# di_d8: "Can IED be incurred by Borrower only, or also by Guarantors?"
+match $q isa ontology_question, has question_id "di_d8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_permitted_incurrors";
+
+# di_d9: "Is junior lien IED permitted?"
+match $q isa ontology_question, has question_id "di_d9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_junior_lien_permitted";
+
+# di_d10: "Is unsecured IED permitted?"
+match $q isa ontology_question, has question_id "di_d10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "ied_unsecured_permitted";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI5: PERMITTED DEBT BASKETS → di_basket subtypes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- Credit Agreement Basket ---
+match $q isa ontology_question, has question_id "di_e_ca_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "credit_agreement_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_ca_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "credit_agreement_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Ratio Debt Basket ---
+match $q isa ontology_question, has question_id "di_e_rd_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_debt_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_rd_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_debt_basket",
+    has target_attribute_name "ratio_threshold";
+
+# --- General Basket ---
+match $q isa ontology_question, has question_id "di_e_gb_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_gb_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_basket",
+    has target_attribute_name "basket_cap_usd";
+
+match $q isa ontology_question, has question_id "di_e_gb_2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_basket",
+    has target_attribute_name "basket_cap_pct_ebitda";
+
+# --- Acquisition Debt Basket ---
+match $q isa ontology_question, has question_id "di_e_acq_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "acquisition_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_acq_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "acquisition_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Capital Lease Basket ---
+match $q isa ontology_question, has question_id "di_e_cl_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "capital_lease_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_cl_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "capital_lease_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Purchase Money Basket ---
+match $q isa ontology_question, has question_id "di_e_pm_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "purchase_money_basket",
+    has target_attribute_name "_exists";
+
+# --- Intercompany Basket ---
+match $q isa ontology_question, has question_id "di_e_ic_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_ic_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "intercompany_basket",
+    has target_attribute_name "requires_subordination";
+
+# --- Refinancing Basket ---
+match $q isa ontology_question, has question_id "di_e_ref_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_ref_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_basket",
+    has target_attribute_name "permitted_premium_pct";
+
+# --- Hedging Basket ---
+match $q isa ontology_question, has question_id "di_e_hdg_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "hedging_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_hdg_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "hedging_basket",
+    has target_attribute_name "notional_cap_usd";
+
+# --- Letters of Credit Basket ---
+match $q isa ontology_question, has question_id "di_e_lc_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "lc_basket",
+    has target_attribute_name "_exists";
+
+# --- Sale-Leaseback Basket ---
+match $q isa ontology_question, has question_id "di_e_slb_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sale_leaseback_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_slb_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "sale_leaseback_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Foreign Subsidiary Basket ---
+match $q isa ontology_question, has question_id "di_e_fs_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "foreign_subsidiary_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_fs_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "foreign_subsidiary_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Earnout Basket ---
+match $q isa ontology_question, has question_id "di_e_eo_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "earnout_basket",
+    has target_attribute_name "_exists";
+
+# --- Working Capital Basket ---
+match $q isa ontology_question, has question_id "di_e_wc_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "working_capital_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_wc_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "working_capital_basket",
+    has target_attribute_name "basket_cap_usd";
+
+# --- Contribution Debt Basket ---
+match $q isa ontology_question, has question_id "di_e_cd_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "contribution_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_cd_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "contribution_basket",
+    has target_attribute_name "contribution_multiplier";
+
+# --- Non-Guarantor Basket ---
+match $q isa ontology_question, has question_id "di_e_ng_0";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "non_guarantor_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "di_e_ng_1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "non_guarantor_basket",
+    has target_attribute_name "basket_cap_usd";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI6: RATIO TESTS → di_provision + incremental_facility
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_f1: "Does the agreement use First Lien Net Leverage Ratio?"
+match $q isa ontology_question, has question_id "di_f1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "uses_first_lien_leverage";
+
+# di_f2: "Does the agreement use Senior Secured Net Leverage Ratio?"
+match $q isa ontology_question, has question_id "di_f2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "uses_senior_secured_leverage";
+
+# di_f3: "Does the agreement use Total Net Leverage Ratio?"
+match $q isa ontology_question, has question_id "di_f3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "uses_total_leverage";
+
+# di_f4: "Does the agreement use Interest Coverage Ratio?"
+match $q isa ontology_question, has question_id "di_f4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "uses_interest_coverage";
+
+# di_f5: "Does the agreement use Fixed Charge Coverage Ratio?"
+match $q isa ontology_question, has question_id "di_f5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "uses_fixed_charge_coverage";
+
+# di_f6: "Is Limited Condition Transaction (LCT) election available?"
+match $q isa ontology_question, has question_id "di_f6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "lct_permitted";
+
+# di_f7: "How many concurrent LCT elections are permitted?"
+match $q isa ontology_question, has question_id "di_f7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "lct_max_concurrent";
+
+# di_f8: "Does pro forma calculation include projected synergies?"
+match $q isa ontology_question, has question_id "di_f8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "pro_forma_includes_synergies";
+
+# di_f9: "What is the synergy cap as a percentage of EBITDA?"
+match $q isa ontology_question, has question_id "di_f9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "synergy_cap_pct";
+
+# di_f10: "Must synergies be reasonably expected to be realized?"
+match $q isa ontology_question, has question_id "di_f10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "synergies_require_expectation";
+
+# di_f11: "Are EBITDA add-backs capped?"
+match $q isa ontology_question, has question_id "di_f11";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "addbacks_capped";
+
+# di_f12: "What is the overall EBITDA add-back cap?"
+match $q isa ontology_question, has question_id "di_f12";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "addback_cap_pct";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI7: BASKET CONDITIONS → incremental_facility / di_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_g1: "Does the no-default blocker apply to all baskets?"
+match $q isa ontology_question, has question_id "di_g1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "default_blocker_scope";
+
+# di_g2: "Is the default blocker limited to Events of Default only?"
+match $q isa ontology_question, has question_id "di_g2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "blocker_eod_only";
+
+# di_g3: "Is there a payment/bankruptcy default only blocker option?"
+match $q isa ontology_question, has question_id "di_g3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "blocker_payment_bankruptcy_only";
+
+# di_g4: "Must debt mature on or after existing term loan maturity?"
+match $q isa ontology_question, has question_id "di_g4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "maturity_restriction_applies";
+
+# di_g5: "Is maturity inside 91 days permitted?"
+match $q isa ontology_question, has question_id "di_g5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "maturity_91_day_inside_permitted";
+
+# di_g6: "Must WAL be at least equal to existing debt WAL?"
+match $q isa ontology_question, has question_id "di_g6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "wal_restriction_applies";
+
+# di_g7: "Is scheduled amortization permitted on incremental/ratio debt?"
+match $q isa ontology_question, has question_id "di_g7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "amortization_permitted";
+
+# di_g8: "Must collateral be same or subset of existing collateral?"
+match $q isa ontology_question, has question_id "di_g8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "collateral_parity_required";
+
+# di_g9: "Must guarantors be same or subset of existing guarantors?"
+match $q isa ontology_question, has question_id "di_g9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "guarantor_parity_required";
+
+# di_g10: "Is currency matching required?"
+match $q isa ontology_question, has question_id "di_g10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "currency_matching_required";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI8: RECLASSIFICATION → incremental_facility
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_h1: "Is reclassification of debt between baskets permitted?"
+match $q isa ontology_question, has question_id "di_h1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_permitted";
+
+# di_h2: "Is reclassification automatic or elective?"
+match $q isa ontology_question, has question_id "di_h2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_type";
+
+# di_h3: "Can freebie basket be refreshed by reclassifying to ratio basket?"
+match $q isa ontology_question, has question_id "di_h3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "freebie_refresh_permitted";
+
+# di_h4: "Can reclassification occur in either direction?"
+match $q isa ontology_question, has question_id "di_h4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_bidirectional";
+
+# di_h5: "Does reclassified debt still trigger MFN?"
+match $q isa ontology_question, has question_id "di_h5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_mfn_applies";
+
+# di_h6: "Is notice to Agent required for reclassification?"
+match $q isa ontology_question, has question_id "di_h6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_requires_notice";
+
+# di_h7: "Can debt be split between multiple baskets simultaneously?"
+match $q isa ontology_question, has question_id "di_h7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "basket_splitting_permitted";
+
+# di_h8: "Is there a limit on number of reclassifications?"
+match $q isa ontology_question, has question_id "di_h8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "incremental_facility",
+    has target_attribute_name "reclassification_limited";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI9: LIENS CORRELATION → di_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_i1: "Does the incremental facility have a corresponding lien basket?"
+match $q isa ontology_question, has question_id "di_i1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "incremental_has_lien_basket";
+
+# di_i2: "Does ratio debt have a corresponding lien basket?"
+match $q isa ontology_question, has question_id "di_i2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "ratio_debt_has_lien_basket";
+
+# di_i3: "Does the general debt basket have a corresponding lien basket?"
+match $q isa ontology_question, has question_id "di_i3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "general_basket_has_lien_basket";
+
+# di_i4: "Is debt basket capacity shared with lien basket capacity?"
+match $q isa ontology_question, has question_id "di_i4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "debt_lien_capacity_shared";
+
+# di_i5: "Can secured debt be incurred without using a specific lien basket?"
+match $q isa ontology_question, has question_id "di_i5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "auto_lien_permission";
+
+# di_i6: "What is the aggregate secured debt lien cap?"
+match $q isa ontology_question, has question_id "di_i6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "aggregate_secured_lien_cap";
+
+# di_i7: "What section contains the liens covenant?"
+match $q isa ontology_question, has question_id "di_i7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "liens_covenant_section";
+
+# di_i8: "Can debt be secured on assets outside the collateral package?"
+match $q isa ontology_question, has question_id "di_i8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "outside_collateral_liens_permitted";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI10: CROSS-COVENANT LINKS → di_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_j1: "Does contribution debt increase the RP builder basket?"
+match $q isa ontology_question, has question_id "di_j1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "contribution_debt_builds_rp";
+
+# di_j2: "Is the contribution debt / builder basket link dollar-for-dollar?"
+match $q isa ontology_question, has question_id "di_j2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "contribution_rp_dollar_for_dollar";
+
+# di_j3: "Can RP capacity be converted to debt capacity?"
+match $q isa ontology_question, has question_id "di_j3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "rp_to_debt_conversion_permitted";
+
+# di_j4: "Does asset sale prepayment reload incremental capacity?"
+match $q isa ontology_question, has question_id "di_j4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "asset_sale_reloads_incremental";
+
+# di_j5: "Can Unrestricted Subsidiaries incur unlimited debt?"
+match $q isa ontology_question, has question_id "di_j5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "unsub_unlimited_debt";
+
+# di_j6: "Can Restricted Subs be redesignated as Unrestricted?"
+match $q isa ontology_question, has question_id "di_j6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "unsub_redesignation_permitted";
+
+# di_j7: "Does debt repayment from builder basket increase debt capacity?"
+match $q isa ontology_question, has question_id "di_j7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "builder_repayment_reloads_debt";
+
+# di_j8: "Are there cross-references allowing basket 'sharing'?"
+match $q isa ontology_question, has question_id "di_j8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "cross_covenant_basket_sharing";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI11: CAPACITY CALCULATION → di_provision
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_k1: "What is the total freebie/free-and-clear capacity?"
+match $q isa ontology_question, has question_id "di_k1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "total_freebie_capacity_usd";
+
+# di_k2: "How many baskets use 'grower' construction?"
+match $q isa ontology_question, has question_id "di_k2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "grower_basket_count";
+
+# di_k3: "Can freebie and ratio prong be used simultaneously?"
+match $q isa ontology_question, has question_id "di_k3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "freebie_ratio_stacking_permitted";
+
+# di_k4: "What is the maximum first lien debt capacity at closing leverage?"
+match $q isa ontology_question, has question_id "di_k4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "max_first_lien_capacity_usd";
+
+# di_k5: "What is the maximum total debt capacity at closing leverage?"
+match $q isa ontology_question, has question_id "di_k5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "max_total_capacity_usd";
+
+# di_k6: "Is there a 'ratios first' ordering for basket utilization?"
+match $q isa ontology_question, has question_id "di_k6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "ratios_first_ordering";
+
+# di_k7: "Can basket capacity be 'reloaded' by voluntary prepayment?"
+match $q isa ontology_question, has question_id "di_k7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "basket_reload_on_prepayment";
+
+# di_k8: "Are any baskets 'inside' others (sublimits)?"
+match $q isa ontology_question, has question_id "di_k8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "has_sublimit_baskets";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI12: VULNERABILITIES → di_provision (pattern flags)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# di_l1: "Is there a trapdoor basket (unlimited ratio debt)?"
+match $q isa ontology_question, has question_id "di_l1";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "trapdoor_basket_detected";
+
+# di_l2: "Can IED be incurred without triggering MFN (priming risk)?"
+match $q isa ontology_question, has question_id "di_l2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "ied_avoids_mfn_detected";
+
+# di_l3: "Is freebie basket stacking with ratio prong permitted?"
+match $q isa ontology_question, has question_id "di_l3";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "basket_stacking_risk_detected";
+
+# di_l4: "Is unlimited automatic reclassification permitted?"
+match $q isa ontology_question, has question_id "di_l4";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "unlimited_reclass_detected";
+
+# di_l5: "Has the MFN sunset period expired?"
+match $q isa ontology_question, has question_id "di_l5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "mfn_sunset_expired";
+
+# di_l6: "Can multiple baskets be used for the same debt (arbitrage)?"
+match $q isa ontology_question, has question_id "di_l6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "basket_arbitrage_detected";
+
+# di_l7: "Is there intercompany debt leakage risk?"
+match $q isa ontology_question, has question_id "di_l7";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "intercompany_leakage_risk";
+
+# di_l8: "Can non-guarantor subs incur structurally senior secured debt?"
+match $q isa ontology_question, has question_id "di_l8";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "structural_seniority_risk";
+
+# di_l9: "Is the 'no worse' test available for incurrence?"
+match $q isa ontology_question, has question_id "di_l9";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "no_worse_test_detected";
+
+# di_l10: "Overall DI vulnerability assessment (analyst notes)"
+match $q isa ontology_question, has question_id "di_l10";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "vulnerability_notes";

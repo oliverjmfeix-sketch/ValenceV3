@@ -67,6 +67,11 @@ MFN_ANNOTATIONS_FILE = DATA_DIR / "seed_mfn_annotations.tql"
 MFN_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_mfn_entity_list_questions.tql"
 SYNTHESIS_GUIDANCE_FILE = DATA_DIR / "seed_synthesis_guidance.tql"
 
+# DI ontology (questions, annotations, entity-list questions)
+DI_QUESTIONS_FILE = DATA_DIR / "di_ontology_questions.tql"
+DI_ANNOTATIONS_FILE = DATA_DIR / "seed_di_annotations.tql"
+DI_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_di_entity_list_questions.tql"
+
 # 17. Functions (SCHEMA transaction)
 ANNOTATION_FUNCTIONS_FILE = DATA_DIR / "annotation_functions.tql"
 
@@ -411,6 +416,21 @@ def init_database():
         if MFN_ENTITY_LIST_QUESTIONS_FILE.exists():
             _load_multi_insert_file(driver, TYPEDB_DATABASE, MFN_ENTITY_LIST_QUESTIONS_FILE)
 
+        # 16b. Load DI ontology questions (categories + questions + linkage)
+        logger.info("\n16b. Loading di_ontology_questions.tql...")
+        if DI_QUESTIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, DI_QUESTIONS_FILE)
+
+        # 16c. Load DI annotations (question → attribute routing)
+        logger.info("\n16c. Loading seed_di_annotations.tql...")
+        if DI_ANNOTATIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, DI_ANNOTATIONS_FILE)
+
+        # 16d. Load DI entity-list questions
+        logger.info("\n16d. Loading seed_di_entity_list_questions.tql...")
+        if DI_ENTITY_LIST_QUESTIONS_FILE.exists():
+            _load_mixed_tql_file(driver, TYPEDB_DATABASE, DI_ENTITY_LIST_QUESTIONS_FILE)
+
         # 17. Load synthesis guidance (category-specific analysis rules)
         logger.info("\n17. Loading seed_synthesis_guidance.tql...")
         if SYNTHESIS_GUIDANCE_FILE.exists():
@@ -473,8 +493,8 @@ def init_database():
         try:
             checks = [
                 ("Concepts (incl J.Crew + MFN)", "match $c isa concept; select $c;", 95),
-                ("Questions (incl J.Crew + MFN)", "match $q isa ontology_question; select $q;", 279),
-                ("Categories (incl JC1-3, MFN1-6)", "match $cat isa ontology_category; select $cat;", 26),
+                ("Questions (incl J.Crew + MFN + DI)", "match $q isa ontology_question; select $q;", 430),
+                ("Categories (incl JC1-3, MFN1-6, DI1-12)", "match $cat isa ontology_category; select $cat;", 38),
                 ("Extraction metadata (total)", "match $em isa extraction_metadata; select $em;", 0),
                 ("IP types", "match $ip isa ip_type; select $ip;", 5),
                 ("Segment types", "match $s isa document_segment_type; select $s;", 21),

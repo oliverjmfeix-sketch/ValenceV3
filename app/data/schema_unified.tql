@@ -1327,6 +1327,107 @@ attribute shares_capacity, value boolean;
 attribute max_lien_priority, value string;
 attribute is_dollar_for_dollar, value boolean;
 
+# ── DI provision-level scalars (Phase 2) ────────────────────────────────────
+attribute addback_cap_pct, value double;
+attribute addbacks_capped, value boolean;
+attribute aggregate_secured_lien_cap, value double;
+attribute asset_sale_reloads_incremental, value boolean;
+attribute auto_lien_permission, value boolean;
+attribute basket_arbitrage_detected, value boolean;
+attribute basket_reload_on_prepayment, value boolean;
+attribute blocker_eod_only, value boolean;
+attribute blocker_payment_bankruptcy_only, value boolean;
+attribute builder_repayment_reloads_debt, value boolean;
+attribute contribution_debt_builds_rp, value boolean;
+attribute contribution_rp_dollar_for_dollar, value boolean;
+attribute cross_covenant_basket_sharing, value boolean;
+attribute debt_lien_capacity_shared, value boolean;
+attribute default_blocker_scope, value string;
+attribute freebie_ratio_stacking_permitted, value boolean;
+attribute general_basket_has_lien_basket, value boolean;
+attribute grower_basket_count, value integer;
+attribute has_sublimit_baskets, value boolean;
+attribute incremental_has_lien_basket, value boolean;
+attribute indebtedness_definition_broad, value boolean;
+attribute intercompany_leakage_risk, value boolean;
+attribute liens_covenant_section, value string;
+attribute max_first_lien_capacity_usd, value double;
+attribute max_total_capacity_usd, value double;
+attribute mfn_sunset_expired, value boolean;
+attribute no_worse_test_detected, value boolean;
+attribute outside_collateral_liens_permitted, value boolean;
+attribute pro_forma_includes_synergies, value boolean;
+attribute ratio_debt_has_lien_basket, value boolean;
+attribute ratios_first_ordering, value boolean;
+attribute rp_to_debt_conversion_permitted, value boolean;
+attribute structural_seniority_risk, value boolean;
+attribute synergies_require_expectation, value boolean;
+attribute synergy_cap_pct, value double;
+attribute total_freebie_capacity_usd, value double;
+attribute unlimited_reclass_detected, value boolean;
+attribute unsub_redesignation_permitted, value boolean;
+attribute unsub_unlimited_debt, value boolean;
+attribute uses_first_lien_leverage, value boolean;
+attribute uses_fixed_charge_coverage, value boolean;
+attribute uses_interest_coverage, value boolean;
+attribute uses_senior_secured_leverage, value boolean;
+attribute uses_total_leverage, value boolean;
+attribute vulnerability_notes, value string;
+
+# ── DI incremental facility scalars (Phase 2) ──────────────────────────────
+attribute agent_consent_nurd, value boolean;
+attribute amortization_permitted, value boolean;
+attribute amortization_prohibited, value boolean;
+attribute basket_splitting_permitted, value boolean;
+attribute binds_borrower, value boolean;
+attribute binds_guarantors, value boolean;
+attribute collateral_parity_required, value boolean;
+attribute contribution_multiplier, value double;
+attribute currency_matching_required, value boolean;
+attribute freebie_excluded_from_ratio, value boolean;
+attribute freebie_refresh_permitted, value boolean;
+attribute general_basket_addable, value boolean;
+attribute guarantor_parity_required, value boolean;
+attribute ied_covenant_parity, value boolean;
+attribute ied_junior_lien_permitted, value boolean;
+attribute ied_maturity_restriction, value boolean;
+attribute ied_permitted_forms, value string;
+attribute ied_permitted_incurrors, value string;
+attribute ied_shares_cap, value boolean;
+attribute ied_unsecured_permitted, value boolean;
+attribute lct_max_concurrent, value integer;
+attribute lct_permitted, value boolean;
+attribute lender_participation_voluntary, value boolean;
+attribute maturity_91_day_inside_permitted, value boolean;
+attribute maturity_inside_permitted, value boolean;
+attribute maturity_restriction_applies, value boolean;
+attribute mfn_applies, value boolean;
+attribute mfn_de_minimis_amount, value double;
+attribute mfn_excludes_arranger_fees, value boolean;
+attribute mfn_excludes_fixed_rate, value boolean;
+attribute mfn_includes_floors, value boolean;
+attribute mfn_includes_oid, value boolean;
+attribute mfn_includes_upfront_fees, value boolean;
+attribute mfn_maturity_exclusion_months, value integer;
+attribute mfn_oid_amortization_years, value integer;
+attribute mfn_uses_all_in_yield, value boolean;
+attribute minimum_tranche_size, value double;
+attribute notional_cap_usd, value double;
+attribute permits_revolving, value boolean;
+attribute permits_term_loans, value boolean;
+attribute permitted_premium_pct, value double;
+attribute ratio_prong_first_lien_threshold, value double;
+attribute ratio_prong_total_threshold, value double;
+attribute reclassification_limited, value boolean;
+attribute reclassification_mfn_applies, value boolean;
+attribute reclassification_requires_notice, value boolean;
+attribute reclassification_type, value string;
+attribute requires_covenant_parity, value boolean;
+attribute requires_no_eod_only, value boolean;
+attribute requires_subordination, value boolean;
+attribute requires_wal_parity, value boolean;
+attribute wal_restriction_applies, value boolean;
+
 # ── MFN entity types ─────────────────────────────────────────────────────────
 
 entity mfn_exclusion,
@@ -1933,15 +2034,70 @@ entity di_facility_type,
 # ── DI Provision (pure anchor — owns only computed flags) ───────────────────
 
 entity di_provision sub provision,
-    # Scope
+    # DI1: Core Structure
     owns di_covenant_exists,
+    owns binds_borrower,
+    owns binds_guarantors,
+    owns binds_restricted_subs,
     owns has_separate_secured_covenant,
     owns has_separate_unsecured_covenant,
-    # Pattern flags (computed post-extraction)
+    owns indebtedness_definition_broad,
+    # DI6: Ratio Tests
+    owns uses_first_lien_leverage,
+    owns uses_total_leverage,
+    owns uses_senior_secured_leverage,
+    owns uses_interest_coverage,
+    owns uses_fixed_charge_coverage,
+    owns ratios_first_ordering,
+    owns pro_forma_includes_synergies,
+    owns synergies_require_expectation,
+    owns synergy_cap_pct,
+    owns addbacks_capped,
+    owns addback_cap_pct,
+    owns lct_permitted,
+    owns lct_max_concurrent,
+    owns no_worse_test_detected,
+    # DI7: Conditions
+    owns default_blocker_scope,
+    owns blocker_eod_only,
+    owns blocker_payment_bankruptcy_only,
+    # DI9: Liens Correlation
+    owns incremental_has_lien_basket,
+    owns ratio_debt_has_lien_basket,
+    owns general_basket_has_lien_basket,
+    owns debt_lien_capacity_shared,
+    owns liens_covenant_section,
+    owns outside_collateral_liens_permitted,
+    owns auto_lien_permission,
+    owns aggregate_secured_lien_cap,
+    # DI10: Cross-Covenant Links
+    owns contribution_debt_builds_rp,
+    owns contribution_rp_dollar_for_dollar,
+    owns asset_sale_reloads_incremental,
+    owns rp_to_debt_conversion_permitted,
+    owns cross_covenant_basket_sharing,
+    # DI11: Capacity Calculation
+    owns total_freebie_capacity_usd,
+    owns max_first_lien_capacity_usd,
+    owns max_total_capacity_usd,
+    owns grower_basket_count,
+    owns has_sublimit_baskets,
+    owns basket_reload_on_prepayment,
+    owns builder_repayment_reloads_debt,
+    owns unsub_redesignation_permitted,
+    owns unsub_unlimited_debt,
+    owns freebie_ratio_stacking_permitted,
+    owns mfn_sunset_expired,
+    # DI12: Vulnerabilities (pattern flags)
+    owns trapdoor_basket_detected,
     owns unlimited_ratio_debt_detected,
     owns ied_avoids_mfn_detected,
     owns basket_stacking_risk_detected,
-    owns trapdoor_basket_detected,
+    owns basket_arbitrage_detected,
+    owns unlimited_reclass_detected,
+    owns structural_seniority_risk,
+    owns intercompany_leakage_risk,
+    owns vulnerability_notes,
     # Relations
     plays provision_has_incremental:provision,
     plays provision_has_di_basket:provision,
@@ -1953,33 +2109,81 @@ entity di_provision sub provision,
 
 entity incremental_facility,
     owns incremental_id @key,
-    # Free-and-clear prong
+    # DI2: Free-and-clear prong
     owns free_and_clear_amount_usd,
     owns free_and_clear_pct_ebitda,
     owns free_and_clear_is_grower,
-    # Prepayments prong
+    # DI2: Prepayments prong
     owns prepayments_prong_exists,
     owns prepayments_includes_junior,
     owns prepayments_includes_buybacks,
-    # Ratio prong
+    # DI2: Ratio prong
     owns ratio_prong_exists,
     owns ratio_prong_threshold,
     owns ratio_prong_test_type,
     owns ratio_prong_unlimited,
-    # IED (Incremental Equivalent Debt)
-    owns ied_permitted,
-    owns ied_triggers_mfn,
-    owns ied_requires_intercreditor,
-    # MFN linkage
+    owns ratio_prong_first_lien_threshold,
+    owns ratio_prong_total_threshold,
+    # DI2: Incremental conditions
+    owns general_basket_addable,
+    owns freebie_excluded_from_ratio,
+    owns requires_no_default,
+    owns requires_no_eod_only,
+    owns maturity_restriction_applies,
+    owns maturity_inside_permitted,
+    owns maturity_91_day_inside_permitted,
+    owns wal_restriction_applies,
+    owns requires_wal_parity,
+    owns amortization_prohibited,
+    owns amortization_permitted,
+    owns requires_covenant_parity,
+    owns collateral_parity_required,
+    owns guarantor_parity_required,
+    owns currency_matching_required,
+    owns permits_term_loans,
+    owns permits_revolving,
+    owns agent_consent_nurd,
+    owns minimum_tranche_size,
+    owns lender_participation_voluntary,
+    owns basket_splitting_permitted,
+    owns lct_permitted,
+    # DI3: MFN linkage
+    owns mfn_applies,
     owns mfn_threshold_bps,
+    owns mfn_uses_all_in_yield,
     owns mfn_sunset_months,
     owns mfn_excludes_freebie,
     owns mfn_excludes_acquisitions,
     owns mfn_excludes_maturity_outside,
-    # Reclassification
+    owns mfn_maturity_exclusion_months,
+    owns mfn_excludes_arranger_fees,
+    owns mfn_excludes_fixed_rate,
+    owns mfn_includes_floors,
+    owns mfn_includes_oid,
+    owns mfn_includes_upfront_fees,
+    owns mfn_oid_amortization_years,
+    owns mfn_de_minimis_amount,
+    owns mfn_sunset_expired,
+    owns freebie_refresh_permitted,
+    # DI4: IED (Incremental Equivalent Debt)
+    owns ied_permitted,
+    owns ied_shares_cap,
+    owns ied_triggers_mfn,
+    owns ied_requires_intercreditor,
+    owns ied_permitted_forms,
+    owns ied_permitted_incurrors,
+    owns ied_maturity_restriction,
+    owns ied_covenant_parity,
+    owns ied_junior_lien_permitted,
+    owns ied_unsecured_permitted,
+    # DI8: Reclassification
     owns reclassification_permitted,
     owns reclassification_automatic,
     owns reclassification_bidirectional,
+    owns reclassification_type,
+    owns reclassification_limited,
+    owns reclassification_mfn_applies,
+    owns reclassification_requires_notice,
     # Provenance
     owns section_reference,
     owns source_page,
@@ -2023,20 +2227,25 @@ entity di_basket @abstract,
 # 20 concrete basket subtypes
 entity credit_agreement_basket sub di_basket;
 entity incremental_basket sub di_basket;
-entity ratio_debt_basket sub di_basket;
+entity ratio_debt_basket sub di_basket,
+    owns ratio_threshold;
 entity general_basket sub di_basket;
 entity acquisition_basket sub di_basket;
 entity capital_lease_basket sub di_basket;
 entity purchase_money_basket sub di_basket;
-entity intercompany_basket sub di_basket;
-entity refinancing_basket sub di_basket;
-entity hedging_basket sub di_basket;
+entity intercompany_basket sub di_basket,
+    owns requires_subordination;
+entity refinancing_basket sub di_basket,
+    owns permitted_premium_pct;
+entity hedging_basket sub di_basket,
+    owns notional_cap_usd;
 entity lc_basket sub di_basket;
 entity sale_leaseback_basket sub di_basket;
 entity foreign_subsidiary_basket sub di_basket;
 entity earnout_basket sub di_basket;
 entity working_capital_basket sub di_basket;
 entity contribution_basket sub di_basket,
+    owns contribution_multiplier,
     plays di_feeds_rp_builder:contrib;
 entity ied_basket sub di_basket;
 entity non_guarantor_basket sub di_basket;

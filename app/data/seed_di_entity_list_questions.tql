@@ -1,0 +1,103 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEBT INCURRENCE ENTITY-LIST QUESTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Entity-list questions extract variable-cardinality entities.
+# Format: Multi-insert TQL (loaded via _load_multi_insert_file)
+#
+# For DI, only leverage_tier has variable cardinality (1-4 tiers per deal).
+# The 20 basket types are single-instance, extracted via _exists pattern.
+# The incremental_facility is single-instance, extracted via _exists pattern.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LEVERAGE TIER EXTRACTION
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Leverage tiers define stepped capacity based on leverage levels.
+# Example: "If First Lien Net Leverage Ratio is:
+#   - ≤3.50x: unlimited capacity
+#   - >3.50x but ≤4.50x: $150M capacity
+#   - >4.50x but ≤5.50x: $75M capacity
+#   - >5.50x: no capacity"
+#
+# Deals may have 1-4 tiers. Each tier specifies:
+#   - tier_number: ordinal (1 = most permissive)
+#   - leverage_floor: minimum leverage for this tier (null for tier 1)
+#   - leverage_ceiling: maximum leverage for this tier (null for unlimited)
+#   - capacity_usd: fixed dollar capacity at this tier (null if unlimited)
+#   - capacity_pct_ebitda: EBITDA-based capacity (for growers)
+#   - ratio_test_type: which ratio test applies (first_lien, total, etc.)
+#   - is_unlimited: true if no capacity cap at this tier
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_el_leverage_tiers isa ontology_question,
+    has question_id "di_el_leverage_tiers",
+    has covenant_type "DI",
+    has question_text "Extract all leverage-based capacity tiers for debt incurrence. Each tier represents a leverage band with associated debt capacity.",
+    has answer_type "entity_list",
+    has display_order 300,
+    has target_entity_type "leverage_tier",
+    has target_relation_type "provision_has_leverage_tier",
+    has extraction_prompt "Extract ALL leverage-based capacity tiers from the debt incurrence covenant.
+
+CONTEXT: Many credit agreements provide different debt capacity depending on the borrower's leverage level. Look for tiered capacity tables or conditional language like 'if the First Lien Net Leverage Ratio is equal to or less than X.XXx' or 'at any time when the Total Net Leverage Ratio does not exceed Y.YYx'.
+
+FOR EACH TIER, EXTRACT:
+- tier_number: Integer starting at 1 for the most permissive tier (lowest leverage)
+- leverage_floor: The minimum leverage ratio for this tier (null for tier 1 / lowest tier)
+- leverage_ceiling: The maximum leverage ratio for this tier (null for unlimited/highest tier)
+- capacity_usd: Fixed dollar capacity at this tier (null if unlimited or EBITDA-based only)
+- capacity_pct_ebitda: EBITDA percentage capacity if grower structure (null if fixed dollar only)
+- ratio_test_type: Which ratio test applies - one of: first_lien_leverage, senior_secured_leverage, total_leverage, interest_coverage, fixed_charge_coverage
+- is_unlimited: true if this tier has no capacity limit (typically the lowest leverage tier)
+
+EXAMPLE OUTPUT:
+[
+  {
+    \"tier_number\": 1,
+    \"leverage_floor\": null,
+    \"leverage_ceiling\": 3.50,
+    \"capacity_usd\": null,
+    \"capacity_pct_ebitda\": null,
+    \"ratio_test_type\": \"first_lien_leverage\",
+    \"is_unlimited\": true
+  },
+  {
+    \"tier_number\": 2,
+    \"leverage_floor\": 3.50,
+    \"leverage_ceiling\": 4.50,
+    \"capacity_usd\": 150000000,
+    \"capacity_pct_ebitda\": 0.15,
+    \"ratio_test_type\": \"first_lien_leverage\",
+    \"is_unlimited\": false
+  },
+  {
+    \"tier_number\": 3,
+    \"leverage_floor\": 4.50,
+    \"leverage_ceiling\": 5.50,
+    \"capacity_usd\": 75000000,
+    \"capacity_pct_ebitda\": null,
+    \"ratio_test_type\": \"first_lien_leverage\",
+    \"is_unlimited\": false
+  }
+]
+
+If no leverage tiers exist (single threshold or unlimited), return a single tier with is_unlimited: true.
+If different baskets have different tier structures, extract tiers for the PRIMARY debt capacity mechanism (usually the ratio prong of incremental facility).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY LINKAGE FOR ENTITY-LIST QUESTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Link entity-list questions to appropriate categories for extraction batching.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "DI6";
+      $q isa ontology_question, has question_id "di_el_leverage_tiers";
+insert (category: $cat, question: $q) isa category_has_question;

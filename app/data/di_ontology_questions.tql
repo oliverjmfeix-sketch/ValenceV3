@@ -1,0 +1,1745 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEBT INCURRENCE ONTOLOGY QUESTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This file defines the complete question set for Debt Incurrence covenant
+# extraction. Questions are grouped into 12 categories (DI1-DI12) covering:
+#   - Core covenant structure
+#   - Incremental facility mechanics
+#   - MFN pricing protection
+#   - IED/sidecar facilities
+#   - Permitted debt baskets
+#   - Ratio tests
+#   - Basket conditions
+#   - Reclassification mechanics
+#   - Liens correlation
+#   - Cross-covenant links
+#   - Capacity calculation
+#   - Vulnerability detection
+#
+# Note on section references: The debt incurrence covenant section number
+# varies by agreement (6.01, 7.01, or other). Extraction prompts avoid
+# hardcoding section numbers.
+#
+# Pattern:
+#   - Scalar questions populate single-instance entity attributes
+#   - _exists questions (e.g., di_b0) trigger entity creation
+#   - entity_list questions (di_el_*) create variable-cardinality entities
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_cat1 isa ontology_category,
+    has category_id "DI1",
+    has name "DI Core Structure",
+    has description "Existence, scope, and general structure of the debt incurrence negative covenant. Who is bound and what is prohibited.",
+    has display_order 201,
+    has extraction_context_sections "DEBT_INCURRENCE,NEGATIVE_COVENANTS",
+    has extraction_batch_hint "Focus on whether a debt incurrence covenant exists, which entities are bound (borrower, guarantors, restricted subsidiaries), and whether there are separate covenants for secured vs unsecured debt.";
+
+insert $di_cat2 isa ontology_category,
+    has category_id "DI2",
+    has name "Incremental Facility",
+    has description "Mechanics of adding debt under the credit agreement (accordion). Includes incremental cap structure with freebie, prepayments prong, and ratio prong.",
+    has display_order 202,
+    has extraction_context_sections "INCREMENTAL_FACILITY,DEFINITIONS",
+    has extraction_batch_hint "Focus on the incremental facility cap formula: free-and-clear amount plus prepayments prong plus ratio prong. Extract the EXACT dollar amounts and ratio thresholds. Note whether amounts are 'greater of' constructs (growers).";
+
+insert $di_cat3 isa ontology_category,
+    has category_id "DI3",
+    has name "MFN Protection",
+    has description "Most Favored Nation pricing protection for incremental debt. Threshold, sunset, exclusions, and all-in yield calculation mechanics.",
+    has display_order 203,
+    has extraction_context_sections "INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Focus on MFN mechanics: threshold (typically 50bps), what triggers MFN, sunset period, exclusions (freebie, acquisitions, maturity outside). Determine if IED triggers MFN - this is a critical vulnerability indicator.";
+
+insert $di_cat4 isa ontology_category,
+    has category_id "DI4",
+    has name "IED & Sidecar",
+    has description "Incremental Equivalent Debt (IED) permissions. IED allows pari passu debt outside the credit agreement, often avoiding MFN.",
+    has display_order 204,
+    has extraction_context_sections "INCREMENTAL_FACILITY,DEFINITIONS",
+    has extraction_batch_hint "Focus on IED permissions: whether permitted, what forms (notes, loans, bridge), conditions (intercreditor, maturity, covenants), and critically whether IED triggers MFN protection.";
+
+insert $di_cat5 isa ontology_category,
+    has category_id "DI5",
+    has name "Permitted Debt Baskets",
+    has description "Enumerated exceptions to the debt incurrence negative covenant. Each basket has caps, conditions, and permitted uses.",
+    has display_order 205,
+    has extraction_context_sections "DEBT_INCURRENCE",
+    has extraction_batch_hint "For each permitted debt basket clause, extract: existence, dollar cap, EBITDA percentage cap, whether it uses greater-of/grower construction, what lien priority is permitted.";
+
+insert $di_cat6 isa ontology_category,
+    has category_id "DI6",
+    has name "Ratio Tests",
+    has description "Financial ratio tests enabling debt capacity. Leverage ratios, coverage ratios, and testing mechanics including LCT.",
+    has display_order 206,
+    has extraction_context_sections "DEBT_INCURRENCE,DEFINITIONS",
+    has extraction_batch_hint "Extract ratio test details: which ratios (first lien leverage, total leverage, interest coverage), threshold values, whether pro forma required, Limited Condition Transaction availability.";
+
+insert $di_cat7 isa ontology_category,
+    has category_id "DI7",
+    has name "Basket Conditions",
+    has description "Conditions that must be satisfied to use debt baskets. Includes no-default, maturity, WAL, and covenant parity requirements.",
+    has display_order 207,
+    has extraction_context_sections "DEBT_INCURRENCE,INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Identify conditions applicable to incremental and other baskets: no default/EOD, maturity (inside 91 days permitted?), WAL, amortization, covenant parity, lien parity, collateral parity.";
+
+insert $di_cat8 isa ontology_category,
+    has category_id "DI8",
+    has name "Reclassification",
+    has description "Toggle mechanics allowing redesignation of debt between baskets. Permits 'refreshing' freebie capacity.",
+    has display_order 208,
+    has extraction_context_sections "INCREMENTAL_FACILITY,DEBT_INCURRENCE",
+    has extraction_batch_hint "Determine if reclassification/redesignation is permitted: Can debt incurred under freebie basket be reclassified as ratio debt? Is reclassification automatic or elective? Can capacity be refreshed?";
+
+insert $di_cat9 isa ontology_category,
+    has category_id "DI9",
+    has name "Liens Correlation",
+    has description "Mapping between debt incurrence baskets and corresponding lien baskets. Capacity sharing between covenants.",
+    has display_order 209,
+    has extraction_context_sections "DEBT_INCURRENCE,LIENS",
+    has extraction_batch_hint "Cross-reference debt baskets with liens covenant. For each debt basket, determine if there is a corresponding lien basket and whether capacity is shared or separate.";
+
+insert $di_cat10 isa ontology_category,
+    has category_id "DI10",
+    has name "Cross-Covenant Links",
+    has description "Interactions between debt incurrence and other covenants: RP builder basket, asset sale prepayments, unrestricted subsidiary debt.",
+    has display_order 210,
+    has extraction_context_sections "DEBT_INCURRENCE,RESTRICTED_PAYMENTS,ASSET_SALES",
+    has extraction_batch_hint "Identify cross-covenant interactions: Does contribution debt increase RP builder basket? Does debt repayment from asset sales reload capacity? Can unrestricted subsidiaries incur unlimited debt?";
+
+insert $di_cat11 isa ontology_category,
+    has category_id "DI11",
+    has name "Capacity Calculation",
+    has description "Total debt capacity computation. Grower mechanics, stacking rules, and capacity at various leverage levels.",
+    has display_order 211,
+    has extraction_context_sections "DEBT_INCURRENCE,INCREMENTAL_FACILITY,DEFINITIONS",
+    has extraction_batch_hint "Calculate total debt capacity: sum of basket caps, identify grower baskets scaling with EBITDA, determine stacking rules (can freebie be used with ratio prong simultaneously?).";
+
+insert $di_cat12 isa ontology_category,
+    has category_id "DI12",
+    has name "Vulnerabilities",
+    has description "Pattern detection for credit-unfriendly terms. Trapdoor baskets, IED avoiding MFN, basket stacking, unlimited ratio debt.",
+    has display_order 212,
+    has extraction_context_sections "DEBT_INCURRENCE,INCREMENTAL_FACILITY",
+    has extraction_batch_hint "Flag concerning patterns: unlimited ratio debt with no dollar cap (trapdoor), IED permitted without MFN trigger (priming risk), freebie excluded from ratio calculation (stacking), automatic reclassification (perpetual refresh).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI1: CORE STRUCTURE (7 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_a1 isa ontology_question,
+    has question_id "di_a1",
+    has covenant_type "DI",
+    has question_text "Does a debt incurrence negative covenant exist?",
+    has answer_type "boolean",
+    has display_order 1,
+    has extraction_prompt "Determine if the credit agreement contains a negative covenant restricting the incurrence of additional indebtedness. Look for a section titled 'Indebtedness', 'Limitation on Indebtedness', or 'Debt' in the Negative Covenants article. The covenant typically begins with language like 'The Borrower will not, and will not permit any Restricted Subsidiary to, create, incur, assume or suffer to exist any Indebtedness...'";
+
+insert $di_a2 isa ontology_question,
+    has question_id "di_a2",
+    has covenant_type "DI",
+    has question_text "What is the section reference for the debt incurrence covenant?",
+    has answer_type "string",
+    has display_order 2,
+    has extraction_prompt "Extract the exact section number for the debt incurrence negative covenant as it appears in THIS document. Common locations include Section 6.01, 7.01, or other numbers depending on the agreement structure. Return the verbatim section reference.";
+
+insert $di_a3 isa ontology_question,
+    has question_id "di_a3",
+    has covenant_type "DI",
+    has question_text "Does the covenant bind the Borrower?",
+    has answer_type "boolean",
+    has display_order 3,
+    has extraction_prompt "Determine if the Borrower is bound by the debt incurrence covenant. Look for 'The Borrower will not...' or 'The Borrower shall not...' in the covenant language.";
+
+insert $di_a4 isa ontology_question,
+    has question_id "di_a4",
+    has covenant_type "DI",
+    has question_text "Does the covenant bind Guarantors?",
+    has answer_type "boolean",
+    has display_order 4,
+    has extraction_prompt "Determine if Guarantors are bound by the debt incurrence covenant. Look for references to 'Guarantors', 'Loan Parties', or 'Credit Parties' in the covenant binding language.";
+
+insert $di_a5 isa ontology_question,
+    has question_id "di_a5",
+    has covenant_type "DI",
+    has question_text "Does the covenant bind all Restricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 5,
+    has extraction_prompt "Determine if all Restricted Subsidiaries are bound. Look for 'will not permit any Restricted Subsidiary to' or similar language. This is standard in most credit agreements.";
+
+insert $di_a6 isa ontology_question,
+    has question_id "di_a6",
+    has covenant_type "DI",
+    has question_text "Is there a separate covenant for secured debt incurrence?",
+    has answer_type "boolean",
+    has display_order 6,
+    has extraction_prompt "Determine if there is a separate section or covenant specifically restricting secured indebtedness (distinct from the general debt covenant and the liens covenant). Some agreements have both general debt and secured debt limitations.";
+
+insert $di_a7 isa ontology_question,
+    has question_id "di_a7",
+    has covenant_type "DI",
+    has question_text "Is the definition of 'Indebtedness' broad (includes guarantees, capital leases, etc.)?",
+    has answer_type "boolean",
+    has display_order 7,
+    has extraction_prompt "Review the definition of 'Indebtedness' in the Definitions section. Determine if it is broadly defined to include guarantees, capital lease obligations, purchase money debt, letters of credit, hedging obligations, and similar items. A broad definition captures more potential debt incurrence.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI2: INCREMENTAL FACILITY (25 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_b0 isa ontology_question,
+    has question_id "di_b0",
+    has covenant_type "DI",
+    has question_text "Does the agreement include an incremental facility provision?",
+    has answer_type "boolean",
+    has display_order 10,
+    has extraction_prompt "Determine if the credit agreement permits incremental term loans or incremental revolving commitments. Look for a section titled 'Incremental Facility', 'Incremental Term Loans', 'Incremental Commitments', or 'Accordion'. This provision allows adding debt capacity under the existing credit agreement without full lender consent.";
+
+insert $di_b1 isa ontology_question,
+    has question_id "di_b1",
+    has covenant_type "DI",
+    has question_text "What is the section reference for the incremental facility?",
+    has answer_type "string",
+    has display_order 11,
+    has extraction_prompt "Extract the exact section number for the incremental facility provision as it appears in THIS document. Common locations include Section 2.20, 2.19, 2.21, or other numbers. Return the verbatim section reference.";
+
+insert $di_b2 isa ontology_question,
+    has question_id "di_b2",
+    has covenant_type "DI",
+    has question_text "What is the free-and-clear (freebie) amount in USD?",
+    has answer_type "number",
+    has display_order 12,
+    has extraction_prompt "Extract the fixed dollar amount of the 'free-and-clear' or 'freebie' basket — the incremental capacity available WITHOUT needing to satisfy a leverage ratio test. Look for language like 'the greater of (x) $[amount] and (y) [percentage] of EBITDA' or 'an aggregate principal amount not to exceed $[amount]'. Return the dollar figure only (e.g., 100000000 for $100 million).";
+
+insert $di_b3 isa ontology_question,
+    has question_id "di_b3",
+    has covenant_type "DI",
+    has question_text "What is the free-and-clear amount as a percentage of EBITDA?",
+    has answer_type "number",
+    has display_order 13,
+    has extraction_prompt "If the freebie basket is expressed as a percentage of EBITDA (or 'the greater of' a fixed amount and a percentage of EBITDA), extract the percentage. Common values: 100% of LTM EBITDA, 75% of Consolidated EBITDA. Return as decimal (e.g., 1.0 for 100%).";
+
+insert $di_b4 isa ontology_question,
+    has question_id "di_b4",
+    has covenant_type "DI",
+    has question_text "Is the free-and-clear basket a 'grower' (greater of $ and % EBITDA)?",
+    has answer_type "boolean",
+    has display_order 14,
+    has extraction_prompt "Determine if the freebie basket uses a 'greater of' construction that allows it to grow with EBITDA. Look for 'the greater of (x) $[amount] and (y) [percentage] of Consolidated EBITDA' or similar. A grower basket provides increasing flexibility as the company grows.";
+
+insert $di_b5 isa ontology_question,
+    has question_id "di_b5",
+    has covenant_type "DI",
+    has question_text "Does a prepayments prong exist (dry powder)?",
+    has answer_type "boolean",
+    has display_order 15,
+    has extraction_prompt "Determine if there is a 'prepayments prong' or 'dry powder' component to the incremental cap. This allows incremental capacity equal to the principal amount of term loans voluntarily prepaid (and not refinanced). Look for 'plus (y) an amount equal to the aggregate principal amount of term loans voluntarily prepaid'.";
+
+insert $di_b6 isa ontology_question,
+    has question_id "di_b6",
+    has covenant_type "DI",
+    has question_text "Does the prepayments prong include prepayment of junior lien debt?",
+    has answer_type "boolean",
+    has display_order 16,
+    has extraction_prompt "If a prepayments prong exists, determine if it gives credit for prepayment of junior lien or second lien debt (not just first lien). This is borrower-favorable as it converts junior capacity to first lien capacity.";
+
+insert $di_b7 isa ontology_question,
+    has question_id "di_b7",
+    has covenant_type "DI",
+    has question_text "Does the prepayments prong include debt buybacks (Dutch auctions)?",
+    has answer_type "boolean",
+    has display_order 17,
+    has extraction_prompt "Determine if the prepayments prong gives credit for debt purchased or 'bought back' via Dutch auctions or open market purchases, in addition to formal prepayments.";
+
+insert $di_b8 isa ontology_question,
+    has question_id "di_b8",
+    has covenant_type "DI",
+    has question_text "Does a ratio prong exist (unlimited if ratio met)?",
+    has answer_type "boolean",
+    has display_order 18,
+    has extraction_prompt "Determine if there is a ratio-based prong allowing unlimited incremental debt if a leverage ratio test is satisfied on a pro forma basis. Look for 'plus (z) an unlimited amount so long as the [First Lien/Total] Net Leverage Ratio does not exceed [X.XX] to 1.00'.";
+
+insert $di_b9 isa ontology_question,
+    has question_id "di_b9",
+    has covenant_type "DI",
+    has question_text "What is the leverage threshold for the ratio prong (first lien)?",
+    has answer_type "number",
+    has display_order 19,
+    has extraction_prompt "If a ratio prong exists for first lien incremental debt, extract the First Lien Net Leverage Ratio threshold that must be satisfied. Common thresholds: closing leverage, 4.50x, 5.00x. Return as decimal (e.g., 4.5 for 4.50x).";
+
+insert $di_b10 isa ontology_question,
+    has question_id "di_b10",
+    has covenant_type "DI",
+    has question_text "What is the leverage threshold for the ratio prong (total)?",
+    has answer_type "number",
+    has display_order 20,
+    has extraction_prompt "If a ratio prong exists for unsecured or total incremental debt, extract the Total Net Leverage Ratio threshold. This is typically higher than the first lien threshold. Return as decimal.";
+
+insert $di_b11 isa ontology_question,
+    has question_id "di_b11",
+    has covenant_type "DI",
+    has question_text "Is the ratio prong truly unlimited (no dollar cap when ratio met)?",
+    has answer_type "boolean",
+    has display_order 21,
+    has extraction_prompt "Determine if the ratio prong is unlimited when the leverage test is satisfied, or if there is still a dollar cap even when the ratio is met. Truly unlimited ratio debt is standard in large-cap deals but may have caps in middle-market deals.";
+
+insert $di_b12 isa ontology_question,
+    has question_id "di_b12",
+    has covenant_type "DI",
+    has question_text "Can the general debt basket be added to incremental capacity?",
+    has answer_type "boolean",
+    has display_order 22,
+    has extraction_prompt "Determine if the general debt basket (typically a fixed $ or % of EBITDA permitted debt basket) can be used in addition to incremental capacity. Some agreements allow stacking these baskets.";
+
+insert $di_b13 isa ontology_question,
+    has question_id "di_b13",
+    has covenant_type "DI",
+    has question_text "Is the freebie excluded from pro forma ratio calculation?",
+    has answer_type "boolean",
+    has display_order 23,
+    has extraction_prompt "Determine if debt incurred under the freebie basket is excluded from the pro forma leverage calculation when testing the ratio prong. This allows 'stacking' — using freebie capacity without it counting against ratio headroom. Very borrower-favorable.";
+
+insert $di_b14 isa ontology_question,
+    has question_id "di_b14",
+    has covenant_type "DI",
+    has question_text "Does incremental require no Default or Event of Default?",
+    has answer_type "boolean",
+    has display_order 24,
+    has extraction_prompt "Determine if incurring incremental debt requires that no Default or Event of Default exists or would result. This is a standard condition. Look for 'no Default or Event of Default shall have occurred and be continuing or would result therefrom'.";
+
+insert $di_b15 isa ontology_question,
+    has question_id "di_b15",
+    has covenant_type "DI",
+    has question_text "Does incremental require only no Event of Default (not Defaults)?",
+    has answer_type "boolean",
+    has display_order 25,
+    has extraction_prompt "Determine if the incremental conditions require only that no Event of Default exists (not Defaults). This is borrower-favorable because Defaults (which have not yet matured into EODs) do not block incurrence.";
+
+insert $di_b16 isa ontology_question,
+    has question_id "di_b16",
+    has covenant_type "DI",
+    has question_text "Can incremental mature inside the existing term loan maturity (91-day inside permitted)?",
+    has answer_type "boolean",
+    has display_order 26,
+    has extraction_prompt "Determine if incremental term loans can mature before the existing term loan maturity date, or within 91 days thereof. Standard lender protection requires 'no earlier than the Latest Maturity Date' but some deals permit 91 days inside.";
+
+insert $di_b17 isa ontology_question,
+    has question_id "di_b17",
+    has covenant_type "DI",
+    has question_text "Must incremental have WAL at least equal to existing term loans?",
+    has answer_type "boolean",
+    has display_order 27,
+    has extraction_prompt "Determine if incremental term loans must have a weighted average life (WAL) no shorter than the remaining WAL of existing term loans. Look for 'weighted average life to maturity no shorter than'.";
+
+insert $di_b18 isa ontology_question,
+    has question_id "di_b18",
+    has covenant_type "DI",
+    has question_text "Is scheduled amortization prohibited on incremental (1% max)?",
+    has answer_type "boolean",
+    has display_order 28,
+    has extraction_prompt "Determine if incremental term loans are prohibited from having scheduled amortization prior to maturity, or limited to de minimis amounts (typically 1% annually). Look for 'no scheduled amortization' or 'not in excess of 1% per annum'.";
+
+insert $di_b19 isa ontology_question,
+    has question_id "di_b19",
+    has covenant_type "DI",
+    has question_text "Must incremental covenants be no more restrictive than existing (or benefit existing)?",
+    has answer_type "boolean",
+    has display_order 29,
+    has extraction_prompt "Determine if incremental debt covenants must be no more restrictive than existing covenants, or if more restrictive covenants are permitted so long as existing lenders receive the benefit. Look for 'covenants shall not be more restrictive' or 'existing lenders shall receive benefit of'.";
+
+insert $di_b20 isa ontology_question,
+    has question_id "di_b20",
+    has covenant_type "DI",
+    has question_text "Does incremental permit term loans?",
+    has answer_type "boolean",
+    has display_order 30,
+    has extraction_prompt "Determine if the incremental facility permits additional term loans (as opposed to only revolving commitments). Standard for most deals.";
+
+insert $di_b21 isa ontology_question,
+    has question_id "di_b21",
+    has covenant_type "DI",
+    has question_text "Does incremental permit revolving commitments?",
+    has answer_type "boolean",
+    has display_order 31,
+    has extraction_prompt "Determine if the incremental facility permits additional revolving commitments. Some deals limit incremental to term loans only.";
+
+insert $di_b22 isa ontology_question,
+    has question_id "di_b22",
+    has covenant_type "DI",
+    has question_text "Is incremental subject to customary NURD terms?",
+    has answer_type "boolean",
+    has display_order 32,
+    has extraction_prompt "Determine if incremental loans are subject to 'No Unreasonable Rejection or Delay' (NURD) by the Administrative Agent. Look for language requiring Agent consent 'not to be unreasonably withheld, delayed or conditioned'.";
+
+insert $di_b23 isa ontology_question,
+    has question_id "di_b23",
+    has covenant_type "DI",
+    has question_text "Is there a minimum tranche size for incremental?",
+    has answer_type "number",
+    has display_order 33,
+    has extraction_prompt "If there is a minimum principal amount for each incremental facility incurrence, extract that amount. Common minimums: $10 million, $25 million, $1.00 or in smaller integral multiples. Return the dollar figure.";
+
+insert $di_b24 isa ontology_question,
+    has question_id "di_b24",
+    has covenant_type "DI",
+    has question_text "Can existing lenders be required to participate in incremental (non-pro rata)?",
+    has answer_type "boolean",
+    has display_order 34,
+    has extraction_prompt "Determine if existing lenders can be required to participate in incremental facilities, or if participation is at their sole discretion. Standard is 'no Lender shall have any obligation to provide any Incremental Commitment'.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI3: MFN PROTECTION (15 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_c1 isa ontology_question,
+    has question_id "di_c1",
+    has covenant_type "DI",
+    has question_text "Does MFN (Most Favored Nation) protection apply to incremental term loans?",
+    has answer_type "boolean",
+    has display_order 40,
+    has extraction_prompt "Determine if the incremental facility section contains MFN pricing protection. MFN requires that if incremental term loans are priced higher than existing term loans, existing lender pricing is adjusted upward. Look for 'effective yield', 'all-in yield', 'most favored nation', or automatic margin adjustment language.";
+
+insert $di_c2 isa ontology_question,
+    has question_id "di_c2",
+    has covenant_type "DI",
+    has question_text "What is the MFN threshold in basis points?",
+    has answer_type "integer",
+    has display_order 41,
+    has extraction_prompt "Extract the MFN threshold — the basis points by which incremental term loan yield must exceed existing term loan yield before MFN adjustment triggers. Common values: 50bps (standard), 75bps (borrower-favorable). Return as integer (e.g., 50).";
+
+insert $di_c3 isa ontology_question,
+    has question_id "di_c3",
+    has covenant_type "DI",
+    has question_text "Does MFN use all-in yield (not just margin)?",
+    has answer_type "boolean",
+    has display_order 42,
+    has extraction_prompt "Determine if MFN comparison uses all-in yield (including OID, floors, upfront fees) rather than just interest rate margin. All-in yield is more lender-favorable. Look for 'Effective Yield' or 'all-in yield' vs just 'Applicable Rate' or 'margin'.";
+
+insert $di_c4 isa ontology_question,
+    has question_id "di_c4",
+    has covenant_type "DI",
+    has question_text "What is the MFN sunset period in months?",
+    has answer_type "integer",
+    has display_order 43,
+    has extraction_prompt "Extract the MFN sunset period — after this many months from closing, MFN protection expires. Common periods: 6 months, 12 months, 18 months, 24 months. Return as integer. If no sunset, return null.";
+
+insert $di_c5 isa ontology_question,
+    has question_id "di_c5",
+    has covenant_type "DI",
+    has question_text "Is the freebie basket excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 44,
+    has extraction_prompt "Determine if incremental debt incurred under the free-and-clear (freebie) basket is excluded from MFN pricing protection. This is borrower-favorable. Look for 'shall not apply to any incurrence under [the freebie basket]'.";
+
+insert $di_c6 isa ontology_question,
+    has question_id "di_c6",
+    has covenant_type "DI",
+    has question_text "Is acquisition-related incremental excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 45,
+    has extraction_prompt "Determine if incremental debt incurred to finance permitted acquisitions is excluded from MFN. This is borrower-favorable. Look for 'shall not apply to [incremental] incurred in connection with a Permitted Acquisition'.";
+
+insert $di_c7 isa ontology_question,
+    has question_id "di_c7",
+    has covenant_type "DI",
+    has question_text "Is incremental maturing 2+ years after existing excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 46,
+    has extraction_prompt "Determine if incremental term loans with maturity dates more than 2 years (or some other period) after the existing term loan maturity are excluded from MFN. Look for 'shall not apply to [incremental] having a final maturity date more than [X] months after'.";
+
+insert $di_c8 isa ontology_question,
+    has question_id "di_c8",
+    has covenant_type "DI",
+    has question_text "What is the maturity exclusion period for MFN (months)?",
+    has answer_type "integer",
+    has display_order 47,
+    has extraction_prompt "If incremental with later maturity is excluded from MFN, extract the exclusion threshold in months. Common values: 12 months, 24 months. Return as integer.";
+
+insert $di_c9 isa ontology_question,
+    has question_id "di_c9",
+    has covenant_type "DI",
+    has question_text "Is fixed-rate incremental excluded from MFN?",
+    has answer_type "boolean",
+    has display_order 48,
+    has extraction_prompt "Determine if fixed-rate incremental debt is excluded from MFN (since yield comparison is complex for fixed vs floating). Look for 'shall not apply to [incremental] bearing interest at a fixed rate'.";
+
+insert $di_c10 isa ontology_question,
+    has question_id "di_c10",
+    has covenant_type "DI",
+    has question_text "Does OID count in the all-in yield calculation?",
+    has answer_type "boolean",
+    has display_order 49,
+    has extraction_prompt "Determine if original issue discount (OID) is included in the all-in yield calculation for MFN purposes. Standard is yes, amortized over assumed life (typically 4 years).";
+
+insert $di_c11 isa ontology_question,
+    has question_id "di_c11",
+    has covenant_type "DI",
+    has question_text "What is the assumed OID amortization period (years)?",
+    has answer_type "integer",
+    has display_order 50,
+    has extraction_prompt "Extract the assumed life over which OID is amortized for yield calculation purposes. Common values: 4 years (standard), 3 years, or 'to maturity'. Return as integer.";
+
+insert $di_c12 isa ontology_question,
+    has question_id "di_c12",
+    has covenant_type "DI",
+    has question_text "Do interest rate floors count in yield calculation?",
+    has answer_type "boolean",
+    has display_order 51,
+    has extraction_prompt "Determine if interest rate floors are included in the all-in yield calculation. If the incremental has a higher floor than existing, this increases its effective yield.";
+
+insert $di_c13 isa ontology_question,
+    has question_id "di_c13",
+    has covenant_type "DI",
+    has question_text "Are upfront fees included in yield calculation?",
+    has answer_type "boolean",
+    has display_order 52,
+    has extraction_prompt "Determine if upfront fees (paid to all lenders, not just arrangers) are included in the all-in yield calculation for MFN purposes.";
+
+insert $di_c14 isa ontology_question,
+    has question_id "di_c14",
+    has covenant_type "DI",
+    has question_text "Are arrangement/structuring fees excluded from yield calculation?",
+    has answer_type "boolean",
+    has display_order 53,
+    has extraction_prompt "Determine if arrangement fees, structuring fees, and similar fees paid only to arrangers (not all lenders) are excluded from the all-in yield calculation. Standard is yes (these are excluded).";
+
+insert $di_c15 isa ontology_question,
+    has question_id "di_c15",
+    has covenant_type "DI",
+    has question_text "Does a de minimis amount of incremental avoid MFN?",
+    has answer_type "number",
+    has display_order 54,
+    has extraction_prompt "Determine if there is a de minimis threshold below which incremental incurrence does not trigger MFN. Some deals exclude first $[X] of incremental from MFN. Return the dollar figure if applicable, null otherwise.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI4: IED & SIDECAR (10 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_d1 isa ontology_question,
+    has question_id "di_d1",
+    has covenant_type "DI",
+    has question_text "Is Incremental Equivalent Debt (IED) permitted?",
+    has answer_type "boolean",
+    has display_order 60,
+    has extraction_prompt "Determine if the credit agreement permits Incremental Equivalent Debt (IED) — pari passu secured debt incurred outside the credit agreement. Look for 'Incremental Equivalent Debt', 'First Lien Incremental Equivalent Debt', or 'sidecar facility'. IED typically includes secured notes, bank loans from other lenders, and bridge financing.";
+
+insert $di_d2 isa ontology_question,
+    has question_id "di_d2",
+    has covenant_type "DI",
+    has question_text "Does IED share the same incremental cap (or have separate capacity)?",
+    has answer_type "boolean",
+    has display_order 61,
+    has extraction_prompt "Determine if IED counts against the same incremental cap as incremental loans under the credit agreement, or has separate capacity. Standard is shared capacity. If IED has separate capacity, this significantly increases total debt flexibility.";
+
+insert $di_d3 isa ontology_question,
+    has question_id "di_d3",
+    has covenant_type "DI",
+    has question_text "Does IED trigger MFN protection?",
+    has answer_type "boolean",
+    has display_order 62,
+    has extraction_prompt "CRITICAL: Determine if IED triggers the MFN pricing protection. If IED does NOT trigger MFN, borrowers can incur pari passu debt at higher yields without repricing existing debt — this is a major vulnerability (priming risk). Look for whether IED is specifically included or excluded from MFN language.";
+
+insert $di_d4 isa ontology_question,
+    has question_id "di_d4",
+    has covenant_type "DI",
+    has question_text "Does IED require an acceptable intercreditor agreement?",
+    has answer_type "boolean",
+    has display_order 63,
+    has extraction_prompt "Determine if IED requires entry into an acceptable intercreditor agreement (ICA) with existing first lien lenders. Standard is yes. Look for 'subject to an Acceptable Intercreditor Agreement' or similar.";
+
+insert $di_d5 isa ontology_question,
+    has question_id "di_d5",
+    has covenant_type "DI",
+    has question_text "What forms of IED are permitted (notes, loans, bridge)?",
+    has answer_type "string",
+    has display_order 64,
+    has extraction_prompt "Identify what forms of IED are permitted. Common forms: senior secured notes (144A or public), bank loans from other lenders, bridge financing, first lien notes. Return a comma-separated list of permitted forms.";
+
+insert $di_d6 isa ontology_question,
+    has question_id "di_d6",
+    has covenant_type "DI",
+    has question_text "Must IED have maturity no earlier than existing term loans?",
+    has answer_type "boolean",
+    has display_order 65,
+    has extraction_prompt "Determine if IED must have a maturity date no earlier than the existing term loan maturity (similar to incremental inside the agreement).";
+
+insert $di_d7 isa ontology_question,
+    has question_id "di_d7",
+    has covenant_type "DI",
+    has question_text "Must IED covenants be no more restrictive than the credit agreement?",
+    has answer_type "boolean",
+    has display_order 66,
+    has extraction_prompt "Determine if IED covenants must be no more restrictive than those in the credit agreement, or if any additional restrictive covenants must benefit existing lenders.";
+
+insert $di_d8 isa ontology_question,
+    has question_id "di_d8",
+    has covenant_type "DI",
+    has question_text "Can IED be incurred by Borrower only, or also by Guarantors?",
+    has answer_type "string",
+    has display_order 67,
+    has extraction_prompt "Identify which entities can incur IED. Standard is 'Borrower and Guarantors' but some deals limit to 'Borrower only'. Return 'Borrower only', 'Borrower and Guarantors', or other specification.";
+
+insert $di_d9 isa ontology_question,
+    has question_id "di_d9",
+    has covenant_type "DI",
+    has question_text "Is junior lien IED (second lien equivalent debt) permitted?",
+    has answer_type "boolean",
+    has display_order 68,
+    has extraction_prompt "Determine if junior lien or second lien equivalent debt is permitted outside the credit agreement, in addition to first lien IED.";
+
+insert $di_d10 isa ontology_question,
+    has question_id "di_d10",
+    has covenant_type "DI",
+    has question_text "Is unsecured IED (unsecured equivalent debt) permitted?",
+    has answer_type "boolean",
+    has display_order 69,
+    has extraction_prompt "Determine if unsecured equivalent debt is permitted outside the credit agreement. This would typically be subject to a total leverage test rather than a secured leverage test.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI5: PERMITTED DEBT BASKETS (40 questions - _exists + cap for each basket)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- Credit Agreement Basket ---
+insert $di_e_ca_0 isa ontology_question,
+    has question_id "di_e_ca_0",
+    has covenant_type "DI",
+    has question_text "Is debt under the Credit Agreement (existing facilities + refinancing) permitted?",
+    has answer_type "boolean",
+    has display_order 70,
+    has extraction_prompt "Determine if the permitted debt exceptions include debt under this Credit Agreement and any refinancing thereof. This is the baseline permission for the existing facilities. Look for clause (a) typically permitting 'Indebtedness under the Loan Documents'.";
+
+insert $di_e_ca_1 isa ontology_question,
+    has question_id "di_e_ca_1",
+    has covenant_type "DI",
+    has question_text "What is the Credit Agreement basket cap (if any)?",
+    has answer_type "number",
+    has display_order 71,
+    has extraction_prompt "If the Credit Agreement debt basket has a cap (beyond just existing commitments), extract the dollar amount. Most agreements don't cap this separately from incremental. Return null if not separately capped.";
+
+# --- Ratio Debt Basket ---
+insert $di_e_rd_0 isa ontology_question,
+    has question_id "di_e_rd_0",
+    has covenant_type "DI",
+    has question_text "Is ratio debt (unlimited if leverage test met) permitted?",
+    has answer_type "boolean",
+    has display_order 72,
+    has extraction_prompt "Determine if the permitted debt exceptions include 'ratio debt' — unlimited additional debt permitted so long as a pro forma leverage ratio is satisfied. This is common in bond indentures and some credit agreements. Distinct from incremental ratio prong.";
+
+insert $di_e_rd_1 isa ontology_question,
+    has question_id "di_e_rd_1",
+    has covenant_type "DI",
+    has question_text "What is the ratio debt leverage threshold?",
+    has answer_type "number",
+    has display_order 73,
+    has extraction_prompt "If ratio debt is permitted, extract the leverage ratio threshold. May vary by lien priority (first lien vs total). Return the first lien threshold if multiple exist, as decimal (e.g., 4.5 for 4.50x).";
+
+# --- General Basket ---
+insert $di_e_gb_0 isa ontology_question,
+    has question_id "di_e_gb_0",
+    has covenant_type "DI",
+    has question_text "Is a general debt basket permitted?",
+    has answer_type "boolean",
+    has display_order 74,
+    has extraction_prompt "Determine if the permitted debt exceptions include a general basket — a fixed dollar amount (and/or percentage of EBITDA) permitted without conditions. Look for a catch-all basket often structured as 'the greater of $[X] and [Y]% of EBITDA'.";
+
+insert $di_e_gb_1 isa ontology_question,
+    has question_id "di_e_gb_1",
+    has covenant_type "DI",
+    has question_text "What is the general basket cap in USD?",
+    has answer_type "number",
+    has display_order 75,
+    has extraction_prompt "Extract the general basket dollar cap. If structured as 'greater of $X and Y% EBITDA', return the fixed dollar amount X.";
+
+insert $di_e_gb_2 isa ontology_question,
+    has question_id "di_e_gb_2",
+    has covenant_type "DI",
+    has question_text "What is the general basket cap as % of EBITDA?",
+    has answer_type "number",
+    has display_order 76,
+    has extraction_prompt "If the general basket is expressed as a percentage of EBITDA, extract the percentage. Return as decimal (e.g., 0.15 for 15%).";
+
+# --- Acquisition Debt Basket ---
+insert $di_e_acq_0 isa ontology_question,
+    has question_id "di_e_acq_0",
+    has covenant_type "DI",
+    has question_text "Is acquisition debt (for permitted acquisitions) permitted?",
+    has answer_type "boolean",
+    has display_order 77,
+    has extraction_prompt "Determine if the permitted debt exceptions include debt incurred to finance Permitted Acquisitions. Look for 'Indebtedness incurred to finance any Permitted Acquisition' or assumption of target debt.";
+
+insert $di_e_acq_1 isa ontology_question,
+    has question_id "di_e_acq_1",
+    has covenant_type "DI",
+    has question_text "What is the acquisition debt basket cap?",
+    has answer_type "number",
+    has display_order 78,
+    has extraction_prompt "Extract the acquisition debt basket cap. May be per-acquisition or aggregate. Return the dollar figure.";
+
+# --- Capital Lease Basket ---
+insert $di_e_cl_0 isa ontology_question,
+    has question_id "di_e_cl_0",
+    has covenant_type "DI",
+    has question_text "Are capital lease obligations permitted?",
+    has answer_type "boolean",
+    has display_order 79,
+    has extraction_prompt "Determine if capital lease obligations (Capitalized Lease Obligations) are permitted as a separate basket. Often combined with purchase money debt.";
+
+insert $di_e_cl_1 isa ontology_question,
+    has question_id "di_e_cl_1",
+    has covenant_type "DI",
+    has question_text "What is the capital lease / purchase money combined cap?",
+    has answer_type "number",
+    has display_order 80,
+    has extraction_prompt "Extract the combined cap for capital lease obligations and purchase money debt. These are often combined in a single basket.";
+
+# --- Purchase Money Basket ---
+insert $di_e_pm_0 isa ontology_question,
+    has question_id "di_e_pm_0",
+    has covenant_type "DI",
+    has question_text "Is purchase money debt permitted?",
+    has answer_type "boolean",
+    has display_order 81,
+    has extraction_prompt "Determine if purchase money debt (debt to finance acquisition of fixed assets, secured only by such assets) is permitted.";
+
+# --- Intercompany Basket ---
+insert $di_e_ic_0 isa ontology_question,
+    has question_id "di_e_ic_0",
+    has covenant_type "DI",
+    has question_text "Is intercompany debt permitted?",
+    has answer_type "boolean",
+    has display_order 82,
+    has extraction_prompt "Determine if intercompany debt among the Borrower and its Restricted Subsidiaries is permitted. Standard provision for cash management purposes.";
+
+insert $di_e_ic_1 isa ontology_question,
+    has question_id "di_e_ic_1",
+    has covenant_type "DI",
+    has question_text "Must intercompany debt be subordinated?",
+    has answer_type "boolean",
+    has display_order 83,
+    has extraction_prompt "Determine if intercompany debt owed by a Loan Party to a non-Loan Party must be subordinated to the obligations under the Credit Agreement. Standard lender protection.";
+
+# --- Refinancing Basket ---
+insert $di_e_ref_0 isa ontology_question,
+    has question_id "di_e_ref_0",
+    has covenant_type "DI",
+    has question_text "Is refinancing/replacement debt permitted?",
+    has answer_type "boolean",
+    has display_order 84,
+    has extraction_prompt "Determine if 'Permitted Refinancing Indebtedness' or similar is permitted — debt to refinance existing permitted debt, subject to conditions (same or junior lien, same or later maturity, etc.).";
+
+insert $di_e_ref_1 isa ontology_question,
+    has question_id "di_e_ref_1",
+    has covenant_type "DI",
+    has question_text "What principal increase is permitted for refinancing (premium %)?",
+    has answer_type "number",
+    has display_order 85,
+    has extraction_prompt "Extract the permitted principal increase for refinancing debt beyond the original principal. Typically expressed as 'the principal amount of the refinanced debt plus accrued interest, fees, premiums and expenses' or a percentage premium. Return as decimal (e.g., 0.05 for 5%).";
+
+# --- Hedging Basket ---
+insert $di_e_hdg_0 isa ontology_question,
+    has question_id "di_e_hdg_0",
+    has covenant_type "DI",
+    has question_text "Are hedging obligations permitted?",
+    has answer_type "boolean",
+    has display_order 86,
+    has extraction_prompt "Determine if obligations under Swap Agreements or other hedging arrangements are permitted as Indebtedness.";
+
+insert $di_e_hdg_1 isa ontology_question,
+    has question_id "di_e_hdg_1",
+    has covenant_type "DI",
+    has question_text "Is there a notional cap on hedging?",
+    has answer_type "number",
+    has display_order 87,
+    has extraction_prompt "If hedging obligations have a notional or aggregate cap, extract the dollar amount. Many agreements don't cap hedging.";
+
+# --- Letters of Credit Basket ---
+insert $di_e_lc_0 isa ontology_question,
+    has question_id "di_e_lc_0",
+    has covenant_type "DI",
+    has question_text "Are letters of credit and bank guarantees permitted outside the revolver?",
+    has answer_type "boolean",
+    has display_order 88,
+    has extraction_prompt "Determine if letters of credit, bank guarantees, and similar obligations are permitted separate from the revolving facility LC sublimit.";
+
+# --- Sale-Leaseback Basket ---
+insert $di_e_slb_0 isa ontology_question,
+    has question_id "di_e_slb_0",
+    has covenant_type "DI",
+    has question_text "Is sale-leaseback indebtedness permitted?",
+    has answer_type "boolean",
+    has display_order 89,
+    has extraction_prompt "Determine if Attributable Indebtedness from sale-leaseback transactions is permitted.";
+
+insert $di_e_slb_1 isa ontology_question,
+    has question_id "di_e_slb_1",
+    has covenant_type "DI",
+    has question_text "What is the sale-leaseback basket cap?",
+    has answer_type "number",
+    has display_order 90,
+    has extraction_prompt "Extract the cap on sale-leaseback attributable indebtedness.";
+
+# --- Foreign Subsidiary Basket ---
+insert $di_e_fs_0 isa ontology_question,
+    has question_id "di_e_fs_0",
+    has covenant_type "DI",
+    has question_text "Is foreign subsidiary debt (non-guarantor restricted sub debt) permitted?",
+    has answer_type "boolean",
+    has display_order 91,
+    has extraction_prompt "Determine if foreign subsidiaries or non-guarantor restricted subsidiaries can incur debt not guaranteed by the Credit Parties. This creates structurally senior debt.";
+
+insert $di_e_fs_1 isa ontology_question,
+    has question_id "di_e_fs_1",
+    has covenant_type "DI",
+    has question_text "What is the foreign subsidiary / non-guarantor debt cap?",
+    has answer_type "number",
+    has display_order 92,
+    has extraction_prompt "Extract the cap on debt that can be incurred by foreign subsidiaries or non-guarantor restricted subsidiaries.";
+
+# --- Earnout Basket ---
+insert $di_e_eo_0 isa ontology_question,
+    has question_id "di_e_eo_0",
+    has covenant_type "DI",
+    has question_text "Are earnouts and seller notes from acquisitions permitted?",
+    has answer_type "boolean",
+    has display_order 93,
+    has extraction_prompt "Determine if deferred purchase price obligations, earnouts, and seller notes from acquisitions are permitted as Indebtedness.";
+
+# --- Working Capital Basket ---
+insert $di_e_wc_0 isa ontology_question,
+    has question_id "di_e_wc_0",
+    has covenant_type "DI",
+    has question_text "Are local working capital facilities permitted?",
+    has answer_type "boolean",
+    has display_order 94,
+    has extraction_prompt "Determine if local working capital facilities (often for foreign subsidiaries) are permitted separate from the main revolver. Sometimes called 'local lines of credit'.";
+
+insert $di_e_wc_1 isa ontology_question,
+    has question_id "di_e_wc_1",
+    has covenant_type "DI",
+    has question_text "What is the local working capital facilities cap?",
+    has answer_type "number",
+    has display_order 95,
+    has extraction_prompt "Extract the cap on local working capital facilities.";
+
+# --- Contribution Debt Basket ---
+insert $di_e_cd_0 isa ontology_question,
+    has question_id "di_e_cd_0",
+    has covenant_type "DI",
+    has question_text "Is contribution debt (debt equal to equity contributions) permitted?",
+    has answer_type "boolean",
+    has display_order 96,
+    has extraction_prompt "Determine if contribution debt is permitted — debt in an amount equal to equity contributions made by shareholders. Sometimes called 'equity credit basket'. Permits $1 of debt for each $1 of equity contributed (or $2 in aggressive deals).";
+
+insert $di_e_cd_1 isa ontology_question,
+    has question_id "di_e_cd_1",
+    has covenant_type "DI",
+    has question_text "What is the contribution debt multiplier (1x or 2x equity)?",
+    has answer_type "number",
+    has display_order 97,
+    has extraction_prompt "Extract the multiplier for contribution debt. Standard is 1x (dollar-for-dollar with equity contributions). Some aggressive deals permit 2x. Return as decimal (1.0 or 2.0).";
+
+# --- Non-Guarantor Basket ---
+insert $di_e_ng_0 isa ontology_question,
+    has question_id "di_e_ng_0",
+    has covenant_type "DI",
+    has question_text "Is there a separate non-guarantor subsidiary debt basket?",
+    has answer_type "boolean",
+    has display_order 98,
+    has extraction_prompt "Determine if there is a basket specifically for debt incurred by non-guarantor restricted subsidiaries (distinct from foreign subsidiary basket). This debt is structurally senior to Credit Agreement debt.";
+
+insert $di_e_ng_1 isa ontology_question,
+    has question_id "di_e_ng_1",
+    has covenant_type "DI",
+    has question_text "What is the non-guarantor subsidiary debt cap?",
+    has answer_type "number",
+    has display_order 99,
+    has extraction_prompt "Extract the cap on non-guarantor subsidiary debt.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI6: RATIO TESTS (12 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_f1 isa ontology_question,
+    has question_id "di_f1",
+    has covenant_type "DI",
+    has question_text "Does the agreement use First Lien Net Leverage Ratio for debt incurrence?",
+    has answer_type "boolean",
+    has display_order 100,
+    has extraction_prompt "Determine if the First Lien Net Leverage Ratio is used as an incurrence test for debt baskets. This ratio measures first lien secured debt minus cash, divided by EBITDA.";
+
+insert $di_f2 isa ontology_question,
+    has question_id "di_f2",
+    has covenant_type "DI",
+    has question_text "Does the agreement use Senior Secured Net Leverage Ratio for debt incurrence?",
+    has answer_type "boolean",
+    has display_order 101,
+    has extraction_prompt "Determine if the Senior Secured Net Leverage Ratio (all secured debt, including junior lien) is used as an incurrence test.";
+
+insert $di_f3 isa ontology_question,
+    has question_id "di_f3",
+    has covenant_type "DI",
+    has question_text "Does the agreement use Total Net Leverage Ratio for debt incurrence?",
+    has answer_type "boolean",
+    has display_order 102,
+    has extraction_prompt "Determine if the Total Net Leverage Ratio (all debt including unsecured) is used as an incurrence test, typically for unsecured debt permissions.";
+
+insert $di_f4 isa ontology_question,
+    has question_id "di_f4",
+    has covenant_type "DI",
+    has question_text "Does the agreement use Interest Coverage Ratio for debt incurrence?",
+    has answer_type "boolean",
+    has display_order 103,
+    has extraction_prompt "Determine if an Interest Coverage Ratio (EBITDA / Interest Expense) floor test is used for debt incurrence, typically for unsecured debt in bond-style indentures.";
+
+insert $di_f5 isa ontology_question,
+    has question_id "di_f5",
+    has covenant_type "DI",
+    has question_text "Does the agreement use Fixed Charge Coverage Ratio for debt incurrence?",
+    has answer_type "boolean",
+    has display_order 104,
+    has extraction_prompt "Determine if a Fixed Charge Coverage Ratio (EBITDA / Fixed Charges) floor test is used. Fixed charges typically include interest expense, scheduled principal, and capex.";
+
+insert $di_f6 isa ontology_question,
+    has question_id "di_f6",
+    has covenant_type "DI",
+    has question_text "Is Limited Condition Transaction (LCT) election available?",
+    has answer_type "boolean",
+    has display_order 105,
+    has extraction_prompt "Determine if the borrower can elect Limited Condition Transaction treatment for acquisitions — testing ratio compliance at signing rather than closing. Look for 'Limited Condition Acquisition' or 'LCT Election' provisions.";
+
+insert $di_f7 isa ontology_question,
+    has question_id "di_f7",
+    has covenant_type "DI",
+    has question_text "How many concurrent LCT elections are permitted?",
+    has answer_type "integer",
+    has display_order 106,
+    has extraction_prompt "If LCT is available, how many Limited Condition Transactions can be outstanding at once? Look for 'not more than [X] Limited Condition Transactions at any time'. Return as integer.";
+
+insert $di_f8 isa ontology_question,
+    has question_id "di_f8",
+    has covenant_type "DI",
+    has question_text "Does pro forma calculation include projected synergies?",
+    has answer_type "boolean",
+    has display_order 107,
+    has extraction_prompt "Determine if pro forma EBITDA calculations for incurrence tests include projected synergies and cost savings from acquisitions. Standard in large-cap deals.";
+
+insert $di_f9 isa ontology_question,
+    has question_id "di_f9",
+    has covenant_type "DI",
+    has question_text "What is the synergy cap as a percentage of EBITDA?",
+    has answer_type "number",
+    has display_order 108,
+    has extraction_prompt "If synergies are permitted in pro forma calculations, is there a cap as a percentage of EBITDA? Common caps: 15%, 20%, 25%. Return as decimal (e.g., 0.20 for 20%).";
+
+insert $di_f10 isa ontology_question,
+    has question_id "di_f10",
+    has covenant_type "DI",
+    has question_text "Must synergies be reasonably expected to be realized within a time period?",
+    has answer_type "boolean",
+    has display_order 109,
+    has extraction_prompt "Determine if synergies must be reasonably expected to be realized within a specified time period (typically 12-24 months) to be included in pro forma calculations.";
+
+insert $di_f11 isa ontology_question,
+    has question_id "di_f11",
+    has covenant_type "DI",
+    has question_text "Are EBITDA add-backs capped?",
+    has answer_type "boolean",
+    has display_order 110,
+    has extraction_prompt "Determine if there is an overall cap on EBITDA add-backs (one-time expenses, restructuring charges, synergies combined) as a percentage of unadjusted EBITDA.";
+
+insert $di_f12 isa ontology_question,
+    has question_id "di_f12",
+    has covenant_type "DI",
+    has question_text "What is the overall EBITDA add-back cap?",
+    has answer_type "number",
+    has display_order 111,
+    has extraction_prompt "If EBITDA add-backs are capped, extract the cap as a percentage of unadjusted EBITDA. Common values: 20%, 25%, 30%. Return as decimal.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI7: BASKET CONDITIONS (10 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_g1 isa ontology_question,
+    has question_id "di_g1",
+    has covenant_type "DI",
+    has question_text "Does the no-default blocker apply to all baskets or only specified ones?",
+    has answer_type "string",
+    has display_order 120,
+    has extraction_prompt "Determine which baskets require no Default or Event of Default as a condition. Standard is most material baskets require this. Return 'all baskets', 'specified baskets only', or 'none'.";
+
+insert $di_g2 isa ontology_question,
+    has question_id "di_g2",
+    has covenant_type "DI",
+    has question_text "Is the default blocker limited to Events of Default only (not Defaults)?",
+    has answer_type "boolean",
+    has display_order 121,
+    has extraction_prompt "For baskets with a default blocker, is it limited to Events of Default (not Defaults that have not matured)? This is borrower-favorable.";
+
+insert $di_g3 isa ontology_question,
+    has question_id "di_g3",
+    has covenant_type "DI",
+    has question_text "Is there a 'payment default' or 'bankruptcy default' only blocker option?",
+    has answer_type "boolean",
+    has display_order 122,
+    has extraction_prompt "Determine if some baskets only require no payment Event of Default or no bankruptcy Event of Default (rather than any EOD). This is very borrower-favorable.";
+
+insert $di_g4 isa ontology_question,
+    has question_id "di_g4",
+    has covenant_type "DI",
+    has question_text "Must debt mature on or after existing term loan maturity (Latest Maturity Date)?",
+    has answer_type "boolean",
+    has display_order 123,
+    has extraction_prompt "Determine if permitted debt must have a maturity date no earlier than the Latest Maturity Date of existing term loans. Standard lender protection for incremental and ratio debt.";
+
+insert $di_g5 isa ontology_question,
+    has question_id "di_g5",
+    has covenant_type "DI",
+    has question_text "Is maturity inside 91 days of existing maturity permitted?",
+    has answer_type "boolean",
+    has display_order 124,
+    has extraction_prompt "Determine if incremental or other debt can mature within 91 days before the existing term loan maturity. This is borrower-favorable.";
+
+insert $di_g6 isa ontology_question,
+    has question_id "di_g6",
+    has covenant_type "DI",
+    has question_text "Must WAL be at least equal to existing debt WAL?",
+    has answer_type "boolean",
+    has display_order 125,
+    has extraction_prompt "Determine if the weighted average life of incremental debt must be no shorter than the remaining WAL of existing term loans.";
+
+insert $di_g7 isa ontology_question,
+    has question_id "di_g7",
+    has covenant_type "DI",
+    has question_text "Is scheduled amortization permitted on incremental/ratio debt?",
+    has answer_type "boolean",
+    has display_order 126,
+    has extraction_prompt "Determine if scheduled amortization is permitted on incremental or ratio debt prior to maturity. Standard is no amortization or limited to 1% annually.";
+
+insert $di_g8 isa ontology_question,
+    has question_id "di_g8",
+    has covenant_type "DI",
+    has question_text "Must collateral be same or subset of existing collateral?",
+    has answer_type "boolean",
+    has display_order 127,
+    has extraction_prompt "Determine if incremental or ratio debt must be secured by the same collateral as existing debt, or a subset thereof (cannot have broader collateral coverage).";
+
+insert $di_g9 isa ontology_question,
+    has question_id "di_g9",
+    has covenant_type "DI",
+    has question_text "Must guarantors be same or subset of existing guarantors?",
+    has answer_type "boolean",
+    has display_order 128,
+    has extraction_prompt "Determine if incremental or ratio debt must be guaranteed by the same guarantors as existing debt, or a subset thereof (cannot have additional guarantors).";
+
+insert $di_g10 isa ontology_question,
+    has question_id "di_g10",
+    has covenant_type "DI",
+    has question_text "Is currency matching required (same currency or hedged)?",
+    has answer_type "boolean",
+    has display_order 129,
+    has extraction_prompt "Determine if incremental debt must be denominated in the same currency as existing debt, or if foreign currency debt is permitted (potentially with hedging requirements).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI8: RECLASSIFICATION (8 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_h1 isa ontology_question,
+    has question_id "di_h1",
+    has covenant_type "DI",
+    has question_text "Is reclassification of debt between baskets permitted?",
+    has answer_type "boolean",
+    has display_order 130,
+    has extraction_prompt "Determine if the borrower can reclassify or redesignate debt from one basket to another (e.g., from freebie to ratio basket). This allows 'refreshing' basket capacity. Look for 'reclassification', 'redesignation', or 'deemed incurred under' language.";
+
+insert $di_h2 isa ontology_question,
+    has question_id "di_h2",
+    has covenant_type "DI",
+    has question_text "Is reclassification automatic or elective?",
+    has answer_type "string",
+    has display_order 131,
+    has extraction_prompt "If reclassification is permitted, is it automatic (happens whenever conditions are met) or elective (borrower must choose)? Return 'automatic', 'elective', or 'both'.";
+
+insert $di_h3 isa ontology_question,
+    has question_id "di_h3",
+    has covenant_type "DI",
+    has question_text "Can freebie basket be refreshed by reclassifying to ratio basket?",
+    has answer_type "boolean",
+    has display_order 132,
+    has extraction_prompt "Determine if debt incurred under the freebie basket can be reclassified as ratio debt (when ratio headroom exists), thereby refreshing the freebie basket for future use. This is a significant flexibility.";
+
+insert $di_h4 isa ontology_question,
+    has question_id "di_h4",
+    has covenant_type "DI",
+    has question_text "Can reclassification occur in either direction (freebie↔ratio)?",
+    has answer_type "boolean",
+    has display_order 133,
+    has extraction_prompt "Determine if reclassification is bidirectional — can debt be moved from freebie to ratio AND from ratio to freebie? One-way (freebie→ratio only) is more common.";
+
+insert $di_h5 isa ontology_question,
+    has question_id "di_h5",
+    has covenant_type "DI",
+    has question_text "Does reclassified debt still trigger MFN?",
+    has answer_type "boolean",
+    has display_order 134,
+    has extraction_prompt "If debt is reclassified from freebie (MFN-exempt) to ratio basket, does the original MFN exemption persist or does reclassified debt become subject to MFN?";
+
+insert $di_h6 isa ontology_question,
+    has question_id "di_h6",
+    has covenant_type "DI",
+    has question_text "Is notice to Agent required for reclassification?",
+    has answer_type "boolean",
+    has display_order 135,
+    has extraction_prompt "Determine if the borrower must notify the Administrative Agent when reclassifying debt between baskets.";
+
+insert $di_h7 isa ontology_question,
+    has question_id "di_h7",
+    has covenant_type "DI",
+    has question_text "Can debt be split between multiple baskets simultaneously?",
+    has answer_type "boolean",
+    has display_order 136,
+    has extraction_prompt "Determine if a single debt incurrence can be split across multiple baskets (e.g., partly under freebie, partly under ratio) or must be attributed to a single basket.";
+
+insert $di_h8 isa ontology_question,
+    has question_id "di_h8",
+    has covenant_type "DI",
+    has question_text "Is there a limit on number of reclassifications?",
+    has answer_type "boolean",
+    has display_order 137,
+    has extraction_prompt "Determine if there is any limit on how many times debt can be reclassified, or if reclassification is unlimited.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI9: LIENS CORRELATION (8 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_i1 isa ontology_question,
+    has question_id "di_i1",
+    has covenant_type "DI",
+    has question_text "Does the incremental facility have a corresponding lien basket?",
+    has answer_type "boolean",
+    has display_order 140,
+    has extraction_prompt "Determine if there is a corresponding basket in the Liens covenant (Section 6.02 or similar) that permits liens to secure incremental debt. Typically yes.";
+
+insert $di_i2 isa ontology_question,
+    has question_id "di_i2",
+    has covenant_type "DI",
+    has question_text "Does ratio debt have a corresponding lien basket?",
+    has answer_type "boolean",
+    has display_order 141,
+    has extraction_prompt "Determine if there is a lien basket permitting liens to secure ratio debt.";
+
+insert $di_i3 isa ontology_question,
+    has question_id "di_i3",
+    has covenant_type "DI",
+    has question_text "Does the general debt basket have a corresponding lien basket?",
+    has answer_type "boolean",
+    has display_order 142,
+    has extraction_prompt "Determine if there is a lien basket permitting liens to secure general basket debt.";
+
+insert $di_i4 isa ontology_question,
+    has question_id "di_i4",
+    has covenant_type "DI",
+    has question_text "Is debt basket capacity shared with lien basket capacity?",
+    has answer_type "boolean",
+    has display_order 143,
+    has extraction_prompt "Determine if debt basket caps are shared with corresponding lien basket caps, or if they are separate (additive). Shared is more lender-protective.";
+
+insert $di_i5 isa ontology_question,
+    has question_id "di_i5",
+    has covenant_type "DI",
+    has question_text "Can secured debt be incurred without using a specific lien basket?",
+    has answer_type "boolean",
+    has display_order 144,
+    has extraction_prompt "Determine if there are any circumstances where secured debt can be incurred under a debt basket without needing to use a corresponding lien basket (e.g., automatically permitted liens).";
+
+insert $di_i6 isa ontology_question,
+    has question_id "di_i6",
+    has covenant_type "DI",
+    has question_text "What is the aggregate secured debt lien cap (if separate from debt)?",
+    has answer_type "number",
+    has display_order 145,
+    has extraction_prompt "If there is a separate aggregate cap on liens securing indebtedness (distinct from individual basket caps), extract that cap.";
+
+insert $di_i7 isa ontology_question,
+    has question_id "di_i7",
+    has covenant_type "DI",
+    has question_text "What section contains the liens covenant?",
+    has answer_type "string",
+    has display_order 146,
+    has extraction_prompt "Extract the section reference for the liens negative covenant in THIS document.";
+
+insert $di_i8 isa ontology_question,
+    has question_id "di_i8",
+    has covenant_type "DI",
+    has question_text "Can debt be secured on assets outside the collateral package?",
+    has answer_type "boolean",
+    has display_order 147,
+    has extraction_prompt "Determine if debt can be secured by assets that are not part of the Credit Agreement collateral package (e.g., foreign subsidiary assets, excluded assets).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI10: CROSS-COVENANT LINKS (8 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_j1 isa ontology_question,
+    has question_id "di_j1",
+    has covenant_type "DI",
+    has question_text "Does contribution debt increase the RP builder basket (Available Amount)?",
+    has answer_type "boolean",
+    has display_order 150,
+    has extraction_prompt "Determine if equity contributions that can be used for contribution debt ALSO increase the Cumulative Amount / Available Amount for the RP builder basket. This creates dual use of the same equity.";
+
+insert $di_j2 isa ontology_question,
+    has question_id "di_j2",
+    has covenant_type "DI",
+    has question_text "Is the contribution debt / builder basket link dollar-for-dollar?",
+    has answer_type "boolean",
+    has display_order 151,
+    has extraction_prompt "If contribution debt increases the builder basket, is it dollar-for-dollar (1:1) or some other ratio?";
+
+insert $di_j3 isa ontology_question,
+    has question_id "di_j3",
+    has covenant_type "DI",
+    has question_text "Can RP capacity be converted to debt capacity ('Available RP Amount' debt basket)?",
+    has answer_type "boolean",
+    has display_order 152,
+    has extraction_prompt "Determine if there is an 'Available RP Capacity Amount' debt basket that converts restricted payment capacity into debt incurrence capacity. Very aggressive; allows dividend capacity to fund additional debt.";
+
+insert $di_j4 isa ontology_question,
+    has question_id "di_j4",
+    has covenant_type "DI",
+    has question_text "Does asset sale mandatory prepayment reload incremental capacity?",
+    has answer_type "boolean",
+    has display_order 153,
+    has extraction_prompt "Determine if mandatory prepayment of term loans from asset sale proceeds reloads the prepayments prong of incremental capacity (similar to voluntary prepayments).";
+
+insert $di_j5 isa ontology_question,
+    has question_id "di_j5",
+    has covenant_type "DI",
+    has question_text "Can Unrestricted Subsidiaries incur unlimited debt?",
+    has answer_type "boolean",
+    has display_order 154,
+    has extraction_prompt "Determine if Unrestricted Subsidiaries are entirely excluded from the debt covenant restrictions (can incur unlimited debt). Standard, but leakage risk if assets can be moved to Unrestricted Subs.";
+
+insert $di_j6 isa ontology_question,
+    has question_id "di_j6",
+    has covenant_type "DI",
+    has question_text "Can Restricted Subsidiaries be redesignated as Unrestricted to avoid debt limits?",
+    has answer_type "boolean",
+    has display_order 155,
+    has extraction_prompt "Determine if Restricted Subsidiaries can be redesignated as Unrestricted Subsidiaries (subject to Investment basket capacity), thereby escaping debt covenant restrictions.";
+
+insert $di_j7 isa ontology_question,
+    has question_id "di_j7",
+    has covenant_type "DI",
+    has question_text "Does debt repayment from the builder basket increase any debt basket capacity?",
+    has answer_type "boolean",
+    has display_order 156,
+    has extraction_prompt "Determine if using the RP builder basket to repay debt (Restricted Debt Payments) increases debt incurrence capacity in a circular manner.";
+
+insert $di_j8 isa ontology_question,
+    has question_id "di_j8",
+    has covenant_type "DI",
+    has question_text "Are there cross-references allowing basket 'sharing' between covenants?",
+    has answer_type "boolean",
+    has display_order 157,
+    has extraction_prompt "Determine if there are cross-references between covenants allowing capacity from one basket to be used for another covenant's purposes (e.g., Investment basket capacity usable for RDP).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI11: CAPACITY CALCULATION (8 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_k1 isa ontology_question,
+    has question_id "di_k1",
+    has covenant_type "DI",
+    has question_text "What is the total freebie/free-and-clear capacity across all baskets?",
+    has answer_type "number",
+    has display_order 160,
+    has extraction_prompt "Calculate the total fixed-dollar debt capacity available without ratio tests. Sum the freebie basket, general basket fixed amount, and other fixed baskets. Return total USD.";
+
+insert $di_k2 isa ontology_question,
+    has question_id "di_k2",
+    has covenant_type "DI",
+    has question_text "How many baskets use 'grower' (greater of $ and % EBITDA) construction?",
+    has answer_type "integer",
+    has display_order 161,
+    has extraction_prompt "Count the number of debt baskets that use a 'greater of' construction allowing capacity to grow with EBITDA.";
+
+insert $di_k3 isa ontology_question,
+    has question_id "di_k3",
+    has covenant_type "DI",
+    has question_text "Can freebie and ratio prong be used simultaneously (stacking)?",
+    has answer_type "boolean",
+    has display_order 162,
+    has extraction_prompt "Determine if the freebie basket can be used at the same time as the ratio prong (in a single incurrence or concurrently), and whether freebie debt is excluded from the pro forma leverage calculation for the ratio test.";
+
+insert $di_k4 isa ontology_question,
+    has question_id "di_k4",
+    has covenant_type "DI",
+    has question_text "What is the maximum first lien debt capacity at closing leverage?",
+    has answer_type "number",
+    has display_order 163,
+    has extraction_prompt "Calculate the maximum first lien secured debt capacity available assuming the borrower maintains closing date leverage. Include incremental (freebie + ratio), general basket, and other first-lien-permitted baskets.";
+
+insert $di_k5 isa ontology_question,
+    has question_id "di_k5",
+    has covenant_type "DI",
+    has question_text "What is the maximum total debt capacity at closing leverage?",
+    has answer_type "number",
+    has display_order 164,
+    has extraction_prompt "Calculate the maximum total debt capacity (secured + unsecured) available assuming closing date leverage. Include all baskets.";
+
+insert $di_k6 isa ontology_question,
+    has question_id "di_k6",
+    has covenant_type "DI",
+    has question_text "Is there a 'ratios first' ordering for basket utilization?",
+    has answer_type "boolean",
+    has display_order 165,
+    has extraction_prompt "Determine if debt is deemed incurred first under the ratio prong (when available) before using fixed baskets. This preserves fixed basket capacity for when ratio headroom is exhausted.";
+
+insert $di_k7 isa ontology_question,
+    has question_id "di_k7",
+    has covenant_type "DI",
+    has question_text "Can basket capacity be 'reloaded' by voluntary prepayment?",
+    has answer_type "boolean",
+    has display_order 166,
+    has extraction_prompt "Determine if voluntary prepayment of debt incurred under a basket 'reloads' that basket (makes capacity available again), or if basket capacity is one-time use.";
+
+insert $di_k8 isa ontology_question,
+    has question_id "di_k8",
+    has covenant_type "DI",
+    has question_text "Are any baskets 'inside' others (sublimits)?",
+    has answer_type "boolean",
+    has display_order 167,
+    has extraction_prompt "Determine if any baskets are sublimits of other baskets (shared capacity rather than additive). For example, acquisition debt as a sublimit of the general basket.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DI12: VULNERABILITIES (10 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $di_l1 isa ontology_question,
+    has question_id "di_l1",
+    has covenant_type "DI",
+    has question_text "Is there a trapdoor basket (unlimited ratio debt with no dollar cap)?",
+    has answer_type "boolean",
+    has display_order 170,
+    has extraction_prompt "VULNERABILITY: Determine if there is a ratio debt basket that permits unlimited debt when a leverage test is met, with NO dollar cap even when the ratio is satisfied. This is a 'trapdoor' that can allow massive debt incurrence.";
+
+insert $di_l2 isa ontology_question,
+    has question_id "di_l2",
+    has covenant_type "DI",
+    has question_text "Can IED be incurred without triggering MFN (priming risk)?",
+    has answer_type "boolean",
+    has display_order 171,
+    has extraction_prompt "VULNERABILITY: Determine if Incremental Equivalent Debt can be incurred without triggering MFN pricing protection. If yes, borrower can incur pari passu debt at higher yields, effectively 'priming' existing lenders without compensation.";
+
+insert $di_l3 isa ontology_question,
+    has question_id "di_l3",
+    has covenant_type "DI",
+    has question_text "Is freebie basket stacking with ratio prong permitted?",
+    has answer_type "boolean",
+    has display_order 172,
+    has extraction_prompt "VULNERABILITY: Determine if the freebie basket is excluded from pro forma leverage calculations, allowing it to be 'stacked' with the ratio prong. This significantly increases effective debt capacity beyond headline ratios.";
+
+insert $di_l4 isa ontology_question,
+    has question_id "di_l4",
+    has covenant_type "DI",
+    has question_text "Is unlimited automatic reclassification permitted (perpetual refresh)?",
+    has answer_type "boolean",
+    has display_order 173,
+    has extraction_prompt "VULNERABILITY: Determine if unlimited automatic reclassification from freebie to ratio basket is permitted. This allows perpetual 'refreshing' of freebie capacity whenever leverage improves.";
+
+insert $di_l5 isa ontology_question,
+    has question_id "di_l5",
+    has covenant_type "DI",
+    has question_text "Has the MFN sunset period expired (based on deal age)?",
+    has answer_type "boolean",
+    has display_order 174,
+    has extraction_prompt "VULNERABILITY: Based on the closing date and MFN sunset period, has MFN protection expired? If yes, new incremental debt can be priced without limit.";
+
+insert $di_l6 isa ontology_question,
+    has question_id "di_l6",
+    has covenant_type "DI",
+    has question_text "Can multiple baskets be used for the same debt (basket arbitrage)?",
+    has answer_type "boolean",
+    has display_order 175,
+    has extraction_prompt "VULNERABILITY: Determine if the same debt can be attributed to multiple baskets, or if debt can be shifted between baskets opportunistically. This creates 'basket arbitrage' opportunities.";
+
+insert $di_l7 isa ontology_question,
+    has question_id "di_l7",
+    has covenant_type "DI",
+    has question_text "Is there intercompany debt leakage risk (to non-guarantor subs)?",
+    has answer_type "boolean",
+    has display_order 176,
+    has extraction_prompt "VULNERABILITY: Determine if intercompany debt can flow from Loan Parties to non-guarantor subsidiaries without subordination, creating value leakage risk.";
+
+insert $di_l8 isa ontology_question,
+    has question_id "di_l8",
+    has covenant_type "DI",
+    has question_text "Can non-guarantor subsidiaries incur structurally senior secured debt?",
+    has answer_type "boolean",
+    has display_order 177,
+    has extraction_prompt "VULNERABILITY: Determine if non-guarantor restricted subsidiaries can incur secured debt, creating structurally senior obligations that get paid before Credit Agreement debt in a liquidation.";
+
+insert $di_l9 isa ontology_question,
+    has question_id "di_l9",
+    has covenant_type "DI",
+    has question_text "Is the 'no worse' test available for incurrence (even above threshold)?",
+    has answer_type "boolean",
+    has display_order 178,
+    has extraction_prompt "VULNERABILITY: Determine if debt can be incurred under a 'no worse' test — permitted if pro forma leverage is no worse than before incurrence, even if above the stated threshold. Eliminates meaningful leverage ceiling.";
+
+insert $di_l10 isa ontology_question,
+    has question_id "di_l10",
+    has covenant_type "DI",
+    has question_text "Overall DI vulnerability assessment (analyst notes)",
+    has answer_type "string",
+    has display_order 179,
+    has extraction_prompt "Based on all DI analysis, provide a brief narrative summary of the key credit concerns and vulnerabilities in the debt incurrence covenant. Identify the most significant risks to lenders.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION MAPPINGS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# DI1: Core Structure (7 questions)
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI1"; $q isa ontology_question, has question_id "di_a7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI2: Incremental Facility (25 questions)
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b15";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b16";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b17";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b18";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b19";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b20";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b21";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b22";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b23";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI2"; $q isa ontology_question, has question_id "di_b24";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI3: MFN Protection (15 questions)
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI3"; $q isa ontology_question, has question_id "di_c15";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI4: IED & Sidecar (10 questions)
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI4"; $q isa ontology_question, has question_id "di_d10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI5: Permitted Debt Baskets (30 questions - subset shown, pattern continues)
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ca_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ca_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_rd_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_rd_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_gb_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_gb_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_gb_2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_acq_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_acq_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_cl_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_cl_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_pm_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ic_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ic_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ref_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ref_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_hdg_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_hdg_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_lc_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_slb_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_slb_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_fs_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_fs_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_eo_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_wc_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_wc_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_cd_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_cd_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ng_0";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ng_1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI6: Ratio Tests (12 questions)
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f10";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI6"; $q isa ontology_question, has question_id "di_f12";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI7: Basket Conditions (10 questions)
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI7"; $q isa ontology_question, has question_id "di_g10";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI8: Reclassification (8 questions)
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI8"; $q isa ontology_question, has question_id "di_h8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI9: Liens Correlation (8 questions)
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI9"; $q isa ontology_question, has question_id "di_i8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI10: Cross-Covenant Links (8 questions)
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI10"; $q isa ontology_question, has question_id "di_j8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI11: Capacity Calculation (8 questions)
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI11"; $q isa ontology_question, has question_id "di_k8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# DI12: Vulnerabilities (10 questions)
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI12"; $q isa ontology_question, has question_id "di_l10";
+insert (category: $cat, question: $q) isa category_has_question;
