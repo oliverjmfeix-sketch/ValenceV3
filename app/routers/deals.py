@@ -618,14 +618,27 @@ async def run_extraction(deal_id: str, pdf_path: str):
         except Exception as mfn_err:
             logger.error(f"MFN extraction failed for {deal_id} (non-blocking): {mfn_err}", exc_info=True)
 
+        # Step 6: Cross-covenant linking (after all extractions complete)
+        link_results = {}
+        try:
+            extraction_status[deal_id] = ExtractionStatus(
+                deal_id=deal_id, status="extracting", progress=95,
+                current_step="Linking covenants..."
+            )
+            from app.services.cross_covenant import cross_covenant_service
+            link_results = await cross_covenant_service.link_all_covenants(deal_id)
+        except Exception as link_err:
+            logger.error(f"Cross-covenant linking failed for {deal_id}: {link_err}", exc_info=True)
+
         # Complete
         rp_info = f"{rp_result.answers_stored}a/{rp_result.entities_created}e" if rp_result else "skipped"
-        mfn_info = f"{mfn_result.answers_stored}a/{mfn_result.entities_created}e" if mfn_result else "skipped"
         di_info = f"{di_result.answers_stored}a/{di_result.entities_created}e" if di_result else "skipped"
+        mfn_info = f"{mfn_result.answers_stored}a/{mfn_result.entities_created}e" if mfn_result else "skipped"
+        links = sum(1 for v in link_results.values() if v is True)
 
         extraction_status[deal_id] = ExtractionStatus(
             deal_id=deal_id, status="complete", progress=100,
-            current_step=f"Complete: RP({rp_info}), MFN({mfn_info}), DI({di_info})"
+            current_step=f"Complete: RP({rp_info}), DI({di_info}), MFN({mfn_info}), {links} links"
         )
 
     except Exception as e:
@@ -749,6 +762,23 @@ async def extract_covenant_endpoint(
         raise HTTPException(500, str(e))
     finally:
         _extraction_locks.pop(lock_key, None)
+
+
+@router.post("/{deal_id}/link-covenants")
+async def link_covenants(deal_id: str):
+    """Manually trigger cross-covenant linking.
+
+    Creates DI↔MFN, DI↔RP, incremental_triggers_mfn, and di_feeds_rp_builder
+    relations. Reads all data from TypeDB (SSoT) — no parameters needed.
+    Idempotent: safe to call multiple times.
+    """
+    from app.services.cross_covenant import cross_covenant_service
+    try:
+        results = await cross_covenant_service.link_all_covenants(deal_id)
+        return {"status": "success", "deal_id": deal_id, "links": results}
+    except Exception as e:
+        logger.error(f"Cross-covenant linking failed for {deal_id}: {e}", exc_info=True)
+        raise HTTPException(500, str(e))
 
 
 def _ensure_deal_exists(deal_id: str):
