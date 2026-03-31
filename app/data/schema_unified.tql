@@ -1723,7 +1723,7 @@ relation provision_has_lien_release sub provision_has_extracted_entity,
     relates lien_release as extracted;
 
 relation has_amendment_threshold sub provision_has_extracted_entity,
-    relates entity_with_threshold as provision,
+    relates entity_with_threshold,
     relates threshold as extracted;
 
 # ═══════════════════════════════════════════════════════════════════════════════
