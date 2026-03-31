@@ -13,17 +13,17 @@ Do NOT rely on cached/stale versions.
 2. **ALWAYS push after commit:** `git push origin main`
 3. Railway auto-deploys from GitHub. **NEVER use `railway up`.**
 4. **NEVER install typedb-driver locally.** It only exists on Railway. Do NOT run TypeDB scripts locally — make code changes, commit, push. Railway runs them on deploy.
-5. **NEVER trigger extraction or re-extraction without explicit user confirmation.** Always ask and wait for approval before calling `/re-extract`, `/upload`, or any endpoint that runs the Claude extraction pipeline. These cost money and take minutes to run.
+5. **NEVER trigger extraction or re-extraction without explicit user confirmation.** Always ask and wait for approval before calling `/extract/{covenant_type}`, `/upload`, or any endpoint that runs the Claude extraction pipeline. These cost money and take minutes to run.
 
 ## Repo & Deployment
 
-- **Local:** `C:\Users\olive\ValenceV3`
-- **GitHub:** `oliverjmfeix-sketch/ValenceV3`
-- **Branch:** `main`
-- **Backend:** Railway — auto-deploys from GitHub push
-- **Backend URL:** `https://valencev3-production.up.railway.app`
-- **Database:** TypeDB Cloud 3.x (`ip654h-0.cluster.typedb.com:80`, database `valence`)
-- **Frontend:** Lovable
+* **Local:** `C:\Users\olive\ValenceV3`
+* **GitHub:** `oliverjmfeix-sketch/ValenceV3`
+* **Branch:** `main`
+* **Backend:** Railway — auto-deploys from GitHub push
+* **Backend URL:** `https://valencev3-production.up.railway.app`
+* **Database:** TypeDB Cloud 3.x (`ip654h-0.cluster.typedb.com:80`, database `valence`)
+* **Frontend:** Lovable
 
 ## What Valence Does
 
@@ -40,13 +40,14 @@ names, or type mappings in Python or TypeScript.
 Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers via introspection.
 
 ### SSoT violations to NEVER introduce:
-- Hardcoded `category_names` dicts
-- Parsing question_id strings to derive category (use TypeQL join)
-- Flat attribute lists duplicating schema definitions
-- Frontend category configs not sourced from TypeDB
-- Any Python dict mapping category IDs to display names
-- Duplicate TQL parsers (init_schema.py is the sole parser)
-- Hardcoded entity-relation maps (use TypeDB schema introspection)
+
+* Hardcoded `category_names` dicts
+* Parsing question_id strings to derive category (use TypeQL join)
+* Flat attribute lists duplicating schema definitions
+* Frontend category configs not sourced from TypeDB
+* Any Python dict mapping category IDs to display names
+* Duplicate TQL parsers (init_schema.py is the sole parser)
+* Hardcoded entity-relation maps (use TypeDB schema introspection)
 
 ## Schema: schema_unified.tql
 
@@ -56,84 +57,54 @@ Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers v
 
 Provisions own identity attrs, computed pattern flags, and provision-scope scalars:
 
-- `rp_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
+* `rp_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
   pattern flags (jcrew_pattern_detected, serta_pattern_detected, collateral_leakage_pattern_detected),
   16 provision-scope booleans (restricts_borrower, includes_cash_dividends, etc.)
-- `mfn_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
+* `mfn_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
   pattern flags (yield_exclusion_pattern_detected, reclassification_loophole_detected, bridge_to_term_loophole_detected),
   11 provision-scope scalars (mfn_exists, threshold_bps, sacred_right_status, etc.)
 
-### Three Data Channels
+### Data Storage (Three Relation Types)
 
 ALL extracted data flows through exactly one of:
 
-**Channel 1 — Scalar (provision_has_answer)**
+**Scalar answers (provision_has_answer)**
 Boolean, string, number answers keyed by question_id.
 Write: `graph_storage.store_scalar_answer(provision_id, question_id, value, answer_type)`
-Read: Query provision_has_answer relation. NEVER read flat attributes on provisions.
+Read: Query provision_has_answer relation.
 
-**Channel 2 — Multiselect (concept_applicability)**
+**Multiselect answers (concept_applicability)**
 Which concepts from a closed set apply. Example: facility_prong → term_loans, revolver.
 
-**Channel 3 — Entity (typed entities + relations)**
+**Typed entities (provision_has_extracted_entity subtypes)**
 Structured objects with multiple attributes: baskets, sources, blockers, pathways.
 
-### Abstract Parent: provision_has_extracted_entity
+## Entity Storage
 
-All 12 entity-bearing relations sub `provision_has_extracted_entity` with role alias `as extracted`.
-This enables a single polymorphic fetch query to retrieve ALL entities for a provision.
+All extracted entities use typed relations that sub `provision_has_extracted_entity`.
+This enables a single polymorphic fetch to retrieve all entities for a provision.
 
-## Entity Hierarchy
+Entity types include baskets (RP and RDP), builder sources, blocker exceptions,
+sweep tiers, investment pathways, and others. See `schema_unified.tql` for the
+complete hierarchy.
 
-### RP Baskets (7 subtypes of rp_basket) → provision_has_basket
-builder_basket, ratio_basket, general_rp_basket, management_equity_basket,
-tax_distribution_basket, holdco_overhead_basket, equity_award_basket
-
-### RDP Baskets (5 subtypes of rdp_basket) → provision_has_rdp_basket
-refinancing_rdp_basket, general_rdp_basket, ratio_rdp_basket,
-builder_rdp_basket, equity_funded_rdp_basket
-**SEPARATE hierarchy** — uses provision_has_rdp_basket, NOT provision_has_basket.
-
-### Builder Basket Sources (8 subtypes) → basket_has_source
-starter_amount_source, cni_source, ecf_source, ebitda_fc_source,
-equity_proceeds_source, investment_returns_source, asset_proceeds_source,
-debt_conversion_source
-
-### Blocker Exceptions (5 subtypes) → blocker_has_exception
-nonexclusive_license_exception, intercompany_exception, immaterial_ip_exception,
-fair_value_exception, ordinary_course_exception
-
-### Capacity Pool (`shares_capacity_pool`)
-Relation linking baskets that share a single capacity pool. `rp_basket` plays `pool_member`.
-Used as an **absence signal** in synthesis: if baskets are NOT linked by `shares_capacity_pool`,
-their capacity is separate and additive for dividend purposes.
-
-### Other Entities
-- jcrew_blocker → provision_has_blocker (~25 boolean coverage attributes)
-- unsub_designation → provision_has_unsub
-- sweep_tier → provision_has_sweep_tier
-- de_minimis_threshold → provision_has_de_minimis
-- basket_reallocation → provision_has_reallocation
-- investment_pathway → provision_has_pathway (J.Crew chain analysis)
-- sweep_exemption (5 subtypes) → provision_has_sweep_exemption
-- intercompany_permission → provision_has_intercompany_permission
-- definition_clause → provision_has_definition
-- lien_release_mechanics → provision_has_lien_release
+Key architectural point: `shares_capacity_pool` relation links baskets that share
+capacity — its **absence** signals separate/additive capacity (used in synthesis).
 
 ## Q&A Pipeline (`/ask-graph`) — Two-Stage Synthesis
 
 ```
 User question
-    → TopicRouter (SSoT categories from TypeDB)
-    → get_provision_entities(deal_id, provision_type):
-        Polymorphic fetch → all entities JSON
-    → get_cross_covenant_entities(deal_id, "mfn_provision"):
-        Walk provision_cross_reference MFN→RP (unidirectional)
+    -> TopicRouter (SSoT categories from TypeDB)
+    -> get_provision_entities(deal_id, provision_type):
+        Polymorphic fetch -> all entities JSON
+    -> get_cross_covenant_entities(deal_id, "mfn_provision"):
+        Walk provision_cross_reference MFN->RP (unidirectional)
         Loads RP entities for cross-covenant context
-    → Stage 1: Entity Filter (Opus 4.6)
+    -> Stage 1: Entity Filter (Opus)
         - Classifies entities into PRIMARY / SUPPLEMENTARY / EXCLUDE
         - Returns JSON: {"primary": [...], "supplementary": [...]}
-    → Stage 2: Synthesis (Opus 4.6)
+    -> Stage 2: Synthesis (Opus)
         - Receives tiered context (primary + supplementary sections)
         - Category-specific synthesis guidance from TypeDB (SSoT)
         - Produces answer with citations + evidence block
@@ -141,7 +112,7 @@ User question
 
 The polymorphic fetch query lives in `graph_traversal.py` as `_FETCH_QUERY`. It uses
 `provision_has_extracted_entity` abstract parent, `get_entity_annotations()` TypeDB function
-for annotation lookup, and nested children subquery. Returns ~43 docs, ~80KB JSON, 0.12s.
+for annotation lookup, and nested children subquery.
 
 ## Ontology System
 
@@ -150,230 +121,240 @@ Categories: A-N, P, S, T, Z, JC1-JC3, MFN1-MFN6 (27 total, 332 questions includi
 
 Category resolution uses TypeQL join through category_has_question — NOT prefix parsing.
 
+## Extraction Pipeline
+
+Unified extraction for all covenant types:
+
+```
+1. get_or_build_universe(deal_id, covenant_type)
+   -> Check JSON cache ({deal_id}_{covenant_type}_universe.json)
+   -> If missing or force_rebuild: segment document + slice by pages
+   -> Cache universe as JSON
+
+2. extract_covenant(deal_id, covenant_type, universe)
+   -> Load questions from TypeDB (SSoT)
+   -> Ensure provision exists
+   -> Call 0: Entity extraction (entity_list questions) — async
+   -> Calls 1-N: Scalar extraction (dynamic batching, parallel via asyncio.gather)
+   -> Store to TypeDB via GraphStorage
+   -> Return ExtractionResult
+```
+
+Key classes:
+* `CovenantUniverse` — document slice with sections dict, raw_text, segment_map, JSON cache
+* `ExtractionResult` — unified result with answers_stored, entities_created, cost data
+
+Key design: scalar batches run in parallel (`asyncio.gather` + `AsyncAnthropic`),
+entity extraction runs first (entities must exist before scalar annotation routing).
+
 ## Key Files
 
 | Purpose | File |
-|---------|------|
+| --- | --- |
 | **Schema** (single file) | `app/data/schema_unified.tql` |
 | **DB seeding (SSoT)** | `app/scripts/init_schema.py` |
 | **Entity context builder** | `app/services/graph_traversal.py` |
 | **Entity read + annotation cache** | `app/services/graph_reader.py` |
-| **Graph write (all 3 channels)** | `app/services/graph_storage.py` |
+| **Graph write (storage)** | `app/services/graph_storage.py` |
 | **Extraction pipeline** | `app/services/extraction.py` |
-| **Deal API + synthesis prompt** | `app/routers/deals.py` |
+| **Deal API + synthesis** | `app/routers/deals.py` |
 | **TypeDB client** | `app/services/typedb_client.py` |
-| **App startup (connection only)** | `app/main.py` |
+| **App startup** | `app/main.py` |
 | **Config** | `app/config.py` |
 | **Extraction response models** | `app/schemas/extraction_response.py` |
-| **Frontend types** | `src/types/mfn.generated.ts` |
 | **Trace collector** | `app/services/trace_collector.py` |
 | **Topic router** | `app/services/topic_router.py` |
-| **Annotation function** | `app/data/annotation_functions.tql` |
 | **Segment introspector** | `app/services/segment_introspector.py` |
 | **Graph eval runner** | `app/routers/graph_eval.py` |
-| **MFN eval (legacy)** | `app/routers/mfn_eval.py` |
-| **Gold standard data** | `app/data/gold_standard/*.json` |
 | **Cost tracker** | `app/services/cost_tracker.py` |
+| **Ablation tests** | `app/routers/ablation.py` |
 
-### Data Files (loaded by init_schema.py — 26 steps)
+### Data Files (loaded by init_schema.py)
+
 | File | Contents |
-|------|----------|
+| --- | --- |
 | `schema_unified.tql` | THE schema (~1800 lines) |
 | `concepts.tql` | ~170 concept instances |
 | `jcrew_concepts_seed.tql` | 72 J.Crew concept instances |
 | `questions.tql` | Base ontology (Categories A-K) |
 | `categories.tql` | Category definitions + category_has_question |
-| `ontology_expanded.tql` | Extended questions (F9-F17, G5-G7, I, L, N) |
-| `ontology_category_m.tql` | Category M: Unsub distributions (10 questions) |
-| `ontology_category_p.tql` | Category P: Unsub distribution basket carve-outs |
-| `jcrew_questions_seed.tql` | J.Crew categories JC1-JC3 (69 questions) |
-| `seed_v4_data.tql` | IP types, source types, reference instances |
-| `seed_concept_entity_mapping.tql` | Concept → entity attribute routing |
-| `mfn_concepts_extended.tql` | MFN-specific concepts |
-| `mfn_ontology_questions.tql` | 43 MFN questions across 6 categories (incl. mfn_44) |
+| `jcrew_questions_seed.tql` | J.Crew categories JC1-JC3 |
+| `mfn_ontology_questions.tql` | 43 MFN questions across 6 categories |
 | `segment_types_seed.tql` | 21 document segment types |
-| `seed_attribute_annotations.tql` | Question → attribute annotations (batch 1) |
-| `seed_complete_annotations.tql` | Complete annotation coverage (batch 2) |
-| `seed_new_questions.tql` | ~66 new questions + ~55 annotation catch-ups |
+| `seed_concept_entity_mapping.tql` | Concept -> entity attribute routing |
 | `seed_entity_list_questions.tql` | Entity-list extraction questions |
-| `seed_cross_covenant_mappings.tql` | SSoT: basket_type → provision_type (1 mapping) |
-| `seed_capacity_classifications.tql` | SSoT: basket_type → capacity_category (15 mappings) |
-| `seed_new_questions_008.tql` | Prompt 8: `rp_g5b` question for `no_worse_is_uncapped` boolean |
-| `seed_mfn_annotations.tql` | MFN entity attribute → question annotations |
+| `seed_cross_covenant_mappings.tql` | SSoT: basket_type -> provision_type |
+| `seed_capacity_classifications.tql` | SSoT: basket_type -> capacity_category |
+| `seed_new_questions.tql` | ~66 new questions + ~55 annotation catch-ups |
+| `seed_mfn_annotations.tql` | MFN entity attribute -> question annotations |
 | `seed_mfn_entity_list_questions.tql` | MFN entity-list extraction questions |
-| `seed_synthesis_guidance.tql` | Per-category synthesis guidance (28 entries) |
-| `mfn_functions.tql` | 10 MFN pattern detection functions |
+| `seed_synthesis_guidance.tql` | Per-category synthesis guidance |
+| `question_annotations.tql` | Question -> attribute annotations |
 | `annotation_functions.tql` | `get_entity_annotations()` function |
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check (used by Railway) |
+| `/api/deals` | GET | List all deals |
+| `/api/deals/{id}` | GET | Get deal with primitives |
+| `/api/deals/{id}` | DELETE | Delete deal and all data |
+| `/api/deals/upload` | POST | Upload PDF and extract RP + MFN |
+| `/api/deals/{id}/upload-pdf` | POST | Upload PDF for existing deal |
+| `/api/deals/{id}/extract/{type}` | POST | Extract specific covenant (rp, mfn) |
+| `/api/deals/{id}/{type}-universe` | GET | Get cached universe JSON |
+| `/api/deals/{id}/ask-graph` | POST | Q&A via entity graph (primary) |
+| `/api/deals/{id}/ask` | POST | Q&A via scalar answers |
+| `/api/deals/{id}/answers` | GET | All answers for a deal |
+| `/api/deals/{id}/status` | GET | Extraction status |
+| `/api/ontology/questions` | GET | All questions by category |
+| `/api/graph-eval/{deal_id}` | POST | Run gold standard eval |
+| `/api/gold-standard` | GET | List all gold standard sets |
+| `/api/gold-standard/{deal_id}` | GET/PUT | Get or update gold standard |
+| `/api/eval-results/{deal_id}` | GET | List eval result files |
+
+## Running Evals
+
+Gold standard Q&A sets live in `app/data/gold_standard/*.json`. Three sets exist:
+* `87852625.json` — Duck Creek RP (6 questions)
+* `acp_tara_mfn.json` — ACP Tara MFN (11 questions)
+* `duck_creek_rp_mfn.json` — Duck Creek combined (22 questions: 12 RP + 10 MFN)
+
+To run an eval:
+```bash
+# Full eval against a gold standard set
+curl -X POST "https://valencev3-production.up.railway.app/api/graph-eval/duck_creek_rp_mfn"
+
+# Run subset of questions only
+curl -X POST "https://valencev3-production.up.railway.app/api/graph-eval/duck_creek_rp_mfn" \
+  -H "Content-Type: application/json" \
+  -d '{"question_ids": ["duck_creek_q1", "duck_creek_q2"]}'
+```
+
+Results are saved to `/app/uploads/eval_results/` as three files per run:
+`*_summary.txt`, `*_verbatim.txt`, `*_full.json`
+
+Retrieve results:
+```bash
+curl "https://valencev3-production.up.railway.app/api/eval-results/duck_creek_rp_mfn"
+```
 
 ## DB Seeding
 
 `app/scripts/init_schema.py` is the **single entry point** for all DB seeding.
-`main.py` does NOT load schema or seed data — it only verifies the connection and
-that the database exists.
+`main.py` does NOT load schema or seed data — it only verifies the connection.
 
-- **Fresh deploy:** run `python -m app.scripts.init_schema` first, then start server
-- **Server restart:** just starts, no re-seeding, fast startup
-- **Schema changes:** run init_schema.py again (drop/recreate)
+* **Fresh deploy:** run `python -m app.scripts.init_schema` first, then start server
+* **Server restart:** just starts, no re-seeding, fast startup
+* **Schema changes:** run init_schema.py again (drop/recreate)
 
 ### Development Workflow for Seed Data Changes
+
 1. Edit the `.tql` seed files locally
-2. `git add` → `git commit` → `git push origin main`
+2. `git add` -> `git commit` -> `git push origin main`
 3. **To reseed TypeDB** (when `.tql` files changed):
    a. Temporarily change `railway.toml` startCommand to:
       `"sh -c 'python -m app.scripts.init_schema --force && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"`
    b. Commit and push to `main` — Railway deploys and reseeds
-   c. Immediately revert `railway.toml` back to normal startCommand:
-      `"sh -c 'uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"`
+   c. Immediately revert `railway.toml` back to normal startCommand
    d. Commit and push again — future deploys skip reseed
 4. **Do NOT** install typedb-driver locally or run TypeDB scripts locally
-5. **Do NOT** write temp Python scripts to reseed — use the workflow above
-
-## Extraction Pipeline
-
-Two-stage approach:
-1. **RP Universe Extraction** — Claude reads full PDF, extracts RP-relevant sections (~$0.50, 12 min)
-2. **V4 Entity Extraction** — Claude extracts structured entities from cached RP universe (~$0.10, 12 sec)
-
-Extraction metadata loaded from TypeDB (SSoT). Pydantic validates. graph_storage stores.
-
-- Scalar answers → `store_scalar_answer()` → provision_has_answer relation
-- Entity answers → typed store methods → typed entities + relations
-- Category grouping → TypeQL join through category_has_question (no hardcoded dicts)
 
 ## TypeDB 3.x Syntax
 
-- Schema: `entity X sub Y`, `relation R, relates A, relates B`, `owns` not `has`
-- Data queries: `has` for attribute access, `links` for relation roles
-- `@key` for unique identifiers
-- Variables scoped to single query — use match-insert for cross-references
-- Use `try { }` blocks for optional attribute access in queries
-- `define` is idempotent — use instead of `redefine` for adding sub + role alias
-- `label($var)` converts a type variable to a string at runtime
-- `fetch` returns JSON documents directly; `select` returns concept rows
-- `$entity.*` fetches all attributes as key-value pairs
-- Functions: `fun name($param: type) -> { return_vals }:`
-- `isa!` for exact type match (excludes subtypes)
+* Schema: `entity X sub Y`, `relation R, relates A, relates B`, `owns` not `has`
+* Data queries: `has` for attribute access, `links` for relation roles
+* `@key` for unique identifiers
+* Variables scoped to single query — use match-insert for cross-references
+* Use `try { }` blocks for optional attribute access in queries
+* `define` is idempotent — use instead of `redefine` for adding sub + role alias
+* `label($var)` converts a type variable to a string at runtime
+* `fetch` returns JSON documents directly; `select` returns concept rows
+* `$entity.*` fetches all attributes as key-value pairs
+* Functions: `fun name($param: type) -> { return_vals }:`
+* `isa!` for exact type match (excludes subtypes)
 
-## TypeScript Types: mfn.generated.ts
+## Current State (2026-03-31)
 
-Reflects all three data channels. Generated from schema_unified.tql
-and extraction_response.py. Includes:
-- ProvisionAnswer + ProvisionAnswerMap (Channel 1)
-- ConceptApplicability + 30 concept type literals (Channel 2)
-- All basket/blocker/pathway entity interfaces (Channel 3)
+### Unified Extraction Refactor (Prompts 1-4)
 
-There is NO type_generator.py in this repo. To regenerate types, read
-schema_unified.tql and extraction_response.py directly and write mfn.generated.ts.
+Major refactor replacing separate RP/MFN extraction paths with unified architecture:
 
-## Current State (2026-03-30)
+* `RPUniverse` dataclass -> `CovenantUniverse` (sections dict, JSON cache)
+* `extract_rp_unified()` + `run_mfn_extraction_consolidated()` -> single `extract_covenant()`
+* Scalar batches now run in parallel via `asyncio.gather` + `AsyncAnthropic`
+* Cache format: `.txt` -> `.json` with metadata
+* API: `/re-extract` + `/re-extract-mfn` -> `/extract/{covenant_type}`
+* JC2/JC3 (J.Crew analysis) temporarily removed — will be reimplemented later
 
-### SSoT Compliance Audit (2026-03-30)
-- Full codebase audit against SSoT compliance checklist
-- Updated schema_unified.tql "PURE ANCHORS" comment → accurate "Provision Attributes" description
-- Updated deals.py LEGACY comments → "ACTIVE FALLBACK" (concept_applicability still needed for MFN)
-- Trimmed hardcoded MFN pattern flag list in deals.py:get_mfn_provision() to match schema (removed 7 non-existent flags)
-- Confirmed: all storage methods (graph_storage.py), read path (graph_traversal.py, graph_reader.py), topic router, segmenter are fully SSoT-compliant via schema introspection
-
-### Duck Creek RP+MFN Gold Standard Eval (2026-03-30)
-- Created `app/data/gold_standard/duck_creek_rp_mfn.json` — 22 questions (12 RP + 10 MFN)
-- Added `question_ids` filter to graph_eval.py POST endpoint — run subset of gold standard
-- Re-extracted Duck Creek RP (43 entities, 175 scalars) and MFN (3 entities, 47 scalars)
-- Eval run: 16/16 OK (q7-q12 RP + q1-q10 MFN), $6.82 total, 844s
-- MFN questions cost ~3.8x more than RP (~$0.56 vs ~$0.19) due to cross-covenant context injection (~33K vs ~9K synthesis input tokens)
-- Results saved locally: `app/data/eval_results/eval_duck_creek_rp_mfn_20260327_152302_*.{txt,json}`
-
-### Previous Sessions
-- (2026-03-26 PM) Eval pipeline overhaul, MFN schema cleanup, cross-covenant + synthesis fixes, MFN extraction reordering
-- (2026-03-26 AM) Codebase cleanup: deleted 24 scripts, 7 retired .tql files, dead types, placeholder router
-- (2026-03-24) Cross-covenant graph walk, MFN gold standard eval, synthesis guidance SSoT
+### Duck Creek RP Extraction (2026-03-31)
+* First successful run through unified pipeline: 189 answers, 21 entities, $14.25, 496s
+* 7 API calls (1 entity + 6 scalar batches) — sequential; parallel batching deployed but not yet tested
 
 ### Test Deals
-- **Duck Creek** (RP+MFN): deal_id `87852625`, provision_id `87852625_rp` / `87852625_mfn`. Last extracted: 2026-03-30. RP: 43 entities, 175 scalars. MFN: 3 entities, 47 scalars.
-- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26. 14 MFN entities, cross-reference to RP active.
 
-### Eval Baselines
-- Duck Creek RP+MFN: 16/16 OK (q7-q12 RP + q1-q10 MFN), $6.82/run. q1-q6 RP not yet run in combined eval.
-- Duck Creek RP (original): 6/6 pass (Prompt 8d + Opus 4.6)
-- ACP Tara MFN: 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis)
+* **Duck Creek** (RP+MFN): deal_id `87852625`. Primary test deal for extraction and eval.
+* **ACP Tara** (MFN): deal_id `8d0bf2f8`. Secondary MFN test deal.
+
+### Eval Baselines (pre-refactor)
+
+* Duck Creek RP+MFN: 16/16 OK (q7-q12 RP + q1-q10 MFN), $6.82/run
+* Duck Creek RP (original): 6/6 pass
+* ACP Tara MFN: 11/11 OK, $3.57/run
 
 ## Open Violations
 
-### Actionable TODOs in Code
-- `app/routers/ablation.py:721` — `total_cost_usd=0.0  # TODO: aggregate from cost_tracker`
-- `app/routers/deals.py:1906` — `# TODO: Persist QA cost to TypeDB`
-- `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
-- `app/routers/mfn_eval.py:4` — `TODO: Delete this entire file once graph-eval handles MFN fully`
-
 ### SSoT Violations (Low Priority)
-- `app/scripts/gap_report.py:150` — hardcoded `ENTITY_TYPES` set (missing MFN entities, sweep_exemption, etc.). Should introspect from TypeDB schema. Diagnostic script, not production.
-- `app/scripts/gap_report.py` — hardcoded `SKIP_ATTRS` set. Should derive from provenance attrs + @key attrs.
-- `app/routers/deals.py:1371,1474` — hardcoded pattern flag name lists for RP and MFN provisions. Should introspect from TypeDB schema attributes.
-- `app/routers/health.py:460` — hardcoded `target_fields` dict (legacy migration tool, gated behind `_require_debug()`, correctly documented as one-time)
 
-### Stale Comments
-- `src/types/mfn.generated.ts:4` — "Generated: 2026-02-13" header date is stale (content is current)
-- `app/data/seed_synthesis_guidance.tql` — MFN3 guidance says "provision entity as threshold_bps" but threshold now in provision header
+* `app/routers/deals.py` — hardcoded pattern flag name lists for RP and MFN provisions. Should introspect from TypeDB schema attributes.
 
-### Schema Gap
-- **RP root category missing** — `category_id "RP"` entity not in TypeDB (27 categories exist, RP root not among them). Defined in `categories.tql` but insert may be failing silently. Non-blocking: no questions link to RP root directly.
+### Actionable TODOs
 
-### Known Data Gap
-- **MFN provision scalars** — `threshold_bps`, `mfn_exists`, etc. now populated on Duck Creek MFN after 2026-03-30 re-extraction. ACP Tara MFN may still need re-extraction to populate these.
+* `app/routers/ablation.py:721` — `total_cost_usd=0.0 # TODO: aggregate from cost_tracker`
+* `app/routers/deals.py` — `# TODO: Persist QA cost to TypeDB`
+* `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
 ## Next Steps
 
-1. **Complete Duck Creek RP+MFN eval** — Run q1-q6 RP to complete full 22/22 baseline. `POST /api/graph-eval/duck_creek_rp_mfn` with `question_ids` filter for q1-q6.
-2. **Re-extract MFN for ACP Tara** — `POST /api/deals/8d0bf2f8/re-extract-mfn` to populate provision scalars via annotation routing.
-3. **Introspect pattern flags** — Refactor deals.py:1371,1474 to load pattern flag names from TypeDB schema instead of hardcoded lists.
-4. **Delete mfn_eval.py** — once graph-eval covers MFN fully.
-5. **Fix gap_report.py** — Replace hardcoded ENTITY_TYPES with TypeDB schema introspection.
-6. **Fix RP root category** — investigate why `category_id "RP"` insert fails in `categories.tql`.
+1. **Test parallel scalar batches** — Re-run Duck Creek RP extraction, verify speedup from asyncio.gather
+2. **Test MFN extraction** — `POST /api/deals/87852625/extract/mfn`
+3. **Run full eval** — Verify extraction quality matches pre-refactor baseline
+4. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
+5. **Delete old cache files on Railway** — Remove `.txt` universe files
 
 ## END-OF-DAY UPDATE WORKFLOW
 
 **Trigger: When the user says `eod`, run the workflow below. No confirmation needed.**
 
 1. Update CLAUDE.md:
-   - "Current State" section: what was completed today, merge any HANDOFF.md content here
-   - "Open Violations" section: grep for TODO/SSoT/hardcoded, cross-reference with schema
-   - "Next Steps" section: based on what's unfinished
-   - Fix any stale file references in Key Files table
-   - Do NOT change the Rules, Schema, or Pipeline sections unless I explicitly ask
+   * "Current State" section: what was completed today
+   * "Open Violations" section: grep for TODO/SSoT/hardcoded, cross-reference with schema
+   * "Next Steps" section: based on what's unfinished
+   * Fix any stale file references in Key Files table
+   * Do NOT change the Rules, Schema, or Pipeline sections unless explicitly asked
 
 2. Update README.md:
-   - Sync the project structure tree with actual filesystem (run: `find app -type f -name '*.py' | sort`)
-   - Update API endpoints table if routes changed
-   - Do NOT change setup/deploy instructions unless they're wrong
+   * Sync the project structure tree with actual filesystem
+   * Update API endpoints table if routes changed
 
-3. If HANDOFF.md still exists, merge its content into CLAUDE.md Current State, then `git rm HANDOFF.md`.
-
-4. Show me the diff for all changed files before committing.
-
-## Known Issues
-
-- **Q5 now passes ($520M)**: Two-stage synthesis (Prompt 8d) + Opus 4.6 correctly identifies 4 × $130M general-purpose capacity. Self-verification block catches shared-pool errors.
-- **Q6 now passes (Yes, permitted)**: Opus 4.6 correctly reasons that removing negative-EBITDA asset improves leverage, passing the uncapped no-worse test. Opus 4.5 got this wrong (said removing negative EBITDA "worsens" leverage).
-- **All 6 gold standard questions pass** as of Prompt 8d + Opus 4.6 (2026-03-23).
-- **J.Crew Tier 3 prompt too long**: 212K > 200K token limit. Needs context trimming or split extraction.
-- **Filter cost**: Using Opus 4.6 for both filter and synthesis costs ~$0.55–0.71 per question (vs ~$0.35 with Sonnet filter). Worth it for reasoning quality.
+3. Show me the diff for all changed files before committing.
 
 ## Cost Awareness
 
-### Application API Calls (extraction pipeline, /ask endpoint)
-- RP Universe extraction: ~$0.50 (cache it, avoid re-running)
-- V4 entity extraction: ~$0.10 (fine to iterate)
-- /ask-graph: ~$0.55–0.71 per question (Opus 4.6 for both filter + synthesis)
-- Use Sonnet for extraction. Opus 4.6 for synthesis and entity filtering.
+### Application API Calls
+
+* Extraction (RP): ~$14 (Opus, 7 calls for ~190 answers + 21 entities)
+* Extraction (MFN): ~$1-2 (fewer questions)
+* Segmentation: ~$4.30 (3 Opus calls for large documents)
+* /ask-graph: ~$0.55-0.71 per question (Opus for filter + synthesis)
+* Use Sonnet for extraction if cost is a concern. Opus for synthesis.
 
 ### Claude Code Development Tasks
-- **Opus**: Architecture decisions, multi-file refactors, complex debugging,
-  writing extraction prompts or synthesis rules, anything requiring deep
-  understanding of the codebase or legal domain
-- **Sonnet**: Standard feature implementation, single-file edits, writing
-  tests, code review, moderate-complexity tasks
-- **Haiku**: Syntax checks, file searches, simple grep/glob, commit
-  formatting, running shell commands, validating JSON/TQL, any task
-  where speed matters more than reasoning depth
+
+* **Opus**: Architecture decisions, multi-file refactors, complex debugging
+* **Sonnet**: Standard feature implementation, single-file edits, tests
+* **Haiku**: Syntax checks, file searches, simple grep/glob, commit formatting
 
 ## Commit Convention
 
@@ -381,24 +362,9 @@ schema_unified.tql and extraction_response.py directly and write mfn.generated.t
 type: concise description
 
 Details of what changed.
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 Types: schema, extraction, api, types, data, fix, refactor
 
 **After EVERY commit, run:** `git push origin main`
-
-## Test Deals
-
-- **Duck Creek** (RP+MFN): deal_id `87852625`, provision_id `87852625_rp` / `87852625_mfn`. Last extracted: 2026-03-30. RP: 43 entities, 175 scalars. MFN: 3 entities, 47 scalars.
-- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26. 14 MFN entities, cross-reference to RP active.
-
-## Eval: Gold Standard Questions
-
-- **Duck Creek RP+MFN**: 22 questions (12 RP + 10 MFN). 16/16 OK on q7-q12 RP + q1-q10 MFN, $6.82/run.
-  Run via `POST /api/graph-eval/duck_creek_rp_mfn`
-  Results saved locally: `app/data/eval_results/eval_duck_creek_rp_mfn_20260327_152302_*.{txt,json}`
-- **Duck Creek RP** (original): 6 questions. All pass as of Prompt 8d + Opus 4.6.
-  Run via `POST /api/graph-eval/87852625`
-- **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
-  Run via `POST /api/graph-eval/acp_tara_mfn`
