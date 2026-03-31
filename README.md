@@ -106,6 +106,8 @@ ValenceV3/
 │   │   ├── graph_queries.py             # Reusable TypeDB query helpers
 │   │   ├── topic_router.py              # Question -> category routing (SSoT)
 │   │   ├── segment_introspector.py      # Segment type introspection from TypeDB
+│   │   ├── cross_covenant.py            # Cross-covenant relation linking (DI↔MFN, DI↔RP)
+│   │   ├── di_query_service.py          # DI TypeDB function wrapper
 │   │   ├── trace_collector.py           # Trace/debug collector
 │   │   ├── cost_tracker.py              # Claude API cost tracking
 │   │   └── pdf_parser.py                # PDF text extraction
@@ -117,17 +119,19 @@ ValenceV3/
 │   │   ├── __init__.py
 │   │   └── init_schema.py               # DB seeding (single entry point)
 │   ├── data/
-│   │   ├── schema_unified.tql           # THE schema (single file, ~1800 lines)
+│   │   ├── schema_unified.tql           # THE schema (single file, ~2360 lines)
 │   │   ├── concepts.tql                 # ~170 concept instances
 │   │   ├── jcrew_concepts_seed.tql      # 72 J.Crew concept instances
 │   │   ├── questions.tql                # Base ontology (Categories A-K)
 │   │   ├── categories.tql               # Category definitions + links
 │   │   ├── jcrew_questions_seed.tql     # J.Crew questions (69)
 │   │   ├── mfn_ontology_questions.tql   # MFN questions (43)
+│   │   ├── di_ontology_questions.tql    # DI questions (151) + 12 categories
 │   │   ├── segment_types_seed.tql       # Document segment type definitions
 │   │   ├── seed_*.tql                   # Seed data (annotations, mappings, etc.)
 │   │   ├── question_annotations.tql     # Question -> attribute annotations
 │   │   ├── annotation_functions.tql     # Entity annotation function
+│   │   ├── di_functions.tql             # DI capacity + vulnerability functions
 │   │   ├── gold_standard/               # Gold standard eval data (JSON)
 │   │   └── eval_results/                # Local copies of eval output files
 │   └── utils/

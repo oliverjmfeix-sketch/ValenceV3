@@ -30,7 +30,7 @@ Do NOT rely on cached/stale versions.
 Legal technology platform analyzing credit agreements (leveraged finance).
 Extracts covenant provisions from PDFs, stores structured data in TypeDB,
 enables cross-deal comparison and loophole detection (J.Crew, Serta, etc.).
-Currently covers MFN (43 questions) and Restricted Payments (289 questions, 27 categories).
+Currently covers RP (289 questions), MFN (43 questions), and DI (152 questions) across 39 categories.
 
 ## Core Principle: SSoT (Single Source of Truth)
 
@@ -51,18 +51,15 @@ Adding a new field = add to TypeDB schema + seed data. Pipeline auto-discovers v
 
 ## Schema: schema_unified.tql
 
-**Single schema file** (996 lines, 156 attributes, 78 entities, 27 relations).
+**Single schema file** (~2360 lines, ~280 attributes, 125 entities, 51 relations).
 
 ### Provision Attributes
 
 Provisions own identity attrs, computed pattern flags, and provision-scope scalars:
 
-* `rp_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
-  pattern flags (jcrew_pattern_detected, serta_pattern_detected, collateral_leakage_pattern_detected),
-  16 provision-scope booleans (restricts_borrower, includes_cash_dividends, etc.)
-* `mfn_provision`: identity (provision_id @key, section_reference, source_page, extracted_at),
-  pattern flags (yield_exclusion_pattern_detected, reclassification_loophole_detected, bridge_to_term_loophole_detected),
-  11 provision-scope scalars (mfn_exists, threshold_bps, sacred_right_status, etc.)
+* `rp_provision`: identity + pattern flags + 16 provision-scope booleans
+* `mfn_provision`: identity + pattern flags + 11 provision-scope scalars
+* `di_provision`: identity + 7 pattern flags + 54 provision-scope scalars (binds_borrower, uses_first_lien_leverage, etc.)
 
 ### Data Storage (Three Relation Types)
 
@@ -84,9 +81,9 @@ Structured objects with multiple attributes: baskets, sources, blockers, pathway
 All extracted entities use typed relations that sub `provision_has_extracted_entity`.
 This enables a single polymorphic fetch to retrieve all entities for a provision.
 
-Entity types include baskets (RP and RDP), builder sources, blocker exceptions,
-sweep tiers, investment pathways, and others. See `schema_unified.tql` for the
-complete hierarchy.
+Entity types include baskets (RP, RDP, and DI), builder sources, blocker exceptions,
+sweep tiers, investment pathways, incremental facilities, leverage tiers, and others.
+See `schema_unified.tql` for the complete hierarchy.
 
 Key architectural point: `shares_capacity_pool` relation links baskets that share
 capacity — its **absence** signals separate/additive capacity (used in synthesis).
@@ -117,7 +114,7 @@ for annotation lookup, and nested children subquery.
 ## Ontology System
 
 Questions live in TypeDB as `ontology_question` entities grouped by `ontology_category`.
-Categories: A-N, P, S, T, Z, JC1-JC3, MFN1-MFN6 (27 total, 332 questions including MFN).
+Categories: A-N, P, S, T, Z, JC1-JC3, MFN1-MFN6, DI1-DI12 (39 total, ~470 questions including MFN + DI).
 
 Category resolution uses TypeQL join through category_has_question — NOT prefix parsing.
 
@@ -167,30 +164,37 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | **Segment introspector** | `app/services/segment_introspector.py` |
 | **Graph eval runner** | `app/routers/graph_eval.py` |
 | **Cost tracker** | `app/services/cost_tracker.py` |
+| **Cross-covenant linking** | `app/services/cross_covenant.py` |
+| **DI query service** | `app/services/di_query_service.py` |
 | **Eval runner skill** | `app/skills/eval_runner.py` |
 
 ### Data Files (loaded by init_schema.py)
 
 | File | Contents |
 | --- | --- |
-| `schema_unified.tql` | THE schema (~1800 lines) |
+| `schema_unified.tql` | THE schema (~2360 lines) |
 | `concepts.tql` | ~170 concept instances |
 | `jcrew_concepts_seed.tql` | 72 J.Crew concept instances |
 | `questions.tql` | Base ontology (Categories A-K) |
 | `categories.tql` | Category definitions + category_has_question |
 | `jcrew_questions_seed.tql` | J.Crew categories JC1-JC3 |
 | `mfn_ontology_questions.tql` | 43 MFN questions across 6 categories |
-| `segment_types_seed.tql` | 21 document segment types |
+| `di_ontology_questions.tql` | 151 DI questions across 12 categories (DI1-DI12) |
+| `segment_types_seed.tql` | 21 document segment types (rp/mfn/di universe fields) |
 | `seed_concept_entity_mapping.tql` | Concept -> entity attribute routing |
-| `seed_entity_list_questions.tql` | Entity-list extraction questions |
-| `seed_cross_covenant_mappings.tql` | SSoT: basket_type -> provision_type |
-| `seed_capacity_classifications.tql` | SSoT: basket_type -> capacity_category |
+| `seed_entity_list_questions.tql` | Entity-list extraction questions (RP) |
+| `seed_di_reference_entities.tql` | DI reference entities (35 instances: ratio tests, conditions, priorities, facility types) |
+| `seed_di_annotations.tql` | DI entity attribute -> question annotations (152) |
+| `seed_di_entity_list_questions.tql` | DI entity-list extraction questions (leverage_tier) |
+| `seed_cross_covenant_mappings.tql` | SSoT: basket_type -> provision_type (RP + DI) |
+| `seed_capacity_classifications.tql` | SSoT: basket_type -> capacity_category (RP + DI) |
 | `seed_new_questions.tql` | ~66 new questions + ~55 annotation catch-ups |
 | `seed_mfn_annotations.tql` | MFN entity attribute -> question annotations |
 | `seed_mfn_entity_list_questions.tql` | MFN entity-list extraction questions |
 | `seed_synthesis_guidance.tql` | Per-category synthesis guidance |
 | `question_annotations.tql` | Question -> attribute annotations |
 | `annotation_functions.tql` | `get_entity_annotations()` function |
+| `di_functions.tql` | DI capacity + vulnerability TypeDB functions (9 functions) |
 
 ## API Endpoints
 
@@ -200,9 +204,10 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | `/api/deals` | GET | List all deals |
 | `/api/deals/{id}` | GET | Get deal with primitives |
 | `/api/deals/{id}` | DELETE | Delete deal and all data |
-| `/api/deals/upload` | POST | Upload PDF and extract RP + MFN |
+| `/api/deals/upload` | POST | Upload PDF and extract RP + DI + MFN |
 | `/api/deals/{id}/upload-pdf` | POST | Upload PDF for existing deal |
-| `/api/deals/{id}/extract/{type}` | POST | Extract specific covenant (rp, mfn) |
+| `/api/deals/{id}/extract/{type}` | POST | Extract specific covenant (rp, mfn, di) |
+| `/api/deals/{id}/link-covenants` | POST | Trigger cross-covenant linking (DI↔MFN, DI↔RP) |
 | `/api/deals/{id}/{type}-universe` | GET | Get cached universe JSON |
 | `/api/deals/{id}/ask-graph` | POST | Q&A via entity graph (primary) |
 | `/api/deals/{id}/ask` | POST | Q&A via scalar answers |
@@ -277,30 +282,26 @@ curl "https://valencev3-production.up.railway.app/api/eval-results/duck_creek_rp
 
 ## Current State (2026-03-31)
 
-### Entity Architecture SSoT Compliance Fix
+### Debt Incurrence (DI) Expansion — Phases 1-5 Complete
 
-Major refactor converting 6 incorrectly-modeled entity_list questions to proper patterns:
+Full DI covenant type added alongside RP and MFN. 6-phase plan, 5 phases complete:
 
-* **Phase 1:** `de_minimis_threshold` + `sweep_exemption` (5 subtypes) → new `asset_sale_sweep` single-instance entity with 13 scalar attrs
-* **Phase 2:** `rdp_basket` (5 subtypes) → `_exists` single-instance pattern (5 new boolean questions)
-* **Phase 3:** `amendment_threshold` → `_exists` single-instance; `has_amendment_threshold` refactored to sub `provision_has_extracted_entity`
-* **Phase 4:** `builder_basket_source` (8 subtypes) → flattened as 25 attrs on `builder_basket` entity
-* **Phase 5:** `basket_reallocation` entity → `basket_reallocates_to` relation (keeps entity_list extraction, stores as relation)
-* **Parser fix:** `_load_mixed_tql_file()` — `has_insert_clause` flag prevents merging standalone inserts into match-insert blocks
-* **Provision type generalization:** `_load_entity_relation_map()` + `_create_single_instance_entity()` now work with both `rp_provision` and `mfn_provision`
+* **Phase 1 — Schema:** §11 DI section in schema_unified.tql. 4 reference entities (ratio_test_type, debt_condition_type, di_lien_priority, di_facility_type), di_provision (54 owns), incremental_facility (66 owns), di_basket abstract + 20 subtypes, leverage_tier, 14 relations. ~97 new attributes. 35 seeded reference instances.
+* **Phase 2 — Questions:** 12 categories (DI1-DI12), 151 questions, 1 entity-list question (leverage_tier), 152 annotations routing to di_provision + incremental_facility + 16 basket subtypes.
+* **Phase 3 — Extraction pipeline:** graph_storage._PROVISION_TYPES includes di_provision, _provision_type_from_id handles _di suffix, segment_introspector reads di_universe_field, run_extraction runs RP → DI → MFN (DI before MFN for incremental_facility linkage).
+* **Phase 4 — Cross-covenant:** CrossCovenantService (cross_covenant.py) creates di_provision_links_mfn, di_provision_links_rp, incremental_triggers_mfn, di_feeds_rp_builder. Step 6 in run_extraction(). Manual endpoint: POST /{id}/link-covenants. SSoT: all trigger data from TypeDB, no hardcoded defaults.
+* **Phase 5 — TypeDB functions:** 9 functions in di_functions.tql (capacity: total_incremental, basket, projected_grower, total_capped; vulnerability: ied_priming_risk, trapdoor_basket; aggregation: count_permitted_baskets, count_grower_baskets, get_basket_types). DIQueryService wrapper returns None on missing data.
+* **Phase 6 — Gold standard evals:** NOT YET STARTED.
 
-Removed: 15 entity types, 4 relations, 6 entity_list questions.
-Added: 1 entity (`asset_sale_sweep`), 1 relation (`provision_has_asset_sale_sweep`), 25 new questions, 25+ annotations.
-Schema reseeded successfully. 293 questions, 27 categories, 273 annotations.
+**SSoT audit completed:** Fixed hardcoded valid_types, defaulted covenant routing to "both", added di_universe_field to schema + segment types, added 20 DI cross-covenant mappings + capacity classifications.
 
-### Unified Extraction Refactor (earlier today)
+### Extraction Order
 
-* First successful Duck Creek RP extraction through unified pipeline: 189 answers, 21 entities, $14.25, 496s
-* Eval baseline: 6/6 lawyer_dc_rp, $4.40/run
+RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### Test Deals
 
-* **Duck Creek** (RP+MFN): deal_id `87852625`. Primary test deal.
+* **Duck Creek** (RP+MFN+DI): deal_id `87852625`. Primary test deal. DI not yet extracted.
 * **ACP Tara** (MFN): deal_id `8d0bf2f8`. Secondary MFN test deal.
 
 ## Open Violations
@@ -309,23 +310,27 @@ Schema reseeded successfully. 293 questions, 27 categories, 273 annotations.
 
 * `app/routers/deals.py` — hardcoded pattern flag name lists for RP and MFN provisions. Should introspect from TypeDB schema attributes.
 
-### Stale Entity References (from SSoT refactor)
+### Deferred DI Schema (Liens Expansion)
 
-* `app/services/graph_storage.py` lines 2242-2441 — legacy methods reference removed entity types (`de_minimis_threshold`, `basket_reallocation`, `builder_basket_source`, `sweep_exemption`). Not in active code path (prefixed `_legacy_`) but should be cleaned up.
+* `di_basket_has_lien_basket` relation — requires Liens covenant schema (lien_basket entity)
+* `sweep_reduces_debt` relation — requires Asset Sales covenant schema
+* `has_intercompany_leakage_risk` TypeDB function — requires `permits_unrestricted_subs` attribute on intercompany_basket
+* Liens-dependent DI functions (first_lien_debt_capacity, total_secured_capacity, baskets_missing_lien_correspondence)
 
 ### Actionable TODOs
 
-* `app/routers/deals.py:1585` — `# TODO: Persist QA cost to TypeDB`
+* `app/routers/deals.py:1640` — `# TODO: Persist QA cost to TypeDB`
 * `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
 ## Next Steps
 
-1. **Re-extract Duck Creek RP** — `POST /api/deals/87852625/extract/rp` (~$14) to test new entity architecture
-2. **Run eval** — `/eval lawyer_dc_rp` to verify 6/6 still passes with new entity storage
-3. **Test MFN extraction** — `POST /api/deals/87852625/extract/mfn`
-4. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn`
-5. **Clean up legacy methods** — Remove `_legacy_*` methods in graph_storage.py that reference deleted entity types
+1. **Phase 6 — DI gold standard evals:** Create gold standard Q&A sets for DI extraction validation
+2. **Test DI extraction on Duck Creek** — `POST /api/deals/87852625/extract/di` (~$TBD)
+3. **Test cross-covenant linking** — `POST /api/deals/87852625/link-covenants`
+4. **Run full RP+DI+MFN eval** — Create combined eval set
+5. **DI synthesis guidance** — Add per-category synthesis guidance for DI1-DI12 in seed_synthesis_guidance.tql
 6. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
+7. **Liens expansion** — Add Liens covenant schema to enable DI↔Liens cross-covenant relations
 
 ## END-OF-DAY UPDATE WORKFLOW
 
