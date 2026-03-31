@@ -364,8 +364,8 @@ This is NOT the Debt section if it only contains:
         """
         Validate universe contains expected content using Sonnet.
 
-        Sends the full universe text to Sonnet (fits within 200K token context).
-        Cost: ~$0.30 for a 400K char RP universe, less for MFN.
+        Sends the full universe text to Haiku (fits within 200K token context).
+        Cost: ~$0.11 for a 400K char RP universe, less for MFN.
         """
         validation_prompt = self._VALIDATION_PROMPTS.get(
             universe.covenant_type,
@@ -386,7 +386,7 @@ Answer ONLY: YES or NO"""
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-6",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=10,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -399,7 +399,7 @@ Answer ONLY: YES or NO"""
             else:
                 logger.warning(
                     f"{universe.covenant_type} universe validation FAILED for {universe.deal_id}. "
-                    f"Sonnet response: {answer}. Segmenter likely captured wrong section."
+                    f"Haiku response: {answer}. Segmenter likely captured wrong section."
                 )
 
             return is_valid
