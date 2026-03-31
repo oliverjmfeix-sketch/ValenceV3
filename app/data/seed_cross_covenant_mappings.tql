@@ -2,3 +2,25 @@ insert $m isa cross_covenant_mapping,
     has mapping_id "ccm_general_investment_basket",
     has basket_type_name "general_investment_basket",
     has provision_type_name "investment_provision";
+
+# DI basket → di_provision mappings
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_credit_agreement_basket", has basket_type_name "credit_agreement_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_incremental_basket", has basket_type_name "incremental_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_ratio_debt_basket", has basket_type_name "ratio_debt_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_general_basket", has basket_type_name "general_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_acquisition_basket", has basket_type_name "acquisition_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_capital_lease_basket", has basket_type_name "capital_lease_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_purchase_money_basket", has basket_type_name "purchase_money_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_intercompany_basket", has basket_type_name "intercompany_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_refinancing_basket", has basket_type_name "refinancing_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_hedging_basket", has basket_type_name "hedging_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_lc_basket", has basket_type_name "lc_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_sale_leaseback_basket", has basket_type_name "sale_leaseback_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_foreign_subsidiary_basket", has basket_type_name "foreign_subsidiary_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_earnout_basket", has basket_type_name "earnout_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_working_capital_basket", has basket_type_name "working_capital_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_contribution_basket", has basket_type_name "contribution_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_ied_basket", has basket_type_name "ied_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_non_guarantor_basket", has basket_type_name "non_guarantor_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_ratio_secured_basket", has basket_type_name "ratio_secured_basket", has provision_type_name "di_provision";
+insert $m isa cross_covenant_mapping, has mapping_id "ccm_ratio_unsecured_basket", has basket_type_name "ratio_unsecured_basket", has provision_type_name "di_provision";

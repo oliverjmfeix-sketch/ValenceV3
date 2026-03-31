@@ -95,7 +95,7 @@ attribute answer_type, value string;             # boolean | integer | double | 
 attribute ui_display_type, value string;
 attribute is_required, value boolean;
 attribute default_value, value string;
-attribute covenant_type, value string;            # MFN | RP
+attribute covenant_type, value string;            # MFN | RP | DI
 attribute extraction_prompt, value string;        # domain hints for Claude
 attribute storage_value_type, value string;       # double | boolean | string | integer
                                                  # Determines which answer_* attr to use
@@ -1222,6 +1222,7 @@ attribute general_basket_amount_usd, value double;
 attribute total_mfn_exempt_capacity_usd, value double;
 
 attribute mfn_universe_field, value string;
+attribute di_universe_field, value string;
 
 # ── MFN provision-level scalar attributes ────────────────────────────────────
 # Surfaced via question_annotates_attribute → polymorphic fetch annotations.
@@ -1632,7 +1633,8 @@ entity document_segment_type,
     owns find_description,
     owns display_order,
     owns rp_universe_field,
-    owns mfn_universe_field;
+    owns mfn_universe_field,
+    owns di_universe_field;
 
 entity attribute_provenance,
     owns attributed_field_name,

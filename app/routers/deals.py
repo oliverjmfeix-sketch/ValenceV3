@@ -684,7 +684,7 @@ async def extract_covenant_endpoint(
         force_rebuild_universe: Rebuild from PDF even if cached
     """
     covenant_type = covenant_type.upper()
-    valid_types = ["RP", "MFN"]
+    valid_types = ["RP", "MFN", "DI"]
     if covenant_type not in valid_types:
         raise HTTPException(400, f"Invalid covenant type. Valid: {valid_types}")
 
@@ -1897,7 +1897,7 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
 
     # Step 1: Covenant type routing
     start = _time.time()
-    covenant_type = "rp"
+    covenant_type = "both"
     route_result = None
     try:
         topic_router = get_topic_router()
@@ -1910,9 +1910,9 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
                 for cat in route_result.matched_categories
             ]
     except Exception as e:
-        logger.warning("TopicRouter unavailable, defaulting to 'rp': %s", e)
+        logger.warning("TopicRouter unavailable, defaulting to 'both': %s", e)
         if collector:
-            collector.covenant_type = "rp"
+            collector.covenant_type = "both"
             collector.routing_fallback = "TopicRouter unavailable"
     if collector:
         collector.routing_duration_ms = (_time.time() - start) * 1000
@@ -1920,27 +1920,29 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
     # Step 2+3+4: Fetch entity context (provision-type-aware)
     start = _time.time()
     prov_header = ""
-    if covenant_type == "mfn":
-        all_docs, entity_context = get_provision_entities(deal_id, "mfn_provision", trace=collector)
-        if "## ENTITY DATA" in entity_context:
-            prov_header = entity_context.split("## ENTITY DATA", 1)[0]
-    elif covenant_type == "both":
-        rp_docs, rp_ctx = get_provision_entities(deal_id, "rp_provision", trace=collector)
-        mfn_docs, mfn_ctx = get_provision_entities(deal_id, "mfn_provision", trace=collector)
-        all_docs = rp_docs + mfn_docs
-        entity_context = rp_ctx + "\n\n" + mfn_ctx if rp_ctx and mfn_ctx else rp_ctx or mfn_ctx or ""
-        # Extract BOTH provision headers
-        rp_hdr = rp_ctx.split("## ENTITY DATA", 1)[0] if "## ENTITY DATA" in rp_ctx else ""
-        mfn_hdr = mfn_ctx.split("## ENTITY DATA", 1)[0] if "## ENTITY DATA" in mfn_ctx else ""
-        prov_header = rp_hdr + mfn_hdr
-    else:
-        all_docs, entity_context = get_provision_entities(deal_id, "rp_provision", trace=collector)
-        if "## ENTITY DATA" in entity_context:
-            prov_header = entity_context.split("## ENTITY DATA", 1)[0]
+    # Provision type mapping — covenant_type → provision entity type(s)
+    _COVENANT_PROVISION_MAP = {
+        "rp": ["rp_provision"],
+        "mfn": ["mfn_provision"],
+        "di": ["di_provision"],
+        "both": ["rp_provision", "mfn_provision", "di_provision"],
+    }
+    provision_types = _COVENANT_PROVISION_MAP.get(covenant_type, ["rp_provision"])
+    all_docs = []
+    entity_context = ""
+    prov_header = ""
+    for prov_type in provision_types:
+        docs, ctx = get_provision_entities(deal_id, prov_type, trace=collector)
+        if docs:
+            all_docs.extend(docs)
+        if ctx:
+            hdr = ctx.split("## ENTITY DATA", 1)[0] if "## ENTITY DATA" in ctx else ""
+            prov_header += hdr
+            entity_context = entity_context + "\n\n" + ctx if entity_context else ctx
 
     # Cross-covenant entities — keep context separate, never merge into entity_context
     cross_context = ""
-    if covenant_type in ("mfn", "both"):
+    if covenant_type in ("mfn", "di", "both"):
         cross_docs, cross_context = get_cross_covenant_entities(
             deal_id, "mfn_provision", trace=collector
         )
