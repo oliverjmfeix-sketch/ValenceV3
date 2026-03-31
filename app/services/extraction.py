@@ -225,36 +225,22 @@ class ExtractionService:
         document_text: Optional[str] = None,
         segment_map: Optional[dict] = None,
         force_rebuild: bool = False,
-        validate: bool = True,
     ) -> Optional[CovenantUniverse]:
         """
         Single entry point for getting a covenant universe.
 
         1. Check cache (unless force_rebuild)
-        2. Validate cached content (if validate=True)
-        3. Build from document if needed
-        4. Validate new content
-        5. Cache if valid
-        6. Return universe or None if validation fails
+        2. Build from document if needed
+        3. Cache and return
         """
         covenant_type = covenant_type.upper()
         cache_path = f"/app/uploads/{deal_id}_{covenant_type.lower()}_universe.json"
 
-        # Try cache first (unless force_rebuild)
         if not force_rebuild:
             cached = self._load_cached_universe(cache_path)
             if cached:
-                if validate and not cached.validated:
-                    if self._validate_universe(cached):
-                        cached.validated = True
-                        self._cache_universe(cached)
-                        return cached
-                    else:
-                        logger.warning(f"Cached {covenant_type} universe failed validation, rebuilding...")
-                else:
-                    return cached
+                return cached
 
-        # Need to build from document
         if not document_text:
             pdf_path = f"/app/uploads/{deal_id}.pdf"
             if not os.path.exists(pdf_path):
@@ -272,15 +258,6 @@ class ExtractionService:
         if not universe:
             logger.error(f"Failed to build {covenant_type} universe for {deal_id}")
             return None
-
-        if validate:
-            if not self._validate_universe(universe):
-                logger.error(
-                    f"{covenant_type} universe validation failed for {deal_id}. "
-                    f"NOT caching. Check segmenter results."
-                )
-                return None
-            universe.validated = True
 
         self._cache_universe(universe)
         return universe
@@ -316,43 +293,6 @@ class ExtractionService:
 
         except Exception as e:
             logger.warning(f"Failed to cache universe: {e}")
-            return False
-
-    def _validate_universe(self, universe: CovenantUniverse) -> bool:
-        """
-        Validate universe contains expected content using Haiku.
-
-        Sends the full universe text (fits within Haiku's 200K token context).
-        Cost: ~$0.11 for a 400K char RP universe, less for MFN.
-        """
-        prompt = f"""The text below was extracted from a credit agreement.
-
-{universe.raw_text}
-
-Using your domain knowledge as a leveraged finance attorney, does this text contain the {universe.covenant_type} provision? Answer only YES or NO."""
-
-        try:
-            response = self.client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=50,
-                messages=[{"role": "user", "content": prompt}]
-            )
-
-            answer = response.content[0].text.strip()
-            is_valid = "YES" in answer.upper()
-
-            if is_valid:
-                logger.info(f"{universe.covenant_type} universe validation PASSED for {universe.deal_id}")
-            else:
-                logger.warning(
-                    f"{universe.covenant_type} universe validation FAILED for {universe.deal_id}. "
-                    f"Haiku response: {answer}. Segmenter likely captured wrong section."
-                )
-
-            return is_valid
-
-        except Exception as e:
-            logger.error(f"Universe validation failed with error: {e}. Assuming invalid.")
             return False
 
     def _build_covenant_universe(

@@ -553,7 +553,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
         rp_universe = extraction_svc.get_or_build_universe(
             deal_id=deal_id, covenant_type="RP",
             document_text=document_text, segment_map=segment_map,
-            validate=True,
+
         )
 
         rp_result = None
@@ -578,7 +578,7 @@ async def run_extraction(deal_id: str, pdf_path: str):
             mfn_universe = extraction_svc.get_or_build_universe(
                 deal_id=deal_id, covenant_type="MFN",
                 document_text=document_text, segment_map=segment_map,
-                validate=True,
+    
             )
 
             if mfn_universe:
@@ -674,7 +674,6 @@ async def extract_covenant_endpoint(
     deal_id: str,
     covenant_type: str,
     force_rebuild_universe: bool = False,
-    validate_universe: bool = True,
     model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
@@ -683,7 +682,6 @@ async def extract_covenant_endpoint(
     Args:
         covenant_type: "rp" or "mfn" (case insensitive)
         force_rebuild_universe: Rebuild from PDF even if cached
-        validate_universe: Run Sonnet validation (~$0.10)
     """
     covenant_type = covenant_type.upper()
     valid_types = ["RP", "MFN"]
@@ -705,7 +703,6 @@ async def extract_covenant_endpoint(
             deal_id=deal_id,
             covenant_type=covenant_type,
             force_rebuild=force_rebuild_universe,
-            validate=validate_universe,
         )
 
         if not universe:
@@ -1288,7 +1285,7 @@ async def get_universe_text(deal_id: str, covenant_type: str):
     # Try to regenerate from PDF
     svc = get_extraction_service()
     universe = svc.get_or_build_universe(
-        deal_id=deal_id, covenant_type=covenant_type, validate=False,
+        deal_id=deal_id, covenant_type=covenant_type,
     )
     if not universe:
         raise HTTPException(404, f"{covenant_type} universe not cached and could not be regenerated")

@@ -879,7 +879,6 @@ async def debug_segmenter(deal_id: str):
     universe = svc.get_or_build_universe(
         deal_id=deal_id, covenant_type="RP",
         document_text=document_text, segment_map=segment_map,
-        validate=False,
     )
 
     universe_fields = {}
