@@ -281,11 +281,51 @@ attribute sweep_section_reference, value string;
 attribute has_ratio_disposition_basket, value boolean;
 attribute ratio_disposition_threshold, value double;
 
-# ── De minimis threshold ─────────────────────────────────────────────────────
-attribute threshold_type, value string;            # individual | annual
-attribute threshold_amount_usd, value double;
+# ── Asset sale sweep (replaces de_minimis_threshold + sweep_exemption) ───────
+attribute sweep_id, value string;
+attribute individual_de_minimis_usd, value double;
+attribute individual_de_minimis_pct, value double;
+attribute individual_uses_greater_of, value boolean;
+attribute annual_de_minimis_usd, value double;
+attribute annual_de_minimis_pct, value double;
+attribute annual_uses_greater_of, value boolean;
+attribute annual_permits_carryforward, value boolean;
+attribute exempt_non_collateral, value boolean;
+attribute exempt_ordinary_course, value boolean;
+attribute exempt_casualty, value boolean;
+attribute exempt_below_threshold, value boolean;
+attribute exempt_ratio_basket, value boolean;
 
-# ── Basket reallocation ──────────────────────────────────────────────────────
+# ── Builder basket source attrs (flattened onto builder_basket) ──────────────
+attribute has_starter_amount_source, value boolean;
+attribute has_cni_source, value boolean;
+attribute has_ecf_source, value boolean;
+attribute has_ebitda_fc_source, value boolean;
+attribute has_equity_proceeds_source, value boolean;
+attribute has_asset_proceeds_source, value boolean;
+attribute has_investment_returns_source, value boolean;
+attribute has_debt_conversion_source, value boolean;
+attribute starter_dollar_amount, value double;
+attribute starter_ebitda_pct, value double;
+attribute starter_uses_greater_of, value boolean;
+attribute cni_percentage, value double;
+attribute cni_is_primary_test, value boolean;
+attribute ecf_retained_formula, value string;
+attribute ecf_lookback_quarters, value integer;
+attribute ebitda_fc_multiplier, value double;
+attribute equity_proceeds_pct, value double;
+attribute equity_excludes_cure, value boolean;
+attribute equity_excludes_disqualified, value boolean;
+attribute asset_proceeds_pct, value double;
+attribute asset_proceeds_sweep_section, value string;
+attribute asset_proceeds_ratio_disposition, value boolean;
+attribute asset_proceeds_ratio_threshold, value double;
+
+# ── Amendment threshold enrichment ───────────────────────────────────────────
+attribute required_lenders_pct, value double;
+attribute has_sacred_rights, value boolean;
+
+# ── Basket reallocation (on basket_reallocates_to relation) ──────────────────
 attribute reallocation_source, value string;       # canonical: investment_basket | rdp_basket |
                                                     #   prepayment_basket | builder_basket | general_rp_basket
 attribute reallocation_amount_usd, value double;
@@ -604,9 +644,7 @@ entity rp_provision sub provision,
     plays provision_has_blocker:provision,
     plays provision_has_unsub:provision,
     plays provision_has_sweep_tier:provision,
-    plays provision_has_sweep_exemption:provision,
-    plays provision_has_de_minimis:provision,
-    plays provision_has_reallocation:provision,
+    plays provision_has_asset_sale_sweep:provision,
     plays provision_has_pathway:provision,
     plays provision_has_intercompany_permission:provision,
     plays provision_has_definition:provision,
@@ -658,7 +696,36 @@ entity builder_basket sub rp_basket,
     owns reduced_by_rdp_usage,
     owns reduced_by_investment_usage,
     owns reduced_by_designation,
-    plays basket_has_source:basket;
+    # Source existence flags (flattened from builder_basket_source subtypes)
+    owns has_starter_amount_source,
+    owns has_cni_source,
+    owns has_ecf_source,
+    owns has_ebitda_fc_source,
+    owns has_equity_proceeds_source,
+    owns has_asset_proceeds_source,
+    owns has_investment_returns_source,
+    owns has_debt_conversion_source,
+    # Starter amount details
+    owns starter_dollar_amount,
+    owns starter_ebitda_pct,
+    owns starter_uses_greater_of,
+    # CNI details
+    owns cni_percentage,
+    owns cni_is_primary_test,
+    # ECF details
+    owns ecf_retained_formula,
+    owns ecf_lookback_quarters,
+    # EBITDA-FC details
+    owns ebitda_fc_multiplier,
+    # Equity proceeds details
+    owns equity_proceeds_pct,
+    owns equity_excludes_cure,
+    owns equity_excludes_disqualified,
+    # Asset proceeds details
+    owns asset_proceeds_pct,
+    owns asset_proceeds_sweep_section,
+    owns asset_proceeds_ratio_disposition,
+    owns asset_proceeds_ratio_threshold;
 
 entity ratio_basket sub rp_basket,
     owns ratio_threshold,
@@ -770,47 +837,10 @@ entity investment_provision sub provision,
 
 attribute source_name, value string;
 
-entity builder_basket_source @abstract,
-    owns source_id @key,
-    owns source_name,
-    owns section_reference,
-    owns source_page,
-    owns source_text,
-    owns confidence,
-    owns not_otherwise_applied,
-    plays basket_has_source:source;
-
-entity starter_amount_source sub builder_basket_source,
-    owns dollar_amount,
-    owns ebitda_percentage,
-    owns uses_greater_of;
-
-entity cni_source sub builder_basket_source,
-    owns percentage,
-    owns is_primary_test;
-
-entity ecf_source sub builder_basket_source,
-    owns retained_ecf_formula,
-    owns lookback_period,
-    owns lookback_quarters;
-
-entity ebitda_fc_source sub builder_basket_source,
-    owns fc_multiplier;
-
-entity equity_proceeds_source sub builder_basket_source,
-    owns percentage,
-    owns excludes_cure_contributions,
-    owns excludes_disqualified_stock;
-
-entity investment_returns_source sub builder_basket_source;
-
-entity asset_proceeds_source sub builder_basket_source,
-    owns percentage,
-    owns sweep_section_reference,
-    owns has_ratio_disposition_basket,
-    owns ratio_disposition_threshold;
-
-entity debt_conversion_source sub builder_basket_source;
+# builder_basket_source hierarchy REMOVED — flattened onto builder_basket entity
+# (starter_amount_source, cni_source, ecf_source, ebitda_fc_source,
+#  equity_proceeds_source, investment_returns_source, asset_proceeds_source,
+#  debt_conversion_source — all now scalar attrs on builder_basket)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SWEEP TIERS
@@ -915,36 +945,34 @@ entity unsub_designation,
     plays provision_has_unsub:designation;
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DE MINIMIS THRESHOLDS
+# ASSET SALE SWEEP (replaces de_minimis_threshold + sweep_exemption)
+#
+#   Single-instance per provision. Captures mandatory prepayment mechanics:
+#   de minimis thresholds (individual + annual) and exemption flags.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-entity de_minimis_threshold,
-    owns threshold_id @key,
-    owns threshold_type,
-    owns threshold_amount_usd,
+entity asset_sale_sweep,
+    owns sweep_id @key,
+    owns individual_de_minimis_usd,
+    owns individual_de_minimis_pct,
+    owns individual_uses_greater_of,
+    owns annual_de_minimis_usd,
+    owns annual_de_minimis_pct,
+    owns annual_uses_greater_of,
+    owns annual_permits_carryforward,
+    owns exempt_non_collateral,
+    owns exempt_ordinary_course,
+    owns exempt_casualty,
+    owns exempt_below_threshold,
+    owns exempt_ratio_basket,
     owns section_reference,
     owns source_page,
     owns source_text,
     owns confidence,
-    plays provision_has_de_minimis:threshold;
+    plays provision_has_asset_sale_sweep:sweep;
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# BASKET REALLOCATION
-# ═══════════════════════════════════════════════════════════════════════════════
-
-entity basket_reallocation,
-    owns reallocation_id @key,
-    owns reallocation_source,
-    owns reallocation_amount_usd,
-    owns is_bidirectional,
-    owns reduces_source_basket,
-    owns reduction_is_dollar_for_dollar,
-    owns reduction_while_outstanding_only,
-    owns section_reference,
-    owns source_page,
-    owns source_text,
-    owns confidence,
-    plays provision_has_reallocation:reallocation;
+# basket_reallocation entity REMOVED — data stored as basket_reallocates_to relation
+# (connects source basket to target basket with reallocation attributes)
 
 entity cross_covenant_mapping,
     owns mapping_id @key,
@@ -1136,6 +1164,8 @@ entity amendment_threshold,
     owns requires_supermajority,
     owns supermajority_threshold,
     owns required_lenders_sufficient,
+    owns required_lenders_pct,
+    owns has_sacred_rights,
     owns section_reference,
     owns source_page,
     owns source_text,
@@ -1620,9 +1650,7 @@ relation entity_has_child @abstract,
     relates parent,
     relates child;
 
-relation basket_has_source sub entity_has_child,
-    relates basket as parent,
-    relates source as child;
+# basket_has_source REMOVED — builder sources flattened onto builder_basket
 
 relation provision_has_rdp_basket sub provision_has_extracted_entity,
     relates provision,
@@ -1649,17 +1677,13 @@ relation provision_has_sweep_tier sub provision_has_extracted_entity,
     relates provision,
     relates tier as extracted;
 
-relation provision_has_sweep_exemption sub provision_has_extracted_entity,
+relation provision_has_asset_sale_sweep sub provision_has_extracted_entity,
     relates provision,
-    relates exemption as extracted;
+    relates sweep as extracted;
 
-relation provision_has_de_minimis sub provision_has_extracted_entity,
-    relates provision,
-    relates threshold as extracted;
-
-relation provision_has_reallocation sub provision_has_extracted_entity,
-    relates provision,
-    relates reallocation as extracted;
+# provision_has_sweep_exemption REMOVED — exemptions are booleans on asset_sale_sweep
+# provision_has_de_minimis REMOVED — thresholds are attrs on asset_sale_sweep
+# provision_has_reallocation REMOVED — use basket_reallocates_to relation instead
 
 relation provision_has_pathway sub provision_has_extracted_entity,
     relates provision,
@@ -1668,14 +1692,17 @@ relation provision_has_pathway sub provision_has_extracted_entity,
 relation basket_reallocates_to,
     relates source_basket,
     relates target_basket,
+    owns reallocation_source,
     owns reallocation_amount_usd,
     owns reallocation_grower_pct,
+    owns is_bidirectional,
     owns reduces_source_basket,
     owns reduction_is_dollar_for_dollar,
     owns reduction_while_outstanding_only,
     owns section_reference,
     owns source_page,
     owns source_text,
+    owns confidence,
     owns capacity_effect;
 
 relation shares_capacity_pool,
@@ -1695,9 +1722,9 @@ relation provision_has_lien_release sub provision_has_extracted_entity,
     relates provision,
     relates lien_release as extracted;
 
-relation has_amendment_threshold,
-    relates entity_with_threshold,
-    relates threshold;
+relation has_amendment_threshold sub provision_has_extracted_entity,
+    relates entity_with_threshold as provision,
+    relates threshold as extracted;
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # EXTRACTION METADATA (SSoT for Claude prompts)
@@ -1730,20 +1757,9 @@ entity extraction_metadata,
 attribute exemption_id, value string;
 attribute exemption_name, value string;
 
-entity sweep_exemption @abstract,
-    owns exemption_id @key,
-    owns exemption_name,
-    owns section_reference,
-    owns source_page,
-    owns source_text,
-    owns confidence,
-    plays provision_has_sweep_exemption:exemption;
-
-entity non_collateral_exemption sub sweep_exemption;
-entity ordinary_course_sale_exemption sub sweep_exemption;
-entity casualty_exemption sub sweep_exemption;
-entity below_threshold_exemption sub sweep_exemption;
-entity ratio_basket_exemption sub sweep_exemption;
+# sweep_exemption hierarchy REMOVED — exemptions are boolean flags on asset_sale_sweep
+# (exempt_non_collateral, exempt_ordinary_course, exempt_casualty,
+#  exempt_below_threshold, exempt_ratio_basket)
 
 
 

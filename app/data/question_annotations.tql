@@ -71,38 +71,38 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_f2";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "starter_amount_source",
-    has target_attribute_name "dollar_amount";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "starter_dollar_amount";
 
 match $q isa ontology_question, has question_id "rp_f3";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "starter_amount_source",
-    has target_attribute_name "ebitda_percentage";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "starter_ebitda_pct";
 
 match $q isa ontology_question, has question_id "rp_f4";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "starter_amount_source",
-    has target_attribute_name "uses_greater_of";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "starter_uses_greater_of";
 
 match $q isa ontology_question, has question_id "rp_f5";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "cni_source",
-    has target_attribute_name "percentage";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "cni_percentage";
 
 match $q isa ontology_question, has question_id "rp_f6";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "equity_proceeds_source",
-    has target_attribute_name "percentage";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "equity_proceeds_pct";
 
 match $q isa ontology_question, has question_id "rp_f11";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "ecf_source",
-    has target_attribute_name "retained_ecf_formula";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "ecf_retained_formula";
 
 match $q isa ontology_question, has question_id "rp_f13";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "ebitda_fc_source",
-    has target_attribute_name "fc_multiplier";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "ebitda_fc_multiplier";
 
 match $q isa ontology_question, has question_id "rp_k9";
 insert (question: $q) isa question_annotates_attribute,
@@ -156,12 +156,12 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_i3";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "rdp";
 
 match $q isa ontology_question, has question_id "rp_i5";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "investment";
 
 
@@ -209,13 +209,13 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_i7";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "_exists";
 
 match $q isa ontology_question, has question_id "rp_l1";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "asset_proceeds_source",
-    has target_attribute_name "_exists";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_asset_proceeds_source";
 
 match $q isa ontology_question, has question_id "rp_l2";
 insert (question: $q) isa question_annotates_attribute,
@@ -224,23 +224,23 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_f10";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "ecf_source",
-    has target_attribute_name "_exists";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_ecf_source";
 
 match $q isa ontology_question, has question_id "rp_f12";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "ebitda_fc_source",
-    has target_attribute_name "_exists";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_ebitda_fc_source";
 
 match $q isa ontology_question, has question_id "rp_f16";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "asset_proceeds_source",
-    has target_attribute_name "_exists";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_asset_proceeds_source";
 
 match $q isa ontology_question, has question_id "rp_f17";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "investment_returns_source",
-    has target_attribute_name "_exists";
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_investment_returns_source";
 
 match $q isa ontology_question, has question_id "jc_t2_18";
 insert (question: $q) isa question_annotates_attribute,
@@ -264,12 +264,12 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_i4";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "reallocation_amount_usd";
 
 match $q isa ontology_question, has question_id "rp_i6";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "is_bidirectional";
 
 match $q isa ontology_question, has question_id "rp_g3";
@@ -795,22 +795,22 @@ insert (question: $q) isa question_annotates_attribute,
 
 match $q isa ontology_question, has question_id "rp_i9";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "reallocation_source";
 
 match $q isa ontology_question, has question_id "rp_i10";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "reduces_source_basket";
 
 match $q isa ontology_question, has question_id "rp_i11";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "reduction_is_dollar_for_dollar";
 
 match $q isa ontology_question, has question_id "rp_i12";
 insert (question: $q) isa question_annotates_attribute,
-    has target_entity_type "basket_reallocation",
+    has target_entity_type "rp_provision",
     has target_attribute_name "reduction_while_outstanding_only";
 
 match $q isa ontology_question, has question_id "rp_n6";
@@ -1130,3 +1130,150 @@ match $q isa ontology_question, has question_id "jc_t1_34";
 insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "lien_release_mechanics",
     has target_attribute_name "_exists";
+
+################################################################################
+# ENTITY ARCHITECTURE SSoT COMPLIANCE — NEW ANNOTATIONS
+################################################################################
+
+# ── Phase 1: Asset sale sweep ────────────────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_l13";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_l5";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "individual_de_minimis_usd";
+
+match $q isa ontology_question, has question_id "rp_l6";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "annual_de_minimis_usd";
+
+match $q isa ontology_question, has question_id "rp_l14";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "exempt_non_collateral";
+
+match $q isa ontology_question, has question_id "rp_l15";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "exempt_ordinary_course";
+
+match $q isa ontology_question, has question_id "rp_l16";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "exempt_casualty";
+
+match $q isa ontology_question, has question_id "rp_l17";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "exempt_below_threshold";
+
+match $q isa ontology_question, has question_id "rp_l18";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "exempt_ratio_basket";
+
+match $q isa ontology_question, has question_id "rp_l19";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "individual_uses_greater_of";
+
+match $q isa ontology_question, has question_id "rp_l20";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "individual_de_minimis_pct";
+
+match $q isa ontology_question, has question_id "rp_l21";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "annual_uses_greater_of";
+
+match $q isa ontology_question, has question_id "rp_l22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "annual_de_minimis_pct";
+
+match $q isa ontology_question, has question_id "rp_l23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "asset_sale_sweep",
+    has target_attribute_name "annual_permits_carryforward";
+
+# ── Phase 2: RDP baskets (_exists) ───────────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_t22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "refinancing_rdp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_t23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_t24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "ratio_rdp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_t25";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_rdp_basket",
+    has target_attribute_name "_exists";
+
+match $q isa ontology_question, has question_id "rp_t26";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "equity_funded_rdp_basket",
+    has target_attribute_name "_exists";
+
+# ── Phase 3: Amendment threshold (_exists) ───────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_t27";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "amendment_threshold",
+    has target_attribute_name "_exists";
+
+# ── Phase 4: Builder basket source flags ─────────────────────────────────────
+
+match $q isa ontology_question, has question_id "rp_f22";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_starter_amount_source";
+
+match $q isa ontology_question, has question_id "rp_f23";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_cni_source";
+
+match $q isa ontology_question, has question_id "rp_f24";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_ecf_source";
+
+match $q isa ontology_question, has question_id "rp_f25";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_ebitda_fc_source";
+
+match $q isa ontology_question, has question_id "rp_f26";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_equity_proceeds_source";
+
+match $q isa ontology_question, has question_id "rp_f27";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_asset_proceeds_source";
+
+match $q isa ontology_question, has question_id "rp_f28";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_investment_returns_source";
+
+match $q isa ontology_question, has question_id "rp_f29";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "builder_basket",
+    has target_attribute_name "has_debt_conversion_source";

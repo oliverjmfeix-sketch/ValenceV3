@@ -1193,4 +1193,315 @@ insert $q_jc1_34 isa ontology_question,
 match $cat isa ontology_category, has category_id "JC1"; $q isa ontology_question, has question_id "jc_t1_34";
 insert (category: $cat, question: $q) isa category_has_question;
 
+
+################################################################################
+# ENTITY ARCHITECTURE SSoT COMPLIANCE — NEW SCALAR QUESTIONS
+#
+# Phase 1: Asset sale sweep (de minimis + exemptions)
+# Phase 2: RDP baskets (_exists)
+# Phase 3: Amendment threshold (_exists)
+# Phase 4: Builder basket sources (flattened)
+################################################################################
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1: ASSET SALE SWEEP — _exists + scalar attrs
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_l13",
+    has question_text "Does the agreement require mandatory prepayment from asset sale proceeds?",
+    has description "Whether a mandatory asset sale sweep exists",
+    has answer_type "boolean",
+    has display_order 113,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement require mandatory prepayment of loans from Net Cash Proceeds of asset sales (asset sale sweep)? Look in the mandatory prepayment section for language about applying proceeds from asset sales or dispositions. Answer true if any mandatory prepayment from asset sale/disposition proceeds exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l14",
+    has question_text "Are non-Collateral asset sales exempt from mandatory prepayment?",
+    has description "Whether sales of non-collateral assets are excluded from the sweep",
+    has answer_type "boolean",
+    has display_order 114,
+    has covenant_type "RP",
+    has extraction_prompt "Are sales/dispositions of non-Collateral assets exempt from the asset sale mandatory prepayment? Look for carve-outs excluding 'assets that do not constitute Collateral' or similar.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l15",
+    has question_text "Are ordinary course asset sales exempt from mandatory prepayment?",
+    has description "Whether routine business sales are excluded from the sweep",
+    has answer_type "boolean",
+    has display_order 115,
+    has covenant_type "RP",
+    has extraction_prompt "Are ordinary course asset sales/dispositions exempt from the asset sale mandatory prepayment? Look for carve-outs for 'dispositions in the ordinary course of business' or 'normal course sales of inventory'.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l16",
+    has question_text "Are Casualty Event proceeds exempt from mandatory prepayment?",
+    has description "Whether insurance/condemnation proceeds are excluded from the sweep",
+    has answer_type "boolean",
+    has display_order 116,
+    has covenant_type "RP",
+    has extraction_prompt "Are Casualty Event proceeds (insurance recovery, condemnation awards) exempt from or treated separately in the asset sale mandatory prepayment? Look for separate treatment of 'Casualty Events' or 'Recovery Events'.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l17",
+    has question_text "Are asset sales below the de minimis threshold exempt?",
+    has description "Whether small asset sales are excluded from the sweep",
+    has answer_type "boolean",
+    has display_order 117,
+    has covenant_type "RP",
+    has extraction_prompt "Are asset sales below a de minimis dollar threshold exempt from mandatory prepayment? Look for 'Net Cash Proceeds in excess of $X' or 'excluding dispositions with proceeds less than'. Answer true if any de minimis carve-out exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l18",
+    has question_text "Are ratio basket dispositions exempt from mandatory prepayment?",
+    has description "Whether dispositions under the ratio basket avoid the sweep",
+    has answer_type "boolean",
+    has display_order 118,
+    has covenant_type "RP",
+    has extraction_prompt "Are asset dispositions made under a leverage ratio basket exempt from the asset sale sweep? Look for carve-outs where 'dispositions permitted under Section 6.05(x)' or ratio-based disposition baskets are excluded from mandatory prepayment.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l19",
+    has question_text "Does the individual de minimis threshold use a greater-of test?",
+    has description "Whether individual de minimis is structured as greater of $ and % EBITDA",
+    has answer_type "boolean",
+    has display_order 119,
+    has covenant_type "RP",
+    has extraction_prompt "Is the individual asset sale de minimis threshold structured as 'the greater of $X and Y% of Consolidated EBITDA'? Answer true if the threshold uses a greater-of formula combining a dollar amount and an EBITDA percentage.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l20",
+    has question_text "What percentage of EBITDA is the individual de minimis threshold?",
+    has description "The EBITDA percentage component of the individual de minimis",
+    has answer_type "percentage",
+    has display_order 120,
+    has covenant_type "RP",
+    has extraction_prompt "What is the EBITDA percentage component of the individual asset sale de minimis threshold? E.g., if 'the greater of $25M and 20% of Consolidated EBITDA', answer 0.20. If no EBITDA percentage exists (pure dollar threshold), answer null.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l21",
+    has question_text "Does the annual de minimis threshold use a greater-of test?",
+    has description "Whether annual de minimis is structured as greater of $ and % EBITDA",
+    has answer_type "boolean",
+    has display_order 121,
+    has covenant_type "RP",
+    has extraction_prompt "Is the annual aggregate asset sale de minimis threshold structured as 'the greater of $X and Y% of Consolidated EBITDA'? Answer true if the annual threshold uses a greater-of formula.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l22",
+    has question_text "What percentage of EBITDA is the annual de minimis threshold?",
+    has description "The EBITDA percentage component of the annual de minimis",
+    has answer_type "percentage",
+    has display_order 122,
+    has covenant_type "RP",
+    has extraction_prompt "What is the EBITDA percentage component of the annual aggregate asset sale de minimis threshold? E.g., if 'aggregate Net Cash Proceeds exceeding the greater of $50M and 40% of EBITDA', answer 0.40. If no EBITDA percentage exists, answer null.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l23",
+    has question_text "Can unused annual de minimis amounts carry forward to subsequent years?",
+    has description "Whether unused de minimis capacity rolls over",
+    has answer_type "boolean",
+    has display_order 123,
+    has covenant_type "RP",
+    has extraction_prompt "Can unused annual aggregate de minimis amounts carry forward to subsequent fiscal years? Look for 'unused amounts may be carried forward' or 'aggregate amount shall be increased by unused amounts from prior fiscal years'. Answer true if carryforward is permitted.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 2: RDP BASKETS — _exists questions
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_t22",
+    has question_text "Does the agreement include a refinancing RDP basket?",
+    has description "Whether restricted debt payments for refinancing are permitted",
+    has answer_type "boolean",
+    has display_order 222,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement permit Restricted Debt Payments for refinancing purposes? Look for language like 'Restricted Debt Payments in connection with any Refinancing Indebtedness' or 'prepayment with proceeds of refinancing'. Answer true if any refinancing RDP basket exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t23",
+    has question_text "Does the agreement include a general fixed-dollar RDP basket?",
+    has description "Whether a general dollar-capped RDP basket exists",
+    has answer_type "boolean",
+    has display_order 223,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement include a general fixed-dollar Restricted Debt Payment basket? Look for 'Restricted Debt Payments in an aggregate amount not to exceed the greater of $X and Y% of EBITDA'. Answer true if a general-purpose dollar-capped RDP basket exists (distinct from refinancing, ratio, builder, or equity-funded).";
+
+insert $q isa ontology_question,
+    has question_id "rp_t24",
+    has question_text "Does the agreement include a ratio-based RDP basket?",
+    has description "Whether unlimited/increased RDP is available upon satisfying a leverage test",
+    has answer_type "boolean",
+    has display_order 224,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement include a ratio-based Restricted Debt Payment basket? Look for 'Restricted Debt Payments if the First Lien Leverage Ratio is no greater than X:1.00' or similar leverage-conditioned unlimited RDP. Answer true if any ratio-based RDP basket exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t25",
+    has question_text "Does the agreement include a builder/Available Amount RDP basket?",
+    has description "Whether RDP capacity is available from the builder basket",
+    has answer_type "boolean",
+    has display_order 225,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement include a builder basket (Available Amount / Cumulative Amount) for Restricted Debt Payments? Look in the RDP section for references to 'Available Amount' or 'Cumulative Amount' as a source of RDP capacity. Answer true if builder basket capacity can fund RDPs.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t26",
+    has question_text "Does the agreement include an equity-funded RDP basket?",
+    has description "Whether RDPs funded by fresh equity contributions are permitted",
+    has answer_type "boolean",
+    has display_order 226,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement include an equity-funded Restricted Debt Payment basket? Look for 'Restricted Debt Payments funded with the proceeds of equity contributions' or 'Excluded Equity Contributions applied to RDP'. Answer true if equity-funded RDP capacity exists.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 3: AMENDMENT THRESHOLD — _exists question
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_t27",
+    has question_text "Does the RP covenant have amendment voting threshold provisions?",
+    has description "Whether amendment and waiver voting thresholds are specified",
+    has answer_type "boolean",
+    has display_order 227,
+    has covenant_type "RP",
+    has extraction_prompt "Does the agreement specify amendment and waiver voting thresholds for the Restricted Payments covenant? Look in the amendments/modifications section for Required Lenders threshold, supermajority requirements, and sacred rights. Answer true if any voting threshold provisions exist.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 4: BUILDER BASKET SOURCE FLAGS — scalar attrs on builder_basket
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $q isa ontology_question,
+    has question_id "rp_f22",
+    has question_text "Does the builder basket include a starter/seed amount?",
+    has description "Whether the builder basket has an initial fixed-dollar component",
+    has answer_type "boolean",
+    has display_order 322,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket / Available Amount / Cumulative Amount include a starter or seed amount as its initial value? Look for 'Available Amount means an amount equal to $X' or 'the greater of $X and Y% of EBITDA plus...'. Answer true if a fixed-dollar starter exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f23",
+    has question_text "Does the builder basket include a CNI (Consolidated Net Income) source?",
+    has description "Whether accumulated CNI feeds the builder basket",
+    has answer_type "boolean",
+    has display_order 323,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket accumulate capacity from Consolidated Net Income (CNI)? Look for 'plus 50% of Consolidated Net Income' or similar CNI accumulation language in the Available Amount definition. Answer true if CNI is a builder source.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f24",
+    has question_text "Does the builder basket include an ECF (Excess Cash Flow) source?",
+    has description "Whether retained ECF feeds the builder basket",
+    has answer_type "boolean",
+    has display_order 324,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket accumulate capacity from retained Excess Cash Flow (ECF)? Look for language referencing ECF amounts not applied to mandatory prepayment feeding the Available Amount. Answer true if ECF retention is a builder source.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f25",
+    has question_text "Does the builder basket include an EBITDA-minus-Fixed-Charges source?",
+    has description "Whether an EBITDA-FC multiplier feeds the builder basket",
+    has answer_type "boolean",
+    has display_order 325,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket include an EBITDA minus Fixed Charges test as one of its accumulation sources? Look for '100% (or 140% etc.) of Consolidated EBITDA minus Fixed Charges' in the Available Amount or greatest-of tests. Answer true if this source exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f26",
+    has question_text "Does the builder basket include equity proceeds as a source?",
+    has description "Whether fresh equity contributions feed the builder basket",
+    has answer_type "boolean",
+    has display_order 326,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket include proceeds from equity contributions as a source? Look for 'plus 100% of the Net Cash Proceeds of equity issuances' or 'Excluded Equity Contributions' feeding the Available Amount. Answer true if equity proceeds are a builder source.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f27",
+    has question_text "Does the builder basket include asset sale proceeds as a source?",
+    has description "Whether retained asset sale proceeds feed the builder basket",
+    has answer_type "boolean",
+    has display_order 327,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket include retained asset sale proceeds as a source? Look for Net Cash Proceeds from asset sales/dispositions that are not applied to mandatory prepayment feeding the Available Amount. Answer true if asset proceeds are a builder source.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f28",
+    has question_text "Does the builder basket include investment returns as a source?",
+    has description "Whether returns on investments feed the builder basket",
+    has answer_type "boolean",
+    has display_order 328,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket include returns, dividends, or distributions received on Investments as a source? Look for 'plus the aggregate amount of returns, dividends, distributions received on Investments' in the Available Amount. Answer true if investment returns are a builder source.";
+
+insert $q isa ontology_question,
+    has question_id "rp_f29",
+    has question_text "Does the builder basket include debt conversion proceeds as a source?",
+    has description "Whether debt-to-equity conversion feeds the builder basket",
+    has answer_type "boolean",
+    has display_order 329,
+    has covenant_type "RP",
+    has extraction_prompt "Does the builder basket include proceeds from conversion of debt to equity as a source? Look for 'conversion of Indebtedness to Equity Interests' or 'debt conversion' in the Available Amount. Answer true if debt conversion is a builder source.";
+
+# ── Category assignments for new questions ─────────────────────────────────────
+
+# Phase 1: Asset sale sweep (Category L)
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l14";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l15";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l16";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l17";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l18";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l19";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l20";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l21";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l22";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l23";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Phase 2: RDP baskets (Category T)
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t22";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t23";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t24";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t25";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t26";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Phase 3: Amendment threshold (Category T)
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t27";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Phase 4: Builder basket sources (Category F)
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f22";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f23";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f24";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f25";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f26";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f27";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f28";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_f29";
+insert (category: $cat, question: $q) isa category_has_question;
+
 # ═══════════════════════════════════════════════════════════════════════════════

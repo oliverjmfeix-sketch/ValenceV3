@@ -34,7 +34,13 @@ The user wants to run an eval. Present the available eval sets and let them pick
    - For each question: status (OK/FAIL based on whether graph_answer is non-empty and not an error), question_id, first 60 chars of question, cost
    - Total: questions passed, total cost, elapsed time, execution mode
 
-5. If the full JSON result has `results_files`, mention that detailed results were saved.
+5. **Always report result file paths.** The JSON response includes `results_files` with `railway` and `local` paths:
+   - Show the Railway paths (e.g. `/app/uploads/eval_results/eval_{id}_{timestamp}_summary.txt`)
+   - Remind the user: Railway filesystem is ephemeral (wiped on next deploy). To download results:
+     ```
+     curl -s https://valencev3-production.up.railway.app/api/eval-results/{eval_set_id}
+     ```
+   - If results should be preserved, download the `_full.json` and `_summary.txt` files before next deploy.
 
 6. If any questions failed, offer to show the full trace for those questions.
 

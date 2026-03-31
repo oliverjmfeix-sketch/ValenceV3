@@ -915,13 +915,16 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         logger.info(f"Entity list types ({len(expanded)}): {sorted(expanded)}")
         return expanded
 
+    # Provision types to discover entity relations for
+    _PROVISION_TYPES = ("rp_provision", "mfn_provision")
+
     @classmethod
     def _load_entity_relation_map(cls, _tx=None) -> Dict[str, tuple]:
         """Discover entity→provision relation from TypeDB schema introspection. Cached.
 
         For each single-instance entity type (from _exists annotations, minus entity_list types),
-        queries the SCHEMA to find which relation links it to rp_provision, including
-        inherited plays declarations.
+        queries the SCHEMA to find which relation links it to a provision type (rp or mfn),
+        including inherited plays declarations.
 
         Returns: {entity_type: (relation_type, provision_role, entity_role)}
 
@@ -938,10 +941,11 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         q_to_entity = cls._load_question_to_entity_map()
         entity_list_types = cls._load_entity_list_types(_tx=_tx)
 
-        # Collect entity types from _exists annotations, minus entity_list types and rp_provision
+        # Collect entity types from _exists annotations, minus entity_list types and provision types
+        provision_labels = set(cls._PROVISION_TYPES)
         target_types = set()
         for qid, (et, attr) in q_to_entity.items():
-            if attr == "_exists" and et not in entity_list_types and et != "rp_provision":
+            if attr == "_exists" and et not in entity_list_types and et not in provision_labels:
                 target_types.add(et)
 
         result = {}
@@ -949,28 +953,32 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         tx = _tx if _tx else driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             for et in sorted(target_types):
-                query = f"""
-                    match
-                        $et1 label {et}; $et1 plays $role1;
-                        $et2 label rp_provision; $et2 plays $role2;
-                        relation $rt; $rt relates $role1; $rt relates $role2;
-                    select $rt, $role1, $role2;
-                """
-                try:
-                    rows = list(tx.query(query).resolve().as_concept_rows())
-                    if rows:
-                        row = rows[0]
-                        rt = row.get("rt").as_relation_type().get_label()
-                        role1_raw = row.get("role1").get_label()
-                        role2_raw = row.get("role2").get_label()
-                        role1 = role1_raw.split(":")[-1] if ":" in role1_raw else role1_raw
-                        role2 = role2_raw.split(":")[-1] if ":" in role2_raw else role2_raw
-                        result[et] = (rt, role2, role1)
-                        logger.debug(f"Schema: {et} -> {rt} ({role2}, {role1})")
-                    else:
-                        logger.warning(f"No provision relation found for {et}")
-                except Exception as e:
-                    logger.warning(f"Schema introspection failed for {et}: {e}")
+                found = False
+                for prov_type in cls._PROVISION_TYPES:
+                    query = f"""
+                        match
+                            $et1 label {et}; $et1 plays $role1;
+                            $et2 label {prov_type}; $et2 plays $role2;
+                            relation $rt; $rt relates $role1; $rt relates $role2;
+                        select $rt, $role1, $role2;
+                    """
+                    try:
+                        rows = list(tx.query(query).resolve().as_concept_rows())
+                        if rows:
+                            row = rows[0]
+                            rt = row.get("rt").as_relation_type().get_label()
+                            role1_raw = row.get("role1").get_label()
+                            role2_raw = row.get("role2").get_label()
+                            role1 = role1_raw.split(":")[-1] if ":" in role1_raw else role1_raw
+                            role2 = role2_raw.split(":")[-1] if ":" in role2_raw else role2_raw
+                            result[et] = (rt, role2, role1)
+                            logger.debug(f"Schema: {et} -> {rt} ({role2}, {role1}) via {prov_type}")
+                            found = True
+                            break
+                    except Exception as e:
+                        logger.warning(f"Schema introspection failed for {et} via {prov_type}: {e}")
+                if not found:
+                    logger.warning(f"No provision relation found for {et}")
         finally:
             if own_tx and tx.is_open():
                 tx.close()
@@ -1031,6 +1039,13 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             return match.group(1).strip()
         return None
 
+    @staticmethod
+    def _provision_type_from_id(provision_id: str) -> str:
+        """Determine provision type from provision_id suffix convention."""
+        if provision_id.endswith("_mfn"):
+            return "mfn_provision"
+        return "rp_provision"
+
     def _create_single_instance_entity(self, provision_id: str, entity_type: str,
                                         source_text: str = None, source_page: int = None,
                                         section_reference: str = None):
@@ -1053,6 +1068,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             return
 
         entity_id = f"{provision_id}_{entity_type}"
+        prov_type = self._provision_type_from_id(provision_id)
 
         # Build provenance attributes (only for attrs the entity type actually owns)
         attr_types = self.get_attr_value_types(entity_type)
@@ -1070,7 +1086,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
 
         query = f'''
             match
-                $prov isa rp_provision, has provision_id "{provision_id}";
+                $prov isa {prov_type}, has provision_id "{provision_id}";
             insert
                 $entity isa {entity_type},
                     has {key_attr} "{entity_id}"{prov_str};
@@ -1732,27 +1748,13 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 results["errors"].append(f"create_{et}: {str(e)[:100]}")
 
         # Phase 2: Create multi-instance entities from entity_list
+        # (reallocations are stored as relations, not entities — handled inside _store_entity_list)
         for answer in entity_list_answers:
             try:
-                count = self._store_entity_list(provision_id, answer)
+                count = self._store_entity_list(provision_id, answer, deal_id=deal_id)
                 results["entities_created"] += count
             except Exception as e:
                 results["errors"].append(f"{answer.question_id}: {str(e)[:100]}")
-
-        # ── Phase 2b: Wire reallocation graph edges ──────────────────────────
-        # Runs AFTER Phase 2 so all basket entities exist.
-        # Reads source_basket_type / target_basket_type from the RAW answer
-        # JSON — these routing fields are NOT schema attrs and are dropped
-        # by _store_single_entity(). We read them from the original answer.value.
-        for answer in response.answers:
-            if (answer.question_id == "rp_el_reallocations"
-                    and answer.answer_type == "entity_list"
-                    and isinstance(answer.value, list)):
-                try:
-                    self.wire_reallocation_edges(deal_id, provision_id, answer.value)
-                except Exception as e:
-                    logger.error(f"Reallocation wiring failed: {e}")
-                    results["errors"].append(f"reallocation_wiring: {str(e)[:200]}")
 
         # Phase 3: Store scalar answers (flat + entity attribute if annotated)
         for answer in scalar_answers:
@@ -1790,7 +1792,8 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             logger.warning(f"Storage errors: {results['errors'][:5]}")
         return results
 
-    def _store_entity_list(self, provision_id: str, answer: Answer) -> int:
+    def _store_entity_list(self, provision_id: str, answer: Answer,
+                           deal_id: str = None) -> int:
         """Store an entity_list answer — create entities + relations.
 
         Returns count of entities created.
@@ -1798,6 +1801,15 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         if not isinstance(answer.value, list):
             logger.warning(f"{answer.question_id}: entity_list value is not a list")
             return 0
+
+        # Special handling: reallocation data stored as relations, not entities
+        if answer.question_id == "rp_el_reallocations" and deal_id:
+            try:
+                self.wire_reallocation_edges(deal_id, provision_id, answer.value)
+                return len(answer.value)
+            except Exception as e:
+                logger.error(f"Reallocation relation storage failed: {e}")
+                return 0
 
         # Load question metadata from TypeDB
         q_meta = self._load_entity_list_question_meta(answer.question_id)
