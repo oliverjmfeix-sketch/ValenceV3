@@ -106,6 +106,33 @@ def get_mfn_segment_mapping() -> Dict[str, str]:
     }
 
 
+def get_segment_mapping_for_covenant(covenant_type: str) -> Dict[str, str]:
+    """
+    Get segment_type_id -> section_name mapping for a specific covenant type.
+
+    SSoT: reads from TypeDB segment type attributes:
+    - rp_universe_field for RP
+    - mfn_universe_field for MFN
+    - debt_incurrence_universe_field for DEBT_INCURRENCE (when added)
+
+    Returns:
+        Dict mapping segment_type_id to the section name for that covenant's universe
+    """
+    field_name = f"{covenant_type.lower()}_universe_field"
+    segments = get_segment_types()
+
+    mapping = {
+        s["segment_type_id"]: s[field_name]
+        for s in segments
+        if s.get(field_name)
+    }
+
+    if not mapping:
+        logger.warning(f"No segment mapping found for covenant type {covenant_type} (field: {field_name})")
+
+    return mapping
+
+
 def validate_segment_references():
     """
     Validate that all segment_type_id strings referenced in mappings

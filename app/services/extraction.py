@@ -18,9 +18,11 @@ against this focused context.
 """
 import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from anthropic import Anthropic
@@ -57,16 +59,44 @@ class ExtractedContent:
 
 
 @dataclass
-class RPUniverse:
-    """Complete RP-relevant universe extracted from a document."""
-    definitions: str = ""           # All relevant definitions
-    dividend_covenant: str = ""     # Complete dividend/RP covenant with all baskets
-    investment_covenant: str = ""   # Investment restrictions
-    asset_sale_covenant: str = ""   # Asset sale restrictions
-    rdp_covenant: str = ""          # Restricted Debt Payment covenant
-    unsub_mechanics: str = ""       # Unrestricted subsidiary designation
-    pro_forma_mechanics: str = ""   # Pro forma calculation provisions
-    raw_text: str = ""              # Combined focused context for QA
+class CovenantUniverse:
+    """Unified universe for all covenant types (RP, MFN, DEBT_INCURRENCE, etc.)."""
+    covenant_type: str                      # "RP", "MFN", "DEBT_INCURRENCE"
+    deal_id: str
+    sections: Dict[str, str] = field(default_factory=dict)    # section_name → extracted text
+    segment_map: Dict[str, dict] = field(default_factory=dict)  # segment_id → {start_page, end_page, section_ref}
+    raw_text: str = ""                      # Combined text for Claude
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    validated: bool = False
+
+    @property
+    def cache_path(self) -> str:
+        return f"/app/uploads/{self.deal_id}_{self.covenant_type.lower()}_universe.json"
+
+    def to_cache_dict(self) -> dict:
+        """Serialize for JSON caching."""
+        return {
+            "covenant_type": self.covenant_type,
+            "deal_id": self.deal_id,
+            "sections": self.sections,
+            "segment_map": self.segment_map,
+            "raw_text": self.raw_text,
+            "created_at": self.created_at.isoformat(),
+            "validated": self.validated,
+        }
+
+    @classmethod
+    def from_cache_dict(cls, data: dict) -> "CovenantUniverse":
+        """Deserialize from JSON cache."""
+        return cls(
+            covenant_type=data["covenant_type"],
+            deal_id=data["deal_id"],
+            sections=data["sections"],
+            segment_map=data["segment_map"],
+            raw_text=data["raw_text"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            validated=data.get("validated", False),
+        )
 
 
 @dataclass
@@ -127,6 +157,28 @@ class AnswerTracker:
     def get_all_answers(self) -> List[AnsweredQuestion]:
         """Get all tracked answers."""
         return list(self.answers.values())
+
+
+@dataclass
+class ExtractionResult:
+    """Complete extraction result."""
+    deal_id: str
+    covenant_type: str
+    category_answers: List[CategoryAnswers]
+    extraction_time_seconds: float
+    chunks_processed: int = 0
+    total_questions: int = 0
+    high_confidence_answers: int = 0
+    rp_universe_chars: int = 0
+    rp_universe: Optional['CovenantUniverse'] = None  # Retained for J.Crew pipeline
+    document_text: Optional[str] = None         # Retained for J.Crew pipeline
+    segment_map: Optional[dict] = None          # Reused for MFN universe extraction
+
+
+# =============================================================================
+# EXTRACTION SERVICE
+# =============================================================================
+
 class ExtractionService:
     """
     Format-agnostic RP Universe extraction pipeline.
@@ -144,6 +196,266 @@ class ExtractionService:
         self.client = Anthropic(api_key=api_key or settings.anthropic_api_key)
         self.model = model or settings.claude_model
         self.parser = parser or get_pdf_parser()
+
+    # =========================================================================
+    # VALIDATION PROMPTS (per covenant type)
+    # =========================================================================
+
+    _VALIDATION_PROMPTS = {
+        "RP": """You are validating whether extracted text contains the ACTUAL Restricted Payments covenant.
+
+The RP covenant MUST contain:
+- Restriction language ("shall not declare or pay any dividend", "shall not make any Restricted Payment")
+- Permitted baskets (labeled exceptions like (a), (b), (c) through (z) or numbered clauses)
+- Capacity mechanics (dollar amounts, percentage of Consolidated Net Income, leverage tests, etc.)
+
+This is NOT the RP section if it only contains:
+- Cross-references TO the RP covenant
+- Definitions that mention Restricted Payments
+- Other covenants that reference RP""",
+
+        "MFN": """You are validating whether extracted text contains the ACTUAL MFN (Most Favored Nation) provision.
+
+The MFN provision MUST contain:
+- Yield comparison language ("Effective Yield shall not exceed...", "if the yield exceeds...")
+- A threshold (typically in basis points: 25, 50, 75, 100 bps)
+- What happens when triggered (spread adjustment, lender option, etc.)
+
+This is NOT the MFN section if it only contains:
+- Cross-references TO the MFN provision (e.g., "subject to Section 2.20(f)")
+- Definitions of Effective Yield without the comparison mechanics
+- Defaulting Lender provisions or other unrelated sections""",
+
+        "DEBT_INCURRENCE": """You are validating whether extracted text contains the ACTUAL Debt Incurrence covenant (typically Section 6.01 or 7.01).
+
+The Debt covenant MUST contain:
+- Restriction language ("shall not create, incur, assume or permit to exist any Indebtedness")
+- Permitted debt baskets (labeled exceptions with dollar amounts or ratio tests)
+- Ratio-based capacity (Consolidated Total Debt to EBITDA, First Lien Leverage Ratio, Secured Leverage Ratio)
+
+This is NOT the Debt section if it only contains:
+- Cross-references TO the debt covenant
+- Definitions of Indebtedness without the restriction mechanics
+- Lien covenants or other negative covenants""",
+    }
+
+    # =========================================================================
+    # UNIFIED UNIVERSE: get_or_build_universe (single entry point)
+    # =========================================================================
+
+    def get_or_build_universe(
+        self,
+        deal_id: str,
+        covenant_type: str,
+        document_text: Optional[str] = None,
+        segment_map: Optional[dict] = None,
+        force_rebuild: bool = False,
+        validate: bool = True,
+    ) -> Optional[CovenantUniverse]:
+        """
+        Single entry point for getting a covenant universe.
+
+        1. Check cache (unless force_rebuild)
+        2. Validate cached content (if validate=True)
+        3. Build from document if needed
+        4. Validate new content
+        5. Cache if valid
+        6. Return universe or None if validation fails
+        """
+        covenant_type = covenant_type.upper()
+        cache_path = f"/app/uploads/{deal_id}_{covenant_type.lower()}_universe.json"
+
+        # Try cache first (unless force_rebuild)
+        if not force_rebuild:
+            cached = self._load_cached_universe(cache_path)
+            if cached:
+                if validate and not cached.validated:
+                    if self._validate_universe(cached):
+                        cached.validated = True
+                        self._cache_universe(cached)
+                        return cached
+                    else:
+                        logger.warning(f"Cached {covenant_type} universe failed validation, rebuilding...")
+                else:
+                    return cached
+
+        # Need to build from document
+        if not document_text:
+            pdf_path = f"/app/uploads/{deal_id}.pdf"
+            if not os.path.exists(pdf_path):
+                logger.error(f"No document text provided and no PDF at {pdf_path}")
+                return None
+            document_text = self.parse_document(pdf_path)
+
+        if not segment_map:
+            segment_map = self.segment_document(document_text)
+
+        universe = self._build_covenant_universe(
+            deal_id, covenant_type, document_text, segment_map
+        )
+
+        if not universe:
+            logger.error(f"Failed to build {covenant_type} universe for {deal_id}")
+            return None
+
+        if validate:
+            if not self._validate_universe(universe):
+                logger.error(
+                    f"{covenant_type} universe validation failed for {deal_id}. "
+                    f"NOT caching. Check segmenter results."
+                )
+                return None
+            universe.validated = True
+
+        self._cache_universe(universe)
+        return universe
+
+    def _load_cached_universe(self, cache_path: str) -> Optional[CovenantUniverse]:
+        """Load universe from JSON cache file."""
+        try:
+            if not os.path.exists(cache_path):
+                return None
+
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            universe = CovenantUniverse.from_cache_dict(data)
+            logger.info(f"Loaded cached universe: {cache_path} ({len(universe.raw_text)} chars)")
+            return universe
+
+        except Exception as e:
+            logger.warning(f"Failed to load cached universe from {cache_path}: {e}")
+            return None
+
+    def _cache_universe(self, universe: CovenantUniverse) -> bool:
+        """Cache universe to JSON file."""
+        try:
+            cache_path = universe.cache_path
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(universe.to_cache_dict(), f, indent=2)
+
+            logger.info(f"Cached universe: {cache_path} ({len(universe.raw_text)} chars)")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Failed to cache universe: {e}")
+            return False
+
+    def _validate_universe(self, universe: CovenantUniverse) -> bool:
+        """
+        Validate universe contains expected content using Sonnet.
+
+        Returns True if valid, False if validation fails.
+        Cost: ~$0.10 per validation (30K input tokens on Sonnet).
+        """
+        validation_prompt = self._VALIDATION_PROMPTS.get(
+            universe.covenant_type,
+            f"Validate this contains actual {universe.covenant_type} covenant language with restriction mechanics and permitted baskets/exceptions."
+        )
+
+        sample_text = universe.raw_text[:30000]
+
+        prompt = f"""{validation_prompt}
+
+## EXTRACTED TEXT (first 30K chars)
+
+{sample_text}
+
+## QUESTION
+
+Does this text contain the ACTUAL {universe.covenant_type} provision mechanics (the clause itself with restrictions and exceptions), not just cross-references or definitions?
+
+Answer ONLY: YES or NO"""
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=10,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            answer = response.content[0].text.strip().upper()
+            is_valid = answer.startswith("YES")
+
+            if is_valid:
+                logger.info(f"{universe.covenant_type} universe validation PASSED for {universe.deal_id}")
+            else:
+                logger.warning(
+                    f"{universe.covenant_type} universe validation FAILED for {universe.deal_id}. "
+                    f"Sonnet response: {answer}. Segmenter likely captured wrong section."
+                )
+
+            return is_valid
+
+        except Exception as e:
+            logger.error(f"Universe validation failed with error: {e}. Assuming invalid.")
+            return False
+
+    def _build_covenant_universe(
+        self,
+        deal_id: str,
+        covenant_type: str,
+        document_text: str,
+        segment_map: dict,
+    ) -> Optional[CovenantUniverse]:
+        """
+        Build universe by slicing document at segment boundaries.
+        Which segments to include comes from TypeDB (SSoT).
+        """
+        from app.services.segment_introspector import get_segment_mapping_for_covenant
+
+        segment_mapping = get_segment_mapping_for_covenant(covenant_type)
+
+        if not segment_mapping:
+            logger.error(f"No segment mapping found for covenant type {covenant_type}")
+            return None
+
+        segments_by_id = {
+            s["segment_type_id"]: s
+            for s in segment_map.get("segments", [])
+            if s.get("found", True)
+        }
+
+        sections = {}
+        included_segments = {}
+
+        for seg_id, section_name in segment_mapping.items():
+            seg = segments_by_id.get(seg_id)
+            if seg:
+                sliced = self._slice_by_pages(
+                    document_text, seg["start_page"], seg["end_page"]
+                )
+                if sliced:
+                    sections[section_name] = sliced
+                    included_segments[seg_id] = {
+                        "start_page": seg["start_page"],
+                        "end_page": seg["end_page"],
+                        "section_ref": seg.get("section_ref", ""),
+                    }
+
+        if not sections:
+            logger.warning(f"No sections found for {covenant_type} universe")
+            return None
+
+        raw_parts = []
+        for section_name, content in sections.items():
+            raw_parts.append(f"=== {section_name.upper()} ===\n{content}")
+        raw_text = "\n\n".join(raw_parts)
+
+        logger.info(
+            f"Built {covenant_type} universe for {deal_id}: "
+            f"{len(sections)} sections, {len(raw_text)} chars"
+        )
+
+        return CovenantUniverse(
+            covenant_type=covenant_type,
+            deal_id=deal_id,
+            sections=sections,
+            segment_map=included_segments,
+            raw_text=raw_text,
+        )
 
     # =========================================================================
     # STEP 1: Parse PDF
@@ -167,7 +479,7 @@ class ExtractionService:
     # STEP 2: Extract RP-Relevant Universe (Segmenter-Based)
     # =========================================================================
 
-    def extract_rp_universe(self, document_text: str) -> RPUniverse:
+    def extract_rp_universe(self, document_text: str) -> CovenantUniverse:
         """
         Extract RP-relevant universe using document segmentation.
 
@@ -357,71 +669,6 @@ CRITICAL:
 
         return document_text[start_pos:end_pos]
 
-    def _build_rp_universe_from_segments(
-        self, document_text: str, segment_map: dict
-    ) -> RPUniverse:
-        """Build RPUniverse by slicing document at segment page boundaries."""
-        from app.services.segment_introspector import get_rp_segment_mapping
-
-        rp_mapping = get_rp_segment_mapping()
-        universe = RPUniverse()
-
-        segments_by_id = {
-            s["segment_type_id"]: s
-            for s in segment_map.get("segments", [])
-            if s.get("found", True)
-        }
-
-        for seg_id, rp_field in rp_mapping.items():
-            seg = segments_by_id.get(seg_id)
-            if seg:
-                sliced = self._slice_by_pages(
-                    document_text, seg["start_page"], seg["end_page"]
-                )
-                if sliced:
-                    setattr(universe, rp_field, sliced)
-
-        universe.raw_text = self._build_combined_context(universe)
-        return universe
-
-    def _build_mfn_universe_from_segments(
-        self, document_text: str, segment_map: dict
-    ) -> Optional[str]:
-        """
-        Build MFN universe by slicing document at segment page boundaries.
-        Returns plain text string (same interface as extract_mfn_universe).
-
-        Mirrors _build_rp_universe_from_segments but:
-        - Uses get_mfn_segment_mapping() instead of get_rp_segment_mapping()
-        - Returns concatenated string instead of RPUniverse object
-        """
-        from app.services.segment_introspector import get_mfn_segment_mapping
-
-        mfn_mapping = get_mfn_segment_mapping()
-
-        segments_by_id = {
-            s["segment_type_id"]: s
-            for s in segment_map.get("segments", [])
-            if s.get("found", True)
-        }
-
-        parts = []
-        for seg_id, mfn_field in mfn_mapping.items():
-            seg = segments_by_id.get(seg_id)
-            if seg:
-                sliced = self._slice_by_pages(
-                    document_text, seg["start_page"], seg["end_page"]
-                )
-                if sliced:
-                    parts.append(f"=== {mfn_field.upper()} ===\n{sliced}")
-
-        if not parts:
-            return None
-
-        result = "\n\n".join(parts)
-        logger.info(f"MFN universe from segments: {len(result)} chars")
-        return result
-
     def _call_claude_streaming(self, prompt: str, max_tokens: int = 16000,
                                step: str = "extraction",
                                deal_id: str = None) -> str:
@@ -457,47 +704,6 @@ CRITICAL:
             logger.error(f"Claude streaming error: {e}")
             self._last_streaming_usage = None
             return ""
-
-    def _build_combined_context(self, universe: RPUniverse) -> str:
-        """Build combined context string for QA."""
-        parts = []
-
-        if universe.definitions:
-            parts.append("## DEFINITIONS\n")
-            parts.append(universe.definitions)
-            parts.append("\n")
-
-        if universe.dividend_covenant:
-            parts.append("## DIVIDEND/RESTRICTED PAYMENT COVENANT\n")
-            parts.append(universe.dividend_covenant)
-            parts.append("\n")
-
-        if universe.investment_covenant:
-            parts.append("## INVESTMENT COVENANT\n")
-            parts.append(universe.investment_covenant)
-            parts.append("\n")
-
-        if universe.asset_sale_covenant:
-            parts.append("## ASSET SALE COVENANT\n")
-            parts.append(universe.asset_sale_covenant)
-            parts.append("\n")
-
-        if universe.rdp_covenant:
-            parts.append("## RESTRICTED DEBT PAYMENT COVENANT\n")
-            parts.append(universe.rdp_covenant)
-            parts.append("\n")
-
-        if universe.unsub_mechanics:
-            parts.append("## UNRESTRICTED SUBSIDIARY MECHANICS\n")
-            parts.append(universe.unsub_mechanics)
-            parts.append("\n")
-
-        if universe.pro_forma_mechanics:
-            parts.append("## PRO FORMA / CALCULATION MECHANICS\n")
-            parts.append(universe.pro_forma_mechanics)
-            parts.append("\n")
-
-        return "\n".join(parts)
 
     # =========================================================================
     # STEP 3: Load Questions from TypeDB (SSoT)
@@ -1099,6 +1305,11 @@ Return ONLY the JSON array."""
 
         logger.warning("No definitions found for J.Crew analysis — will fall back to RP universe definitions")
         return ""
+
+    # =========================================================================
+    # MFN EXTRACTION PIPELINE
+    # =========================================================================
+
     def extract_mfn_universe(self, document_text: str) -> Optional[str]:
         """
         Extract the MFN-relevant universe from a credit agreement.
@@ -1890,7 +2101,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         self,
         deal_id: str,
         document_text: str,
-        rp_universe: 'RPUniverse',
+        rp_universe: 'CovenantUniverse',
         segment_map: Optional[dict] = None,
         model: Optional[str] = None,
     ) -> 'ExtractionResult':
@@ -2125,7 +2336,7 @@ IMPORTANT: Respond with ONLY the JSON object. Do not include any analysis, expla
         deal_id: str,
         provision_id: str,
         document_text: str,
-        rp_universe: 'RPUniverse',
+        rp_universe: 'CovenantUniverse',
         jc2_questions: List[Dict],
         jc3_questions: List[Dict],
     ) -> Optional[Dict[str, Any]]:
