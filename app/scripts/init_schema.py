@@ -74,6 +74,7 @@ DI_ENTITY_LIST_QUESTIONS_FILE = DATA_DIR / "seed_di_entity_list_questions.tql"
 
 # 17. Functions (SCHEMA transaction)
 ANNOTATION_FUNCTIONS_FILE = DATA_DIR / "annotation_functions.tql"
+DI_FUNCTIONS_FILE = DATA_DIR / "di_functions.tql"
 
 
 def get_driver():
@@ -450,6 +451,20 @@ def init_database():
                     tx.close()
                 logger.warning(f"   Annotation functions: {e}")
                 logger.warning("   Annotation functions not available.")
+
+        # 18b. Load DI functions (SCHEMA transaction)
+        logger.info("\n18b. Loading di_functions.tql...")
+        if DI_FUNCTIONS_FILE.exists():
+            di_func_tql = load_tql_file(DI_FUNCTIONS_FILE)
+            tx = driver.transaction(TYPEDB_DATABASE, TransactionType.SCHEMA)
+            try:
+                tx.query(di_func_tql).resolve()
+                tx.commit()
+                logger.info(f"   Loaded DI functions ({len(di_func_tql)} chars)")
+            except Exception as e:
+                if tx.is_open():
+                    tx.close()
+                logger.warning(f"   DI functions: {e}")
 
         # 19. Seed storage_value_type on ontology_question (derived from answer_type)
         logger.info("\n19. Seeding storage_value_type on ontology_questions...")
