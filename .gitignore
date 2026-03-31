@@ -30,5 +30,6 @@ htmlcov/
 # Uploads
 uploads/
 
-# Eval results (runtime artifacts, stored on Railway Volume)
-app/data/eval_results/
+# Eval results (keep directory, ignore contents)
+app/data/eval_results/*
+!app/data/eval_results/.gitkeep

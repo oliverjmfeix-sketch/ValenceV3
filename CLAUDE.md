@@ -167,7 +167,7 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | **Segment introspector** | `app/services/segment_introspector.py` |
 | **Graph eval runner** | `app/routers/graph_eval.py` |
 | **Cost tracker** | `app/services/cost_tracker.py` |
-| **Ablation tests** | `app/routers/ablation.py` |
+| **Eval runner skill** | `app/skills/eval_runner.py` |
 
 ### Data Files (loaded by init_schema.py)
 
@@ -311,7 +311,6 @@ Major refactor replacing separate RP/MFN extraction paths with unified architect
 
 ### Actionable TODOs
 
-* `app/routers/ablation.py:721` — `total_cost_usd=0.0 # TODO: aggregate from cost_tracker`
 * `app/routers/deals.py` — `# TODO: Persist QA cost to TypeDB`
 * `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
@@ -320,8 +319,8 @@ Major refactor replacing separate RP/MFN extraction paths with unified architect
 1. **Test parallel scalar batches** — Re-run Duck Creek RP extraction, verify speedup from asyncio.gather
 2. **Test MFN extraction** — `POST /api/deals/87852625/extract/mfn`
 3. **Run full eval** — Verify extraction quality matches pre-refactor baseline
-4. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
-5. **Delete old cache files on Railway** — Remove `.txt` universe files
+4. **RP regression test** — `POST /api/graph-eval/lawyer_dc_rp` to confirm Duck Creek RP still passes 6/6
+5. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
 
 ## END-OF-DAY UPDATE WORKFLOW
 
@@ -368,3 +367,18 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Types: schema, extraction, api, types, data, fix, refactor
 
 **After EVERY commit, run:** `git push origin main`
+
+## Test Deals
+
+- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-26 (post-reseed). 36 entities, 165 scalar answers.
+- **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26 (post-reseed). 14 MFN entities, cross-reference to RP active.
+
+## Eval: Gold Standard Questions
+
+- **Duck Creek RP**: 6 questions. All pass as of Prompt 8d + Opus 4.6.
+  Run via `POST /api/graph-eval/lawyer_dc_rp`
+- **Duck Creek RP+MFN**: 22 questions (Xtract report).
+  Run via `POST /api/graph-eval/xtract_dc_rp_mfn`
+- **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
+  Run via `POST /api/graph-eval/lawyer_acp_mfn`
+  Results saved locally: `app/data/eval_results/eval_lawyer_acp_mfn_*.{txt,json}`

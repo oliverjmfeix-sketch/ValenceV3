@@ -10,6 +10,7 @@ Endpoints:
   GET  /api/gold-standard/{deal_id}      — Get gold standard Q&A for a deal
   PUT  /api/gold-standard/{deal_id}      — Save/update gold standard Q&A
 """
+import asyncio
 import json
 import logging
 import time
@@ -34,8 +35,10 @@ router = APIRouter(prefix="/api", tags=["Graph Eval"])
 # ── Persistent storage dirs (Railway Volume at /app/uploads) ─────────────
 EVAL_RESULTS_DIR = Path("/app/uploads/eval_results")
 GOLD_STANDARD_DIR = Path("/app/uploads/gold_standard")
+LOCAL_EVAL_RESULTS_DIR = Path(__file__).resolve().parent.parent / "data" / "eval_results"
 EVAL_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 GOLD_STANDARD_DIR.mkdir(parents=True, exist_ok=True)
+LOCAL_EVAL_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Seed gold standard files from bundled data (overwrite if bundled is newer) ──
 _SEED_DIR = Path(__file__).resolve().parent.parent / "data" / "gold_standard"
@@ -89,6 +92,26 @@ async def list_gold_standards():
                 "last_updated": data.get("last_updated", ""),
             })
     return {"deals": results}
+
+
+@router.get("/eval-sets")
+async def list_eval_sets():
+    """List all available gold standard eval sets with metadata."""
+    files = sorted(GOLD_STANDARD_DIR.glob("*.json"))
+    sets = []
+    for f in files:
+        with open(f) as fh:
+            data = json.load(fh)
+            sets.append({
+                "id": f.stem,
+                "deal_name": data.get("deal_name", ""),
+                "covenant_type": data.get("covenant_type", ""),
+                "source": data.get("source", "unknown"),
+                "version": data.get("version", ""),
+                "question_count": len(data.get("questions", [])),
+                "last_updated": data.get("last_updated", ""),
+            })
+    return {"eval_sets": sets}
 
 
 @router.get("/gold-standard/{deal_id}")
@@ -205,88 +228,99 @@ async def graph_trace(deal_id: str, request: TraceRequest = None):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _save_eval_results(deal_id: str, results: dict) -> dict:
-    """Save 3 eval output files: summary.txt, verbatim.txt, full.json.
+    """Save 3 eval output files to BOTH Railway volume AND local app/data/.
 
-    Returns dict with paths to all 3 files.
+    Returns dict with paths to all files.
     """
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     prefix = f"eval_{deal_id}_{timestamp}"
 
-    # ── 1. Full JSON (complete trace data) ────────────────────────
-    json_path = EVAL_RESULTS_DIR / f"{prefix}_full.json"
-    with open(json_path, "w") as f:
-        json.dump(results, f, indent=2, default=str)
-
-    # ── 2. Summary TXT ────────────────────────────────────────────
-    summary_path = EVAL_RESULTS_DIR / f"{prefix}_summary.txt"
     comparisons = results.get("comparisons", [])
     total_cost = results.get("total_claude_cost_usd", 0)
     elapsed = results.get("elapsed_seconds", 0)
 
-    summary_lines = [
-        f"EVAL SUMMARY: {results.get('deal_name', deal_id)}",
-        f"{'=' * 60}",
-        f"Deal ID:        {results.get('actual_deal_id', deal_id)}",
-        f"Covenant type:  {results.get('covenant_type', '?')}",
-        f"Gold standard:  v{results.get('gold_standard_version', '?')}",
-        f"Timestamp:      {results.get('timestamp', '?')}",
-        f"Questions:      {len(comparisons)}",
-        f"Total cost:     ${total_cost:.2f}",
-        f"Total time:     {elapsed:.0f}s",
-        f"",
-    ]
+    saved_paths = {"railway": {}, "local": {}}
 
-    for i, c in enumerate(comparisons, 1):
-        qid = c.get("question_id", f"q{i}")
-        q_text = c.get("question", "")[:80]
-        has_answer = c.get("graph_answer", "") not in ("(error)", "")
-        status = "OK" if has_answer else "FAIL"
-        synth = c.get("trace", {}).get("step_5_6_claude_synthesis")
-        q_cost = synth.get("cost_usd", 0) if isinstance(synth, dict) else 0
-        summary_lines.append(f"  [{status}] {qid}: {q_text} (${q_cost:.2f})")
+    for output_dir, label in [
+        (EVAL_RESULTS_DIR, "railway"),
+        (LOCAL_EVAL_RESULTS_DIR, "local"),
+    ]:
+        # ── 1. Full JSON (complete trace data) ────────────────────
+        json_path = output_dir / f"{prefix}_full.json"
+        with open(json_path, "w") as f:
+            json.dump(results, f, indent=2, default=str)
+        saved_paths[label]["full_json"] = str(json_path)
 
-    with open(summary_path, "w") as f:
-        f.write("\n".join(summary_lines) + "\n")
-
-    # ── 3. Verbatim TXT (gold + Valence answers side by side) ────
-    verbatim_path = EVAL_RESULTS_DIR / f"{prefix}_verbatim.txt"
-    verbatim_lines = [
-        f"EVAL VERBATIM: {results.get('deal_name', deal_id)}",
-        f"{'=' * 60}",
-        f"",
-    ]
-
-    for i, c in enumerate(comparisons, 1):
-        qid = c.get("question_id", f"q{i}")
-        verbatim_lines.extend([
-            f"{'─' * 60}",
-            f"Q{i} [{qid}]: {c.get('question', '')}",
-            f"{'─' * 60}",
+        # ── 2. Summary TXT ────────────────────────────────────────
+        summary_path = output_dir / f"{prefix}_summary.txt"
+        summary_lines = [
+            f"EVAL SUMMARY: {results.get('deal_name', deal_id)}",
+            f"{'=' * 60}",
+            f"Deal ID:        {results.get('actual_deal_id', deal_id)}",
+            f"Gold standard:  {deal_id} (v{results.get('gold_standard_version', '?')})",
+            f"Source:         {results.get('source', 'unknown')}",
+            f"Covenant type:  {results.get('covenant_type', '?')}",
+            f"Timestamp:      {results.get('timestamp', '?')}",
+            f"Questions:      {len(comparisons)}",
+            f"Execution:      {results.get('execution_mode', 'sequential')}",
+            f"Total cost:     ${total_cost:.2f}",
+            f"Total time:     {elapsed:.0f}s",
             f"",
-            f"GOLD ANSWER:",
-            c.get("gold_answer", "(none)"),
-            f"",
-            f"GRAPH ANSWER:",
-            c.get("graph_answer", "(none)"),
-            f"",
-            f"SCALAR ANSWER:",
-            c.get("scalar_answer", "(none)"),
-            f"",
-        ])
+        ]
 
-    with open(verbatim_path, "w") as f:
-        f.write("\n".join(verbatim_lines) + "\n")
+        for i, c in enumerate(comparisons, 1):
+            if not isinstance(c, dict):
+                continue
+            qid = c.get("question_id", f"q{i}")
+            q_text = c.get("question", "")[:60]
+            has_answer = c.get("graph_answer", "") not in ("(error)", "")
+            status = "OK" if has_answer else "FAIL"
+            synth = c.get("trace", {}).get("step_5_6_claude_synthesis")
+            q_cost = synth.get("cost_usd", 0) if isinstance(synth, dict) else 0
+            summary_lines.append(f"  [{status}] {qid}: {q_text}... (${q_cost:.2f})")
+
+        with open(summary_path, "w") as f:
+            f.write("\n".join(summary_lines) + "\n")
+        saved_paths[label]["summary"] = str(summary_path)
+
+        # ── 3. Verbatim TXT (gold + Valence answers side by side) ─
+        verbatim_path = output_dir / f"{prefix}_verbatim.txt"
+        verbatim_lines = [
+            f"EVAL VERBATIM: {results.get('deal_name', deal_id)}",
+            f"{'=' * 60}",
+            f"",
+        ]
+
+        for i, c in enumerate(comparisons, 1):
+            if not isinstance(c, dict):
+                continue
+            qid = c.get("question_id", f"q{i}")
+            verbatim_lines.extend([
+                f"{'─' * 60}",
+                f"Q{i} [{qid}]: {c.get('question', '')}",
+                f"{'─' * 60}",
+                f"",
+                f"GOLD ANSWER:",
+                c.get("gold_answer", "(none)"),
+                f"",
+                f"GRAPH ANSWER:",
+                c.get("graph_answer", "(none)"),
+                f"",
+                f"SCALAR ANSWER:",
+                c.get("scalar_answer", "(none)"),
+                f"",
+            ])
+
+        with open(verbatim_path, "w") as f:
+            f.write("\n".join(verbatim_lines) + "\n")
+        saved_paths[label]["verbatim"] = str(verbatim_path)
 
     logger.info(
-        f"Eval results saved: {prefix}_summary.txt, "
-        f"{prefix}_verbatim.txt, {prefix}_full.json"
+        f"Eval results saved to Railway ({EVAL_RESULTS_DIR}) "
+        f"and local ({LOCAL_EVAL_RESULTS_DIR})"
     )
 
-    return {
-        "summary": str(summary_path),
-        "verbatim": str(verbatim_path),
-        "full_json": str(json_path),
-    }
+    return saved_paths
 
 
 @router.get("/eval-results/{deal_id}")
@@ -342,11 +376,56 @@ class GraphEvalRequest(BaseModel):
     )
 
 
+async def _evaluate_single_question(
+    actual_deal_id: str,
+    question_data: dict,
+) -> dict:
+    """Evaluate a single question and return comparison dict."""
+    q = question_data["question"]
+    req = AskRequest(question=q)
+
+    # Run graph pipeline with trace=true
+    graph_result = {
+        "answer": "(error)", "citations": [], "entity_context": "",
+        "trace": {}
+    }
+    try:
+        graph_result = await ask_question_graph(actual_deal_id, req, trace=True)
+    except HTTPException as e:
+        graph_result["answer"] = f"(HTTP {e.status_code}: {e.detail})"
+    except Exception as e:
+        graph_result["answer"] = f"(error: {e})"
+
+    # Run scalar pipeline for comparison
+    scalar_answer = ""
+    try:
+        scalar_result = await ask_question(actual_deal_id, req)
+        scalar_answer = scalar_result.get("answer", "")
+    except Exception as e:
+        scalar_answer = f"(error: {e})"
+
+    # Patch scalar answer into trace if present
+    trace_dict = graph_result.get("trace", {})
+    if trace_dict and trace_dict.get("step_7_answer"):
+        trace_dict["step_7_answer"]["scalar_answer"] = scalar_answer
+
+    return {
+        "question_id": question_data.get("question_id", ""),
+        "question": q,
+        "gold_answer": question_data.get("gold_answer", ""),
+        "category": question_data.get("category", ""),
+        "requires_entities": question_data.get("requires_entities", []),
+        "graph_answer": graph_result.get("answer", ""),
+        "scalar_answer": scalar_answer,
+        "trace": trace_dict,
+    }
+
+
 @router.post("/graph-eval/{deal_id}")
 async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = None):
     """
     Run graph eval using the stored gold standard Q&A set.
-    Each question gets a full pipeline trace. Results are persisted.
+    Questions run IN PARALLEL for performance. Results are persisted.
 
     Optional body: {"question_ids": ["q1", "q2"]} to run a subset.
     """
@@ -354,13 +433,14 @@ async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = Non
     if not filepath.exists():
         raise HTTPException(
             404,
-            f"No gold standard found for deal {deal_id}. PUT to /api/gold-standard/{deal_id} first."
+            f"No gold standard found for deal {deal_id}. "
+            f"Available: {[f.stem for f in GOLD_STANDARD_DIR.glob('*.json')]}"
         )
 
     with open(filepath) as f:
         gold = json.load(f)
 
-    # Resolve actual deal_id for convention keys (e.g. "acp_tara_mfn" → "8d0bf2f8")
+    # Resolve actual deal_id for convention keys (e.g. "lawyer_acp_mfn" → "8d0bf2f8")
     # Priority: 1) resolve_deal_id in JSON, 2) name search, 3) deal_id as-is
     actual_deal_id = gold.get("resolve_deal_id")
     if not actual_deal_id:
@@ -383,57 +463,44 @@ async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = Non
         logger.info(f"Filtered to {len(questions)}/{len(gold['questions'])} questions")
 
     eval_start = time.time()
-    comparisons = []
 
-    for question_data in questions:
-        q = question_data["question"]
-        req = AskRequest(question=q)
+    # ═══════════════════════════════════════════════════════════════
+    # PARALLEL EXECUTION — all questions run concurrently
+    # ═══════════════════════════════════════════════════════════════
+    logger.info(f"Running {len(questions)} questions in parallel...")
 
-        # Run graph pipeline with trace=true
-        graph_result = {
-            "answer": "(error)", "citations": [], "entity_context_chars": 0,
-            "evidence_entities": [], "entity_context": "", "trace": {}
-        }
-        try:
-            graph_result = await ask_question_graph(actual_deal_id, req, trace=True)
-        except HTTPException as e:
-            graph_result["answer"] = f"(HTTP {e.status_code}: {e.detail})"
-        except Exception as e:
-            graph_result["answer"] = f"(error: {e})"
+    tasks = [
+        _evaluate_single_question(actual_deal_id, q)
+        for q in questions
+    ]
+    comparisons = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Run scalar pipeline for comparison
-        scalar_answer = ""
-        try:
-            scalar_result = await ask_question(actual_deal_id, req)
-            scalar_answer = scalar_result.get("answer", "")
-        except Exception as e:
-            scalar_answer = f"(error: {e})"
+    # Replace any exceptions with proper error dicts
+    for i, result in enumerate(comparisons):
+        if isinstance(result, Exception):
+            logger.error(f"Question {i} failed: {result}")
+            comparisons[i] = {
+                "question_id": questions[i].get("question_id", f"q{i}"),
+                "question": questions[i].get("question", ""),
+                "gold_answer": questions[i].get("gold_answer", ""),
+                "graph_answer": f"(parallel execution error: {result})",
+                "scalar_answer": "",
+                "trace": {},
+            }
 
-        # Patch scalar answer into the trace if present
-        trace_dict = graph_result.get("trace", {})
-        if trace_dict and trace_dict.get("step_7_answer"):
-            trace_dict["step_7_answer"]["scalar_answer"] = scalar_answer
-
-        comparison = {
-            "question_id": question_data.get("question_id", ""),
-            "question": q,
-            "gold_answer": question_data.get("gold_answer", ""),
-            "category": question_data.get("category", ""),
-            "requires_entities": question_data.get("requires_entities", []),
-            "graph_answer": graph_result.get("answer", ""),
-            "scalar_answer": scalar_answer,
-            "trace": trace_dict,
-        }
-        comparisons.append(comparison)
+    # Convert tuple from gather to list
+    comparisons = list(comparisons)
 
     total_elapsed = time.time() - eval_start
+    logger.info(f"Parallel eval completed in {total_elapsed:.1f}s")
 
     # Compute total Claude cost from traces
     total_cost = 0.0
     for c in comparisons:
-        synth = c.get("trace", {}).get("step_5_6_claude_synthesis")
-        if synth and isinstance(synth, dict):
-            total_cost += synth.get("cost_usd", 0.0)
+        if isinstance(c, dict):
+            synth = c.get("trace", {}).get("step_5_6_claude_synthesis")
+            if synth and isinstance(synth, dict):
+                total_cost += synth.get("cost_usd", 0.0)
 
     full_results = {
         "deal_id": deal_id,
@@ -441,11 +508,13 @@ async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = Non
         "deal_name": gold.get("deal_name", ""),
         "covenant_type": gold.get("covenant_type", "rp"),
         "gold_standard_version": gold.get("version", ""),
+        "source": gold.get("source", "unknown"),
         "timestamp": datetime.utcnow().isoformat(),
         "num_questions": len(comparisons),
         "comparisons": comparisons,
         "elapsed_seconds": round(total_elapsed, 1),
         "total_claude_cost_usd": round(total_cost, 4),
+        "execution_mode": "parallel",
     }
 
     # Persist results

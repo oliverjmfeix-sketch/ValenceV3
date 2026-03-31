@@ -87,14 +87,11 @@ ValenceV3/
 │   ├── main.py                          # FastAPI app + startup
 │   ├── config.py                        # Settings from env
 │   ├── eval/
-│   │   ├── __init__.py
-│   │   └── duck_creek_ablation.py       # Duck Creek ablation test
+│   │   └── cc_questions.py              # Cross-covenant eval questions
 │   ├── prompts/
 │   │   ├── __init__.py
 │   │   └── reasoning.py                 # Reasoning prompt templates
 │   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── ablation.py                  # Ablation testing endpoints
 │   │   ├── deals.py                     # Deal CRUD + upload + extraction + /ask-graph
 │   │   ├── graph_eval.py                # Gold standard eval runner
 │   │   ├── health.py                    # Health checks + admin endpoints

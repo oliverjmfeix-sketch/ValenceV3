@@ -1,7 +1,9 @@
 {
-  "deal_id": "87852625",
-  "deal_name": "Duck Creek",
+  "deal_id": "lawyer_dc_rp",
+  "resolve_deal_id": "87852625",
+  "deal_name": "Duck Creek Technologies",
   "covenant_type": "rp",
+  "source": "lawyer_qa",
   "version": "1.0",
   "last_updated": "2026-03-11T00:00:00Z",
   "questions": [

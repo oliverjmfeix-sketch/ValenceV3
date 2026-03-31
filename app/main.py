@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.services.typedb_client import typedb_client
-from app.routers import health, deals, ontology, ablation
+from app.routers import health, deals, ontology
 from app.routers.graph_eval import router as graph_eval_router
 
 # Configure logging
@@ -104,7 +104,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(deals.router)
 app.include_router(ontology.router)
-app.include_router(ablation.router)
 app.include_router(graph_eval_router)
 
 
