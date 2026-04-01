@@ -1718,7 +1718,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             else:
                 routing = q_to_entity.get(answer.question_id)
                 if routing and routing[1] == "_exists" and answer.value is True:
-                    if routing[0] not in entity_list_types and routing[0] not in cls._PROVISION_TYPES:
+                    if routing[0] not in entity_list_types and routing[0] not in self._PROVISION_TYPES:
                         exists_answers.append(answer)
                 scalar_answers.append(answer)
 
