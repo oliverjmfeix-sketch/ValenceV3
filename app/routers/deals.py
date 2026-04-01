@@ -31,6 +31,38 @@ router = APIRouter(prefix="/api/deals", tags=["Deals"])
 # Concurrency guard: prevent duplicate extractions for the same deal
 _extraction_locks: Dict[str, bool] = {}  # deal_id -> is_running
 
+# SSoT: covenant type → provision entity type(s)
+_COVENANT_PROVISION_MAP = {
+    "RP": ["rp_provision"],
+    "MFN": ["mfn_provision"],
+    "DI": ["di_provision"],
+    "BOTH": ["rp_provision", "mfn_provision", "di_provision"],
+}
+
+# SSoT: pattern flag names per provision type (hardcoded in schema)
+_PATTERN_FLAGS = {
+    "rp_provision": [
+        "rp_amendment_vulnerable",
+        "unrestricted_sub_loophole_detected",
+        "builder_basket_stacking_detected",
+    ],
+    "mfn_provision": [
+        "mfn_amendment_vulnerable",
+        "mfn_exclusion_stacking_detected",
+        "reclassification_loophole_detected",
+        "yield_exclusion_pattern_detected",
+    ],
+    "di_provision": [
+        "basket_arbitrage_detected",
+        "basket_stacking_risk_detected",
+        "ied_avoids_mfn_detected",
+        "no_worse_test_detected",
+        "structural_seniority_risk",
+        "trapdoor_basket_detected",
+        "unlimited_reclass_detected",
+    ],
+}
+
 
 def _safe_get_value(row, key: str, default=None):
     """Safely get attribute value from a TypeDB row with null check."""
@@ -326,6 +358,7 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
             # Check which provisions exist for this deal
             rp_answers = _load_provision_answers(tx, f"{deal_id}_rp")
             mfn_answers = _load_provision_answers(tx, f"{deal_id}_mfn")
+            di_answers = _load_provision_answers(tx, f"{deal_id}_di")
 
             return {
                 "deal_id": deal_id,
@@ -335,7 +368,11 @@ async def get_deal(deal_id: str) -> Dict[str, Any]:
                 "mfn_provision": {
                     "answers": mfn_answers,
                     "extracted": len(mfn_answers) > 0,
-                }
+                },
+                "di_provision": {
+                    "answers": di_answers,
+                    "extracted": len(di_answers) > 0,
+                },
             }
         finally:
             tx.close()
@@ -433,11 +470,33 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             except Exception:
                 pass
 
+            # 3b. Delete provision_has_answer for DI provision
+            try:
+                tx.query(f"""
+                    match
+                        $p isa di_provision, has provision_id "{deal_id}_di";
+                        $rel isa provision_has_answer(provision: $p, question: $q);
+                    delete $rel;
+                """).resolve()
+            except Exception:
+                pass
+
             # 4. Delete concept_applicability for MFN provision
             try:
                 tx.query(f"""
                     match
                         $p isa mfn_provision, has provision_id "{deal_id}_mfn";
+                        $rel isa concept_applicability(provision: $p, concept: $c);
+                    delete $rel;
+                """).resolve()
+            except Exception:
+                pass
+
+            # 4b. Delete concept_applicability for DI provision
+            try:
+                tx.query(f"""
+                    match
+                        $p isa di_provision, has provision_id "{deal_id}_di";
                         $rel isa concept_applicability(provision: $p, concept: $c);
                     delete $rel;
                 """).resolve()
@@ -473,6 +532,15 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
             except Exception:
                 pass
 
+            # 7b. Delete di_provision entity
+            try:
+                tx.query(f"""
+                    match $p isa di_provision, has provision_id "{deal_id}_di";
+                    delete $p;
+                """).resolve()
+            except Exception:
+                pass
+
             # 8. Delete deal entity
             tx.query(f"""
                 match $d isa deal, has deal_id "{deal_id}";
@@ -501,6 +569,11 @@ async def delete_deal(deal_id: str) -> Dict[str, Any]:
         mfn_path = Path(UPLOADS_DIR) / f"{deal_id}_mfn_universe.json"
         if mfn_path.exists():
             mfn_path.unlink()
+
+        # 11b. Delete DI universe file
+        di_path = Path(UPLOADS_DIR) / f"{deal_id}_di_universe.json"
+        if di_path.exists():
+            di_path.unlink()
 
         # 12. Clear extraction status
         if deal_id in extraction_status:
@@ -840,7 +913,7 @@ async def get_extraction_status(deal_id: str) -> ExtractionStatus:
 
 
 @router.get("/{deal_id}/answers")
-async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
+async def get_deal_answers(deal_id: str, covenant_type: str = "RP") -> Dict[str, Any]:
     """
     Get all answers for a deal in SSoT format.
 
@@ -849,12 +922,20 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
     2. Stored values from provision attributes
     3. Concept applicabilities for multiselect questions
 
+    Args:
+        deal_id: The deal identifier
+        covenant_type: RP, MFN, or DI (default: RP for backward compatibility)
+
     Returns array with question metadata + value for frontend display.
     """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
-    provision_id = f"{deal_id}_rp"
+    covenant_type = covenant_type.upper()
+    if covenant_type not in _COVENANT_PROVISION_MAP:
+        raise HTTPException(status_code=400, detail=f"Invalid covenant_type: {covenant_type}. Valid: RP, MFN, DI")
+    provision_type = _COVENANT_PROVISION_MAP[covenant_type][0]
+    provision_id = f"{deal_id}_{covenant_type.lower()}"
 
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
@@ -870,17 +951,17 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
 
             # Check if extraction is complete (provision exists)
             provision_query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
+                match $p isa {provision_type}, has provision_id "{provision_id}";
                 select $p;
             """
             provision_result = tx.query(provision_query).resolve()
             extraction_complete = len(list(provision_result.as_concept_rows())) > 0
 
-            # 1. Load all RP questions with category via category_has_question (SSoT)
-            questions_query = """
+            # 1. Load all questions for covenant type via category_has_question (SSoT)
+            questions_query = f"""
                 match
                     $q isa ontology_question,
-                        has covenant_type "RP",
+                        has covenant_type "{covenant_type}",
                         has question_id $qid,
                         has question_text $qtext,
                         has answer_type $atype,
@@ -919,7 +1000,7 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             if extraction_complete:
                 applicability_query = f"""
                     match
-                        $p isa rp_provision, has provision_id "{provision_id}";
+                        $p isa {provision_type}, has provision_id "{provision_id}";
                         (provision: $p, concept: $c) isa concept_applicability;
                         $c has concept_id $cid, has name $cname;
                     select $c, $cid, $cname;
@@ -942,10 +1023,10 @@ async def get_deal_answers(deal_id: str) -> Dict[str, Any]:
             # 4. Load multiselect concept type mapping from ontology (SSoT)
             multiselect_map = {}  # {question_id: concept_type_name}
             if extraction_complete:
-                concept_type_query = """
+                concept_type_query = f"""
                     match
                         $q isa ontology_question,
-                            has covenant_type "RP",
+                            has covenant_type "{covenant_type}",
                             has answer_type "multiselect",
                             has question_id $qid;
                         (question: $q) isa question_targets_concept,
@@ -1058,7 +1139,7 @@ def _load_entity_booleans(provision_id: str) -> dict:
         indent = " " * 16
         query = f'''
             match
-                $p isa rp_provision, has provision_id "{provision_id}";
+                $p isa provision, has provision_id "{provision_id}";
                 ({provision_role}: $p, {entity_role}: $e) isa {relation_type};
                 $e isa {entity_type};
 {chr(10).join(indent + tc for tc in try_clauses)}
@@ -1093,44 +1174,53 @@ def _load_entity_booleans(provision_id: str) -> dict:
     return result
 
 
-@router.get("/{deal_id}/rp-provision")
-async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
+async def _get_provision(deal_id: str, covenant_type: str) -> Dict[str, Any]:
     """
-    Get the RP provision for a deal via provision_has_answer + concept_applicability.
+    Unified provision getter for any covenant type (RP, MFN, DI).
 
     Returns:
-        - provision_id
+        - provision_id, provision_type
         - scalar_answers: keyed by question_id with typed values + provenance
-        - pattern_flags: flat attributes (jcrew/serta/collateral_leakage_pattern_detected)
+        - pattern_flags: flat boolean attributes from the provision entity
         - multiselect_answers: concept_applicability relations grouped by concept type
+        - entity_booleans: annotated attributes from typed entities (SSoT)
     """
     if not typedb_client.driver:
         raise HTTPException(status_code=503, detail="Database not connected")
 
-    provision_id = f"{deal_id}_rp"
+    covenant_type = covenant_type.upper()
+    if covenant_type not in _COVENANT_PROVISION_MAP:
+        raise HTTPException(status_code=400, detail=f"Invalid covenant_type: {covenant_type}")
+
+    provision_type = _COVENANT_PROVISION_MAP[covenant_type][0]
+    provision_id = f"{deal_id}_{covenant_type.lower()}"
+    flag_names = _PATTERN_FLAGS.get(provision_type, [])
 
     try:
         tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
         try:
             # Check if provision exists
             check_query = f"""
-                match $p isa rp_provision, has provision_id "{provision_id}";
+                match $p isa {provision_type}, has provision_id "{provision_id}";
                 select $p;
             """
             check_result = tx.query(check_query).resolve()
             if not list(check_result.as_concept_rows()):
-                raise HTTPException(status_code=404, detail="RP provision not found for this deal")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"{covenant_type} provision not found for this deal"
+                )
 
             # Get scalar answers via provision_has_answer (SSoT)
             scalar_answers = _load_provision_answers(tx, provision_id)
 
-            # Get pattern flags (still flat attributes on rp_provision)
+            # Get pattern flags (flat boolean attributes on the provision entity)
             pattern_flags = {}
-            for flag_name in ("jcrew_pattern_detected", "serta_pattern_detected", "collateral_leakage_pattern_detected"):
+            for flag_name in flag_names:
                 try:
                     flag_query = f"""
                         match
-                            $p isa rp_provision, has provision_id "{provision_id}",
+                            $p isa {provision_type}, has provision_id "{provision_id}",
                                 has {flag_name} $val;
                         select $val;
                     """
@@ -1142,14 +1232,11 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
                 except Exception:
                     pass  # Flag not set on this provision
 
-            # ACTIVE FALLBACK: concept_applicability still needed until all covenant types
-            # route multiselect answers through entity booleans.
-            # RP already has full routing. MFN needs target_entity_type/target_entity_attribute
-            # seed data on its concept instances before this can be removed.
+            # Get all concept applicabilities (multiselect answers)
             multiselect_answers = {}
             applicability_query = f"""
                 match
-                    $p isa rp_provision, has provision_id "{provision_id}";
+                    $p isa {provision_type}, has provision_id "{provision_id}";
                     (provision: $p, concept: $c) isa concept_applicability;
                     $c has concept_id $cid, has name $cname;
                 select $c, $cid, $cname;
@@ -1178,10 +1265,10 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
         return {
             "deal_id": deal_id,
             "provision_id": provision_id,
-            "provision_type": "rp_provision",
+            "provision_type": provision_type,
             "scalar_answers": scalar_answers,
             "pattern_flags": pattern_flags,
-            "multiselect_answers": multiselect_answers,  # LEGACY — remove once frontend reads entity_booleans
+            "multiselect_answers": multiselect_answers,
             "entity_booleans": entity_booleans,
             "scalar_count": len(scalar_answers),
             "pattern_flag_count": len(pattern_flags),
@@ -1192,107 +1279,26 @@ async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting RP provision for deal {deal_id}: {e}")
+        logger.error(f"Error getting {covenant_type} provision for deal {deal_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{deal_id}/rp-provision")
+async def get_rp_provision(deal_id: str) -> Dict[str, Any]:
+    """Get the RP provision for a deal. Alias for get_provision(covenant_type=RP)."""
+    return await _get_provision(deal_id, "RP")
 
 
 @router.get("/{deal_id}/mfn-provision")
 async def get_mfn_provision(deal_id: str) -> Dict[str, Any]:
-    """
-    Get the MFN provision for a deal via provision_has_answer + concept_applicability.
+    """Get the MFN provision for a deal. Alias for get_provision(covenant_type=MFN)."""
+    return await _get_provision(deal_id, "MFN")
 
-    Returns:
-        - provision_id
-        - scalar_answers: keyed by question_id with typed values + provenance
-        - pattern_flags: flat attributes (yield_exclusion_pattern_detected)
-        - multiselect_answers: concept_applicability relations grouped by concept type
-    """
-    if not typedb_client.driver:
-        raise HTTPException(status_code=503, detail="Database not connected")
 
-    provision_id = f"{deal_id}_mfn"
-
-    try:
-        tx = typedb_client.driver.transaction(settings.typedb_database, TransactionType.READ)
-        try:
-            # Check if provision exists
-            check_query = f"""
-                match $p isa mfn_provision, has provision_id "{provision_id}";
-                select $p;
-            """
-            check_result = tx.query(check_query).resolve()
-            if not list(check_result.as_concept_rows()):
-                raise HTTPException(status_code=404, detail="MFN provision not found for this deal")
-
-            # Get scalar answers via provision_has_answer (SSoT)
-            scalar_answers = _load_provision_answers(tx, provision_id)
-
-            # Get pattern flags (flat attributes on mfn_provision)
-            pattern_flags = {}
-            for flag_name in (
-                "yield_exclusion_pattern_detected",
-                "reclassification_loophole_detected",
-                "bridge_to_term_loophole_detected",
-            ):
-                try:
-                    flag_query = f"""
-                        match
-                            $p isa mfn_provision, has provision_id "{provision_id}",
-                                has {flag_name} $val;
-                        select $val;
-                    """
-                    flag_result = tx.query(flag_query).resolve()
-                    for row in flag_result.as_concept_rows():
-                        val = _safe_get_value(row, "val")
-                        if val is not None:
-                            pattern_flags[flag_name] = val
-                except Exception:
-                    pass  # Flag not set on this provision
-
-            # Get all concept applicabilities (multiselect answers)
-            multiselect_answers = {}
-            applicability_query = f"""
-                match
-                    $p isa mfn_provision, has provision_id "{provision_id}";
-                    (provision: $p, concept: $c) isa concept_applicability;
-                    $c has concept_id $cid, has name $cname;
-                select $c, $cid, $cname;
-            """
-            applicability_result = tx.query(applicability_query).resolve()
-            for row in applicability_result.as_concept_rows():
-                concept_entity = _safe_get_entity(row, "c")
-                concept_id = _safe_get_value(row, "cid")
-                concept_name = _safe_get_value(row, "cname")
-
-                if concept_entity and concept_id:
-                    concept_type = concept_entity.get_type().get_label()
-                    if concept_type not in multiselect_answers:
-                        multiselect_answers[concept_type] = []
-                    multiselect_answers[concept_type].append({
-                        "concept_id": concept_id,
-                        "name": concept_name or "Unknown"
-                    })
-
-            return {
-                "deal_id": deal_id,
-                "provision_id": provision_id,
-                "provision_type": "mfn_provision",
-                "scalar_answers": scalar_answers,
-                "pattern_flags": pattern_flags,
-                "multiselect_answers": multiselect_answers,
-                "scalar_count": len(scalar_answers),
-                "pattern_flag_count": len(pattern_flags),
-                "multiselect_count": sum(len(v) for v in multiselect_answers.values())
-            }
-
-        finally:
-            tx.close()
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting MFN provision for deal {deal_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/{deal_id}/di-provision")
+async def get_di_provision(deal_id: str) -> Dict[str, Any]:
+    """Get the DI provision for a deal. Alias for get_provision(covenant_type=DI)."""
+    return await _get_provision(deal_id, "DI")
 
 
 @router.get("/{deal_id}/mfn")
@@ -1975,14 +1981,8 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
     # Step 2+3+4: Fetch entity context (provision-type-aware)
     start = _time.time()
     prov_header = ""
-    # Provision type mapping — covenant_type → provision entity type(s)
-    _COVENANT_PROVISION_MAP = {
-        "rp": ["rp_provision"],
-        "mfn": ["mfn_provision"],
-        "di": ["di_provision"],
-        "both": ["rp_provision", "mfn_provision", "di_provision"],
-    }
-    provision_types = _COVENANT_PROVISION_MAP.get(covenant_type, ["rp_provision"])
+    # Use module-level map (lowercase keys for topic router compatibility)
+    provision_types = _COVENANT_PROVISION_MAP.get(covenant_type.upper(), ["rp_provision"])
     all_docs = []
     entity_context = ""
     prov_header = ""
