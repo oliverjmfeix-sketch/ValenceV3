@@ -770,7 +770,7 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                     question_id=raw.get("question_id", ""),
                     value=raw.get("value"),
                     answer_type=raw.get("answer_type", "string"),
-                    source_text=raw.get("source_text", ""),
+                    source_text=raw.get("source_text") or "",
                     source_page=raw.get("source_page"),
                     section_reference=raw.get("section_reference"),
                     reasoning=raw.get("reasoning"),
