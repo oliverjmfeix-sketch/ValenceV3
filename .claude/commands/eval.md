@@ -5,7 +5,7 @@ user-invocable: true
 
 # /eval — Run Gold Standard Evaluation
 
-The user wants to run an eval. Present the available eval sets and let them pick, then run it.
+The user wants to run an eval. Present the available eval sets, let them pick a deal to run against, then run it.
 
 ## Available Eval Sets
 
@@ -18,24 +18,34 @@ The user wants to run an eval. Present the available eval sets and let them pick
 
 ## Instructions
 
-1. **ALWAYS start by showing the user which eval sets are available.** Call the Railway backend to get the live list:
+1. **Fetch available deals from the backend:**
    ```
-   curl -s https://valencev3-production.up.railway.app/api/eval-sets
+   curl -s https://valencev3-production.up.railway.app/api/deals
    ```
-   Display the results as a numbered list showing: name, covenant type, source, question count.
+   This returns the list of deals currently in TypeDB with their deal_id and deal_name.
 
-2. Then use AskUserQuestion to ask which eval set to run. Options should be built from the API response (one per eval set, plus "All (sequential)"). If the user provided an argument (e.g. `/eval 1`, `/eval lawyer_dc_rp`), skip the question and map directly.
+2. **Show eval sets and ask which to run.** Use AskUserQuestion with one option per eval set, plus "All (sequential)". If the user provided an argument (e.g. `/eval 4`, `/eval xtract_dc_di`), skip the question and map directly.
 
-3. Run the eval by calling the Railway backend:
-   ```
-   curl -s -X POST https://valencev3-production.up.railway.app/api/graph-eval/{eval_set_id} | python -m json.tool
-   ```
+3. **Ask which deal to run against.** Use AskUserQuestion showing all available deals from step 1. The gold standard file has a default `resolve_deal_id`, but the user may want to run the same questions against a different deal. Show the default deal as "(Recommended)". If only one deal exists, skip the question and use it.
 
-4. Parse the JSON response. Show a clean summary table:
+4. **Run the eval** by calling the Railway backend. If the user picked a different deal than the default, pass `override_deal_id`:
+   ```bash
+   # Default deal (no override needed)
+   curl -s -X POST https://valencev3-production.up.railway.app/api/graph-eval/{eval_set_id} --max-time 600
+
+   # Override deal
+   curl -s -X POST https://valencev3-production.up.railway.app/api/graph-eval/{eval_set_id} \
+     -H "Content-Type: application/json" \
+     -d '{"override_deal_id": "{deal_id}"}' \
+     --max-time 600
+   ```
+   **IMPORTANT:** Evals can take 5-10 minutes. Use `--max-time 600` and run in the background.
+
+5. Parse the JSON response. Show a clean summary table:
    - For each question: status (OK/FAIL based on whether graph_answer is non-empty and not an error), question_id, first 60 chars of question, cost
-   - Total: questions passed, total cost, elapsed time, execution mode
+   - Total: questions passed, total cost, elapsed time, deal_id used
 
-5. **Always report result file paths.** The JSON response includes `results_files` with `railway` and `local` paths:
+6. **Always report result file paths.** The JSON response includes `results_files` with `railway` and `local` paths:
    - Show the Railway paths (e.g. `/app/uploads/eval_results/eval_{id}_{timestamp}_summary.txt`)
    - Remind the user: Railway filesystem is ephemeral (wiped on next deploy). To download results:
      ```
@@ -43,7 +53,7 @@ The user wants to run an eval. Present the available eval sets and let them pick
      ```
    - If results should be preserved, download the `_full.json` and `_summary.txt` files before next deploy.
 
-6. If any questions failed, offer to show the full trace for those questions.
+7. If any questions failed, offer to show the full trace for those questions.
 
 ## Argument Mapping
 

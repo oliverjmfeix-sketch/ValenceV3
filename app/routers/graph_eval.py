@@ -374,6 +374,10 @@ class GraphEvalRequest(BaseModel):
         None,
         description="Run only these question_ids. If omitted, runs all questions in the gold standard."
     )
+    override_deal_id: Optional[str] = Field(
+        None,
+        description="Override the deal_id to run against. If omitted, uses resolve_deal_id from gold standard file."
+    )
 
 
 async def _evaluate_single_question(
@@ -441,8 +445,8 @@ async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = Non
         gold = json.load(f)
 
     # Resolve actual deal_id for convention keys (e.g. "lawyer_acp_mfn" → "8d0bf2f8")
-    # Priority: 1) resolve_deal_id in JSON, 2) name search, 3) deal_id as-is
-    actual_deal_id = gold.get("resolve_deal_id")
+    # Priority: 1) override_deal_id from request, 2) resolve_deal_id in JSON, 3) name search, 4) deal_id as-is
+    actual_deal_id = (request.override_deal_id if request else None) or gold.get("resolve_deal_id")
     if not actual_deal_id:
         actual_deal_id = (
             _find_deal_by_name(gold.get("deal_name", "")) or
