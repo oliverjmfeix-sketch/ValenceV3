@@ -14,6 +14,7 @@ The user wants to run an eval. Present the available eval sets and let them pick
 | 1 | `lawyer_dc_rp` | Lawyer Q&A — Duck Creek RP | 6 |
 | 2 | `xtract_dc_rp_mfn` | Xtract Report — Duck Creek RP+MFN | 22 |
 | 3 | `lawyer_acp_mfn` | Lawyer Q&A — ACP Tara MFN | 11 |
+| 4 | `xtract_dc_di` | Xtract Report — Duck Creek DI | 10 |
 
 ## Instructions
 
@@ -49,4 +50,5 @@ The user wants to run an eval. Present the available eval sets and let them pick
 - `1` or `lawyer_dc_rp` → Duck Creek RP (6 questions)
 - `2` or `xtract_dc_rp_mfn` → Duck Creek RP+MFN (22 questions)
 - `3` or `lawyer_acp_mfn` → ACP Tara MFN (11 questions)
-- `all` → run all three sequentially
+- `4` or `xtract_dc_di` → Duck Creek DI (10 questions)
+- `all` → run all four sequentially
