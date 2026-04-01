@@ -378,11 +378,16 @@ class GraphEvalRequest(BaseModel):
         None,
         description="Override the deal_id to run against. If omitted, uses resolve_deal_id from gold standard file."
     )
+    skip_scalar: bool = Field(
+        False,
+        description="Skip the scalar pipeline comparison. Halves cost and time."
+    )
 
 
 async def _evaluate_single_question(
     actual_deal_id: str,
     question_data: dict,
+    skip_scalar: bool = False,
 ) -> dict:
     """Evaluate a single question and return comparison dict."""
     q = question_data["question"]
@@ -400,17 +405,18 @@ async def _evaluate_single_question(
     except Exception as e:
         graph_result["answer"] = f"(error: {e})"
 
-    # Run scalar pipeline for comparison
+    # Run scalar pipeline for comparison (unless skipped)
     scalar_answer = ""
-    try:
-        scalar_result = await ask_question(actual_deal_id, req)
-        scalar_answer = scalar_result.get("answer", "")
-    except Exception as e:
-        scalar_answer = f"(error: {e})"
+    if not skip_scalar:
+        try:
+            scalar_result = await ask_question(actual_deal_id, req)
+            scalar_answer = scalar_result.get("answer", "")
+        except Exception as e:
+            scalar_answer = f"(error: {e})"
 
     # Patch scalar answer into trace if present
     trace_dict = graph_result.get("trace", {})
-    if trace_dict and trace_dict.get("step_7_answer"):
+    if trace_dict and trace_dict.get("step_7_answer") and scalar_answer:
         trace_dict["step_7_answer"]["scalar_answer"] = scalar_answer
 
     return {
@@ -473,8 +479,9 @@ async def run_graph_eval(deal_id: str, request: Optional[GraphEvalRequest] = Non
     # ═══════════════════════════════════════════════════════════════
     logger.info(f"Running {len(questions)} questions in parallel...")
 
+    do_skip_scalar = request.skip_scalar if request else False
     tasks = [
-        _evaluate_single_question(actual_deal_id, q)
+        _evaluate_single_question(actual_deal_id, q, skip_scalar=do_skip_scalar)
         for q in questions
     ]
     comparisons = await asyncio.gather(*tasks, return_exceptions=True)
