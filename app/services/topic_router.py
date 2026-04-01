@@ -179,6 +179,8 @@ class TopicRouter:
                         categories[cid].covenant_type = "MFN"
                     elif ctypes == {"RP"}:
                         categories[cid].covenant_type = "RP"
+                    elif ctypes == {"DI"}:
+                        categories[cid].covenant_type = "DI"
                     else:
                         # Mixed — keep as RP (most categories are RP)
                         categories[cid].covenant_type = "RP"
@@ -421,6 +423,8 @@ class TopicRouter:
             return "rp"
         elif types == {"MFN"}:
             return "mfn"
+        elif types == {"DI"}:
+            return "di"
         else:
             return "both"
 

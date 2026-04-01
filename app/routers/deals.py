@@ -1564,8 +1564,10 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 
     if covenant_type == "mfn":
         covenant_subject = "MFN (Most Favored Nation) provision"
+    elif covenant_type == "di":
+        covenant_subject = "debt incurrence (Permitted Indebtedness) covenant"
     elif covenant_type == "both":
-        covenant_subject = "credit agreement covenants (Restricted Payments and MFN)"
+        covenant_subject = "credit agreement covenants (Restricted Payments, Debt Incurrence, and MFN)"
     else:
         covenant_subject = "restricted payments covenant"
 
@@ -2047,8 +2049,10 @@ async def ask_question_graph(deal_id: str, request: AskRequest, trace: bool = Fa
 
     if covenant_type == "mfn":
         covenant_subject = "MFN (Most Favored Nation) provision"
+    elif covenant_type == "di":
+        covenant_subject = "debt incurrence (Permitted Indebtedness) covenant"
     elif covenant_type == "both":
-        covenant_subject = "credit agreement covenants (Restricted Payments and MFN)"
+        covenant_subject = "credit agreement covenants (Restricted Payments, Debt Incurrence, and MFN)"
     else:
         covenant_subject = "restricted payments covenant"
 
