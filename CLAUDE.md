@@ -221,10 +221,11 @@ entity extraction runs first (entities must exist before scalar annotation routi
 
 ## Running Evals
 
-Gold standard Q&A sets live in `app/data/gold_standard/*.json`. Three sets exist:
-* `87852625.json` — Duck Creek RP (6 questions)
-* `acp_tara_mfn.json` — ACP Tara MFN (11 questions)
-* `duck_creek_rp_mfn.json` — Duck Creek combined (22 questions: 12 RP + 10 MFN)
+Gold standard Q&A sets live in `app/data/gold_standard/*.json`. Four sets exist:
+* `lawyer_dc_rp.json` — Duck Creek RP (6 questions)
+* `xtract_dc_rp_mfn.json` — Duck Creek RP+MFN (22 questions: 12 RP + 10 MFN)
+* `lawyer_acp_mfn.json` — ACP Tara MFN (11 questions)
+* `xtract_dc_di.json` — Duck Creek DI (10 questions)
 
 To run an eval:
 ```bash
@@ -291,7 +292,7 @@ Full DI covenant type added alongside RP and MFN. 6-phase plan, 5 phases complet
 * **Phase 3 — Extraction pipeline:** graph_storage._PROVISION_TYPES includes di_provision, _provision_type_from_id handles _di suffix, segment_introspector reads di_universe_field, run_extraction runs RP → DI → MFN (DI before MFN for incremental_facility linkage).
 * **Phase 4 — Cross-covenant:** CrossCovenantService (cross_covenant.py) creates di_provision_links_mfn, di_provision_links_rp, incremental_triggers_mfn, di_feeds_rp_builder. Step 6 in run_extraction(). Manual endpoint: POST /{id}/link-covenants. SSoT: all trigger data from TypeDB, no hardcoded defaults.
 * **Phase 5 — TypeDB functions:** 9 functions in di_functions.tql (capacity: total_incremental, basket, projected_grower, total_capped; vulnerability: ied_priming_risk, trapdoor_basket; aggregation: count_permitted_baskets, count_grower_baskets, get_basket_types). DIQueryService wrapper returns None on missing data.
-* **Phase 6 — Gold standard evals:** NOT YET STARTED.
+* **Phase 6 — Gold standard evals:** DI gold standard created (`xtract_dc_di.json`, 10 questions). DI extracted on Duck Creek: 138 answers, 20 entities, $8.15.
 
 **SSoT audit completed:** Fixed hardcoded valid_types, defaulted covenant routing to "both", added di_universe_field to schema + segment types, added 20 DI cross-covenant mappings + capacity classifications.
 
@@ -301,7 +302,7 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### Test Deals
 
-* **Duck Creek** (RP+MFN+DI): deal_id `87852625`. Primary test deal. DI not yet extracted.
+* **Duck Creek** (RP+MFN+DI): deal_id `6e76ed06`. Primary test deal. All three covenants extracted (2026-04-01): RP 224 answers/33 entities, DI 138 answers/20 entities, MFN 47 answers/14 entities. Cross-covenant linked.
 * **ACP Tara** (MFN): deal_id `8d0bf2f8`. Secondary MFN test deal.
 
 ## Open Violations
@@ -324,9 +325,8 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ## Next Steps
 
-1. **Phase 6 — DI gold standard evals:** Create gold standard Q&A sets for DI extraction validation
-2. **Test DI extraction on Duck Creek** — `POST /api/deals/87852625/extract/di` (~$TBD)
-3. **Test cross-covenant linking** — `POST /api/deals/87852625/link-covenants`
+1. **Run DI eval** — `POST /api/graph-eval/xtract_dc_di` (10 questions, ~$5-7)
+2. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn` (verify with new deal_id `6e76ed06`)
 4. **Run full RP+DI+MFN eval** — Create combined eval set
 5. **DI synthesis guidance** — Add per-category synthesis guidance for DI1-DI12 in seed_synthesis_guidance.tql
 6. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
@@ -380,7 +380,7 @@ Types: schema, extraction, api, types, data, fix, refactor
 
 ## Test Deals
 
-- **Duck Creek** (RP): deal_id `87852625`, provision_id `87852625_rp`. Last extracted: 2026-03-31 (unified pipeline). 189 answers, 21 entities. Needs re-extraction after entity SSoT refactor.
+- **Duck Creek** (RP+DI+MFN): deal_id `6e76ed06`, provision_ids `6e76ed06_rp`, `6e76ed06_di`, `6e76ed06_mfn`. Last extracted: 2026-04-01. RP: 224 answers, 33 entities ($14.84). DI: 138 answers, 20 entities ($8.15). MFN: 47 answers, 14 entities ($4.19). Cross-covenant linked.
 - **ACP Tara** (MFN): deal_id `8d0bf2f8`, provision_id `8d0bf2f8_mfn`. Last extracted: 2026-03-26 (post-reseed). 14 MFN entities, cross-reference to RP active.
 
 ## Eval: Gold Standard Questions
@@ -393,3 +393,5 @@ Types: schema, extraction, api, types, data, fix, refactor
 - **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
   Run via `POST /api/graph-eval/lawyer_acp_mfn`
   Results: `app/data/eval_results/eval_lawyer_acp_mfn_*.{txt,json}`
+- **Duck Creek DI**: 10 questions (Xtract report). NEW — not yet run.
+  Run via `POST /api/graph-eval/xtract_dc_di`

@@ -1,0 +1,91 @@
+{
+  "deal_id": "xtract_dc_di",
+  "resolve_deal_id": "6e76ed06",
+  "deal_name": "Duck Creek Technologies",
+  "covenant_type": "di",
+  "source": "xtract_lawyer_report",
+  "version": "1.0",
+  "last_updated": "2026-04-01T00:00:00Z",
+  "questions": [
+    {
+      "question_id": "di_q1",
+      "question": "What is the free-and-clear (freebie) basket for incremental debt and how is it structured?",
+      "gold_answer": "The free-and-clear basket is $130m or 100% of Consolidated EBITDA for first lien debt. It also includes the general debt basket (which includes the general investment basket, plus 2x the general prepayment of debt basket, plus 2x the general RP basket), plus reductions in commitments in incremental facilities or credit agreement refinancing debt, plus voluntary prepayments of term loans and other debt.",
+      "source": "xtract_lawyer_report",
+      "category": "incremental_facility",
+      "requires_entities": ["incremental_facility"]
+    },
+    {
+      "question_id": "di_q2",
+      "question": "What leverage ratio tests are available for ratio-based incremental debt?",
+      "gold_answer": "Ratio-based incremental debt can be incurred at: (1) 6x First Lien Leverage Ratio for first lien debt, (2) 7.75x Total Secured Leverage Ratio for second lien debt, (3) 1.75x Interest Coverage Ratio for second lien debt, (4) 1.75x Interest Coverage Ratio for junior to second lien, secured by non-collateral or unsecured debt, (5) 8x Total Leverage Ratio for junior to second lien, secured by non-collateral or unsecured debt. In each case, debt may also be incurred if the ratio does not get worse as a result of the transaction.",
+      "source": "xtract_lawyer_report",
+      "category": "incremental_facility",
+      "requires_entities": ["incremental_facility"]
+    },
+    {
+      "question_id": "di_q3",
+      "question": "Can debt incurred under the free-and-clear basket be reclassified to the ratio basket later?",
+      "gold_answer": "Yes. If the Borrower incurs debt under the free-and-clear basket, the debt can later be moved from the free-and-clear basket to the ratio-based basket when in compliance, thereby freeing up capacity under the free-and-clear basket for a later date when the ratio cannot be met.",
+      "source": "xtract_lawyer_report",
+      "category": "incremental_facility",
+      "requires_entities": ["incremental_facility"]
+    },
+    {
+      "question_id": "di_q4",
+      "question": "What is the inside maturity basket and what debt can mature earlier than initial term loans?",
+      "gold_answer": "Up to $260m or 200% of Consolidated EBITDA of incremental loans, loans in the form of Term A Loans, loans incurred in connection with acquisition or investment, and debt incurred under fixed dollar baskets are permitted to mature earlier than the initial term loans.",
+      "source": "xtract_lawyer_report",
+      "category": "incremental_facility",
+      "requires_entities": ["incremental_facility"]
+    },
+    {
+      "question_id": "di_q5",
+      "question": "What are the limits on debt incurred by non-guarantor restricted subsidiaries?",
+      "gold_answer": "Incremental debt and incremental equivalent debt not to exceed $325m or 250% of Consolidated EBITDA may be incurred by non-guarantor Restricted Subsidiaries and/or secured by assets that do not secure the Loans. However, ratio debt is a separate basket that includes the free and clear basket, and there is no limit on ratio debt of non-guarantor Restricted Subsidiaries. Additionally, there is a fixed basket of $130m or 100% EBITDA for non-guarantor restricted subsidiary debt.",
+      "source": "xtract_lawyer_report",
+      "category": "non_guarantor_debt",
+      "requires_entities": ["incremental_facility", "non_guarantor_basket"]
+    },
+    {
+      "question_id": "di_q6",
+      "question": "What is the general debt basket and what can it be used for?",
+      "gold_answer": "The general debt basket is $130m or 100% of Consolidated EBITDA, which may only be secured using the general liens baskets. It also includes the general investment basket plus 2x the general prepayment of debt basket plus 2x the general RP basket. The general debt basket is incorporated into the incremental freebie basket.",
+      "source": "xtract_lawyer_report",
+      "category": "permitted_debt",
+      "requires_entities": ["general_basket"]
+    },
+    {
+      "question_id": "di_q7",
+      "question": "How does the contribution debt basket work?",
+      "gold_answer": "Contribution Debt can be incurred in an amount equal to 200% of cash equity contribution, which may attach to Collateral on a pari passu or junior basis.",
+      "source": "xtract_lawyer_report",
+      "category": "permitted_debt",
+      "requires_entities": ["contribution_basket"]
+    },
+    {
+      "question_id": "di_q8",
+      "question": "Is the ratio debt basket unlimited when the leverage ratio is satisfied?",
+      "gold_answer": "Yes. Ratio debt can be incurred under the same tests as Incremental facilities and includes the Free and Clear basket plus $80m or 60% of Consolidated EBITDA. When the applicable ratio test is satisfied, unlimited ratio debt may be incurred. There is no limit on ratio debt of non-guarantor Restricted Subsidiaries. There is no MFN protection on ratio debt.",
+      "source": "xtract_lawyer_report",
+      "category": "ratio_debt",
+      "requires_entities": ["ratio_debt_basket"]
+    },
+    {
+      "question_id": "di_q9",
+      "question": "What are the limits on joint venture debt?",
+      "gold_answer": "JV Debt is limited to $40m or 35% of Consolidated EBITDA. However, there is also unlimited JV debt permitted pursuant to buy/sell agreements among the parties, which should be capped or limited to those existing on the closing date according to the Xtract analysis.",
+      "source": "xtract_lawyer_report",
+      "category": "permitted_debt",
+      "requires_entities": []
+    },
+    {
+      "question_id": "di_q10",
+      "question": "Is intercompany debt subordinated to the loans?",
+      "gold_answer": "Debt of Loan Parties to non-guarantor Subsidiaries under the intercompany debt basket must be subordinated in right of payment to the Loans. However, intercompany debt from non-Loan Parties (such as foreign subsidiaries lending to each other) does not have this subordination requirement.",
+      "source": "xtract_lawyer_report",
+      "category": "permitted_debt",
+      "requires_entities": ["intercompany_basket"]
+    }
+  ]
+}

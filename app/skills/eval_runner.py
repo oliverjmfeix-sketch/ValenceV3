@@ -32,6 +32,13 @@ EVAL_SETS = {
         "covenant": "MFN",
         "deal": "ACP Tara",
     },
+    "4": {
+        "id": "xtract_dc_di",
+        "name": "Xtract Report — Duck Creek DI",
+        "questions": 10,
+        "covenant": "DI",
+        "deal": "Duck Creek",
+    },
 }
 
 
@@ -53,7 +60,7 @@ def list_eval_sets() -> str:
 
 
 def get_eval_set_id(choice: str) -> Optional[str]:
-    """Get the eval set ID from user choice (1, 2, or 3)."""
+    """Get the eval set ID from user choice (1, 2, 3, or 4)."""
     if choice in EVAL_SETS:
         return EVAL_SETS[choice]["id"]
     # Also accept the full ID
@@ -74,7 +81,7 @@ async def run_eval(eval_set_id: str) -> dict:
 # For CLI/interactive use
 if __name__ == "__main__":
     print(list_eval_sets())
-    choice = input("Select eval set (1/2/3): ").strip()
+    choice = input("Select eval set (1/2/3/4): ").strip()
     eval_id = get_eval_set_id(choice)
     if eval_id:
         print(f"\nRunning eval: {eval_id}...")
