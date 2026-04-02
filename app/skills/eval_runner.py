@@ -39,6 +39,13 @@ EVAL_SETS = {
         "covenant": "DI",
         "deal": "Duck Creek",
     },
+    "5": {
+        "id": "xtract_dc_balanced",
+        "name": "Xtract Report — Duck Creek Balanced (RP+MFN+DI)",
+        "questions": 15,
+        "covenant": "RP + MFN + DI",
+        "deal": "Duck Creek",
+    },
 }
 
 
@@ -81,7 +88,7 @@ async def run_eval(eval_set_id: str) -> dict:
 # For CLI/interactive use
 if __name__ == "__main__":
     print(list_eval_sets())
-    choice = input("Select eval set (1/2/3/4): ").strip()
+    choice = input("Select eval set (1/2/3/4/5): ").strip()
     eval_id = get_eval_set_id(choice)
     if eval_id:
         print(f"\nRunning eval: {eval_id}...")

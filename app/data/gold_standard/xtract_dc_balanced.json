@@ -1,0 +1,86 @@
+{
+  "deal_id": "xtract_dc_balanced",
+  "resolve_deal_id": "6e76ed06",
+  "deal_name": "Duck Creek Technologies",
+  "source": "xtract_lawyer_report",
+  "version": "1.0",
+  "last_updated": "2026-04-02T00:00:00Z",
+  "description": "Balanced eval set: 5 RP + 5 MFN + 5 DI questions from Xtract lawyer report",
+  "questions": [
+    {
+      "question_id": "bal_q1",
+      "question": "What are the three alternative tests for the build-up basket and what is the starter amount?",
+      "gold_answer": "The build-up basket is based on the greater of: (1) 50% of CNI from first day of the fiscal quarter in which the closing occurs, ignoring any FQ with a loss; (2) Retained ECF from last day of the first full fiscal year after the closing occurs, ignoring any FY with negative ECF; (3) EBITDA minus 1.4x Interest Expense from first day of the fiscal quarter in which the closing occurs, ignoring any FQ with a loss. The starter amount is $130m/100% EBITDA."
+    },
+    {
+      "question_id": "bal_q2",
+      "question": "Which baskets can be reallocated for restricted payments?",
+      "gold_answer": "The general prepayment of debt basket ($130m/100% EBITDA) and general investment basket ($130m/100% EBITDA) can be reallocated for dividends."
+    },
+    {
+      "question_id": "bal_q3",
+      "question": "What is the size of the general RP basket?",
+      "gold_answer": "The general RP basket is $130m/100% EBITDA."
+    },
+    {
+      "question_id": "bal_q4",
+      "question": "What ratio test governs the unlimited ratio restricted payments basket?",
+      "gold_answer": "Restricted payments are permitted as long as the First Lien Leverage Ratio does not exceed 5.75x or if the Ratio does not get worse as a result of the transaction."
+    },
+    {
+      "question_id": "bal_q5",
+      "question": "What is the total Day One restricted payments capacity?",
+      "gold_answer": "$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. This comprises: (1) RP starter: $130m/100% EBITDA; (2) General RP basket: $130m/100% EBITDA; (3) General prepayment of debt basket: $130m/100% EBITDA; (4) General investment basket: $130m/100% EBITDA."
+    },
+    {
+      "question_id": "bal_q6",
+      "question": "What is the MFN yield protection threshold and sunset period?",
+      "gold_answer": "100bps MFN protection with a 6 month sunset."
+    },
+    {
+      "question_id": "bal_q7",
+      "question": "Does debt incurred under the freebie basket trigger MFN protection?",
+      "gold_answer": "No, debt out of the freebie is not triggered by MFN. The freebie is $130m/100% EBITDA."
+    },
+    {
+      "question_id": "bal_q8",
+      "question": "Is there a dollar cap carve-out for MFN protection?",
+      "gold_answer": "Yes, debt that does not exceed $325m/250% EBITDA does not trigger MFN."
+    },
+    {
+      "question_id": "bal_q9",
+      "question": "Does Incremental Equivalent Debt trigger MFN protection?",
+      "gold_answer": "No, there is no MFN protection for Incremental Equivalent Debt."
+    },
+    {
+      "question_id": "bal_q10",
+      "question": "What components are included in the all-in-yield calculation for MFN purposes?",
+      "gold_answer": "The all-in-yield includes margin/spread and OID if greater than 0.50% (treated as interest amortizing over the lesser of expected life or 4 years). It excludes all arrangement, syndication, underwriting, and other fees payable to the Arrangers."
+    },
+    {
+      "question_id": "bal_q11",
+      "question": "What is the free-and-clear (freebie) basket for incremental debt and how is it structured?",
+      "gold_answer": "The free-and-clear basket is $130m or 100% of Consolidated EBITDA for first lien debt. It also includes the general debt basket (which includes the general investment basket, plus 2x the general prepayment of debt basket, plus 2x the general RP basket), plus reductions in commitments in incremental facilities or credit agreement refinancing debt, plus voluntary prepayments of term loans and other debt."
+    },
+    {
+      "question_id": "bal_q12",
+      "question": "What leverage ratio tests are available for ratio-based incremental debt?",
+      "gold_answer": "Ratio-based incremental debt can be incurred at: (1) 6x First Lien Leverage Ratio for first lien debt, (2) 7.75x Total Secured Leverage Ratio for second lien debt, (3) 1.75x Interest Coverage Ratio for second lien debt, (4) 1.75x Interest Coverage Ratio for junior to second lien, secured by non-collateral or unsecured debt, (5) 8x Total Leverage Ratio for junior to second lien, secured by non-collateral or unsecured debt. In each case, debt may also be incurred if the ratio does not get worse as a result of the transaction."
+    },
+    {
+      "question_id": "bal_q13",
+      "question": "Can debt incurred under the free-and-clear basket be reclassified to the ratio basket later?",
+      "gold_answer": "Yes. If the Borrower incurs debt under the free-and-clear basket, the debt can later be moved from the free-and-clear basket to the ratio-based basket when in compliance, thereby freeing up capacity under the free-and-clear basket for a later date when the ratio cannot be met."
+    },
+    {
+      "question_id": "bal_q14",
+      "question": "How does the contribution debt basket work and does it feed the RP builder basket?",
+      "gold_answer": "100% of the cash proceeds of any equity contribution to the Borrower (or Capital Stock to Holdings that is contributed to the Borrower) is available for contribution debt. This amount also increases the cumulative credit/builder basket by 2x, meaning every dollar contributed creates $2 of RP capacity."
+    },
+    {
+      "question_id": "bal_q15",
+      "question": "Is intercompany debt subordinated to the loans?",
+      "gold_answer": "Debt of Loan Parties to non-guarantor Subsidiaries under the intercompany debt basket must be subordinated in right of payment to the Loans. However, intercompany debt from non-Loan Parties (such as foreign subsidiaries lending to each other) does not have this subordination requirement."
+    }
+  ]
+}
