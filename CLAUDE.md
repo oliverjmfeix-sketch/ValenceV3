@@ -166,6 +166,7 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | **Cost tracker** | `app/services/cost_tracker.py` |
 | **Cross-covenant linking** | `app/services/cross_covenant.py` |
 | **DI query service** | `app/services/di_query_service.py` |
+| **RP query service** | `app/services/rp_query_service.py` |
 | **Eval runner skill** | `app/skills/eval_runner.py` |
 
 ### Data Files (loaded by init_schema.py)
@@ -195,6 +196,7 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | `question_annotations.tql` | Question -> attribute annotations |
 | `annotation_functions.tql` | `get_entity_annotations()` function |
 | `di_functions.tql` | DI capacity + vulnerability TypeDB functions (9 functions) |
+| `rp_functions.tql` | RP capacity + accumulation TypeDB functions (8 functions) |
 
 ## API Endpoints
 
@@ -311,6 +313,16 @@ Full DI covenant type added alongside RP and MFN. 6-phase plan, all phases compl
 * **`skip_scalar` eval option:** Graph eval endpoint accepts `skip_scalar: true` to halve cost/time.
 * **`override_deal_id` eval option:** Graph eval can run any gold standard against any deal.
 
+### Balanced Eval Set + RP/DI Remediation (2026-04-02)
+
+* **New gold standard:** `xtract_dc_balanced.json` — 15 questions (5 RP + 5 MFN + 5 DI) from Xtract lawyer report. Tests blind routing across all three covenant types.
+* **Eval results:** 15/15 OK on both runs. Run 1: $3.16, 357s (pre-fix). Run 2: $2.82, 248s (post-fix). Verbosity reduced 44-76% on concise questions.
+* **RP TypeDB functions:** `rp_functions.tql` — 8 functions (day_one_rp_capacity, builder_starter_amount, capacity_by_category, accumulation checks). `rp_query_service.py` wrapper.
+* **DI subordination scope:** New `intercompany_subordination_scope` attribute on `di_provision`, question `di_e_ic_2`, annotation.
+* **ICR extraction prompt:** Enhanced `di_el_leverage_tiers` with explicit ICR/FCCR pattern guidance.
+* **Synthesis verbosity fix:** FORMATTING section rewritten with length constraints (both `/ask` and `/ask-graph`). Removed "Verified against:" footer from Rule 6.
+* **Eval skill updated:** Option 5 (balanced set) added, scalar skip prompt added to `/eval` skill.
+
 ### Extraction Order
 
 RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
@@ -335,18 +347,17 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### Actionable TODOs
 
-* `app/routers/deals.py:1648` — `# TODO: Persist QA cost to TypeDB`
+* `app/routers/deals.py:1650` — `# TODO: Persist QA cost to TypeDB`
 * `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
 ## Next Steps
 
-1. **Verify DI entity fetch fix** — Confirm DI entities appear in ask-graph context after graph_traversal fallback fix
-2. **Fix incremental_facility entity creation** — Entity not created during extraction (di_b0 may have been False or lost to source_text bug). Re-extract DI after fix verification.
-3. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn` (verify with deal_id `6e76ed06`)
-4. **Run full RP+DI+MFN eval** — Create combined eval set
-5. **DI synthesis guidance** — Add per-category synthesis guidance for DI1-DI12 in seed_synthesis_guidance.tql
-6. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
-7. **Liens expansion** — Add Liens covenant schema to enable DI↔Liens cross-covenant relations
+1. **Fix incremental_facility entity creation** — Entity not created during extraction (di_b0 may have been False or lost to source_text bug). Re-extract DI after fix verification.
+2. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn` (22 questions, not yet run post-SSoT-refactor)
+3. **Reseed TypeDB** — Load RP functions + DI schema changes (additive, no `--force`). New question `di_e_ic_2` and `intercompany_subordination_scope` attribute.
+4. **Re-extract DI for Duck Creek** — Captures `di_e_ic_2` subordination scope + ICR leverage tiers with enhanced prompt.
+5. **Introspect pattern flags** — Refactor hardcoded `_PATTERN_FLAGS` dict to TypeDB schema introspection
+6. **Liens expansion** — Add Liens covenant schema to enable DI↔Liens cross-covenant relations
 
 ## END-OF-DAY UPDATE WORKFLOW
 
@@ -413,3 +424,6 @@ Types: schema, extraction, api, types, data, fix, refactor
 - **Duck Creek DI**: 10 questions (Xtract report). 10/10 OK, $2.04/run (graph+scalar).
   Run via `POST /api/graph-eval/xtract_dc_di`
   Results: `app/data/eval_results/eval_xtract_dc_di_20260401_085257_*.{txt,json}`
+- **Duck Creek Balanced (RP+MFN+DI)**: 15 questions (5 RP + 5 MFN + 5 DI). 15/15 OK, ~$2.82/run (graph-only, post-verbosity-fix).
+  Run via `POST /api/graph-eval/xtract_dc_balanced`
+  Results: `app/data/eval_results/eval_xtract_dc_balanced_20260402_132525_*.{txt,json}`

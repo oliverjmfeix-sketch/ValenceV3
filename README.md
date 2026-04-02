@@ -134,6 +134,7 @@ ValenceV3/
 │   │   ├── question_annotations.tql     # Question -> attribute annotations
 │   │   ├── annotation_functions.tql     # Entity annotation function
 │   │   ├── di_functions.tql             # DI capacity + vulnerability functions
+│   │   ├── rp_functions.tql             # RP capacity + accumulation functions
 │   │   ├── gold_standard/               # Gold standard eval data (JSON)
 │   │   └── eval_results/                # Local copies of eval output files
 │   └── utils/
