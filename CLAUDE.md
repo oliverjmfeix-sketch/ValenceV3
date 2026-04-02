@@ -211,7 +211,8 @@ entity extraction runs first (entities must exist before scalar annotation routi
 | `/api/deals/{id}/{type}-universe` | GET | Get cached universe JSON |
 | `/api/deals/{id}/ask-graph` | POST | Q&A via entity graph (primary) |
 | `/api/deals/{id}/ask` | POST | Q&A via scalar answers |
-| `/api/deals/{id}/answers` | GET | All answers for a deal |
+| `/api/deals/{id}/answers?covenant_type=X` | GET | All answers for a deal (RP/MFN/DI, default RP) |
+| `/api/deals/{id}/di-provision` | GET | DI provision with flags + entities |
 | `/api/deals/{id}/status` | GET | Extraction status |
 | `/api/ontology/questions` | GET | All questions by category |
 | `/api/graph-eval/{deal_id}` | POST | Run gold standard eval |
@@ -281,20 +282,34 @@ curl "https://valencev3-production.up.railway.app/api/eval-results/duck_creek_rp
 * Functions: `fun name($param: type) -> { return_vals }:`
 * `isa!` for exact type match (excludes subtypes)
 
-## Current State (2026-03-31)
+## Current State (2026-04-02)
 
-### Debt Incurrence (DI) Expansion — Phases 1-5 Complete
+### Debt Incurrence (DI) Expansion — Phases 1-6 Complete
 
-Full DI covenant type added alongside RP and MFN. 6-phase plan, 5 phases complete:
+Full DI covenant type added alongside RP and MFN. 6-phase plan, all phases complete:
 
 * **Phase 1 — Schema:** §11 DI section in schema_unified.tql. 4 reference entities (ratio_test_type, debt_condition_type, di_lien_priority, di_facility_type), di_provision (54 owns), incremental_facility (66 owns), di_basket abstract + 20 subtypes, leverage_tier, 14 relations. ~97 new attributes. 35 seeded reference instances.
 * **Phase 2 — Questions:** 12 categories (DI1-DI12), 151 questions, 1 entity-list question (leverage_tier), 152 annotations routing to di_provision + incremental_facility + 16 basket subtypes.
 * **Phase 3 — Extraction pipeline:** graph_storage._PROVISION_TYPES includes di_provision, _provision_type_from_id handles _di suffix, segment_introspector reads di_universe_field, run_extraction runs RP → DI → MFN (DI before MFN for incremental_facility linkage).
 * **Phase 4 — Cross-covenant:** CrossCovenantService (cross_covenant.py) creates di_provision_links_mfn, di_provision_links_rp, incremental_triggers_mfn, di_feeds_rp_builder. Step 6 in run_extraction(). Manual endpoint: POST /{id}/link-covenants. SSoT: all trigger data from TypeDB, no hardcoded defaults.
 * **Phase 5 — TypeDB functions:** 9 functions in di_functions.tql (capacity: total_incremental, basket, projected_grower, total_capped; vulnerability: ied_priming_risk, trapdoor_basket; aggregation: count_permitted_baskets, count_grower_baskets, get_basket_types). DIQueryService wrapper returns None on missing data.
-* **Phase 6 — Gold standard evals:** DI gold standard created (`xtract_dc_di.json`, 10 questions). DI extracted on Duck Creek: 138 answers, 20 entities, $8.15.
+* **Phase 6 — Gold standard evals:** DI gold standard created (`xtract_dc_di.json`, 10 questions). DI extracted on Duck Creek: 138 answers, 20 entities, $8.15. Eval run: 10/10 OK, $2.04.
 
-**SSoT audit completed:** Fixed hardcoded valid_types, defaulted covenant routing to "both", added di_universe_field to schema + segment types, added 20 DI cross-covenant mappings + capacity classifications.
+### SSoT Fixes (2026-04-02)
+
+* **TopicRouter DI routing:** Fixed two stacked bugs — DI categories were silently reclassified as RP during metadata loading, and `_resolve_covenant_type` had no DI branch. Both fixed in `topic_router.py`.
+* **Synthesis prompt DI label:** Added `covenant_type == "di"` branch in both `/ask` and `/ask-graph` synthesis prompts (deals.py).
+* **`/answers` endpoint generalized:** `covenant_type` query parameter added (default RP). Works for RP, MFN, DI.
+* **Unified provision endpoint:** `_get_provision()` replaces duplicate `get_rp_provision()`/`get_mfn_provision()`. Added `/di-provision` endpoint.
+* **`_load_entity_booleans()` polymorphic:** Uses abstract `provision` type instead of hardcoded `rp_provision`.
+* **`delete_deal()` DI cleanup:** Added DI provision/answer/applicability deletion steps.
+* **`get_deal()` DI answers:** Response now includes `di_provision.answers`.
+* **`_COVENANT_PROVISION_MAP` module-level:** Moved from local variable in `ask_question_graph()` to module level with uppercase keys.
+* **Graph traversal fallback:** Added retry with `_FETCH_QUERY_SIMPLE` when full query returns 0 docs (fixes DI entity fetch).
+* **`source_text: null` fix:** `graph_storage.py` now coerces null source_text to empty string.
+* **`cls` → `self` fix:** Fixed NameError in `store_extraction()` that crashed the entire extraction pipeline.
+* **`skip_scalar` eval option:** Graph eval endpoint accepts `skip_scalar: true` to halve cost/time.
+* **`override_deal_id` eval option:** Graph eval can run any gold standard against any deal.
 
 ### Extraction Order
 
@@ -309,7 +324,7 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### SSoT Violations (Low Priority)
 
-* `app/routers/deals.py` — hardcoded pattern flag name lists for RP and MFN provisions. Should introspect from TypeDB schema attributes.
+* `app/routers/deals.py` — hardcoded pattern flag name lists for RP, MFN, and DI provisions (`_PATTERN_FLAGS` dict). Should introspect from TypeDB schema attributes.
 
 ### Deferred DI Schema (Liens Expansion)
 
@@ -320,13 +335,14 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### Actionable TODOs
 
-* `app/routers/deals.py:1640` — `# TODO: Persist QA cost to TypeDB`
+* `app/routers/deals.py:1648` — `# TODO: Persist QA cost to TypeDB`
 * `app/services/cost_tracker.py:130` — `# TODO: Persist extraction cost summaries`
 
 ## Next Steps
 
-1. **Run DI eval** — `POST /api/graph-eval/xtract_dc_di` (10 questions, ~$5-7)
-2. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn` (verify with new deal_id `6e76ed06`)
+1. **Verify DI entity fetch fix** — Confirm DI entities appear in ask-graph context after graph_traversal fallback fix
+2. **Fix incremental_facility entity creation** — Entity not created during extraction (di_b0 may have been False or lost to source_text bug). Re-extract DI after fix verification.
+3. **Run full RP+MFN eval** — `POST /api/graph-eval/xtract_dc_rp_mfn` (verify with deal_id `6e76ed06`)
 4. **Run full RP+DI+MFN eval** — Create combined eval set
 5. **DI synthesis guidance** — Add per-category synthesis guidance for DI1-DI12 in seed_synthesis_guidance.tql
 6. **Introspect pattern flags** — Refactor hardcoded pattern flag lists to TypeDB schema introspection
@@ -353,8 +369,9 @@ RP (30-50%) → DI (55-65%) → MFN (80-90%) → Cross-covenant linking (95%)
 
 ### Application API Calls
 
-* Extraction (RP): ~$14 (Opus, 7 calls for ~190 answers + 21 entities)
-* Extraction (MFN): ~$1-2 (fewer questions)
+* Extraction (RP): ~$14.84 (Opus, 7 calls for 224 answers + 33 entities)
+* Extraction (DI): ~$8.15 (Opus, 4 calls for 138 answers + 20 entities)
+* Extraction (MFN): ~$4.19 (Opus, 2 calls for 47 answers + 14 entities)
 * Segmentation: ~$4.30 (3 Opus calls for large documents)
 * /ask-graph: ~$0.55-0.71 per question (Opus for filter + synthesis)
 * Use Sonnet for extraction if cost is a concern. Opus for synthesis.
@@ -393,5 +410,6 @@ Types: schema, extraction, api, types, data, fix, refactor
 - **ACP Tara MFN**: 11 questions. 11/11 OK, $3.57/run (Opus 4.6 filter + synthesis).
   Run via `POST /api/graph-eval/lawyer_acp_mfn`
   Results: `app/data/eval_results/eval_lawyer_acp_mfn_*.{txt,json}`
-- **Duck Creek DI**: 10 questions (Xtract report). NEW — not yet run.
+- **Duck Creek DI**: 10 questions (Xtract report). 10/10 OK, $2.04/run (graph+scalar).
   Run via `POST /api/graph-eval/xtract_dc_di`
+  Results: `app/data/eval_results/eval_xtract_dc_di_20260401_085257_*.{txt,json}`

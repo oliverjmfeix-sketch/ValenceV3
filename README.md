@@ -115,6 +115,8 @@ ValenceV3/
 │   │   ├── __init__.py
 │   │   ├── models.py                    # Pydantic API models
 │   │   └── extraction_response.py       # Extraction response Pydantic models
+│   ├── skills/
+│   │   └── eval_runner.py               # Interactive eval runner (/eval skill)
 │   ├── scripts/
 │   │   ├── __init__.py
 │   │   └── init_schema.py               # DB seeding (single entry point)
