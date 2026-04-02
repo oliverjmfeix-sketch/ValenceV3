@@ -1426,6 +1426,7 @@ attribute reclassification_type, value string;
 attribute requires_covenant_parity, value boolean;
 attribute requires_no_eod_only, value boolean;
 attribute requires_subordination, value boolean;
+attribute intercompany_subordination_scope, value string;
 attribute requires_wal_parity, value boolean;
 attribute wal_restriction_applies, value boolean;
 
@@ -2099,6 +2100,7 @@ entity di_provision sub provision,
     owns unlimited_reclass_detected,
     owns structural_seniority_risk,
     owns intercompany_leakage_risk,
+    owns intercompany_subordination_scope,
     owns vulnerability_notes,
     # Relations
     plays provision_has_incremental:provision,

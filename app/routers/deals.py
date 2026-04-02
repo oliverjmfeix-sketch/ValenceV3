@@ -1580,17 +1580,19 @@ async def ask_question(deal_id: str, request: AskRequest) -> Dict[str, Any]:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data"
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment. Do NOT assign risk scores or favorability ratings. Users are legal professionals who will form their own judgments.
-6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially". State your verification briefly at the end: "Verified against: [entity types checked]"
-
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially".
 ## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
 
 {category_guidance}
 ## FORMATTING
 
-- Use **bold** for key terms and defined terms
-- Use bullet points for lists
-- Keep response concise but complete
-- State facts with citations. Do not editorialize.
+- Lead with direct answer in first sentence.
+- Maximum 3 sentences unless listing 4+ items.
+- No markdown headers unless 4+ distinct items.
+- No bullets unless explicitly requested or 4+ parallel items.
+- No "Additional Context" sections.
+- Cite using section_reference from entity data.
+- Bold only key dollar amounts and ratios, sparingly.
 
 ## EVIDENCE TRACING
 
@@ -2089,18 +2091,20 @@ When answering:
 3. **QUALIFICATIONS REQUIRED**: If a qualification, condition, or exception exists in the data, you MUST mention it.
 4. **MISSING DATA**: If the requested information is not found, say "Not found in extracted data".
 5. **OBJECTIVE ONLY**: Report what the document states. Do NOT characterize provisions as borrower-friendly, lender-friendly, aggressive, conservative, or any other subjective assessment.
-6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially". State your verification briefly at the end: "Verified against: [entity types checked]"
-
+6. **VERIFY BEFORE ANSWERING**: Before providing your final answer, cross-check every factual claim against the entity data provided. For each claim, identify which entity attribute supports it and confirm the value matches. If you cannot find supporting data for a claim, do not make it. Extracted boolean attributes that are true are findings, not possibilities — do not hedge with "may" or "potentially".
 ## CATEGORY-SPECIFIC ANALYSIS GUIDANCE
 
 {category_guidance}
 
 ## FORMATTING
 
-- Use **bold** for key terms and defined terms
-- Use bullet points for lists
-- Keep response concise but complete
-- State facts with citations. Do not editorialize.
+- Lead with direct answer in first sentence.
+- Maximum 3 sentences unless listing 4+ items.
+- No markdown headers unless 4+ distinct items.
+- No bullets unless explicitly requested or 4+ parallel items.
+- No "Additional Context" sections.
+- Cite using section_reference from entity data.
+- Bold only key dollar amounts and ratios, sparingly.
 
 ## EVIDENCE TRACING
 

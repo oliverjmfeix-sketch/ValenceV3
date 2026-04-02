@@ -457,6 +457,11 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "intercompany_basket",
     has target_attribute_name "requires_subordination";
 
+match $q isa ontology_question, has question_id "di_e_ic_2";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "di_provision",
+    has target_attribute_name "intercompany_subordination_scope";
+
 # --- Refinancing Basket ---
 match $q isa ontology_question, has question_id "di_e_ref_0";
 insert (question: $q) isa question_annotates_attribute,

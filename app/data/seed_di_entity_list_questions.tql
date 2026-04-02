@@ -46,6 +46,22 @@ insert $di_el_leverage_tiers isa ontology_question,
 
 CONTEXT: Many credit agreements provide different debt capacity depending on the borrower's leverage level. Look for tiered capacity tables or conditional language like 'if the First Lien Net Leverage Ratio is equal to or less than X.XXx' or 'at any time when the Total Net Leverage Ratio does not exceed Y.YYx'.
 
+COMMON MISS: Interest Coverage Ratio and Fixed Charge Coverage Ratio tiers.
+
+Pattern recognition:
+- 'Interest Coverage Ratio of at least [X] to 1.00'
+- 'Fixed Charge Coverage Ratio of not less than [X]'
+- 'EBITDA to Interest Expense ratio exceeding [X]'
+
+For coverage ratios, create a leverage_tier with:
+- ratio_test_type: 'interest_coverage' or 'fixed_charge_coverage'
+- leverage_floor: the MINIMUM ratio required (e.g., 1.75)
+- leverage_ceiling: null
+- is_unlimited: true if unlimited when met
+
+Coverage ratios are FLOORS (higher is better), not ceilings.
+Create SEPARATE tier entities for each ratio test type.
+
 FOR EACH TIER, EXTRACT:
 - tier_number: Integer starting at 1 for the most permissive tier (lowest leverage)
 - leverage_floor: The minimum leverage ratio for this tier (null for tier 1 / lowest tier)

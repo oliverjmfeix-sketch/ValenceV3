@@ -729,6 +729,22 @@ insert $di_e_ic_1 isa ontology_question,
     has display_order 83,
     has extraction_prompt "Determine if intercompany debt owed by a Loan Party to a non-Loan Party must be subordinated to the obligations under the Credit Agreement. Standard lender protection.";
 
+insert $di_e_ic_2 isa ontology_question,
+    has question_id "di_e_ic_2",
+    has covenant_type "DI",
+    has question_text "What is the scope of the intercompany subordination requirement?",
+    has answer_type "string",
+    has display_order 96,
+    has extraction_prompt "Determine subordination SCOPE:
+
+- 'loan_party_debt_only': Subordination required only for debt OWED BY Credit Parties/Loan Parties. Debt between non-Credit Party subsidiaries is exempt.
+- 'all_intercompany': ALL intercompany debt requires subordination.
+- 'none': No subordination requirement.
+
+Pattern: 'Indebtedness owed by any Loan Party to any Subsidiary that is not a Loan Party shall be subordinated' → 'loan_party_debt_only' (debt owed BY non-Loan Parties not covered)
+
+Return: 'loan_party_debt_only' | 'all_intercompany' | 'none'";
+
 # --- Refinancing Basket ---
 insert $di_e_ref_0 isa ontology_question,
     has question_id "di_e_ref_0",
@@ -1568,6 +1584,8 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ic_0";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ic_1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ic_2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "DI5"; $q isa ontology_question, has question_id "di_e_ref_0";
 insert (category: $cat, question: $q) isa category_has_question;

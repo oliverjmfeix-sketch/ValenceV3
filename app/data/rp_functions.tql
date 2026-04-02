@@ -1,0 +1,71 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RP CAPACITY FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Component: general_purpose baskets (excluding builder which has separate starter)
+fun general_purpose_basket_capacity($pid: string) -> double:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $basket) isa provision_has_basket;
+        $basket has capacity_category "general_purpose",
+            has basket_amount_usd $amt;
+        # Exclude builder_basket (its starter is handled separately)
+        not { $basket isa builder_basket; };
+    reduce $total = sum($amt);
+    return first $total;
+
+# Component: builder basket starter amount
+fun builder_starter_amount($pid: string) -> double:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $bb) isa provision_has_basket;
+        $bb isa builder_basket, has starter_dollar_amount $starter;
+    return first $starter;
+
+# COMPOSITE: Total Day One RP capacity (formula lives HERE, not in Python)
+fun total_day_one_rp_capacity($pid: string) -> double:
+    match
+        let $gp_cap = general_purpose_basket_capacity($pid);
+        let $starter = builder_starter_amount($pid);
+        let $total = $gp_cap + $starter;
+    return first $total;
+
+# Capacity by specific category
+fun rp_capacity_by_category($pid: string, $category: string) -> double:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $basket) isa provision_has_basket;
+        $basket has capacity_category $cat, has basket_amount_usd $amt;
+        $cat == $category;
+    reduce $total = sum($amt);
+    return first $total;
+
+# Builder accumulation source checks
+fun has_cni_accumulation($pid: string) -> boolean:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $bb) isa provision_has_basket;
+        $bb isa builder_basket, has has_cni_source true;
+    return check;
+
+fun has_ecf_accumulation($pid: string) -> boolean:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $bb) isa provision_has_basket;
+        $bb isa builder_basket, has has_ecf_source true;
+    return check;
+
+fun has_ebitda_fc_accumulation($pid: string) -> boolean:
+    match
+        $rp isa rp_provision, has provision_id $rpid;
+        $rpid == $pid;
+        (provision: $rp, basket: $bb) isa provision_has_basket;
+        $bb isa builder_basket, has has_ebitda_fc_source true;
+    return check;
