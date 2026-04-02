@@ -252,8 +252,19 @@ def get_provision_entities(
                 query = _FETCH_QUERY.format(prov_type=provision_type, pid=provision_id)
             else:
                 query = _FETCH_QUERY_SIMPLE.format(prov_type=provision_type, pid=provision_id)
-            answer = tx.query(query).resolve()
-            docs = list(answer.as_concept_documents())
+            try:
+                answer = tx.query(query).resolve()
+                docs = list(answer.as_concept_documents())
+            except Exception as e:
+                logger.warning(f"Full fetch query failed for {provision_type}, falling back to simple: {e}")
+                docs = []
+
+            # Fallback: if full query returned 0 docs, try simple query
+            if not docs and _provision_has_child_relations(provision_type):
+                logger.info(f"Retrying {provision_type} with simple fetch query")
+                query = _FETCH_QUERY_SIMPLE.format(prov_type=provision_type, pid=provision_id)
+                answer = tx.query(query).resolve()
+                docs = list(answer.as_concept_documents())
         finally:
             tx.close()
         duration_ms = (time.time() - start) * 1000
@@ -269,6 +280,8 @@ def get_provision_entities(
             trace.entity_count = len(docs)
 
         if not docs:
+            if prov_header:
+                return [], prov_header
             return [], "(No Channel 3 entities found for this provision)"
 
         entity_json = json.dumps(docs, indent=2, default=str)
