@@ -1,0 +1,463 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# ASSET SALES / DISPOSITIONS ONTOLOGY QUESTIONS
+#
+# Covers the Dispositions covenant and the Asset Sale mandatory prepayment
+# mechanics. In many agreements these are split: a negative-covenant section
+# limiting dispositions, and a mandatory-prepayment section applying Net Cash
+# Proceeds from permitted dispositions.
+#
+# Categories (9):
+#   AS1 — Core Structure
+#   AS2 — Permitted Dispositions List
+#   AS3 — Ratio Disposition Basket
+#   AS4 — Non-Collateral / Ordinary Course Dispositions
+#   AS5 — Mandatory Prepayment Sweep (tier structure)
+#   AS6 — Sweep Exemptions / De Minimis
+#   AS7 — Reinvestment Rights
+#   AS8 — Sale-Leaseback Transactions
+#   AS9 — Cross-Covenant Links & Vulnerabilities
+#
+# Covenant type: AS
+# Question ID prefix: as_
+# Category display_order range: 501-509
+# Question display_order range: 1200-1299
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_cat1 isa ontology_category,
+    has category_id "AS1",
+    has name "Asset Sales Core Structure",
+    has description "Existence, scope, and structure of the dispositions covenant.",
+    has display_order 501,
+    has extraction_context_sections "ASSET_SALES,NEGATIVE_COVENANTS",
+    has extraction_batch_hint "Focus on whether a dispositions covenant exists, whether Loan Parties and all Restricted Subsidiaries are bound, the scope of 'Disposition' as a defined term, and whether the fair-market-value test applies to all permitted dispositions.";
+
+insert $as_cat2 isa ontology_category,
+    has category_id "AS2",
+    has name "Permitted Dispositions",
+    has description "The numbered list of permitted dispositions / permitted asset sales baskets.",
+    has display_order 502,
+    has extraction_context_sections "ASSET_SALES",
+    has extraction_batch_hint "Enumerate the permitted-dispositions clauses: inventory/obsolete equipment, intercompany, loss/casualty, unrestricted subs, fair-market-value with consideration tests. Focus on breadth and conditions on each.";
+
+insert $as_cat3 isa ontology_category,
+    has category_id "AS3",
+    has name "Ratio Disposition Basket",
+    has description "Unlimited dispositions conditioned on a leverage ratio test.",
+    has display_order 503,
+    has extraction_context_sections "ASSET_SALES,DEFINITIONS",
+    has extraction_batch_hint "Identify any unlimited permitted-disposition basket conditioned only on a leverage ratio. Extract ratio test, threshold, and whether a 'no worse than pro forma' test is the operative standard.";
+
+insert $as_cat4 isa ontology_category,
+    has category_id "AS4",
+    has name "Non-Collateral & Ordinary Course Dispositions",
+    has description "Carve-outs for sales of assets that don't constitute Collateral, and sales in the ordinary course of business.",
+    has display_order 504,
+    has extraction_context_sections "ASSET_SALES",
+    has extraction_batch_hint "Focus on carve-outs for non-Collateral asset sales, ordinary course inventory dispositions, and sales of obsolete or worn-out equipment. These feed the mandatory-prepayment exemption analysis.";
+
+insert $as_cat5 isa ontology_category,
+    has category_id "AS5",
+    has name "Mandatory Prepayment Sweep",
+    has description "Application of Net Cash Proceeds from asset sales. Tier structure (100/50/0% sweep by leverage level).",
+    has display_order 505,
+    has extraction_context_sections "ASSET_SALES,DEFINITIONS",
+    has extraction_batch_hint "CRITICAL module. Extract the asset-sale sweep tier structure: at what leverage level does the sweep step down from 100% to 50% to 0%? Is there a single rate or a tiered waterfall? What is the definition of Net Cash Proceeds (deductions, exclusions)?";
+
+insert $as_cat6 isa ontology_category,
+    has category_id "AS6",
+    has name "Sweep Exemptions & De Minimis",
+    has description "Categories exempt from the sweep: non-Collateral, ordinary course, Casualty Events, below-threshold dispositions.",
+    has display_order 506,
+    has extraction_context_sections "ASSET_SALES,DEFINITIONS",
+    has extraction_batch_hint "Enumerate exemptions from the mandatory prepayment: non-Collateral dispositions, ordinary course, Casualty Events (insurance proceeds), ratio-basket dispositions, and de minimis thresholds (individual per-transaction and aggregate annual).";
+
+insert $as_cat7 isa ontology_category,
+    has category_id "AS7",
+    has name "Reinvestment Rights",
+    has description "Ability to retain Net Cash Proceeds if reinvested in the business within a stated period.",
+    has display_order 507,
+    has extraction_context_sections "ASSET_SALES",
+    has extraction_batch_hint "Focus on reinvestment mechanics: reinvestment period length, extension period (often +180 days for contracted reinvestments), whether intent to reinvest suffices initially, and what assets qualify as reinvestment targets (similar business, Collateral, etc.).";
+
+insert $as_cat8 isa ontology_category,
+    has category_id "AS8",
+    has name "Sale-Leaseback Transactions",
+    has description "Separate permission framework for sale-leaseback transactions.",
+    has display_order 508,
+    has extraction_context_sections "ASSET_SALES,DEBT_INCURRENCE",
+    has extraction_batch_hint "Identify the sale-leaseback framework. Sale-leasebacks straddle the dispositions, debt incurrence, and lien covenants — determine whether the agreement has a separate permitted-sale-leaseback basket and whether proceeds are subject to the general asset sale sweep.";
+
+insert $as_cat9 isa ontology_category,
+    has category_id "AS9",
+    has name "Cross-Covenant Links & Vulnerabilities",
+    has description "Feed to RP builder basket (asset sale proceeds source), interaction with investments, and pattern detection.",
+    has display_order 509,
+    has extraction_context_sections "ASSET_SALES,RESTRICTED_PAYMENTS",
+    has extraction_batch_hint "Check whether retained asset sale proceeds feed the RP builder basket (a significant capacity source). Identify patterns: high sweep stepdowns, broad non-Collateral carve-outs combined with J.Crew pathways, and ratio-basket dispositions that avoid the sweep entirely.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS1: CORE STRUCTURE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_a1 isa ontology_question,
+    has question_id "as_a1",
+    has covenant_type "AS",
+    has question_text "Does a dispositions / asset sales negative covenant exist?",
+    has answer_type "boolean",
+    has display_order 1200,
+    has extraction_prompt "Determine whether the credit agreement contains a negative covenant restricting Dispositions. Look in the Negative Covenants article for a section titled 'Dispositions', 'Asset Sales', or 'Limitation on Dispositions'. The covenant typically begins 'The Borrower will not, and will not permit any Restricted Subsidiary to, make any Disposition...'. Answer true if any such covenant exists.";
+
+insert $as_a2 isa ontology_question,
+    has question_id "as_a2",
+    has covenant_type "AS",
+    has question_text "Is the defined term 'Disposition' (or 'Asset Sale') broad?",
+    has answer_type "boolean",
+    has display_order 1201,
+    has extraction_prompt "Examine the defined term 'Disposition' or 'Asset Sale'. Answer true if the definition is broad — covering sales, transfers, leases, licenses (especially exclusive licenses), and conveyances of property. Answer false if the definition is narrow or omits licenses, intercompany transfers, or sale-leasebacks. A narrow definition creates pathway risk: valuable transfers may escape both the dispositions covenant and the mandatory prepayment sweep.";
+
+insert $as_a3 isa ontology_question,
+    has question_id "as_a3",
+    has covenant_type "AS",
+    has question_text "Is there a consideration test (cash / fair market value) on permitted dispositions?",
+    has answer_type "boolean",
+    has display_order 1202,
+    has extraction_prompt "Determine whether permitted dispositions require (a) consideration at fair market value and (b) a minimum cash-consideration component (commonly 75% cash). Look for 'consideration consisting of at least 75% cash or Cash Equivalents' in the general disposition basket. Answer true if any such dual test (FMV + cash %) applies.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS2: PERMITTED DISPOSITIONS (4 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_b1 isa ontology_question,
+    has question_id "as_b1",
+    has covenant_type "AS",
+    has question_text "Are intercompany dispositions between Loan Parties uncapped?",
+    has answer_type "boolean",
+    has display_order 1210,
+    has extraction_prompt "Determine whether dispositions between Loan Parties (US guarantor subs) are uncapped and broadly permitted. Look for 'Dispositions between or among Loan Parties' or 'Dispositions from any Loan Party to any other Loan Party' with no cap. Answer true if uncapped, false if restricted. This is the credit-friendly default.";
+
+insert $as_b2 isa ontology_question,
+    has question_id "as_b2",
+    has covenant_type "AS",
+    has question_text "Can assets be disposed to non-Loan Party Restricted Subsidiaries without a cap?",
+    has answer_type "boolean",
+    has display_order 1211,
+    has extraction_prompt "Determine whether Loan Parties can dispose of assets to non-Loan Party Restricted Subsidiaries (non-guarantor RSubs, foreign subs) without a dollar cap or ratio test. Look for 'Dispositions by any Loan Party to any Restricted Subsidiary' without qualification. Answer true if uncapped — this creates leakage risk as assets move out of the guarantor group but stay in the restricted group.";
+
+insert $as_b3 isa ontology_question,
+    has question_id "as_b3",
+    has covenant_type "AS",
+    has question_text "Are dispositions to Unrestricted Subsidiaries separately permitted?",
+    has answer_type "boolean",
+    has display_order 1212,
+    has extraction_prompt "Determine whether a specific permitted-dispositions clause authorizes transfers of assets to Unrestricted Subsidiaries. Look for 'Dispositions to Unrestricted Subsidiaries' or 'Investments in Unrestricted Subsidiaries constituting the transfer of assets'. Answer true if such a clause exists. Note: even without a dispositions-side basket, asset transfers to unsubs typically flow through the investments covenant via the investment-in-unsubs basket.";
+
+insert $as_b4 isa ontology_question,
+    has question_id "as_b4",
+    has covenant_type "AS",
+    has question_text "Is there a general disposition basket with a fair-market-value cap?",
+    has answer_type "boolean",
+    has display_order 1213,
+    has extraction_prompt "Determine whether the permitted-dispositions list includes a general / catch-all basket with a dollar or grower cap on fair-market-value. Commonly 'Dispositions of assets with fair market value not to exceed the greater of $X and Y% of Consolidated EBITDA in any fiscal year'. Answer true if any such general basket exists.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS3: RATIO DISPOSITION BASKET (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_c1 isa ontology_question,
+    has question_id "as_c1",
+    has covenant_type "AS",
+    has question_text "Is there a ratio-based unlimited disposition basket?",
+    has answer_type "boolean",
+    has display_order 1220,
+    has extraction_prompt "Determine whether the permitted-dispositions list includes an UNLIMITED basket conditioned only on a leverage ratio test. Look for 'Dispositions so long as the First Lien Net Leverage Ratio is X.XXx or less (or no worse than immediately prior)' or similar. Answer true if any ratio-conditioned unlimited disposition basket exists. This basket typically also escapes the sweep.";
+
+insert $as_c2 isa ontology_question,
+    has question_id "as_c2",
+    has covenant_type "AS",
+    has question_text "Does the ratio disposition basket use a 'no worse than' pro forma test?",
+    has answer_type "boolean",
+    has display_order 1221,
+    has extraction_prompt "Determine whether the ratio disposition basket uses a 'no worse than' pro forma test (the leverage ratio post-disposition is not worse than immediately before) rather than a fixed threshold. Look for 'the Total Net Leverage Ratio would be no greater than immediately prior to such Disposition'. Answer true if a no-worse-than test is used. This is a permissive formulation because it allows large dispositions even at high leverage, as long as they don't make things worse.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS4: NON-COLLATERAL & ORDINARY COURSE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_d1 isa ontology_question,
+    has question_id "as_d1",
+    has covenant_type "AS",
+    has question_text "Are dispositions of non-Collateral assets broadly permitted?",
+    has answer_type "boolean",
+    has display_order 1230,
+    has extraction_prompt "Determine whether there is a permitted-dispositions clause for assets that do not constitute Collateral (assets not pledged to secure the Loans). Look for 'Dispositions of assets that are not Collateral' or 'Dispositions of assets that do not constitute Collateral'. Answer true if such a clause exists. Non-Collateral dispositions typically also escape the mandatory prepayment sweep — doubly permissive.";
+
+insert $as_d2 isa ontology_question,
+    has question_id "as_d2",
+    has covenant_type "AS",
+    has question_text "Are ordinary course dispositions (inventory, obsolete equipment) permitted?",
+    has answer_type "boolean",
+    has display_order 1231,
+    has extraction_prompt "Determine whether the permitted-dispositions list permits sales in the ordinary course of business — typically sales of inventory, obsolete equipment, receivables, cash equivalents, and surplus property. Look for 'Dispositions in the ordinary course of business' or 'Dispositions of obsolete, worn-out, or surplus property'. Answer true if any such carve-out exists.";
+
+insert $as_d3 isa ontology_question,
+    has question_id "as_d3",
+    has covenant_type "AS",
+    has question_text "Is there a license-out carve-out that could cover Material IP?",
+    has answer_type "boolean",
+    has display_order 1232,
+    has extraction_prompt "Determine whether the permitted-dispositions list includes a carve-out for licenses — especially non-exclusive licenses of intellectual property. Look for 'Licenses, sublicenses, leases or subleases' or 'licenses of Intellectual Property in the ordinary course'. Answer true if any IP license carve-out exists. Combined with a narrow Disposition definition, broad IP license permissions are a J.Crew-adjacent pathway.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS5: MANDATORY PREPAYMENT SWEEP (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_e1 isa ontology_question,
+    has question_id "as_e1",
+    has covenant_type "AS",
+    has question_text "Does the credit agreement include a mandatory prepayment from asset sale proceeds?",
+    has answer_type "boolean",
+    has display_order 1240,
+    has extraction_prompt "Determine whether the credit agreement requires mandatory prepayment of the Loans from Net Cash Proceeds of asset sales. Look in the Mandatory Prepayments section for 'Net Cash Proceeds from any Disposition' or 'Asset Sale Prepayment'. Answer true if any mandatory prepayment from asset sales exists, even if heavily exception-carved.";
+
+insert $as_e2 isa ontology_question,
+    has question_id "as_e2",
+    has covenant_type "AS",
+    has question_text "Is the asset sale sweep tiered by leverage level?",
+    has answer_type "boolean",
+    has display_order 1241,
+    has extraction_prompt "Determine whether the asset sale sweep percentage steps down based on leverage level (a common pattern: 100% at high leverage, 50% at mid-leverage, 0% below a threshold). Look for 'If the First Lien Net Leverage Ratio is greater than X.XXx, 100%; if between X.XX and Y.YYx, 50%; if Y.YYx or less, 0%' style language. Answer true if the sweep has multiple tiers, false if it is a flat rate.";
+
+insert $as_e3 isa ontology_question,
+    has question_id "as_e3",
+    has covenant_type "AS",
+    has question_text "What is the top-tier sweep percentage (when leverage is highest)?",
+    has answer_type "integer",
+    has display_order 1242,
+    has extraction_prompt "Extract the sweep percentage that applies at the highest leverage tier (the least-permissive setting). If the sweep is a flat rate rather than tiered, return that flat rate. Common values: 100, 75, 50. Return as integer (e.g., 100 for 100%, not 1.0). Return null if no asset sale sweep exists.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS6: SWEEP EXEMPTIONS & DE MINIMIS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_f1 isa ontology_question,
+    has question_id "as_f1",
+    has covenant_type "AS",
+    has question_text "Are non-Collateral asset sales exempt from the mandatory prepayment?",
+    has answer_type "boolean",
+    has display_order 1250,
+    has extraction_prompt "Determine whether sales of assets that do not constitute Collateral are excluded from the mandatory-prepayment sweep. Look in the Mandatory Prepayments section for carve-outs referencing 'assets that do not constitute Collateral' or 'non-Collateral assets'. Answer true if any such exemption exists.";
+
+insert $as_f2 isa ontology_question,
+    has question_id "as_f2",
+    has covenant_type "AS",
+    has question_text "Is there an individual-transaction de minimis threshold for the sweep?",
+    has answer_type "number",
+    has display_order 1251,
+    has extraction_prompt "Extract the per-transaction de minimis threshold (in USD, full number not millions) below which an individual disposition is exempt from the sweep. Commonly expressed as 'Net Cash Proceeds in excess of $X' or 'excluding dispositions with proceeds of less than $X individually'. Return the dollar figure. Return null if no individual threshold exists.";
+
+insert $as_f3 isa ontology_question,
+    has question_id "as_f3",
+    has covenant_type "AS",
+    has question_text "Is there an annual aggregate de minimis threshold for the sweep?",
+    has answer_type "number",
+    has display_order 1252,
+    has extraction_prompt "Extract the annual aggregate de minimis threshold (in USD, full number not millions) below which dispositions in aggregate are exempt from the sweep. Often the greater of a dollar amount and a percentage of EBITDA. Return the dollar figure only (the EBITDA percentage is a separate consideration). Return null if no aggregate threshold exists.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS7: REINVESTMENT RIGHTS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_g1 isa ontology_question,
+    has question_id "as_g1",
+    has covenant_type "AS",
+    has question_text "Is there a reinvestment right that suspends the sweep?",
+    has answer_type "boolean",
+    has display_order 1260,
+    has extraction_prompt "Determine whether the Borrower can defer or avoid the sweep by reinvesting Net Cash Proceeds in the business within a stated period. Look for 'Reinvestment Period', 'reinvest such proceeds in the business', or 'applied to the acquisition of Replacement Assets'. Answer true if any reinvestment mechanic exists. Note: the question is whether PROCEEDS can be retained pending reinvestment, not whether the Borrower can contract to reinvest (the latter is the extension period).";
+
+insert $as_g2 isa ontology_question,
+    has question_id "as_g2",
+    has covenant_type "AS",
+    has question_text "What is the reinvestment period (in days) from receipt of proceeds?",
+    has answer_type "integer",
+    has display_order 1261,
+    has extraction_prompt "Extract the initial reinvestment period in days — the time the Borrower has to reinvest (or commit to reinvest) Net Cash Proceeds without triggering the sweep. Common values: 365, 540, 270 days. Return as integer (days). If the period is stated in months, convert to days (365 for 12 months). Return null if no reinvestment right exists.";
+
+insert $as_g3 isa ontology_question,
+    has question_id "as_g3",
+    has covenant_type "AS",
+    has question_text "Is there an extension period if proceeds are contractually committed to reinvest?",
+    has answer_type "integer",
+    has display_order 1262,
+    has extraction_prompt "Extract the extension period in days beyond the initial reinvestment period if the Borrower has entered a binding commitment to reinvest before the initial period expires. Common value: 180 days (6 months). Look for 'an additional 180 days if the Borrower has entered into a binding commitment'. Return as integer (days). Return 0 if there is no extension mechanic. Return null if no reinvestment right at all.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS8: SALE-LEASEBACK TRANSACTIONS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_h1 isa ontology_question,
+    has question_id "as_h1",
+    has covenant_type "AS",
+    has question_text "Are sale-leaseback transactions separately permitted?",
+    has answer_type "boolean",
+    has display_order 1270,
+    has extraction_prompt "Determine whether the agreement contains a separate permitted-sale-leaseback clause (often under a 'Sale and Leaseback Transactions' heading or as a clause within dispositions). Look for 'Sale-Leaseback Transactions' or 'sale of assets followed by lease-back'. Answer true if any such permission exists, false if sale-leasebacks are prohibited or not addressed.";
+
+insert $as_h2 isa ontology_question,
+    has question_id "as_h2",
+    has covenant_type "AS",
+    has question_text "Are sale-leaseback proceeds subject to the general asset sale sweep?",
+    has answer_type "boolean",
+    has display_order 1271,
+    has extraction_prompt "Determine whether Net Cash Proceeds from permitted sale-leasebacks are subject to the mandatory prepayment sweep on the same terms as other asset sales. Look for cross-references from sale-leaseback to the Mandatory Prepayments section, or an explicit exemption. Answer true if proceeds are subject to the sweep, false if exempt.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS9: CROSS-COVENANT LINKS & VULNERABILITIES (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_i1 isa ontology_question,
+    has question_id "as_i1",
+    has covenant_type "AS",
+    has question_text "Do retained asset sale proceeds feed the RP Builder Basket?",
+    has answer_type "boolean",
+    has display_order 1280,
+    has extraction_prompt "Determine whether Net Cash Proceeds from asset sales that are not swept to repay the Loans (i.e., retained by the Borrower) feed the RP builder basket (Cumulative Amount / Available Amount). Look in the definition of the builder basket for a component labeled 'Retained Asset Sale Proceeds' or 'Net Cash Proceeds from Dispositions not required to be applied pursuant to Section [X]'. Answer true if such a feed exists. This creates a material RP capacity source in deals with low sweeps.";
+
+insert $as_i2 isa ontology_question,
+    has question_id "as_i2",
+    has covenant_type "AS",
+    has question_text "Are ratio-basket dispositions exempt from the mandatory prepayment?",
+    has answer_type "boolean",
+    has display_order 1281,
+    has extraction_prompt "Determine whether dispositions made under the ratio disposition basket (the unlimited basket conditioned on a leverage test) are exempt from the mandatory prepayment sweep. Look for carve-outs in the Mandatory Prepayments section referring to dispositions permitted under the ratio prong. Answer true if such dispositions are sweep-exempt. A ratio basket that also escapes the sweep is a material structural gap — it permits large cash-generating exits with zero debt reduction.";
+
+insert $as_i3 isa ontology_question,
+    has question_id "as_i3",
+    has covenant_type "AS",
+    has question_text "Overall asset sales vulnerability assessment (analyst notes)",
+    has answer_type "string",
+    has display_order 1282,
+    has extraction_prompt "Based on the full asset sales analysis, provide a short narrative (2-4 sentences) summarizing the most significant credit concerns in the disposition package: sweep tier structure and stepdowns, de minimis thresholds, reinvestment flexibility, ratio-basket exemptions, non-Collateral carve-outs, license-out pathways, and the interaction with the RP builder basket. Identify the two or three highest-severity concerns. Return as a single string.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# AS1: Core Structure
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS2: Permitted Dispositions
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS3: Ratio Disposition Basket
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS4: Non-Collateral & Ordinary Course
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS5: Mandatory Prepayment Sweep
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS6: Sweep Exemptions & De Minimis
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS7: Reinvestment Rights
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS8: Sale-Leaseback
+match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS9: Cross-Covenant & Vulnerabilities
+match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TODO-ENG: entity_list questions (require schema additions)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# NOTE: Parts of the asset-sale entity model already exist. The schema
+# already has `asset_sale_sweep`, `sweep_tier`, and the `rp_el_sweep_tiers`
+# question (in seed_entity_list_questions.tql). Those were built for the RP
+# module's cross-covenant needs.
+#
+# What's missing for a complete Asset Sales entity model:
+#
+#   entity disposition_basket @abstract,
+#     owns basket_id @key,
+#     owns basket_cap_usd,
+#     owns basket_cap_pct_ebitda,
+#     owns ratio_threshold,
+#     owns uses_no_worse_than_test,
+#     owns sweep_exempt,                  # boolean — does this basket escape the sweep?
+#     plays provision_has_disposition_basket:basket;
+#
+#   entity general_disposition_basket sub disposition_basket;
+#   entity ratio_disposition_basket sub disposition_basket;
+#   entity intercompany_disposition_basket sub disposition_basket;
+#   entity non_collateral_disposition_basket sub disposition_basket;
+#   entity ordinary_course_disposition_basket sub disposition_basket;
+#   entity license_out_basket sub disposition_basket;
+#   entity sale_leaseback_basket sub disposition_basket;
+#
+# Once added, convert the per-basket _exists questions above (as_b1, as_b4,
+# as_c1, as_d1, as_d2, as_d3, as_h1 etc.) into a single entity_list question
+# using `answer_type "entity_list"`, `target_entity_type "disposition_basket"`.

@@ -1,0 +1,345 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# FINANCIAL COVENANTS ONTOLOGY QUESTIONS
+#
+# Covers the maintenance financial covenant framework — leverage tests,
+# coverage tests, test period definitions, EBITDA add-back mechanics, and
+# springing covenant triggers.
+#
+# Categories (8):
+#   FC1 — Core Structure (springing vs maintenance, scope)
+#   FC2 — Leverage Tests
+#   FC3 — Coverage Tests
+#   FC4 — Test Period & Annualization
+#   FC5 — EBITDA Add-Backs
+#   FC6 — Equity Cure (mechanics — EOD flag is eod_c3/c4)
+#   FC7 — Springing Covenant Triggers
+#   FC8 — Step-Downs & Cushions
+#
+# Covenant type: FC
+# Question ID prefix: fc_
+# Category display_order range: 701-708
+# Question display_order range: 1400-1499
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_cat1 isa ontology_category,
+    has category_id "FC1",
+    has name "FinCov Core Structure",
+    has description "Whether financial covenants exist, the split between maintenance and incurrence tests, and the scope of lenders entitled to enforce.",
+    has display_order 701,
+    has extraction_context_sections "FINANCIAL_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "CRITICAL threshold question: is this covenant-lite (no maintenance covenants on term loans), revolver-only springing, or full maintenance? Determine which facility tranches benefit from each test.";
+
+insert $fc_cat2 isa ontology_category,
+    has category_id "FC2",
+    has name "Leverage Tests",
+    has description "Maximum leverage ratios — total, first-lien, secured, net of cash caps.",
+    has display_order 702,
+    has extraction_context_sections "FINANCIAL_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "Identify each leverage test: the definition of the numerator (which debt), the denominator (EBITDA), and the threshold. Extract net-of-cash cap if any.";
+
+insert $fc_cat3 isa ontology_category,
+    has category_id "FC3",
+    has name "Coverage Tests",
+    has description "Minimum interest coverage and fixed charge coverage ratios.",
+    has display_order 703,
+    has extraction_context_sections "FINANCIAL_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "Identify coverage tests. Interest coverage (EBITDA / interest) is increasingly rare in sponsor deals. Fixed charge coverage is also uncommon. Flag presence as unusual and credit-friendly.";
+
+insert $fc_cat4 isa ontology_category,
+    has category_id "FC4",
+    has name "Test Period & Annualization",
+    has description "Test period length, lookback, and annualization mechanics for newly acquired entities.",
+    has display_order 704,
+    has extraction_context_sections "FINANCIAL_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "Focus on the test period (LTM is standard), any annualization or build-up period following an acquisition, and whether there is a 'look-forward' period after an acquisition or material transaction.";
+
+insert $fc_cat5 isa ontology_category,
+    has category_id "FC5",
+    has name "EBITDA Add-Backs",
+    has description "EBITDA definition add-backs — cost savings, synergies, run-rate, Pro Forma effect.",
+    has display_order 705,
+    has extraction_context_sections "DEFINITIONS,FINANCIAL_COVENANTS",
+    has extraction_batch_hint "CRITICAL module. Extract add-back categories permitted: run-rate cost savings, unrealized synergies, projected savings, non-recurring charges. Extract any cap on total add-backs (often 25-30% of Consolidated EBITDA before add-backs).";
+
+insert $fc_cat6 isa ontology_category,
+    has category_id "FC6",
+    has name "Equity Cure Mechanics",
+    has description "Equity cure details — deemed EBITDA add-back, cap on cure amount, mandatory application to debt.",
+    has display_order 706,
+    has extraction_context_sections "FINANCIAL_COVENANTS,EVENTS_OF_DEFAULT",
+    has extraction_batch_hint "Complements the EOD module. Focus on HOW equity cure works: added to EBITDA or reduced from debt? Cap on cure amount (often 25% of EBITDA)? Must proceeds be applied to debt?";
+
+insert $fc_cat7 isa ontology_category,
+    has category_id "FC7",
+    has name "Springing Covenant Triggers",
+    has description "Revolver utilization thresholds that trigger a springing financial covenant.",
+    has display_order 707,
+    has extraction_context_sections "FINANCIAL_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "For revolver-only springing covenants, extract the utilization threshold (% of revolver drawn) that triggers the test. Common: 35%, 40%. Also extract what drawings count (cash borrowings only, or LCs).";
+
+insert $fc_cat8 isa ontology_category,
+    has category_id "FC8",
+    has name "Step-Downs & Cushions",
+    has description "Scheduled tightening of financial covenant thresholds over time. Cushion over opening leverage.",
+    has display_order 708,
+    has extraction_context_sections "FINANCIAL_COVENANTS",
+    has extraction_batch_hint "Extract the step-down schedule: at closing, after year 1, after year 2, etc. Determine the opening cushion (difference between opening leverage and the first test level) — typically 25-35%.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC1: CORE STRUCTURE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_a1 isa ontology_question,
+    has question_id "fc_a1",
+    has covenant_type "FC",
+    has question_text "Are there any maintenance financial covenants in the agreement?",
+    has answer_type "boolean",
+    has display_order 1400,
+    has extraction_prompt "Determine whether the credit agreement includes any maintenance financial covenant — a test that must be satisfied at each reporting date regardless of whether a new incurrence occurs. Look for 'Financial Covenant' as a defined term, or a section titled 'Financial Covenants' / 'Financial Condition'. Answer true if any maintenance covenant exists (even if revolver-only). Answer false only if the deal is fully covenant-lite with only incurrence-based tests.";
+
+insert $fc_a2 isa ontology_question,
+    has question_id "fc_a2",
+    has covenant_type "FC",
+    has question_text "Is the financial covenant limited to the revolver (springing-style)?",
+    has answer_type "boolean",
+    has display_order 1401,
+    has extraction_prompt "Determine whether the financial covenant benefits only the Revolving Lenders (tested only if revolver utilization exceeds a threshold) or benefits all Lenders including Term Loan Lenders. Look for language such as 'Financial Covenant applies solely for the benefit of the Revolving Lenders' or 'shall be tested solely if the aggregate Revolving Credit Exposure exceeds X%'. Answer true if the covenant is springing / revolver-only.";
+
+insert $fc_a3 isa ontology_question,
+    has question_id "fc_a3",
+    has covenant_type "FC",
+    has question_text "Can Term Loan Lenders enforce the financial covenant directly?",
+    has answer_type "boolean",
+    has display_order 1402,
+    has extraction_prompt "Determine whether Term Loan Lenders can enforce a financial covenant breach, or whether enforcement is reserved to the Revolving Lenders (or to a subset). Look for 'breach of the Financial Covenant shall not constitute an Event of Default with respect to the Term Loans'. Answer true if Term Lenders have enforcement rights (more lender-friendly), false if the covenant runs only to revolver.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC2: LEVERAGE TESTS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_b1 isa ontology_question,
+    has question_id "fc_b1",
+    has covenant_type "FC",
+    has question_text "Is there a maximum Total Leverage Ratio test?",
+    has answer_type "boolean",
+    has display_order 1410,
+    has extraction_prompt "Determine whether the financial covenant includes a Total (Net) Leverage Ratio test — total funded debt (possibly net of unrestricted cash) over Consolidated EBITDA. Look for 'Total Leverage Ratio', 'Total Net Leverage Ratio', or 'Consolidated Leverage Ratio' as a defined term tested in the financial covenant section. Answer true if such a test exists.";
+
+insert $fc_b2 isa ontology_question,
+    has question_id "fc_b2",
+    has covenant_type "FC",
+    has question_text "Is there a maximum First Lien Leverage Ratio test?",
+    has answer_type "boolean",
+    has display_order 1411,
+    has extraction_prompt "Determine whether the financial covenant includes a First Lien (Net) Leverage Ratio test — first-lien debt over Consolidated EBITDA. Look for 'First Lien Net Leverage Ratio' or 'Senior Secured First Lien Net Leverage Ratio' as a defined term tested in the financial covenant section. Answer true if such a test exists. First-lien-only tests are more borrower-friendly than total-leverage tests because junior-lien and subordinated debt is not counted.";
+
+insert $fc_b3 isa ontology_question,
+    has question_id "fc_b3",
+    has covenant_type "FC",
+    has question_text "What is the opening leverage threshold (at closing)?",
+    has answer_type "number",
+    has display_order 1412,
+    has extraction_prompt "Extract the leverage threshold that applies at closing (or during the first test period). If multiple leverage tests exist, extract the total-leverage threshold if present, else first-lien. Return as a number (e.g., 7.50 for 7.50x, NOT 750). If the covenant is springing, extract the test level that would apply when triggered. Return null if no leverage test applies.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC3: COVERAGE TESTS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_c1 isa ontology_question,
+    has question_id "fc_c1",
+    has covenant_type "FC",
+    has question_text "Is there a minimum Interest Coverage Ratio test?",
+    has answer_type "boolean",
+    has display_order 1420,
+    has extraction_prompt "Determine whether the financial covenant includes a minimum Interest Coverage Ratio test — Consolidated EBITDA over Consolidated Interest Expense. Look for 'Interest Coverage Ratio' as a defined term in the financial covenant section. Answer true if such a test exists. Interest coverage covenants have largely disappeared from modern sponsor deals — their presence is lender-friendly and unusual.";
+
+insert $fc_c2 isa ontology_question,
+    has question_id "fc_c2",
+    has covenant_type "FC",
+    has question_text "Is there a minimum Fixed Charge Coverage Ratio test?",
+    has answer_type "boolean",
+    has display_order 1421,
+    has extraction_prompt "Determine whether the financial covenant includes a Fixed Charge Coverage Ratio test — EBITDA minus capex over interest plus scheduled debt amortization. Look for 'Fixed Charge Coverage Ratio' as a defined term in the financial covenant section. Answer true if such a test exists. Fixed charge coverage maintenance covenants are essentially absent from modern institutional sponsor deals.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC4: TEST PERIOD & ANNUALIZATION (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_d1 isa ontology_question,
+    has question_id "fc_d1",
+    has covenant_type "FC",
+    has question_text "Is the test period the most recently ended four fiscal quarters (LTM)?",
+    has answer_type "boolean",
+    has display_order 1430,
+    has extraction_prompt "Determine whether the financial covenant is tested on a last-twelve-months (LTM) basis — the four fiscal quarters ending on the applicable test date. Look for 'Test Period' as a defined term, or language such as 'the period of four consecutive fiscal quarters most recently ended'. Answer true if LTM, false if a different period (e.g., annualized quarterly, fiscal year).";
+
+insert $fc_d2 isa ontology_question,
+    has question_id "fc_d2",
+    has covenant_type "FC",
+    has question_text "Does the covenant permit pro forma adjustment for Permitted Acquisitions?",
+    has answer_type "boolean",
+    has display_order 1431,
+    has extraction_prompt "Determine whether EBITDA can be adjusted on a pro forma basis for Permitted Acquisitions completed during the test period (as if the acquisition had occurred at the start). Look for 'Pro Forma Adjustment', 'Pro Forma Effect', 'Pro Forma Basis' in the EBITDA or Test Period definitions. Answer true if pro forma acquisition EBITDA can be included. This adjustment can materially soften leverage tests following M&A.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC5: EBITDA ADD-BACKS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_e1 isa ontology_question,
+    has question_id "fc_e1",
+    has covenant_type "FC",
+    has question_text "Are cost savings, synergies, and operating improvements added back to EBITDA?",
+    has answer_type "boolean",
+    has display_order 1440,
+    has extraction_prompt "Determine whether the Consolidated EBITDA definition permits adding back projected cost savings, synergies, and operating improvements expected to be realized within a forward-looking period (commonly 18-24 months). Look in the EBITDA definition for 'cost savings', 'synergies', 'operating improvements', or 'run-rate cost savings'. Answer true if any such add-back is permitted, false if EBITDA is a strict historical calculation.";
+
+insert $fc_e2 isa ontology_question,
+    has question_id "fc_e2",
+    has covenant_type "FC",
+    has question_text "Is there a cap on total EBITDA add-backs?",
+    has answer_type "boolean",
+    has display_order 1441,
+    has extraction_prompt "Determine whether the aggregate of add-backs is capped (typically as a percentage of EBITDA before add-backs — 25%, 30% common). Look in the EBITDA definition for language such as 'the aggregate amount of all such adjustments shall not exceed 25% of Consolidated EBITDA'. Answer true if any cap applies. Uncapped add-back capacity is a lender-unfriendly feature that can materially inflate reported EBITDA.";
+
+insert $fc_e3 isa ontology_question,
+    has question_id "fc_e3",
+    has covenant_type "FC",
+    has question_text "What is the forward-looking period for cost-savings add-backs (months)?",
+    has answer_type "integer",
+    has display_order 1442,
+    has extraction_prompt "Extract the forward-looking period (in months) within which projected cost savings or synergies must be expected to be realized to qualify as an EBITDA add-back. Common values: 12, 18, 24, 36 months. Return as integer. Return null if add-backs do not have a time qualifier or if add-backs are not permitted.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC6: EQUITY CURE MECHANICS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_f1 isa ontology_question,
+    has question_id "fc_f1",
+    has covenant_type "FC",
+    has question_text "Does equity cure treat contributions as an addition to EBITDA (rather than a reduction of debt)?",
+    has answer_type "boolean",
+    has display_order 1450,
+    has extraction_prompt "Determine the mechanic for how equity cure contributions affect the covenant test. The two options are: (a) the contribution is ADDED to Consolidated EBITDA for test purposes (the 'EBITDA add-back' method) or (b) the contribution REDUCES outstanding debt for the ratio calculation (the 'debt reduction' method). Look for 'deemed to be an increase in Consolidated EBITDA' vs 'deemed to reduce outstanding Indebtedness'. Answer true if EBITDA-add-back method, false if debt-reduction method. EBITDA method is more borrower-friendly because the add-back persists across four quarters.";
+
+insert $fc_f2 isa ontology_question,
+    has question_id "fc_f2",
+    has covenant_type "FC",
+    has question_text "Must equity cure proceeds be applied to prepay debt?",
+    has answer_type "boolean",
+    has display_order 1451,
+    has extraction_prompt "Determine whether equity cure proceeds must be applied to prepay outstanding Loans. Look in the cure-right clause for mandatory-application language. Answer true if proceeds must be applied, false if the Borrower may retain them for general corporate purposes. Retained cure proceeds are a sponsor-friendly feature that effectively converts equity into revolver capacity.";
+
+insert $fc_f3 isa ontology_question,
+    has question_id "fc_f3",
+    has covenant_type "FC",
+    has question_text "Is there a minimum gap between consecutive equity cure exercises?",
+    has answer_type "boolean",
+    has display_order 1452,
+    has extraction_prompt "Determine whether the equity cure provision requires a minimum gap (in quarters) between consecutive cures — typically 'not in two consecutive quarters' or 'at least three quarters between cures'. Look for 'may not be exercised in any two consecutive fiscal quarters' or similar. Answer true if any gap requirement exists. Without a gap requirement, the Borrower can cure every quarter up to the lifetime cap.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC7: SPRINGING COVENANT TRIGGERS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_g1 isa ontology_question,
+    has question_id "fc_g1",
+    has covenant_type "FC",
+    has question_text "What is the revolver utilization percentage that triggers the springing test?",
+    has answer_type "integer",
+    has display_order 1460,
+    has extraction_prompt "Extract the threshold, as a percentage of revolver commitments, at which the springing financial covenant becomes applicable. Common values: 35, 40. Return as integer (e.g., 35 for 35%, NOT 0.35). Return null if the covenant is not springing (i.e., always applies).";
+
+insert $fc_g2 isa ontology_question,
+    has question_id "fc_g2",
+    has covenant_type "FC",
+    has question_text "Are undrawn Letters of Credit counted toward the springing trigger utilization?",
+    has answer_type "boolean",
+    has display_order 1461,
+    has extraction_prompt "Determine whether outstanding but undrawn Letters of Credit count toward the revolver utilization percentage that triggers the springing covenant. Look for 'Revolving Credit Exposure' or 'Revolver Utilization' definitions — these may include LC exposure. Answer true if undrawn LCs count, false if only cash borrowings count toward the trigger. Excluding undrawn LCs is a meaningful borrower-friendly feature.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FC8: STEP-DOWNS & CUSHIONS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $fc_h1 isa ontology_question,
+    has question_id "fc_h1",
+    has covenant_type "FC",
+    has question_text "Is there a scheduled step-down of the leverage covenant over time?",
+    has answer_type "boolean",
+    has display_order 1470,
+    has extraction_prompt "Determine whether the financial covenant includes scheduled step-downs — tightening of the leverage threshold at pre-defined dates (e.g., the first anniversary, second anniversary). Look for a table of covenant levels by period, or language such as 'the Total Net Leverage Ratio shall not exceed X.XX:1.00 during the period ending [date]'. Answer true if any step-down exists.";
+
+insert $fc_h2 isa ontology_question,
+    has question_id "fc_h2",
+    has covenant_type "FC",
+    has question_text "Overall financial covenants assessment (analyst notes)",
+    has answer_type "string",
+    has display_order 1471,
+    has extraction_prompt "Based on the full financial covenants analysis, provide a short narrative (2-4 sentences) summarizing the package: cov-lite vs springing vs full-maintenance, opening leverage cushion, add-back permissiveness, equity cure mechanics, and step-down steepness. Identify the key credit-friendly and credit-unfriendly features. Return as a single string.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h2";
+insert (category: $cat, question: $q) isa category_has_question;

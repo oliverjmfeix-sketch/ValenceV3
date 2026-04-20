@@ -1,0 +1,185 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# AFFILIATE TRANSACTIONS ONTOLOGY QUESTIONS
+#
+# Covers the Transactions with Affiliates covenant — arm's-length requirement
+# for dealings with Sponsor, equity holders, and affiliated entities. Includes
+# management compensation exceptions.
+#
+# Categories (4):
+#   AFF1 — Core Structure
+#   AFF2 — Arm's-Length / FMV Requirement
+#   AFF3 — Management Fee & Compensation Exceptions
+#   AFF4 — Other Carve-Outs (existing agreements, intercompany, ordinary course)
+#
+# Covenant type: AFF
+# Question ID prefix: aff_
+# Category display_order range: 1001-1004
+# Question display_order range: 1700-1799
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $aff_cat1 isa ontology_category,
+    has category_id "AFF1",
+    has name "Affiliate Tx Core Structure",
+    has description "Existence and scope of the affiliate transactions covenant.",
+    has display_order 1001,
+    has extraction_context_sections "NEGATIVE_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "Focus on whether the covenant exists and the definition of 'Affiliate' (particularly whether it captures Sponsor-related entities comprehensively).";
+
+insert $aff_cat2 isa ontology_category,
+    has category_id "AFF2",
+    has name "Arm's-Length / FMV Requirement",
+    has description "Standard of commercial reasonableness for affiliate dealings. Dollar thresholds for board approval.",
+    has display_order 1002,
+    has extraction_context_sections "NEGATIVE_COVENANTS",
+    has extraction_batch_hint "Extract the arm's-length / FMV standard and any board approval or fairness opinion thresholds.";
+
+insert $aff_cat3 isa ontology_category,
+    has category_id "AFF3",
+    has name "Management Fee & Compensation",
+    has description "Permissions for Sponsor management fees, transaction fees, and compensation to directors/officers.",
+    has display_order 1003,
+    has extraction_context_sections "NEGATIVE_COVENANTS,DEFINITIONS",
+    has extraction_batch_hint "Extract the Sponsor management fee cap and any transaction fee permissions. Management fees are typically capped as the greater of a dollar amount and a percentage of EBITDA.";
+
+insert $aff_cat4 isa ontology_category,
+    has category_id "AFF4",
+    has name "Other Carve-Outs",
+    has description "Intercompany transactions, existing agreements, and ordinary course carve-outs.",
+    has display_order 1004,
+    has extraction_context_sections "NEGATIVE_COVENANTS",
+    has extraction_batch_hint "Enumerate carve-outs: intercompany transactions between Loan Parties, existing agreements listed on schedule, employment compensation, and ordinary course affiliate dealings.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AFF1: CORE STRUCTURE (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $aff_a1 isa ontology_question,
+    has question_id "aff_a1",
+    has covenant_type "AFF",
+    has question_text "Does a Transactions with Affiliates covenant exist?",
+    has answer_type "boolean",
+    has display_order 1700,
+    has extraction_prompt "Determine whether the credit agreement contains a negative covenant restricting transactions with Affiliates. Look in the Negative Covenants article for a section titled 'Transactions with Affiliates', 'Affiliate Transactions', or similar. The covenant typically begins 'The Borrower will not, and will not permit any Restricted Subsidiary to, enter into any transaction with any Affiliate...'. Answer true if any such covenant exists.";
+
+insert $aff_a2 isa ontology_question,
+    has question_id "aff_a2",
+    has covenant_type "AFF",
+    has question_text "Is 'Affiliate' defined to expressly include the Sponsor and its affiliates?",
+    has answer_type "boolean",
+    has display_order 1701,
+    has extraction_prompt "Examine the defined term 'Affiliate'. Determine whether the definition is broad enough to capture the Sponsor, Sponsor-controlled funds, and other Sponsor-affiliated entities. Look for 'control' as the operative test and whether 'Sponsor' is referenced directly or captured via the general control test. Answer true if the Sponsor and its affiliates are unambiguously included. A narrow Affiliate definition is a significant gap — Sponsor-related dealings could escape the covenant.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AFF2: ARM'S-LENGTH / FMV REQUIREMENT (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $aff_b1 isa ontology_question,
+    has question_id "aff_b1",
+    has covenant_type "AFF",
+    has question_text "Are affiliate transactions required to be on arm's-length / FMV terms?",
+    has answer_type "boolean",
+    has display_order 1710,
+    has extraction_prompt "Determine whether the covenant requires affiliate transactions to be on terms that are (a) at arm's-length and (b) no less favorable to the Borrower / Restricted Subsidiary than would be obtainable from an unaffiliated party. Look for 'on terms no less favorable than would be obtainable in a comparable transaction with an unaffiliated Person'. Answer true if the arm's-length / FMV standard applies.";
+
+insert $aff_b2 isa ontology_question,
+    has question_id "aff_b2",
+    has covenant_type "AFF",
+    has question_text "Is there a board approval or fairness opinion threshold for large affiliate transactions?",
+    has answer_type "number",
+    has display_order 1711,
+    has extraction_prompt "Extract the dollar threshold above which affiliate transactions require board approval or a fairness opinion (in USD, full number not millions). Common values: $25 million, $50 million. Look for 'transactions in excess of $X must be approved by the disinterested members of the board' or 'shall be supported by a fairness opinion'. Return the dollar threshold. Return null if no such threshold exists.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AFF3: MANAGEMENT FEE & COMPENSATION (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $aff_c1 isa ontology_question,
+    has question_id "aff_c1",
+    has covenant_type "AFF",
+    has question_text "Are Sponsor management fees expressly permitted?",
+    has answer_type "boolean",
+    has display_order 1720,
+    has extraction_prompt "Determine whether the covenant carves out payment of Sponsor management fees (advisory fees paid to the Sponsor or its affiliates for ongoing management services). Look for 'management fees payable to the Sponsor' or 'pursuant to the Management Agreement'. Answer true if management fees are expressly permitted. This is a standard permission but the cap matters — see aff_c2.";
+
+insert $aff_c2 isa ontology_question,
+    has question_id "aff_c2",
+    has covenant_type "AFF",
+    has question_text "What is the annual Sponsor management fee cap in USD?",
+    has answer_type "number",
+    has display_order 1721,
+    has extraction_prompt "Extract the annual cap on Sponsor management fees, in USD (full number not millions). Commonly stated as 'the greater of $X and Y% of Consolidated EBITDA'. Return the dollar figure only (the EBITDA grower is a separate data point). Return null if management fees are not permitted or not capped.";
+
+insert $aff_c3 isa ontology_question,
+    has question_id "aff_c3",
+    has covenant_type "AFF",
+    has question_text "Are Sponsor transaction fees (e.g., M&A advisory) expressly permitted?",
+    has answer_type "boolean",
+    has display_order 1722,
+    has extraction_prompt "Determine whether the covenant permits payment of transaction-based fees to the Sponsor (e.g., fees in connection with Permitted Acquisitions, dispositions, debt financings, or equity offerings). Look for 'transaction fees', 'advisory fees in connection with', or 'fees paid pursuant to a Permitted Transaction'. Answer true if transaction fees are expressly permitted. Often these fees are capped as a percentage of transaction value (1-2% common).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AFF4: OTHER CARVE-OUTS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $aff_d1 isa ontology_question,
+    has question_id "aff_d1",
+    has covenant_type "AFF",
+    has question_text "Are transactions between Loan Parties exempted?",
+    has answer_type "boolean",
+    has display_order 1730,
+    has extraction_prompt "Determine whether transactions between and among Loan Parties are exempted from the covenant (on the theory that affiliate standards don't apply between consolidated group entities). Look for 'transactions between or among the Borrower and its Restricted Subsidiaries' or 'between Loan Parties'. Answer true if intra-group transactions are exempt. This is a credit-neutral carve-out.";
+
+insert $aff_d2 isa ontology_question,
+    has question_id "aff_d2",
+    has covenant_type "AFF",
+    has question_text "Is employment / director compensation exempted?",
+    has answer_type "boolean",
+    has display_order 1731,
+    has extraction_prompt "Determine whether employment agreements, director compensation, indemnification arrangements, and benefit plans with officers/directors are exempted from the covenant. Look for 'employment agreements', 'indemnification', 'benefit plans', or 'compensation of directors and officers'. Answer true if any such exemption exists.";
+
+insert $aff_d3 isa ontology_question,
+    has question_id "aff_d3",
+    has covenant_type "AFF",
+    has question_text "Are existing affiliate agreements (listed on schedule) grandfathered?",
+    has answer_type "boolean",
+    has display_order 1732,
+    has extraction_prompt "Determine whether affiliate agreements in place at closing (and listed on a disclosure schedule) are grandfathered. Look for 'existing agreements listed on Schedule [X] and any renewals, extensions, or amendments that are no less favorable to the Loan Parties'. Answer true if any such grandfather exists. Note: broad renewal/amendment rights can effectively perpetuate non-arm's-length arrangements.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "AFF1"; $q isa ontology_question, has question_id "aff_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF1"; $q isa ontology_question, has question_id "aff_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF2"; $q isa ontology_question, has question_id "aff_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF2"; $q isa ontology_question, has question_id "aff_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF3"; $q isa ontology_question, has question_id "aff_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF3"; $q isa ontology_question, has question_id "aff_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF3"; $q isa ontology_question, has question_id "aff_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d3";
+insert (category: $cat, question: $q) isa category_has_question;

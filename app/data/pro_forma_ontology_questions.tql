@@ -1,0 +1,191 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# PRO FORMA MECHANICS ONTOLOGY QUESTIONS
+#
+# Covers the Pro Forma / Pro Forma Basis / Pro Forma Calculations framework.
+# Pro Forma mechanics determine HOW ratio tests are calculated across
+# transactions — the add-back period, cost-savings windows, and reference
+# period definitions. These mechanics interact with every ratio-based
+# provision (debt incurrence ratio prong, lien ratio basket, investment ratio
+# basket, asset sale ratio basket, RP ratio basket).
+#
+# This file captures the standalone mechanics. Category-specific add-backs to
+# EBITDA are in the Financial Covenants module (FC5).
+#
+# Categories (4):
+#   PF1 — Pro Forma Definitions & Scope
+#   PF2 — Test Period Reference
+#   PF3 — Acquisition & Disposition Pro Forma Treatment
+#   PF4 — LTM Cost Savings & Synergy Treatment
+#
+# Covenant type: PF
+# Question ID prefix: pf_
+# Category display_order range: 1201-1204
+# Question display_order range: 1900-1999
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pf_cat1 isa ontology_category,
+    has category_id "PF1",
+    has name "Pro Forma Definitions & Scope",
+    has description "Defined terms — 'Pro Forma Basis', 'Pro Forma Effect', 'Pro Forma Compliance' — and which provisions they apply to.",
+    has display_order 1201,
+    has extraction_context_sections "DEFINITIONS",
+    has extraction_batch_hint "Extract the defined terms related to Pro Forma calculations and the list of covenant provisions that use them.";
+
+insert $pf_cat2 isa ontology_category,
+    has category_id "PF2",
+    has name "Test Period Reference",
+    has description "Which test period is used for Pro Forma ratio tests (most recently ended, rolling, annualized).",
+    has display_order 1202,
+    has extraction_context_sections "DEFINITIONS",
+    has extraction_batch_hint "Focus on the reference period used for Pro Forma Ratio Tests — especially for the ratio debt basket, ratio lien basket, and ratio investment basket.";
+
+insert $pf_cat3 isa ontology_category,
+    has category_id "PF3",
+    has name "Acquisition & Disposition PF Treatment",
+    has description "How Pro Forma calculations handle Permitted Acquisitions and dispositions during the reference period.",
+    has display_order 1203,
+    has extraction_context_sections "DEFINITIONS",
+    has extraction_batch_hint "Extract how pro forma calculations treat acquisitions (add target EBITDA as if owned throughout) and dispositions (subtract sold-entity EBITDA). Look for symmetry — deals sometimes permit inclusion but not exclusion.";
+
+insert $pf_cat4 isa ontology_category,
+    has category_id "PF4",
+    has name "Cost Savings & Synergy PF Treatment",
+    has description "Pro Forma run-rate cost savings and synergies from acquisitions and operational initiatives.",
+    has display_order 1204,
+    has extraction_context_sections "DEFINITIONS",
+    has extraction_batch_hint "Focus on cost-savings and synergy add-backs at the Pro Forma layer. Forward-looking period (12/18/24/36 months), cap as percentage of EBITDA, officer certification requirements.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PF1: PRO FORMA DEFINITIONS & SCOPE (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pf_a1 isa ontology_question,
+    has question_id "pf_a1",
+    has covenant_type "PF",
+    has question_text "Is 'Pro Forma Basis' (or 'Pro Forma Effect') defined?",
+    has answer_type "boolean",
+    has display_order 1900,
+    has extraction_prompt "Determine whether the agreement defines 'Pro Forma Basis', 'Pro Forma Effect', or 'Pro Forma Compliance' as a stand-alone term used across the covenants. Look in the Definitions article for any such term. Answer true if any such defined term exists, false if pro forma mechanics are only addressed ad-hoc within specific provisions.";
+
+insert $pf_a2 isa ontology_question,
+    has question_id "pf_a2",
+    has covenant_type "PF",
+    has question_text "Does pro forma treatment apply symmetrically to both sides of a calculation?",
+    has answer_type "boolean",
+    has display_order 1901,
+    has extraction_prompt "Determine whether pro forma calculations are applied symmetrically (adjustments for both the new transaction AND any offsetting items within the reference period) rather than only one-way. Look for asymmetric language such as 'giving effect to acquisitions but not to dispositions' — this would allow borrowers to count newly acquired EBITDA while retaining divested debt, inflating capacity. Answer true if symmetric, false if asymmetric. Asymmetric pro forma is a material gap.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PF2: TEST PERIOD REFERENCE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pf_b1 isa ontology_question,
+    has question_id "pf_b1",
+    has covenant_type "PF",
+    has question_text "Do Pro Forma ratio tests use the most recently ended Test Period?",
+    has answer_type "boolean",
+    has display_order 1910,
+    has extraction_prompt "Determine whether Pro Forma ratio tests (for ratio baskets, ratio prong, incurrence tests) use the most recently ended four-quarter Test Period. Look for 'for the most recently ended Test Period for which financial statements have been delivered'. Answer true if standard LTM, false if a different reference period applies. Non-standard reference periods (e.g., 'any period of four consecutive fiscal quarters ending prior to the calculation date') provide choice-of-period optionality for the Borrower.";
+
+insert $pf_b2 isa ontology_question,
+    has question_id "pf_b2",
+    has covenant_type "PF",
+    has question_text "Can the Borrower elect the reference period for Pro Forma tests?",
+    has answer_type "boolean",
+    has display_order 1911,
+    has extraction_prompt "Determine whether the Borrower can elect which four-quarter period to use as the Pro Forma reference period. Look for 'at the Borrower's election' or 'may be calculated on the basis of any four fiscal quarters ending on or prior to such date'. Answer true if the Borrower has period-selection optionality. This is Borrower-friendly: it permits choosing the most favorable historical window.";
+
+insert $pf_b3 isa ontology_question,
+    has question_id "pf_b3",
+    has covenant_type "PF",
+    has question_text "Do interim-period acquisitions automatically update the reference period?",
+    has answer_type "boolean",
+    has display_order 1912,
+    has extraction_prompt "Determine whether acquisitions completed after the end of the last reported Test Period — but before the calculation date — are included in Pro Forma EBITDA as if they had closed at the start of the Test Period. Look for 'acquisitions consummated during or subsequent to the Test Period'. Answer true if interim acquisitions automatically flow into Pro Forma EBITDA.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PF3: ACQUISITION & DISPOSITION PF TREATMENT (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pf_c1 isa ontology_question,
+    has question_id "pf_c1",
+    has covenant_type "PF",
+    has question_text "Does Pro Forma EBITDA include target EBITDA for the full Test Period?",
+    has answer_type "boolean",
+    has display_order 1920,
+    has extraction_prompt "Determine whether Pro Forma calculations include 100% of the target's EBITDA for the full Test Period (as if the acquisition had occurred at the start of the period) rather than a pro-rated amount based on actual ownership. Look for 'as if such Permitted Acquisition had occurred on the first day of the Test Period'. Answer true if full-period inclusion is permitted.";
+
+insert $pf_c2 isa ontology_question,
+    has question_id "pf_c2",
+    has covenant_type "PF",
+    has question_text "Does Pro Forma EBITDA subtract disposed-entity EBITDA for the full Test Period?",
+    has answer_type "boolean",
+    has display_order 1921,
+    has extraction_prompt "Determine whether Pro Forma calculations subtract 100% of a disposed entity's EBITDA for the full Test Period (as if the disposition had occurred at the start of the period). Look for 'and giving effect to Dispositions consummated during or after the Test Period as if such Dispositions occurred on the first day'. Answer true if full-period subtraction is required. Asymmetric treatment — including target EBITDA but not subtracting disposed EBITDA — is a significant gap.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PF4: COST SAVINGS & SYNERGY PF TREATMENT (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pf_d1 isa ontology_question,
+    has question_id "pf_d1",
+    has covenant_type "PF",
+    has question_text "Are run-rate cost savings and synergies added to Pro Forma EBITDA?",
+    has answer_type "boolean",
+    has display_order 1930,
+    has extraction_prompt "Determine whether Pro Forma EBITDA includes run-rate cost savings, synergies, and operating improvements (whether from acquisitions or standalone operational initiatives). Look for 'pro forma cost savings' or 'run-rate synergies projected to be realized'. Answer true if any such add-back is permitted at the pro forma layer. Overlap with FC5 — this question focuses on the ratio-test side where FC5 focuses on financial-covenant EBITDA.";
+
+insert $pf_d2 isa ontology_question,
+    has question_id "pf_d2",
+    has covenant_type "PF",
+    has question_text "Is there a cap on Pro Forma cost-savings add-backs (as a percentage of EBITDA)?",
+    has answer_type "integer",
+    has display_order 1931,
+    has extraction_prompt "Extract the cap, as a percentage of Consolidated EBITDA (before the add-back), on pro forma cost-savings and synergies. Common values: 25, 30. Return as integer (e.g., 25 for 25%, NOT 0.25). Return null if uncapped. Uncapped pro forma add-backs are a major lender concern — they allow material inflation of apparent EBITDA.";
+
+insert $pf_d3 isa ontology_question,
+    has question_id "pf_d3",
+    has covenant_type "PF",
+    has question_text "Must a responsible officer certify cost-savings projections?",
+    has answer_type "boolean",
+    has display_order 1932,
+    has extraction_prompt "Determine whether cost-savings add-backs require certification by a responsible officer of the Borrower (typically the CFO) as to reasonableness and good-faith determination. Look for 'certified by a Responsible Officer' or 'supported by a certificate of the Borrower'. Answer true if certification is required. Required certification provides a modest accountability backstop even when add-backs are otherwise uncapped.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "PF1"; $q isa ontology_question, has question_id "pf_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF1"; $q isa ontology_question, has question_id "pf_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PF2"; $q isa ontology_question, has question_id "pf_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF2"; $q isa ontology_question, has question_id "pf_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF2"; $q isa ontology_question, has question_id "pf_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PF3"; $q isa ontology_question, has question_id "pf_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF3"; $q isa ontology_question, has question_id "pf_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PF4"; $q isa ontology_question, has question_id "pf_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF4"; $q isa ontology_question, has question_id "pf_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PF4"; $q isa ontology_question, has question_id "pf_d3";
+insert (category: $cat, question: $q) isa category_has_question;

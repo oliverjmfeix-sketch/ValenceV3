@@ -1,0 +1,468 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# LIENS ONTOLOGY QUESTIONS
+#
+# This file defines the question set for Liens covenant extraction.
+# Questions are grouped into 8 categories (LN1-LN8) covering:
+#   - Core covenant structure
+#   - Grandfathered / scheduled existing liens
+#   - Ratio-based secured lien capacity
+#   - General (freebie) lien basket
+#   - Category-specific baskets (PM, cap lease, acquisition, refinancing)
+#   - Intercompany & foreign / non-guarantor sub liens
+#   - Cross-covenant correlation with Debt Incurrence baskets
+#   - Vulnerabilities (priming risk, IP-adjacent pathways, unlimited ratio)
+#
+# Covenant type: LIENS
+# Question ID prefix: ln_
+# Category display_order range: 301-308
+# Question display_order range: 1000-1099
+#
+# Pattern note: this file follows the di_ontology_questions.tql convention —
+# categories, questions, and category_has_question linkage all live in the
+# same file. Scalar questions only in this scaffold; entity_list questions
+# (for extracting each distinct lien basket as a typed entity) are flagged
+# TODO-ENG at the bottom and require schema additions.
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_cat1 isa ontology_category,
+    has category_id "LN1",
+    has name "Liens Core Structure",
+    has description "Existence, scope, and general structure of the liens negative covenant. Who is bound and what is prohibited.",
+    has display_order 301,
+    has extraction_context_sections "LIENS_COVENANT,NEGATIVE_COVENANTS",
+    has extraction_batch_hint "Focus on whether a liens/negative-pledge covenant exists, which entities are bound (borrower, guarantors, restricted subsidiaries), and the breadth of the Lien definition.";
+
+insert $ln_cat2 isa ontology_category,
+    has category_id "LN2",
+    has name "Existing / Scheduled Liens",
+    has description "Grandfathered liens in place at closing. Scope of schedule, permitted replacements, and cap (if any).",
+    has display_order 302,
+    has extraction_context_sections "LIENS_COVENANT,DEFINITIONS",
+    has extraction_batch_hint "Identify the 'Permitted Liens — Existing' or 'Existing Liens' clause and its corresponding schedule. Determine whether the clause permits refinancing/replacement of scheduled liens and whether there is a dollar cap on that refresh.";
+
+insert $ln_cat3 isa ontology_category,
+    has category_id "LN3",
+    has name "Ratio Lien Basket",
+    has description "Leverage-based secured lien capacity. Ratio prong mechanics, ratio test choice, and priority levels covered.",
+    has display_order 303,
+    has extraction_context_sections "LIENS_COVENANT,DEFINITIONS",
+    has extraction_batch_hint "Focus on any permitted lien basket that grants UNLIMITED capacity subject to a leverage ratio test. Extract the ratio test type (first-lien, total, secured) and threshold. Critical question: does this basket permit first-lien priming, pari passu, or only junior liens?";
+
+insert $ln_cat4 isa ontology_category,
+    has category_id "LN4",
+    has name "General (Freebie) Lien Basket",
+    has description "Fixed-dollar (or grower) general permitted lien basket not tied to a leverage test.",
+    has display_order 304,
+    has extraction_context_sections "LIENS_COVENANT",
+    has extraction_batch_hint "Identify the general (catch-all) permitted lien basket. Extract the fixed-dollar amount and any grower component (typically stated as 'the greater of $X and Y% of Consolidated EBITDA').";
+
+insert $ln_cat5 isa ontology_category,
+    has category_id "LN5",
+    has name "Category-Specific Lien Baskets",
+    has description "Purchase money, capital lease, acquisition, and refinancing lien baskets. Narrow-purpose baskets tied to specific debt or asset categories.",
+    has display_order 305,
+    has extraction_context_sections "LIENS_COVENANT,DEBT_INCURRENCE",
+    has extraction_batch_hint "Identify each category-specific lien basket. These typically mirror debt incurrence baskets — a purchase money debt basket usually has a matching purchase money lien basket. Extract existence of each and any caps.";
+
+insert $ln_cat6 isa ontology_category,
+    has category_id "LN6",
+    has name "Intercompany & Non-Guarantor Liens",
+    has description "Permissions for liens securing intercompany debt, foreign subsidiary liens, and liens on non-guarantor subsidiary assets.",
+    has display_order 306,
+    has extraction_context_sections "LIENS_COVENANT,DEBT_INCURRENCE",
+    has extraction_batch_hint "Focus on liens between group entities and liens on non-guarantor sub assets. These pathways are frequently exploited in liability management transactions.";
+
+insert $ln_cat7 isa ontology_category,
+    has category_id "LN7",
+    has name "Cross-Covenant Correlation",
+    has description "Mapping between lien baskets and corresponding debt incurrence baskets. Capacity-sharing vs separate-pool mechanics.",
+    has display_order 307,
+    has extraction_context_sections "LIENS_COVENANT,DEBT_INCURRENCE",
+    has extraction_batch_hint "For each lien basket, determine whether it has a matching debt incurrence basket and whether capacity is shared or separate. Identify whether IED (Incremental Equivalent Debt) can be secured, and if so on what lien priority.";
+
+insert $ln_cat8 isa ontology_category,
+    has category_id "LN8",
+    has name "Liens Vulnerabilities",
+    has description "Pattern detection: unlimited ratio liens (priming risk), IP-adjacent pathways, non-guarantor trapdoor liens, reclassification loopholes.",
+    has display_order 308,
+    has extraction_context_sections "LIENS_COVENANT,DEBT_INCURRENCE,RESTRICTED_PAYMENTS",
+    has extraction_batch_hint "Flag patterns that create credit-unfriendly optionality: unlimited ratio lien basket with permissive test, liens permitted on Material IP, unlimited liens on non-guarantor sub assets, or reclassification that allows first-lien priming.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN1: LIENS CORE STRUCTURE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_a1 isa ontology_question,
+    has question_id "ln_a1",
+    has covenant_type "LIENS",
+    has question_text "Does a liens negative covenant exist?",
+    has answer_type "boolean",
+    has display_order 1000,
+    has extraction_prompt "Determine whether the credit agreement contains a negative covenant restricting the creation of Liens. Look in the Negative Covenants article for a section titled 'Liens', 'Limitation on Liens', or 'Negative Pledge'. The covenant typically begins 'The Borrower will not, and will not permit any Restricted Subsidiary to, create, incur, assume or suffer to exist any Lien on any property or asset now owned or hereafter acquired...'. Answer true if any such covenant exists, even if heavily carved out.";
+
+insert $ln_a2 isa ontology_question,
+    has question_id "ln_a2",
+    has covenant_type "LIENS",
+    has question_text "Does the liens covenant bind the Borrower?",
+    has answer_type "boolean",
+    has display_order 1001,
+    has extraction_prompt "Determine whether the Borrower is bound by the liens covenant. Look for 'The Borrower will not' or 'The Borrower shall not' in the covenant's opening language. Answer true if the Borrower is explicitly bound.";
+
+insert $ln_a3 isa ontology_question,
+    has question_id "ln_a3",
+    has covenant_type "LIENS",
+    has question_text "Does the liens covenant bind all Restricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1002,
+    has extraction_prompt "Determine whether the liens covenant extends to all Restricted Subsidiaries. Look for 'will not permit any Restricted Subsidiary to...'. Answer true only if ALL Restricted Subsidiaries are covered. Answer false if only Loan Parties / Guarantors are bound — this is a material gap because it leaves non-guarantor restricted subs free to grant liens.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN2: EXISTING / SCHEDULED LIENS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_b1 isa ontology_question,
+    has question_id "ln_b1",
+    has covenant_type "LIENS",
+    has question_text "Is there a permitted-liens exception for liens existing at closing (scheduled)?",
+    has answer_type "boolean",
+    has display_order 1010,
+    has extraction_prompt "Determine whether the Permitted Liens list includes a carve-out for Liens existing on the closing date and listed on a disclosure schedule (commonly 'Schedule 1.01(b) — Existing Liens' or similar). Look for language like 'Liens in existence on the Closing Date and listed on Schedule [X]'. Answer true if any such grandfathering exists, false if all pre-existing liens had to be released at closing.";
+
+insert $ln_b2 isa ontology_question,
+    has question_id "ln_b2",
+    has covenant_type "LIENS",
+    has question_text "Can scheduled existing liens be refinanced or replaced?",
+    has answer_type "boolean",
+    has display_order 1011,
+    has extraction_prompt "Determine whether the existing liens exception permits refinancing or replacement of the underlying secured debt without losing the grandfather status — i.e., the new lien on the same assets is also permitted. Look for language such as 'and any Permitted Refinancing thereof' or 'any extensions, renewals, refinancings, replacements'. Answer true if refinanced/replaced liens continue to be permitted, false if the exception is strictly limited to the original obligation.";
+
+insert $ln_b3 isa ontology_question,
+    has question_id "ln_b3",
+    has covenant_type "LIENS",
+    has question_text "Is there a dollar cap on refinanced / replaced existing liens?",
+    has answer_type "boolean",
+    has display_order 1012,
+    has extraction_prompt "Determine whether the refinancing-of-existing-liens carve-out is capped. Look for language limiting the principal amount of the refinancing to 'the outstanding principal amount of such Indebtedness (plus accrued interest, fees, and premium)' or similar — this is a cap. Answer true if any cap exists (including a 'no increase in principal' cap), false if refinancings can be sized up without limit.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN3: RATIO LIEN BASKET (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_c1 isa ontology_question,
+    has question_id "ln_c1",
+    has covenant_type "LIENS",
+    has question_text "Is there a ratio-based secured lien basket?",
+    has answer_type "boolean",
+    has display_order 1020,
+    has extraction_prompt "Determine whether the Permitted Liens list includes an UNLIMITED basket conditioned only on compliance with a leverage ratio test (typically First Lien Net Leverage Ratio or Secured Net Leverage Ratio). Look for clauses phrased 'Liens securing Indebtedness incurred in reliance on a ratio test' or 'Liens securing Indebtedness permitted by Section [X] so long as the First Lien Net Leverage Ratio does not exceed Y.YYx'. Answer true if any ratio-conditioned unlimited lien basket exists.";
+
+insert $ln_c2 isa ontology_question,
+    has question_id "ln_c2",
+    has covenant_type "LIENS",
+    has question_text "What ratio test governs the ratio lien basket?",
+    has answer_type "string",
+    has display_order 1021,
+    has extraction_prompt "Extract the name of the leverage ratio test that governs the ratio lien basket. Common values: 'First Lien Net Leverage Ratio', 'Senior Secured Net Leverage Ratio', 'Total Net Leverage Ratio', 'Fixed Charge Coverage Ratio'. Return the test name as a string using the agreement's defined-term capitalization. Return null if no ratio lien basket exists.";
+
+insert $ln_c3 isa ontology_question,
+    has question_id "ln_c3",
+    has covenant_type "LIENS",
+    has question_text "Does the ratio lien basket permit first-lien priming (pari passu with existing first-lien)?",
+    has answer_type "boolean",
+    has display_order 1022,
+    has extraction_prompt "Determine whether the ratio lien basket permits Liens that rank pari passu with the existing first-lien loans (i.e., on the same collateral at the same priority, commonly called 'first-lien priming'). Look for basket language such as 'Liens on the Collateral that are pari passu with the Liens securing the Obligations' or cross-references to a First Lien Incremental Equivalent Debt definition. Answer true if pari passu first-lien priming is permitted, false if the basket is limited to junior-lien or unsecured.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN4: GENERAL (FREEBIE) LIEN BASKET (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_d1 isa ontology_question,
+    has question_id "ln_d1",
+    has covenant_type "LIENS",
+    has question_text "Is there a general (catch-all) permitted lien basket?",
+    has answer_type "boolean",
+    has display_order 1030,
+    has extraction_prompt "Determine whether the Permitted Liens list includes a general / catch-all basket that permits Liens up to a fixed dollar amount (or greater-of formula), not tied to a leverage ratio, purchase money, or other specific purpose. Typically phrased as 'Liens securing Indebtedness in an aggregate principal amount not to exceed the greater of $X and Y% of Consolidated EBITDA'. Answer true if any such basket exists.";
+
+insert $ln_d2 isa ontology_question,
+    has question_id "ln_d2",
+    has covenant_type "LIENS",
+    has question_text "What is the fixed-dollar component of the general lien basket (USD)?",
+    has answer_type "number",
+    has display_order 1031,
+    has extraction_prompt "Extract the fixed-dollar cap of the general lien basket, in US dollars (NOT millions — return the full number, e.g. 130000000 for $130 million). If the basket is a 'greater of $X and Y% of EBITDA', return only the dollar figure here; the EBITDA grower percentage has its own question. Return null if no general lien basket exists.";
+
+insert $ln_d3 isa ontology_question,
+    has question_id "ln_d3",
+    has covenant_type "LIENS",
+    has question_text "Is the general lien basket a grower (EBITDA-linked)?",
+    has answer_type "boolean",
+    has display_order 1032,
+    has extraction_prompt "Determine whether the general lien basket includes a grower component tied to Consolidated EBITDA. Look for 'the greater of $X and Y% of Consolidated EBITDA' or 'the greater of $X and Y% of Total Assets'. Answer true if any EBITDA- or Total-Assets-linked grower exists, false if the basket is a flat dollar cap.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN5: CATEGORY-SPECIFIC LIEN BASKETS (4 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_e1 isa ontology_question,
+    has question_id "ln_e1",
+    has covenant_type "LIENS",
+    has question_text "Is there a purchase money lien basket?",
+    has answer_type "boolean",
+    has display_order 1040,
+    has extraction_prompt "Determine whether the Permitted Liens list includes an exception for purchase money liens — Liens securing debt incurred to finance the acquisition, construction, or improvement of specific assets. Look for 'purchase money Liens', 'purchase money security interests', or 'Liens securing Indebtedness permitted under clause [X] of the definition of Permitted Indebtedness' where clause [X] is the purchase money debt basket. Answer true if any such exception exists.";
+
+insert $ln_e2 isa ontology_question,
+    has question_id "ln_e2",
+    has covenant_type "LIENS",
+    has question_text "Is there a capital lease lien basket?",
+    has answer_type "boolean",
+    has display_order 1041,
+    has extraction_prompt "Determine whether the Permitted Liens list includes an exception for Liens securing Capitalized Lease Obligations (finance leases under ASC 842 / IFRS 16). Look for 'Liens securing Capitalized Lease Obligations' or 'Liens on assets subject to Capital Leases'. Answer true if any capital lease lien exception exists.";
+
+insert $ln_e3 isa ontology_question,
+    has question_id "ln_e3",
+    has covenant_type "LIENS",
+    has question_text "Are liens on acquired assets / acquired-company assets permitted?",
+    has answer_type "boolean",
+    has display_order 1042,
+    has extraction_prompt "Determine whether the Permitted Liens list permits Liens that existed on acquired assets or on the assets of a newly acquired Restricted Subsidiary at the time of acquisition — and were not created in anticipation of the acquisition. Look for 'Liens existing on property at the time of acquisition' or 'Liens on any property or assets of any Person that becomes a Subsidiary'. Answer true if any such exception exists.";
+
+insert $ln_e4 isa ontology_question,
+    has question_id "ln_e4",
+    has covenant_type "LIENS",
+    has question_text "Are refinancing liens permitted (for permitted-refinancing debt)?",
+    has answer_type "boolean",
+    has display_order 1043,
+    has extraction_prompt "Determine whether the Permitted Liens list permits Liens securing Permitted Refinancing Indebtedness — i.e., when permitted debt is refinanced, the replacement lien is also permitted. Look for 'Liens securing Permitted Refinancing Indebtedness' or 'Liens permitted by clause [X] and any extensions, renewals, or replacements thereof'. Answer true if refinancing liens are explicitly permitted.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN6: INTERCOMPANY & NON-GUARANTOR LIENS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_f1 isa ontology_question,
+    has question_id "ln_f1",
+    has covenant_type "LIENS",
+    has question_text "Are liens securing intercompany debt permitted?",
+    has answer_type "boolean",
+    has display_order 1050,
+    has extraction_prompt "Determine whether the Permitted Liens list permits Liens that secure intercompany debt between Loan Parties and their Subsidiaries. Look for 'Liens securing Indebtedness permitted under the intercompany debt basket' or similar. Answer true if any intercompany lien permission exists. Note: this is relevant for upstream collateral protection — without it, intercompany note collateral cannot be pledged.";
+
+insert $ln_f2 isa ontology_question,
+    has question_id "ln_f2",
+    has covenant_type "LIENS",
+    has question_text "Are liens on foreign subsidiary assets permitted without a cap?",
+    has answer_type "boolean",
+    has display_order 1051,
+    has extraction_prompt "Determine whether the Permitted Liens list allows UNCAPPED Liens on the assets of Foreign Subsidiaries. Look for 'Liens on assets of Foreign Subsidiaries' with no dollar limit, or a carve-out that expressly excludes such Liens from other caps. Answer true if uncapped, false if capped or not separately permitted. This is a common source of structural leakage — foreign sub assets can become encumbered to third parties without affecting the US borrower's ratios.";
+
+insert $ln_f3 isa ontology_question,
+    has question_id "ln_f3",
+    has covenant_type "LIENS",
+    has question_text "Are liens on non-guarantor Restricted Subsidiary assets separately permitted?",
+    has answer_type "boolean",
+    has display_order 1052,
+    has extraction_prompt "Determine whether there is a specific permission for Liens on assets of Restricted Subsidiaries that are NOT Guarantors (non-guarantor RSubs — often an excluded-subsidiary category). Look for 'Liens on assets of Restricted Subsidiaries that are not Loan Parties' or 'Liens on Excluded Assets'. Answer true if a separate non-guarantor lien permission exists. This pathway is frequently combined with debt baskets to achieve structural priming.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN7: CROSS-COVENANT CORRELATION (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_g1 isa ontology_question,
+    has question_id "ln_g1",
+    has covenant_type "LIENS",
+    has question_text "Is every permitted lien basket tied to a corresponding permitted debt basket?",
+    has answer_type "boolean",
+    has display_order 1060,
+    has extraction_prompt "Determine whether each permitted lien basket requires the underlying secured debt to be permitted under a specific debt incurrence basket. Look for pattern language 'Liens securing Indebtedness permitted under clause [X] of the definition of Permitted Indebtedness'. Answer true if ALL lien baskets are tied to debt baskets (this is the credit-friendly default — a lien needs underlying debt that was separately permitted). Answer false if any lien basket is 'free-standing' (permits a lien without requiring the underlying debt to be separately permitted), which is a structural gap.";
+
+insert $ln_g2 isa ontology_question,
+    has question_id "ln_g2",
+    has covenant_type "LIENS",
+    has question_text "Is the general lien basket capacity shared with (i.e., consumed by) general debt basket usage?",
+    has answer_type "boolean",
+    has display_order 1061,
+    has extraction_prompt "Determine whether usage of the general debt incurrence basket consumes capacity under the general lien basket (shared pool), or whether the two baskets have independent caps (separate pools). Look for cross-references between the baskets, or language such as 'the aggregate amount of Indebtedness incurred and Liens granted under [debt basket] and [lien basket]'. Answer true if capacity is shared (credit-friendly), false if independent (permits double-dipping).";
+
+insert $ln_g3 isa ontology_question,
+    has question_id "ln_g3",
+    has covenant_type "LIENS",
+    has question_text "Can Incremental Equivalent Debt (IED) be secured by first-lien-priority liens?",
+    has answer_type "boolean",
+    has display_order 1062,
+    has extraction_prompt "Determine whether Incremental Equivalent Debt — debt incurred outside this credit agreement under the debt incurrence covenant's ratio prong — can be secured by Liens ranking pari passu with the existing first-lien loans on the Collateral. Look for lien basket language referencing 'First Lien Incremental Equivalent Debt' or 'Indebtedness permitted under clause [X]' where clause [X] is the IED basket. Answer true if IED can be pari passu first-lien-secured; this is a material concern because IED often escapes MFN protection even when secured first-lien.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LN8: LIENS VULNERABILITIES (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $ln_h1 isa ontology_question,
+    has question_id "ln_h1",
+    has covenant_type "LIENS",
+    has question_text "Can Liens be granted on Material Intellectual Property to third parties?",
+    has answer_type "boolean",
+    has display_order 1070,
+    has extraction_prompt "Determine whether any permitted lien basket — in combination with debt baskets that could support IP-backed financing — would allow the Loan Parties to grant third-party Liens on Material Intellectual Property (patents, trademarks, software, or IP that generates material revenue). Look for whether the liens covenant contains any carve-out for IP, or whether the general/ratio lien baskets have no IP-specific exclusion. Answer true if third-party Liens on Material IP are not blocked (this aligns with the J.Crew pattern on the lien side). Answer false only if the covenant contains an explicit IP-lien blocker.";
+
+insert $ln_h2 isa ontology_question,
+    has question_id "ln_h2",
+    has covenant_type "LIENS",
+    has question_text "Is there a ratio lien basket with no dollar cap (unlimited priming risk)?",
+    has answer_type "boolean",
+    has display_order 1071,
+    has extraction_prompt "Determine whether any ratio-based lien basket is UNCAPPED in dollar terms (i.e., conditioned only on the leverage ratio remaining below a threshold, with no backstop dollar cap). Look for basket language that sets only a ratio test and no separate dollar ceiling. Answer true if such an uncapped ratio lien basket exists — this is a trapdoor-style priming risk: if the ratio test is satisfied, unlimited first-lien debt can be secured with no volume limit. Answer false if every ratio basket also has a dollar cap.";
+
+insert $ln_h3 isa ontology_question,
+    has question_id "ln_h3",
+    has covenant_type "LIENS",
+    has question_text "Overall liens vulnerability assessment (analyst notes)",
+    has answer_type "string",
+    has display_order 1072,
+    has extraction_prompt "Based on the full liens covenant analysis, provide a short narrative (2-4 sentences) summarizing the most significant credit concerns in the lien package: priming risk from uncapped ratio baskets, IP-adjacent pathways, non-guarantor leakage, IED lien priority, and any structural gaps in cross-covenant correlation. Identify the two or three highest-severity concerns for a lender. Return as a single string.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# LN1: Core Structure
+match $cat isa ontology_category, has category_id "LN1"; $q isa ontology_question, has question_id "ln_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN1"; $q isa ontology_question, has question_id "ln_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN1"; $q isa ontology_question, has question_id "ln_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN2: Existing / Scheduled Liens
+match $cat isa ontology_category, has category_id "LN2"; $q isa ontology_question, has question_id "ln_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN2"; $q isa ontology_question, has question_id "ln_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN2"; $q isa ontology_question, has question_id "ln_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN3: Ratio Lien Basket
+match $cat isa ontology_category, has category_id "LN3"; $q isa ontology_question, has question_id "ln_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN3"; $q isa ontology_question, has question_id "ln_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN3"; $q isa ontology_question, has question_id "ln_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN4: General (Freebie) Lien Basket
+match $cat isa ontology_category, has category_id "LN4"; $q isa ontology_question, has question_id "ln_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN4"; $q isa ontology_question, has question_id "ln_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN4"; $q isa ontology_question, has question_id "ln_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN5: Category-Specific Lien Baskets
+match $cat isa ontology_category, has category_id "LN5"; $q isa ontology_question, has question_id "ln_e1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN5"; $q isa ontology_question, has question_id "ln_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN5"; $q isa ontology_question, has question_id "ln_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN5"; $q isa ontology_question, has question_id "ln_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN6: Intercompany & Non-Guarantor Liens
+match $cat isa ontology_category, has category_id "LN6"; $q isa ontology_question, has question_id "ln_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN6"; $q isa ontology_question, has question_id "ln_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN6"; $q isa ontology_question, has question_id "ln_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN7: Cross-Covenant Correlation
+match $cat isa ontology_category, has category_id "LN7"; $q isa ontology_question, has question_id "ln_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN7"; $q isa ontology_question, has question_id "ln_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN7"; $q isa ontology_question, has question_id "ln_g3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# LN8: Liens Vulnerabilities
+match $cat isa ontology_category, has category_id "LN8"; $q isa ontology_question, has question_id "ln_h1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN8"; $q isa ontology_question, has question_id "ln_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "LN8"; $q isa ontology_question, has question_id "ln_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TODO-ENG: entity_list questions (require schema additions)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# The following would extract each permitted lien basket as a typed entity,
+# enabling per-basket capacity reporting and cross-covenant correlation
+# analysis. Engineering must add the entity types before these can be wired.
+#
+# Proposed schema additions (for `schema_unified.tql`):
+#
+#   entity lien_basket @abstract,
+#     owns basket_id @key,
+#     owns display_name,
+#     owns section_reference,
+#     owns source_page,
+#     owns source_text,
+#     owns confidence,
+#     owns basket_cap_usd,
+#     owns basket_cap_pct_ebitda,
+#     owns uses_greater_of,
+#     owns has_grower,
+#     owns ties_to_debt_basket,          # boolean — is lien tied to a DI basket?
+#     owns tied_debt_basket_id,          # string — which DI basket it references
+#     owns lien_priority_level,          # first-lien / pari passu / junior / unsecured
+#     owns capacity_shared_with_di,      # boolean — shared pool with DI?
+#     plays provision_has_lien_basket:basket;
+#
+#   # Subtypes mirroring the DI basket subtypes:
+#   entity general_lien_basket sub lien_basket;
+#   entity ratio_lien_basket sub lien_basket, owns ratio_threshold;
+#   entity purchase_money_lien_basket sub lien_basket;
+#   entity capital_lease_lien_basket sub lien_basket;
+#   entity acquisition_lien_basket sub lien_basket;
+#   entity refinancing_lien_basket sub lien_basket;
+#   entity intercompany_lien_basket sub lien_basket;
+#   entity foreign_sub_lien_basket sub lien_basket;
+#   entity non_guarantor_lien_basket sub lien_basket;
+#   entity existing_lien_basket sub lien_basket;
+#
+#   relation provision_has_lien_basket sub provision_has_extracted_entity,
+#     relates provision,
+#     relates basket as extracted;
+#
+# Once the above is in schema_unified.tql, uncomment the entity_list question
+# below and run init_schema.py. The validator will then pass on this file with
+# both scalar AND entity_list coverage.
+#
+# insert $ln_el_baskets isa ontology_question,
+#     has question_id "ln_el_baskets",
+#     has covenant_type "LIENS",
+#     has question_text "Extract all permitted lien baskets.",
+#     has answer_type "entity_list",
+#     has display_order 1090,
+#     has target_entity_type "lien_basket",
+#     has target_relation_type "provision_has_lien_basket",
+#     has extraction_prompt "Extract ALL permitted lien baskets from the liens covenant. For EACH basket create a separate entity with the most specific subtype applicable (general_lien_basket, ratio_lien_basket, purchase_money_lien_basket, capital_lease_lien_basket, acquisition_lien_basket, refinancing_lien_basket, intercompany_lien_basket, foreign_sub_lien_basket, non_guarantor_lien_basket, existing_lien_basket). Populate: basket_cap_usd (fixed-dollar component or null if unlimited/uncapped), basket_cap_pct_ebitda (grower percentage or null), ties_to_debt_basket (true if the lien basket references a specific debt incurrence basket), tied_debt_basket_id (the debt basket name, e.g. 'general_debt_basket'), lien_priority_level (one of: 'first_lien_priming', 'pari_passu', 'junior', 'unsecured'), and capacity_shared_with_di (true if capacity is shared with the matching DI basket). Include section_reference and source_text for provenance.";
+#
+# match $cat isa ontology_category, has category_id "LN5";
+#       $q isa ontology_question, has question_id "ln_el_baskets";
+# insert (category: $cat, question: $q) isa category_has_question;

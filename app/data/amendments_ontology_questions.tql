@@ -1,0 +1,276 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# AMENDMENTS & WAIVERS ONTOLOGY QUESTIONS
+#
+# Covers the amendments article — Required Lenders thresholds, Sacred Rights
+# requiring unanimous or affected-lender consent, super-majority provisions,
+# amendment fee mechanics, and open-market purchase / non-pro-rata buyback
+# programs.
+#
+# Categories (6):
+#   AMD1 — Core Structure (Required Lenders definition, standard threshold)
+#   AMD2 — Sacred Rights (unanimous consent)
+#   AMD3 — Affected Lender Consent
+#   AMD4 — Super-Majority Provisions
+#   AMD5 — Amendment Fees & Non-Pro-Rata
+#   AMD6 — Open Market Purchases / Dutch Auctions
+#
+# Covenant type: AMD
+# Question ID prefix: amd_
+# Category display_order range: 901-906
+# Question display_order range: 1600-1699
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_cat1 isa ontology_category,
+    has category_id "AMD1",
+    has name "Amendments Core Structure",
+    has description "Required Lenders definition and default amendment thresholds.",
+    has display_order 901,
+    has extraction_context_sections "AMENDMENTS_WAIVERS,DEFINITIONS",
+    has extraction_batch_hint "Focus on the definition of Required Lenders (typically >50% of total commitments) and any affected-lender carve-outs.";
+
+insert $amd_cat2 isa ontology_category,
+    has category_id "AMD2",
+    has name "Sacred Rights",
+    has description "Provisions requiring unanimous Lender consent — principal, interest, maturity, pro-rata sharing.",
+    has display_order 902,
+    has extraction_context_sections "AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Enumerate the sacred-rights list: reduction of principal, reduction of interest/fees, extension of maturity, release of substantially all guarantors or collateral, changes to pro-rata sharing.";
+
+insert $amd_cat3 isa ontology_category,
+    has category_id "AMD3",
+    has name "Affected Lender Consent",
+    has description "Provisions requiring consent only of Lenders directly affected by the amendment.",
+    has display_order 903,
+    has extraction_context_sections "AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Identify which changes require affected-lender-only consent (e.g., changes to a specific tranche only bind that tranche's Lenders). Affected-lender standards can be manipulated via Serta-style tranche creation.";
+
+insert $amd_cat4 isa ontology_category,
+    has category_id "AMD4",
+    has name "Super-Majority Provisions",
+    has description "Amendments requiring higher-than-Required-Lender thresholds (2/3, 75%) for specific categories.",
+    has display_order 904,
+    has extraction_context_sections "AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Identify supermajority-consent categories, typically including collateral releases, guarantor releases, and waterfall / priority-of-payment changes. Sacred rights are distinct from supermajority.";
+
+insert $amd_cat5 isa ontology_category,
+    has category_id "AMD5",
+    has name "Amendment Fees & Non-Pro-Rata",
+    has description "Amendment fee payment mechanics — whether fees must be pro-rata or can be offered selectively.",
+    has display_order 905,
+    has extraction_context_sections "AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Focus on whether amendment fees must be paid pro-rata to all consenting Lenders, or whether selective / tiered fees are permitted.";
+
+insert $amd_cat6 isa ontology_category,
+    has category_id "AMD6",
+    has name "Open Market Purchases & Dutch Auctions",
+    has description "Borrower's right to repurchase its own Loans at a discount via open-market purchases or Dutch auctions.",
+    has display_order 906,
+    has extraction_context_sections "AMENDMENTS_WAIVERS,DEFINITIONS",
+    has extraction_batch_hint "Extract open-market purchase rights: is there a cap on total repurchases? Is there a required offer-to-all-Lenders step via Dutch Auction? Can the Sponsor also purchase debt?";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD1: CORE STRUCTURE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_a1 isa ontology_question,
+    has question_id "amd_a1",
+    has covenant_type "AMD",
+    has question_text "Are Required Lenders defined as holders of more than 50% of commitments?",
+    has answer_type "boolean",
+    has display_order 1600,
+    has extraction_prompt "Determine whether 'Required Lenders' is defined as Lenders holding more than 50% of total commitments and loans outstanding. Look in the Definitions for 'Required Lenders' or 'Majority Lenders'. Answer true if the standard 50%+1 definition applies. Answer false if the threshold is different (51%, 66.67%, some super-majority). Non-standard Required Lenders thresholds should be flagged.";
+
+insert $amd_a2 isa ontology_question,
+    has question_id "amd_a2",
+    has covenant_type "AMD",
+    has question_text "Does the Required Lenders definition exclude Sponsor-affiliated Lenders?",
+    has answer_type "boolean",
+    has display_order 1601,
+    has extraction_prompt "Determine whether the Required Lenders definition carves out Loans held by the Sponsor, its affiliates, or Affiliated Debt Fund holdings. Look for 'excluding any Loans held by the Borrower, the Sponsor, or any Affiliate' in the Required Lenders definition or disqualified-institutions list. Answer true if Sponsor debt is excluded from voting, false if Sponsor Lenders can vote their Loans. Sponsor voting rights are a significant lender concern.";
+
+insert $amd_a3 isa ontology_question,
+    has question_id "amd_a3",
+    has covenant_type "AMD",
+    has question_text "Can amendments become effective without Required Lenders consent under any circumstance?",
+    has answer_type "boolean",
+    has display_order 1602,
+    has extraction_prompt "Determine whether any amendments can become effective with less than Required Lenders consent — for example, technical / non-substantive amendments that can be made by the Administrative Agent and Borrower only, or amendments implementing benchmark-replacement changes without lender vote. Look for 'Administrative Agent and Borrower may amend' without further qualification. Answer true if any such bypass exists, false if ALL amendments require at least Required Lenders. Broad Administrative-Agent-only amendment powers should be flagged.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD2: SACRED RIGHTS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_b1 isa ontology_question,
+    has question_id "amd_b1",
+    has covenant_type "AMD",
+    has question_text "Is a reduction in principal of any Loan a sacred right (requiring each affected Lender's consent)?",
+    has answer_type "boolean",
+    has display_order 1610,
+    has extraction_prompt "Determine whether a reduction in the principal amount of any Loan is listed as a sacred right — requiring consent of each Lender directly affected. Look in the Amendments article for 'without the consent of each Lender directly affected' clauses. Answer true if principal reductions are a sacred right.";
+
+insert $amd_b2 isa ontology_question,
+    has question_id "amd_b2",
+    has covenant_type "AMD",
+    has question_text "Is an extension of any Loan maturity a sacred right?",
+    has answer_type "boolean",
+    has display_order 1611,
+    has extraction_prompt "Determine whether extending the scheduled maturity or repayment date of any Loan (or scheduled amortization) is listed as a sacred right requiring each affected Lender's consent. Look for 'postpone the scheduled date for payment' in the sacred-rights clauses. Answer true if maturity extensions are sacred.";
+
+insert $amd_b3 isa ontology_question,
+    has question_id "amd_b3",
+    has covenant_type "AMD",
+    has question_text "Is the pro-rata sharing provision a sacred right?",
+    has answer_type "boolean",
+    has display_order 1612,
+    has extraction_prompt "Determine whether the provisions requiring pro-rata application of prepayments among all Term Loan Lenders (or pro-rata sharing generally) are listed as a sacred right. Look for 'changes to Section [pro-rata sharing] that would be adverse to any Lender' in the sacred-rights list. Answer true if pro-rata sharing requires unanimous/affected-lender consent. This was the key question in the Serta restructuring — non-sacred pro-rata is a major structural vulnerability.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD3: AFFECTED LENDER CONSENT (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_c1 isa ontology_question,
+    has question_id "amd_c1",
+    has covenant_type "AMD",
+    has question_text "Can the creation of new Classes / tranches be effected with Required Lenders only?",
+    has answer_type "boolean",
+    has display_order 1620,
+    has extraction_prompt "Determine whether the creation of new Classes of Loans (new tranches, new incremental facilities, exchange of existing Loans for new Loans) can be effected with Required Lenders consent only, or whether such changes require each affected Lender's consent. Look for 'additional Tranches or Classes' language in the amendments section. Answer true if Required Lenders alone can create new Classes. This is the precise pathway used in Serta-style uptier transactions.";
+
+insert $amd_c2 isa ontology_question,
+    has question_id "amd_c2",
+    has covenant_type "AMD",
+    has question_text "Are subordination arrangements (including effective subordination via priming) a sacred or affected-lender right?",
+    has answer_type "boolean",
+    has display_order 1621,
+    has extraction_prompt "Determine whether subordination of the existing Loans to new debt — or priming of existing liens by new liens — requires each affected Lender's consent, or whether Required Lenders alone can consent. Look for 'subordinate any Liens on the Collateral' or 'subordinate the Obligations' in the sacred-rights list. Answer true if subordination/priming is sacred or affected-lender, false if Required Lenders can approve.";
+
+insert $amd_c3 isa ontology_question,
+    has question_id "amd_c3",
+    has covenant_type "AMD",
+    has question_text "Can a single tranche's interest rate be reduced with less than each affected Lender's consent?",
+    has answer_type "boolean",
+    has display_order 1622,
+    has extraction_prompt "Determine whether the interest rate on a specific tranche (e.g., Term B) can be reduced with Required Lenders of that tranche only, rather than each affected Lender. Look for how the sacred-rights clause interacts with tranche-specific amendments. Answer true if Required-Lenders-of-tranche can reduce rate (Borrower-friendly), false if each affected Lender must consent.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD4: SUPER-MAJORITY PROVISIONS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_d1 isa ontology_question,
+    has question_id "amd_d1",
+    has covenant_type "AMD",
+    has question_text "Is the release of substantially all Guarantors a super-majority (or sacred) right?",
+    has answer_type "boolean",
+    has display_order 1630,
+    has extraction_prompt "Determine whether releasing substantially all Guarantors requires a super-majority or unanimous consent. Look for 'release all or substantially all of the value of the Guaranties' in the sacred-rights or super-majority list. Answer true if such release requires elevated consent, false if Required Lenders alone can approve. Without this protection, a guaranty package can be stripped via a Required-Lenders-only vote.";
+
+insert $amd_d2 isa ontology_question,
+    has question_id "amd_d2",
+    has covenant_type "AMD",
+    has question_text "Is the release of substantially all Collateral a super-majority (or sacred) right?",
+    has answer_type "boolean",
+    has display_order 1631,
+    has extraction_prompt "Determine whether releasing substantially all Collateral from the security package requires super-majority or unanimous consent. Look for 'release all or substantially all of the Collateral'. Answer true if elevated consent is required. This is a cornerstone protection — without it, a Required-Lenders majority can unsecure the Loans.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD5: AMENDMENT FEES & NON-PRO-RATA (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_e1 isa ontology_question,
+    has question_id "amd_e1",
+    has covenant_type "AMD",
+    has question_text "Must amendment fees be paid pro-rata to all consenting Lenders?",
+    has answer_type "boolean",
+    has display_order 1640,
+    has extraction_prompt "Determine whether amendment fees (consent fees paid to Lenders who approve an amendment) must be paid pro-rata to all consenting Lenders — or whether fees can be offered selectively (e.g., higher fees to early consenters, separate fees to large Lenders). Look in the Amendments article for pro-rata-fee requirements. Answer true if fees must be pro-rata to all consenters, false if selective/tiered fees are permitted.";
+
+insert $amd_e2 isa ontology_question,
+    has question_id "amd_e2",
+    has covenant_type "AMD",
+    has question_text "Can non-consenting Lenders be replaced (yank-the-bank) on specified terms?",
+    has answer_type "boolean",
+    has display_order 1641,
+    has extraction_prompt "Determine whether the Borrower may require non-consenting Lenders to assign their Loans to a Borrower-designated replacement at par (or principal plus accrued interest) if consent would otherwise require each affected Lender — sometimes called a 'yank-the-bank' right. Look for 'replace' or 'require assignment of its Loans' language. Answer true if such a right exists. Broad yank-the-bank rights can effectively defeat sacred-right protections.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AMD6: OPEN MARKET PURCHASES & DUTCH AUCTIONS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $amd_f1 isa ontology_question,
+    has question_id "amd_f1",
+    has covenant_type "AMD",
+    has question_text "Can the Borrower repurchase its own Loans via open-market purchases?",
+    has answer_type "boolean",
+    has display_order 1650,
+    has extraction_prompt "Determine whether the Borrower (or a Restricted Subsidiary, or in some cases the Sponsor) can purchase outstanding Loans on the open market at prevailing prices. Look for 'Purchases by the Borrower' or similar section. Answer true if any such repurchase right exists.";
+
+insert $amd_f2 isa ontology_question,
+    has question_id "amd_f2",
+    has covenant_type "AMD",
+    has question_text "Are open-market purchases required to be done via Dutch Auction (offer to all Lenders pro-rata)?",
+    has answer_type "boolean",
+    has display_order 1651,
+    has extraction_prompt "Determine whether Borrower repurchases of its Loans must be made via Dutch Auction process (an offer extended to all Lenders pro-rata at a disclosed price), or whether open-market (bilateral, Lender-by-Lender) purchases are permitted. Look for 'by way of a Dutch Auction open to all Lenders'. Answer true if Dutch Auction is required, false if bilateral / opt-in purchases are permitted. Bilateral purchases enable selective de-risking of specific Lenders.";
+
+insert $amd_f3 isa ontology_question,
+    has question_id "amd_f3",
+    has covenant_type "AMD",
+    has question_text "Can Sponsor-affiliated entities purchase Borrower debt in the secondary market?",
+    has answer_type "boolean",
+    has display_order 1652,
+    has extraction_prompt "Determine whether the Sponsor, the Sponsor's affiliates, or Sponsor-controlled debt funds can purchase the Borrower's Loans in the secondary market. Look for Disqualified Institutions or Disqualified Lenders definitions — the Sponsor may or may not be listed. Answer true if Sponsor-affiliated purchases are permitted (directly or via unaffiliated debt funds), false if Sponsor purchases are restricted. Sponsor debt holdings are the prerequisite for uptier maneuvers.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f3";
+insert (category: $cat, question: $q) isa category_has_question;

@@ -1,0 +1,362 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# EVENTS OF DEFAULT ONTOLOGY QUESTIONS
+#
+# Covers the Events of Default article — the triggers, cure periods,
+# cross-default mechanics, and remedies framework.
+#
+# Categories (8):
+#   EOD1 — Core Structure
+#   EOD2 — Payment Default
+#   EOD3 — Covenant Default & Cure Periods
+#   EOD4 — Cross-Default
+#   EOD5 — Bankruptcy & Insolvency
+#   EOD6 — Change of Control
+#   EOD7 — Judgment Default & Material Adverse Effect
+#   EOD8 — Remedies, Acceleration & Waivers
+#
+# Covenant type: EOD
+# Question ID prefix: eod_
+# Category display_order range: 601-608
+# Question display_order range: 1300-1399
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_cat1 isa ontology_category,
+    has category_id "EOD1",
+    has name "EOD Core Structure",
+    has description "Structure of the Events of Default article — scope, defined terms (Default vs Event of Default), and notice requirements.",
+    has display_order 601,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,DEFINITIONS",
+    has extraction_batch_hint "Focus on the split between 'Default' and 'Event of Default' as defined terms and the notice/grace mechanisms for converting one to the other.";
+
+insert $eod_cat2 isa ontology_category,
+    has category_id "EOD2",
+    has name "Payment Default",
+    has description "Default triggers for failure to pay principal, interest, or fees. Grace periods.",
+    has display_order 602,
+    has extraction_context_sections "EVENTS_OF_DEFAULT",
+    has extraction_batch_hint "Focus on payment EODs and their grace periods. Common pattern: zero grace for principal, 3-5 business days for interest/fees. Extract exact grace period lengths.";
+
+insert $eod_cat3 isa ontology_category,
+    has category_id "EOD3",
+    has name "Covenant Default & Cure Periods",
+    has description "Triggers for breach of affirmative/negative/financial covenants. Cure periods and equity cure rights.",
+    has display_order 603,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,FINANCIAL_COVENANTS",
+    has extraction_batch_hint "Focus on covenant-breach EODs: (a) which covenants have automatic-EOD status, (b) which allow a cure period (typically 30-45 days), (c) whether the financial covenant permits an equity cure, and (d) how many times an equity cure can be used.";
+
+insert $eod_cat4 isa ontology_category,
+    has category_id "EOD4",
+    has name "Cross-Default",
+    has description "Default triggered by default under other material debt instruments.",
+    has display_order 604,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,DEFINITIONS",
+    has extraction_batch_hint "CRITICAL for systemic risk assessment. Extract the cross-default threshold (dollar amount of other debt that triggers), whether it is cross-acceleration or cross-payment-default only, and whether it captures subordinated debt.";
+
+insert $eod_cat5 isa ontology_category,
+    has category_id "EOD5",
+    has name "Bankruptcy & Insolvency",
+    has description "Bankruptcy, insolvency, receivership, and voluntary filings. Automatic vs grace-period triggers.",
+    has display_order 605,
+    has extraction_context_sections "EVENTS_OF_DEFAULT",
+    has extraction_batch_hint "Focus on whether voluntary and involuntary bankruptcy are immediate EODs, the scope (which entities trigger — Loan Parties only? all Material Subsidiaries?), and any 60-day dismissal grace period for involuntary proceedings.";
+
+insert $eod_cat6 isa ontology_category,
+    has category_id "EOD6",
+    has name "Change of Control",
+    has description "Change of Control as an EOD or as a separate put right.",
+    has display_order 606,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,DEFINITIONS",
+    has extraction_batch_hint "Focus on whether Change of Control is (a) a hard EOD, (b) a prepayment-offer trigger (put right), or (c) both. Extract the defined-term scope of Change of Control — particularly whether sponsor group permitted-holder carve-outs are broad.";
+
+insert $eod_cat7 isa ontology_category,
+    has category_id "EOD7",
+    has name "Judgment Default & MAE",
+    has description "Money judgments above threshold, ERISA events, Material Adverse Effect default.",
+    has display_order 607,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,DEFINITIONS",
+    has extraction_batch_hint "Focus on the judgment default threshold, the scope of ERISA events, and whether a standalone Material Adverse Effect clause serves as an EOD (increasingly rare in modern covenant-lite deals).";
+
+insert $eod_cat8 isa ontology_category,
+    has category_id "EOD8",
+    has name "Remedies, Acceleration & Waivers",
+    has description "Administrative Agent powers, acceleration mechanics, Required Lenders threshold for waiver.",
+    has display_order 608,
+    has extraction_context_sections "EVENTS_OF_DEFAULT,AMENDMENTS_WAIVERS",
+    has extraction_batch_hint "Focus on acceleration mechanics: automatic vs elective, who votes, and the Required Lenders threshold. Identify whether standstills limit individual lender remedies.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD1: CORE STRUCTURE (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_a1 isa ontology_question,
+    has question_id "eod_a1",
+    has covenant_type "EOD",
+    has question_text "Does the agreement distinguish 'Default' from 'Event of Default'?",
+    has answer_type "boolean",
+    has display_order 1300,
+    has extraction_prompt "Determine whether the agreement uses two separate defined terms: 'Default' (any event that with notice or lapse of time would become an EOD) and 'Event of Default' (a matured default). Look in the Definitions article for both terms. Answer true if both are defined; false if only EOD is used. The distinction matters for representations made at each incremental draw — 'no Default or Event of Default' is broader than 'no Event of Default'.";
+
+insert $eod_a2 isa ontology_question,
+    has question_id "eod_a2",
+    has covenant_type "EOD",
+    has question_text "Do EOD triggers require notice from the Administrative Agent or Required Lenders?",
+    has answer_type "boolean",
+    has display_order 1301,
+    has extraction_prompt "Determine whether conversion of a covenant breach into an EOD requires notice from the Administrative Agent or from Required Lenders, or whether EODs arise automatically upon the triggering event. Look for 'upon notice by the Administrative Agent' or 'upon written notice from the Required Lenders' in the covenant-default clauses. Answer true if notice is required for at least some EOD triggers.";
+
+insert $eod_a3 isa ontology_question,
+    has question_id "eod_a3",
+    has covenant_type "EOD",
+    has question_text "Is there a post-EOD default interest rate increase?",
+    has answer_type "boolean",
+    has display_order 1302,
+    has extraction_prompt "Determine whether the agreement imposes an increased interest rate during the continuance of an Event of Default. Look for 'Default Rate' as a defined term and language such as '2% above the otherwise applicable rate' or 'following the occurrence of an Event of Default'. Answer true if any default-rate increase applies.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD2: PAYMENT DEFAULT (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_b1 isa ontology_question,
+    has question_id "eod_b1",
+    has covenant_type "EOD",
+    has question_text "Is there a grace period for principal payment default?",
+    has answer_type "boolean",
+    has display_order 1310,
+    has extraction_prompt "Determine whether failure to pay principal when due is subject to a grace period before becoming an EOD. Most agreements provide zero grace for principal (EOD is immediate at scheduled maturity). Look for 'failure to pay principal when due' and any accompanying grace period (e.g., 'within three Business Days'). Answer true if any grace period exists for principal, false if EOD on principal is immediate.";
+
+insert $eod_b2 isa ontology_question,
+    has question_id "eod_b2",
+    has covenant_type "EOD",
+    has question_text "What is the grace period (in business days) for interest and fee payment defaults?",
+    has answer_type "integer",
+    has display_order 1311,
+    has extraction_prompt "Extract the grace period in Business Days for non-payment of interest or fees before the failure becomes an EOD. Common values: 3, 5. Return as an integer representing Business Days. If the agreement states calendar days, divide by 1.4 roughly (or note — but integer answer expected). Return 0 if no grace period applies. Return null if the document is silent.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD3: COVENANT DEFAULT & CURE PERIODS (4 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_c1 isa ontology_question,
+    has question_id "eod_c1",
+    has covenant_type "EOD",
+    has question_text "Is any covenant breach an immediate EOD with no cure period?",
+    has answer_type "boolean",
+    has display_order 1320,
+    has extraction_prompt "Determine whether breach of specific covenants (typically negative covenants, affirmative covenants like mergers/dispositions, or the financial covenant) triggers an immediate EOD with no cure period. Look for covenants listed in the EOD article without any 'within N days' qualifier. Answer true if at least one covenant carries immediate-EOD status.";
+
+insert $eod_c2 isa ontology_question,
+    has question_id "eod_c2",
+    has covenant_type "EOD",
+    has question_text "What is the standard cure period (in days) for affirmative covenant breaches?",
+    has answer_type "integer",
+    has display_order 1321,
+    has extraction_prompt "Extract the cure period for breaches of affirmative covenants that are not immediate EODs. Common values: 30, 45, 60 days, measured from the earlier of knowledge or notice. Return as an integer (calendar days unless expressly Business Days, in which case note as Business Days — but integer only).";
+
+insert $eod_c3 isa ontology_question,
+    has question_id "eod_c3",
+    has covenant_type "EOD",
+    has question_text "Does the agreement permit equity cures of financial covenant breaches?",
+    has answer_type "boolean",
+    has display_order 1322,
+    has extraction_prompt "Determine whether the Borrower can cure a financial covenant breach by receiving a cash equity contribution that is added back to EBITDA for covenant-test purposes ('Equity Cure Right'). Look for a clause titled 'Cure Right', 'Equity Cure', or similar. Answer true if such a mechanism exists. Without equity cure, any financial covenant breach is immediately uncurable.";
+
+insert $eod_c4 isa ontology_question,
+    has question_id "eod_c4",
+    has covenant_type "EOD",
+    has question_text "What is the maximum number of equity cures over the life of the facility?",
+    has answer_type "integer",
+    has display_order 1323,
+    has extraction_prompt "Extract the cap on total equity cure exercises over the life of the facility, and separately any cap within a period. Common patterns: 5 times in total and 2 times in any 4-quarter period. Return the lifetime cap as an integer. If there is no lifetime cap (only a per-period cap), return a high sentinel like 999. Return null if equity cure is not permitted.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD4: CROSS-DEFAULT (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_d1 isa ontology_question,
+    has question_id "eod_d1",
+    has covenant_type "EOD",
+    has question_text "Is there a cross-default to other material indebtedness?",
+    has answer_type "boolean",
+    has display_order 1330,
+    has extraction_prompt "Determine whether an EOD under other Material Indebtedness (debt above a stated threshold) triggers an EOD under this credit agreement. Look for a clause titled 'Cross-Default', 'Cross-Acceleration', or language such as 'the occurrence of a default or event of default under any other Indebtedness in excess of $X'. Answer true if any such cross-trigger exists.";
+
+insert $eod_d2 isa ontology_question,
+    has question_id "eod_d2",
+    has covenant_type "EOD",
+    has question_text "Is the cross-default threshold measured in USD?",
+    has answer_type "number",
+    has display_order 1331,
+    has extraction_prompt "Extract the cross-default threshold in USD (full number, not millions). This is the aggregate principal amount of other debt at which a default under that other debt triggers an EOD under this facility. Common values: $50 million, $75 million, $100 million, or the greater of a dollar amount and a percentage of EBITDA. Return the dollar figure only (EBITDA grower separate). Return null if no cross-default exists.";
+
+insert $eod_d3 isa ontology_question,
+    has question_id "eod_d3",
+    has covenant_type "EOD",
+    has question_text "Is the cross-default 'cross-acceleration' (triggers only on acceleration) rather than true cross-default?",
+    has answer_type "boolean",
+    has display_order 1332,
+    has extraction_prompt "Determine whether the cross-default clause triggers only on actual acceleration of the other debt ('cross-acceleration', more borrower-friendly) versus triggering on any default under the other debt ('cross-default', more lender-friendly). Look for 'acceleration' language vs 'default or event of default'. Answer true if cross-acceleration, false if true cross-default. Cross-acceleration is the market standard in modern sponsor deals.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD5: BANKRUPTCY & INSOLVENCY (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_e1 isa ontology_question,
+    has question_id "eod_e1",
+    has covenant_type "EOD",
+    has question_text "Does the bankruptcy EOD cover all Material Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1340,
+    has extraction_prompt "Determine the scope of the bankruptcy EOD — does it trigger on bankruptcy of any Loan Party, any Material Subsidiary, or only the Borrower? Look for 'any Loan Party', 'any Material Subsidiary', 'the Borrower or any Material Subsidiary'. Answer true if the trigger covers all Material Subsidiaries (Loan Parties + Material non-Loan-Party subs), false if narrower. Non-Loan-Party subsidiary bankruptcies escaping the EOD is a structural gap.";
+
+insert $eod_e2 isa ontology_question,
+    has question_id "eod_e2",
+    has covenant_type "EOD",
+    has question_text "Is there a dismissal grace period for involuntary bankruptcy filings?",
+    has answer_type "boolean",
+    has display_order 1341,
+    has extraction_prompt "Determine whether an involuntary bankruptcy petition gets a grace period (typically 60 days) for dismissal before becoming an EOD. Look for 'if such proceedings shall remain undismissed and unstayed for a period of 60 days'. Answer true if any such grace period applies to involuntary filings. Note: voluntary filings typically have no grace period.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD6: CHANGE OF CONTROL (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_f1 isa ontology_question,
+    has question_id "eod_f1",
+    has covenant_type "EOD",
+    has question_text "Is Change of Control a hard EOD?",
+    has answer_type "boolean",
+    has display_order 1350,
+    has extraction_prompt "Determine whether the occurrence of a Change of Control is listed as an Event of Default. Some agreements treat CoC as a hard EOD, others as a prepayment-offer trigger (soft put), and others as both. Look in the EOD article for 'Change of Control' as a listed trigger. Answer true only if CoC is a hard EOD.";
+
+insert $eod_f2 isa ontology_question,
+    has question_id "eod_f2",
+    has covenant_type "EOD",
+    has question_text "Is there a Change of Control put/prepayment-offer mechanism (soft trigger)?",
+    has answer_type "boolean",
+    has display_order 1351,
+    has extraction_prompt "Determine whether the Borrower must offer to prepay the Loans upon a Change of Control (at 101%, par, or another premium), as opposed to an automatic EOD. Look for 'Change of Control Offer', 'Change of Control Payment', or 'offer to purchase each Loan at 101% of par'. Answer true if any such mandatory prepayment offer exists.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD7: JUDGMENT DEFAULT & MAE (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_g1 isa ontology_question,
+    has question_id "eod_g1",
+    has covenant_type "EOD",
+    has question_text "What is the judgment default threshold in USD?",
+    has answer_type "number",
+    has display_order 1360,
+    has extraction_prompt "Extract the dollar threshold above which a final, non-appealable money judgment against a Loan Party becomes an EOD. Common values: $50 million, $100 million, often the greater of a dollar amount and a percentage of EBITDA. Return the dollar figure only (full number, not millions). Return null if no judgment EOD exists.";
+
+insert $eod_g2 isa ontology_question,
+    has question_id "eod_g2",
+    has covenant_type "EOD",
+    has question_text "Is there a standalone Material Adverse Effect Event of Default?",
+    has answer_type "boolean",
+    has display_order 1361,
+    has extraction_prompt "Determine whether the agreement contains a standalone MAE EOD — an event of default triggered by the occurrence of a Material Adverse Effect, independent of any specific representation breach or covenant breach. Look for 'Material Adverse Effect' as a listed EOD trigger. Answer true if such a standalone EOD exists. Note: modern sponsor-friendly deals have eliminated standalone MAE EODs — their presence is notable.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EOD8: REMEDIES, ACCELERATION & WAIVERS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $eod_h1 isa ontology_question,
+    has question_id "eod_h1",
+    has covenant_type "EOD",
+    has question_text "Is acceleration automatic upon bankruptcy-related EODs?",
+    has answer_type "boolean",
+    has display_order 1370,
+    has extraction_prompt "Determine whether bankruptcy and insolvency EODs cause automatic acceleration (no Required Lenders vote needed) while other EODs require an elective acceleration by Required Lenders. Look in the Remedies section for 'shall automatically become due and payable without further act'. Answer true if bankruptcy EODs automatically accelerate the Loans.";
+
+insert $eod_h2 isa ontology_question,
+    has question_id "eod_h2",
+    has covenant_type "EOD",
+    has question_text "What is the voting threshold to accelerate after a non-bankruptcy EOD?",
+    has answer_type "string",
+    has display_order 1371,
+    has extraction_prompt "Extract the Lender vote threshold required to accelerate the Loans after a non-bankruptcy EOD. Typical answer: 'Required Lenders' (defined as >50% of total commitments). Some agreements require 'Supermajority Lenders' for specific remedies. Return the defined-term name used in this agreement (e.g., 'Required Lenders', 'Majority Lenders', 'Supermajority Lenders').";
+
+insert $eod_h3 isa ontology_question,
+    has question_id "eod_h3",
+    has covenant_type "EOD",
+    has question_text "Can Required Lenders waive a specific EOD on behalf of all Lenders?",
+    has answer_type "boolean",
+    has display_order 1372,
+    has extraction_prompt "Determine whether Required Lenders can waive an existing EOD (binding all Lenders) without unanimous consent. Look in the Amendments/Waivers section for waiver authority. Some waivers (payment defaults, sacred rights) typically require each affected Lender's consent. Answer true if Required Lenders have general waiver authority for non-sacred-right EODs. Note any sacred-rights carve-outs in the analysis layer (AMD module).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# EOD1: Core Structure
+match $cat isa ontology_category, has category_id "EOD1"; $q isa ontology_question, has question_id "eod_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD1"; $q isa ontology_question, has question_id "eod_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD1"; $q isa ontology_question, has question_id "eod_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD2: Payment Default
+match $cat isa ontology_category, has category_id "EOD2"; $q isa ontology_question, has question_id "eod_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD2"; $q isa ontology_question, has question_id "eod_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD3: Covenant Default & Cure Periods
+match $cat isa ontology_category, has category_id "EOD3"; $q isa ontology_question, has question_id "eod_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD3"; $q isa ontology_question, has question_id "eod_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD3"; $q isa ontology_question, has question_id "eod_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD3"; $q isa ontology_question, has question_id "eod_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD4: Cross-Default
+match $cat isa ontology_category, has category_id "EOD4"; $q isa ontology_question, has question_id "eod_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD4"; $q isa ontology_question, has question_id "eod_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD4"; $q isa ontology_question, has question_id "eod_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD5: Bankruptcy & Insolvency
+match $cat isa ontology_category, has category_id "EOD5"; $q isa ontology_question, has question_id "eod_e1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD5"; $q isa ontology_question, has question_id "eod_e2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD6: Change of Control
+match $cat isa ontology_category, has category_id "EOD6"; $q isa ontology_question, has question_id "eod_f1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD6"; $q isa ontology_question, has question_id "eod_f2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD7: Judgment & MAE
+match $cat isa ontology_category, has category_id "EOD7"; $q isa ontology_question, has question_id "eod_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD7"; $q isa ontology_question, has question_id "eod_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# EOD8: Remedies
+match $cat isa ontology_category, has category_id "EOD8"; $q isa ontology_question, has question_id "eod_h1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD8"; $q isa ontology_question, has question_id "eod_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "EOD8"; $q isa ontology_question, has question_id "eod_h3";
+insert (category: $cat, question: $q) isa category_has_question;

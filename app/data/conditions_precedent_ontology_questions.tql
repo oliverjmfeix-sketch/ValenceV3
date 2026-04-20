@@ -1,0 +1,186 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# CONDITIONS PRECEDENT ONTOLOGY QUESTIONS
+#
+# Covers the conditions to initial funding (closing date CPs) and the
+# conditions to subsequent incremental drawings (ongoing CPs). This module
+# is important for redline / deal-certainty analysis — restrictive CPs
+# delay or block funding; permissive CPs accelerate it.
+#
+# Categories (4):
+#   CP1 — Closing Date Conditions (core)
+#   CP2 — Representations & Specified Representations
+#   CP3 — Ongoing Incremental Draw Conditions
+#   CP4 — Solvency, MAE, and Other Qualitative Conditions
+#
+# Covenant type: CP
+# Question ID prefix: cp_
+# Category display_order range: 1301-1304
+# Question display_order range: 2000-2099
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $cp_cat1 isa ontology_category,
+    has category_id "CP1",
+    has name "Closing Date Conditions",
+    has description "Core conditions to initial funding — executed Loan Documents, corporate documents, closing opinions.",
+    has display_order 1301,
+    has extraction_context_sections "CONDITIONS_PRECEDENT",
+    has extraction_batch_hint "Extract the closing-date condition list: executed Loan Documents, secretary's certificates, legal opinions, good standing certificates, and any collateral perfection requirements.";
+
+insert $cp_cat2 isa ontology_category,
+    has category_id "CP2",
+    has name "Representations & Specified Reps",
+    has description "Distinction between 'Specified Representations' (hard CP) and all other representations (not a funding CP in acquisition financings).",
+    has display_order 1302,
+    has extraction_context_sections "CONDITIONS_PRECEDENT,DEFINITIONS",
+    has extraction_batch_hint "CRITICAL for LBO deals. Extract the scope of 'Specified Representations' — the narrow list of reps that must be true at closing, with other reps being only target/acquisition-related reps to avoid backstopping the Sponsor's diligence.";
+
+insert $cp_cat3 isa ontology_category,
+    has category_id "CP3",
+    has name "Ongoing Incremental Draw Conditions",
+    has description "Conditions to each revolver drawing and each incremental facility — narrower than closing CPs.",
+    has display_order 1303,
+    has extraction_context_sections "CONDITIONS_PRECEDENT",
+    has extraction_batch_hint "Extract the ongoing CPs — typically limited to no Default/EOD and representations being true. Incremental facility CPs may additionally include pro forma ratio compliance.";
+
+insert $cp_cat4 isa ontology_category,
+    has category_id "CP4",
+    has name "Solvency, MAE, and Qualitative Conditions",
+    has description "Solvency certificate, absence of MAE, and other qualitative conditions.",
+    has display_order 1304,
+    has extraction_context_sections "CONDITIONS_PRECEDENT,DEFINITIONS",
+    has extraction_batch_hint "Focus on solvency certificates, MAE conditions (particularly whether MAE is a closing CP versus only an acquisition-agreement condition), and any other qualitative conditions.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CP1: CLOSING DATE CONDITIONS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $cp_a1 isa ontology_question,
+    has question_id "cp_a1",
+    has covenant_type "CP",
+    has question_text "Is delivery of a closing-date legal opinion a condition to initial funding?",
+    has answer_type "boolean",
+    has display_order 2000,
+    has extraction_prompt "Determine whether delivery of a legal opinion from Borrower's counsel — addressing enforceability, due authorization, and typically no conflict with material agreements — is a condition to the initial funding. Look for 'opinion of counsel' or 'legal opinion' in the closing conditions list. Answer true if a legal opinion is required. This is essentially universal but verify presence.";
+
+insert $cp_a2 isa ontology_question,
+    has question_id "cp_a2",
+    has covenant_type "CP",
+    has question_text "Is collateral perfection (UCC filings, mortgages) a condition to initial funding?",
+    has answer_type "boolean",
+    has display_order 2001,
+    has extraction_prompt "Determine whether the agreement conditions initial funding on substantial or complete collateral perfection — filing of UCC financing statements, delivery of mortgages, control agreements over deposit accounts. Look for 'all filings, recordings, and other actions necessary to create a first-priority perfected Lien' or a post-closing agreement that permits certain items to be perfected post-close. Answer true if the main collateral package must be perfected AT closing, false if post-closing perfection is broadly permitted (acquisition-financing pattern).";
+
+insert $cp_a3 isa ontology_question,
+    has question_id "cp_a3",
+    has covenant_type "CP",
+    has question_text "Is there a post-closing perfection grace period?",
+    has answer_type "integer",
+    has display_order 2002,
+    has extraction_prompt "Extract the post-closing grace period in days for perfecting collateral items that were not perfected at closing (mortgages, control agreements, foreign collateral). Common values: 60, 90, 120 days. Return as integer (days). Return null if no grace period applies (collateral must be perfected at closing).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CP2: REPRESENTATIONS & SPECIFIED REPS (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $cp_b1 isa ontology_question,
+    has question_id "cp_b1",
+    has covenant_type "CP",
+    has question_text "Is this an acquisition financing with 'Specified Representations' limits?",
+    has answer_type "boolean",
+    has display_order 2010,
+    has extraction_prompt "Determine whether the credit agreement uses an acquisition-financing CP structure with a narrow 'Specified Representations' list. In LBO financings, the conditions limit funding-side reps to a short list (Specified Reps) while the broader set of reps exists only as contractual covenants. Look for 'Specified Representations' as a defined term and a closing condition tied only to that list. Answer true if this is an acquisition-financing structure. False for direct Borrower-initiated refinancings or upsizings (where all reps typically must be true).";
+
+insert $cp_b2 isa ontology_question,
+    has question_id "cp_b2",
+    has covenant_type "CP",
+    has question_text "Are the Specified Representations limited to corporate/existence/authorization items?",
+    has answer_type "boolean",
+    has display_order 2011,
+    has extraction_prompt "Determine whether the Specified Representations are limited to a narrow list: corporate existence, power and authority, due authorization, enforceability, no conflict with charter documents, compliance with sanctions and anti-corruption laws, solvency of the Borrower, use of proceeds, and properly created/perfected Liens. Answer true if the list is narrow (standard acquisition-financing pattern). False if the list is expanded to include financial, operational, or target-specific reps — any expansion is Sponsor-unfriendly and should be flagged.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CP3: ONGOING INCREMENTAL DRAW CONDITIONS (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $cp_c1 isa ontology_question,
+    has question_id "cp_c1",
+    has covenant_type "CP",
+    has question_text "Is 'no Default or Event of Default' a condition to each revolver drawing?",
+    has answer_type "boolean",
+    has display_order 2020,
+    has extraction_prompt "Determine whether each revolver drawing is conditioned on the absence of any Default or Event of Default at the time of and after giving effect to the drawing. Look for 'no Default or Event of Default shall have occurred and be continuing' in the ongoing conditions list. Answer true if this condition applies to each drawing.";
+
+insert $cp_c2 isa ontology_question,
+    has question_id "cp_c2",
+    has covenant_type "CP",
+    has question_text "Is pro forma ratio compliance a condition to incremental facility utilization?",
+    has answer_type "boolean",
+    has display_order 2021,
+    has extraction_prompt "Determine whether drawing on an incremental facility requires pro forma compliance with a leverage ratio test (the ratio prong of the incremental cap). Look in the incremental facility section for 'pro forma basis compliance with the First Lien Net Leverage Ratio of X.XXx'. Answer true if any pro forma ratio test applies. Note: the freebie portion of the incremental cap typically has no ratio test, but the ratio-prong portion does.";
+
+insert $cp_c3 isa ontology_question,
+    has question_id "cp_c3",
+    has covenant_type "CP",
+    has question_text "Can revolver drawings occur during a Default?",
+    has answer_type "boolean",
+    has display_order 2022,
+    has extraction_prompt "Determine whether there are any scenarios where revolver drawings are permitted during a Default or EOD — most commonly, drawings to cash-collateralize outstanding Letters of Credit or pay interest/fees on existing Loans. Look for exceptions to the 'no Default' condition, or carve-outs permitting specific draw categories during a Default. Answer true if any draw is permitted during a Default.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CP4: SOLVENCY, MAE, AND QUALITATIVE (2 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $cp_d1 isa ontology_question,
+    has question_id "cp_d1",
+    has covenant_type "CP",
+    has question_text "Is delivery of a solvency certificate a closing condition?",
+    has answer_type "boolean",
+    has display_order 2030,
+    has extraction_prompt "Determine whether delivery of a solvency certificate — signed by a senior financial officer (typically the CFO) — is a closing condition. The certificate attests that the Borrower and its Restricted Subsidiaries are solvent on a consolidated basis after giving effect to the transactions. Look for 'Solvency Certificate' or 'solvency certificate' in the closing conditions. Answer true if required.";
+
+insert $cp_d2 isa ontology_question,
+    has question_id "cp_d2",
+    has covenant_type "CP",
+    has question_text "Is absence of a Material Adverse Effect a closing condition?",
+    has answer_type "boolean",
+    has display_order 2031,
+    has extraction_prompt "Determine whether absence of a Material Adverse Effect (as defined) is a closing condition at the credit-agreement level. In modern acquisition financings, MAE is typically a condition of the acquisition agreement (not the credit agreement), to avoid giving Lenders an MAE escape route ('certain funds'). Look in the closing conditions for any MAE reference. Answer true if MAE is a credit-agreement closing condition (Lender-friendly, Sponsor-unfriendly), false if MAE is excluded from the credit-agreement CPs (standard acquisition-financing pattern).";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP2"; $q isa ontology_question, has question_id "cp_b1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP2"; $q isa ontology_question, has question_id "cp_b2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP3"; $q isa ontology_question, has question_id "cp_c1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP3"; $q isa ontology_question, has question_id "cp_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP3"; $q isa ontology_question, has question_id "cp_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d2";
+insert (category: $cat, question: $q) isa category_has_question;

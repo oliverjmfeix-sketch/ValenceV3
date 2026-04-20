@@ -1,0 +1,125 @@
+################################################################################
+# VALENCE COVENANT INTELLIGENCE PLATFORM
+# _TEMPLATE — Canonical pattern for a new covenant module
+#
+# @ontology-template
+#
+# DO NOT MODIFY THIS FILE. Copy it to `<module>_ontology_questions.tql` and
+# edit the copy. The validator skips files with the `@ontology-template`
+# marker by default (use --force to lint this file anyway).
+#
+# This template shows:
+#   1. Category definitions (top of file)
+#   2. Question definitions (middle)
+#   3. category_has_question linkage (bottom)
+#
+# Follow the order. Categories MUST be defined before questions that link to
+# them, because the `match $cat ...` linkage rows look up categories by id.
+#
+# NAMING:
+#   <prefix>_<letter><n>  for scalar questions   (e.g. xyz_a1, xyz_b3)
+#   <prefix>_el_<name>    for entity-list        (e.g. xyz_el_tiers)
+#
+# See docs/cowork/ONTOLOGY_AUTHOR_GUIDE.md for the full authoring playbook.
+################################################################################
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORIES
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Each category has:
+#   - category_id: unique across the whole ontology (use module prefix, e.g. XYZ1)
+#   - name: human-readable title
+#   - description: one sentence, what this category covers
+#   - display_order: integer in the module's range (see guide section 5)
+#   - extraction_context_sections: which document segments are most relevant,
+#     comma-separated ids from segment_types_seed.tql
+#   - extraction_batch_hint: one sentence of guidance for Claude when batch-
+#     extracting this entire category's questions at once
+
+insert $xyz_cat1 isa ontology_category,
+    has category_id "XYZ1",
+    has name "Core Structure",
+    has description "Existence and scope of the <module> covenant. Who is bound and what is prohibited.",
+    has display_order 999,     # TODO: replace with the real display_order
+    has extraction_context_sections "NEGATIVE_COVENANTS,<SEGMENT_ID>",
+    has extraction_batch_hint "Focus on whether a <module> covenant exists, which entities are bound, and the scope of the prohibition.";
+
+# Add more categories here, typically 4-8 per module.
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUESTIONS — CATEGORY XYZ1: CORE STRUCTURE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $xyz_a1 isa ontology_question,
+    has question_id "xyz_a1",
+    has covenant_type "XYZ",
+    has question_text "Does a <module> negative covenant exist?",
+    has answer_type "boolean",
+    has display_order 1000,     # TODO: module-appropriate number
+    has extraction_prompt "Determine whether the credit agreement contains a negative covenant restricting <module>. Look in the Negative Covenants article for a section titled '<typical title>' or similar. The covenant typically begins with language like '<typical opening clause>'. Answer true if any such prohibition exists, even if heavily exception-carved.";
+
+insert $xyz_a2 isa ontology_question,
+    has question_id "xyz_a2",
+    has covenant_type "XYZ",
+    has question_text "Does the covenant bind the Borrower?",
+    has answer_type "boolean",
+    has display_order 1001,
+    has extraction_prompt "Determine whether the Borrower is bound by the <module> covenant. Look for 'The Borrower will not' or 'The Borrower shall not' in the covenant language.";
+
+insert $xyz_a3 isa ontology_question,
+    has question_id "xyz_a3",
+    has covenant_type "XYZ",
+    has question_text "Does the covenant bind Restricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1002,
+    has extraction_prompt "Determine whether the covenant extends to Restricted Subsidiaries ('will not permit any Restricted Subsidiary to...'). Answer true if it binds all RSubs, false if it is borrower-only.";
+
+# ── Example: entity-list question (draft only — needs engineering) ──────────
+#
+# TODO-ENG: entity_list question. Proposed entity shape:
+#   entity xyz_basket,
+#     owns basket_cap_usd,
+#     owns basket_cap_pct_ebitda,
+#     owns requires_no_default,
+#     owns section_reference,
+#     owns source_page,
+#     owns source_text,
+#     owns confidence
+# Target relation: provision_has_xyz_basket (needs to be added to schema)
+#
+# insert $xyz_el_baskets isa ontology_question,
+#     has question_id "xyz_el_baskets",
+#     has covenant_type "XYZ",
+#     has question_text "Extract all permitted <module> baskets.",
+#     has answer_type "entity_list",
+#     has display_order 1090,
+#     has target_entity_type "xyz_basket",
+#     has target_relation_type "provision_has_xyz_basket",
+#     has extraction_prompt "Extract ALL permitted <module> baskets listed in the covenant. For EACH basket include: basket_cap_usd (the fixed dollar component), basket_cap_pct_ebitda (the grower percentage if any), requires_no_default (boolean), section_reference, and source_text. Do not merge distinct baskets into one entity — even if they share a common cap, extract separately.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CATEGORY → QUESTION LINKAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Each question MUST be linked to exactly one category via category_has_question.
+# Categories without questions and questions without categories are caught by the
+# validator.
+#
+# Pattern: one two-line block per link, with `match` selecting the category and
+# question, and `insert` adding the relation.
+
+match $cat isa ontology_category, has category_id "XYZ1";
+      $q isa ontology_question, has question_id "xyz_a1";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "XYZ1";
+      $q isa ontology_question, has question_id "xyz_a2";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "XYZ1";
+      $q isa ontology_question, has question_id "xyz_a3";
+insert (category: $cat, question: $q) isa category_has_question;
