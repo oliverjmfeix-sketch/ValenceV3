@@ -91,6 +91,30 @@ insert $inv_cat8 isa ontology_category,
     has extraction_context_sections "INVESTMENTS_COVENANT,RESTRICTED_PAYMENTS",
     has extraction_batch_hint "Flag patterns enabling asset stripping or structural subordination: open J.Crew pathways (investment → unsub → IP transfer), unlimited ratio investment baskets, unlimited non-guarantor investments, and combinations where investments + RP reallocation → mass dividend to sponsors.";
 
+insert $inv_cat9 isa ontology_category,
+    has category_id "INV9",
+    has name "Investment Returns & Proceeds",
+    has description "Accounting mechanics for cash returns on Investments: classification, timing, basket-refresh behavior, and divestiture proceeds handling.",
+    has display_order 409,
+    has extraction_context_sections "INVESTMENTS_COVENANT,DEFINITIONS",
+    has extraction_batch_hint "Focus on how cash received on Investments is classified (interest vs dividends vs return of capital), how basket capacity refreshes on returns, and whether divestiture proceeds can be redeployed without consuming basket capacity.";
+
+insert $inv_cat10 isa ontology_category,
+    has category_id "INV10",
+    has name "Management / Portfolio / Misc Investments",
+    has description "Narrow-purpose investment permissions: management employee loans, passive portfolio investments, Hedging Obligations carve-outs.",
+    has display_order 410,
+    has extraction_context_sections "INVESTMENTS_COVENANT",
+    has extraction_batch_hint "Walk the Permitted Investments list for non-strategic investment carve-outs: management/employee loans, portfolio (passive minority) investments, and the Hedging Obligation carve-out from the Investment definition.";
+
+insert $inv_cat11 isa ontology_category,
+    has category_id "INV11",
+    has name "Post-Investment Mechanics",
+    has description "What happens after an Investment is made: reclassification as Debt, conversion on Restricted-Sub joinder, Material Property tracking, Sponsor guarantee treatment.",
+    has display_order 411,
+    has extraction_context_sections "INVESTMENTS_COVENANT,DEBT_INCURRENCE",
+    has extraction_batch_hint "Focus on how Investments change classification over time: when a loan Investment becomes Indebtedness (DI covenant), when an acquired entity becomes a Restricted Subsidiary (basket release), and how Material Property contributions are separately tracked.";
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INV1: CORE STRUCTURE (3 questions)
@@ -119,6 +143,42 @@ insert $inv_a3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1102,
     has extraction_prompt "Determine whether the investments covenant binds ALL Restricted Subsidiaries, or only Loan Parties / Guarantors. Look for 'will not permit any Restricted Subsidiary to'. Answer true only if all RSubs are bound. If only Loan Parties are bound, non-guarantor RSubs can make unlimited investments — a significant structural gap.";
+
+insert $inv_a4 isa ontology_question,
+    has question_id "inv_a4",
+    has covenant_type "INV",
+    has question_text "Does the investments covenant bind Guarantors / Loan Parties?",
+    has answer_type "boolean",
+    has display_order 1103,
+    has extraction_prompt "Determine whether Guarantors (or Loan Parties / Credit Parties) are expressly bound by the investments covenant in addition to the Borrower. Look in the covenant's opening clause for phrases such as 'will not, and will not permit any Guarantor to' or 'The Loan Parties shall not make any Investment'. Answer true if Guarantors or Loan Parties are explicitly named as bound parties. Answer false if only the Borrower (and possibly Restricted Subsidiaries) are bound and Guarantors are not separately named — silence about Guarantors generally means they are not independently bound by this covenant.";
+# TODO-ENG: add inv_provision.binds_guarantors boolean
+
+insert $inv_a5 isa ontology_question,
+    has question_id "inv_a5",
+    has covenant_type "INV",
+    has question_text "What is the section reference for the investments covenant?",
+    has answer_type "string",
+    has display_order 1104,
+    has extraction_prompt "Extract the section reference for the investments covenant exactly as it appears in this document. The covenant typically sits inside the Negative Covenants article under a heading such as 'Investments', 'Limitation on Investments', or 'Loans and Investments'. Return the verbatim section number or article designation as a single string using the document's own formatting. Return an empty string if no investments covenant exists in the agreement.";
+# TODO-ENG: add inv_provision.inv_covenant_section string
+
+insert $inv_a6 isa ontology_question,
+    has question_id "inv_a6",
+    has covenant_type "INV",
+    has question_text "Does the investments covenant include a de-minimis / ordinary-course carve-out?",
+    has answer_type "boolean",
+    has display_order 1105,
+    has extraction_prompt "Determine whether the Permitted Investments list includes a de-minimis or ordinary-course carve-out — typically for small-dollar investments, short-term cash management, Cash Equivalents, or trade credit extended in the ordinary course of business. Look for language such as 'Investments consisting of trade credit extended in the ordinary course of business', 'Cash Equivalents', or an 'Investments in an aggregate amount not to exceed $X outstanding at any time' general-purpose minor-investments basket. Answer true if any such ordinary-course / de-minimis carve-out exists. Answer false if every Investment must fit within an enumerated permitted-investments basket with no ordinary-course safety valve.";
+# TODO-ENG: add inv_provision.has_de_minimis_carveout boolean
+
+insert $inv_a7 isa ontology_question,
+    has question_id "inv_a7",
+    has covenant_type "INV",
+    has question_text "Is the 'Investment' definition broad (includes guarantees of third-party debt AND hedging obligations)?",
+    has answer_type "boolean",
+    has display_order 1106,
+    has extraction_prompt "Examine the defined term 'Investment' to determine whether it captures BOTH guarantees of third-party Indebtedness AND Hedging Obligations with non-group counterparties. Look for explicit inclusion of 'guarantees of Indebtedness of any other Person' and 'Hedging Obligations with any Person not a Restricted Subsidiary'. Answer true only if BOTH categories are included (broad definition — credit-friendly). Answer false if either guarantees or hedging obligations are omitted — a narrow definition is a structural gap because economic support of non-group entities escapes the covenant. Note: inv_a2 asks about breadth generally; this question isolates the two most commonly-omitted components.";
+# TODO-ENG: add inv_provision.definition_captures_guarantees_and_hedging boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -149,6 +209,69 @@ insert $inv_b3 isa ontology_question,
     has display_order 1112,
     has extraction_prompt "Determine whether the Permitted Investments list includes a category-specific basket for Foreign Subsidiaries. Look for 'Investments in Foreign Subsidiaries' or 'Investments in any Restricted Subsidiary that is a Foreign Subsidiary' with its own cap. Answer true if a distinct foreign-sub basket exists.";
 
+insert $inv_b4 isa ontology_question,
+    has question_id "inv_b4",
+    has covenant_type "INV",
+    has question_text "What is the dollar cap on investments in non-guarantor Restricted Subsidiaries (USD)?",
+    has answer_type "number",
+    has display_order 1113,
+    has extraction_prompt "Extract the dollar cap on Investments in non-guarantor Restricted Subsidiaries, in US dollars. Look for a Permitted Investments basket phrased as 'Investments in Restricted Subsidiaries that are not Loan Parties' or 'Investments in non-guarantor Restricted Subsidiaries in an aggregate amount not to exceed $X'. Return the fixed-dollar cap as a full integer (e.g., 75000000 for $75 million). Return null if non-guarantor sub investments are uncapped (inv_b2 captures whether a cap exists at all), if no such basket exists, or if such investments fall under a broader general basket without a dedicated cap.";
+# TODO-ENG: add inv_provision.non_guarantor_sub_cap_usd double
+
+insert $inv_b5 isa ontology_question,
+    has question_id "inv_b5",
+    has covenant_type "INV",
+    has question_text "What is the dollar cap on investments in Foreign Subsidiaries (USD)?",
+    has answer_type "number",
+    has display_order 1114,
+    has extraction_prompt "Extract the dollar cap on Investments in Foreign Subsidiaries, in US dollars, where such investments are subject to a dedicated cap. Look for a Permitted Investments basket such as 'Investments in Foreign Subsidiaries in an aggregate amount not to exceed $X' or a grower variant. Return the fixed-dollar cap as a full integer. Return null if foreign-sub investments are uncapped, if no dedicated basket exists, or if foreign-sub investments are subsumed within the non-guarantor sub basket (in which case inv_b4 captures the combined cap).";
+# TODO-ENG: add inv_provision.foreign_sub_cap_usd double
+
+insert $inv_b6 isa ontology_question,
+    has question_id "inv_b6",
+    has covenant_type "INV",
+    has question_text "Is there a separate basket for intercompany loans (vs equity contributions)?",
+    has answer_type "boolean",
+    has display_order 1115,
+    has extraction_prompt "Determine whether the Permitted Investments list contains a separate basket for intercompany loans — i.e., loans made by Loan Parties to other Restricted Subsidiaries — treated as distinct from equity capital contributions. Look for basket language such as 'Investments consisting of intercompany loans', 'loans to any Restricted Subsidiary', or 'Indebtedness owing from any Restricted Subsidiary to any other Restricted Subsidiary'. Answer true if a separate intercompany-loans basket exists. Answer false if intercompany loans are subsumed within a broader Permitted Investments basket — that's the less-common structure.";
+# TODO-ENG: add inv_provision.has_intercompany_loans_basket boolean
+
+insert $inv_b7 isa ontology_question,
+    has question_id "inv_b7",
+    has covenant_type "INV",
+    has question_text "Are Investments in Securitization / Receivables Subsidiaries separately permitted?",
+    has answer_type "boolean",
+    has display_order 1116,
+    has extraction_prompt "Determine whether the Permitted Investments list includes a separate basket for Investments in Receivables Subsidiaries (as defined by the Qualified Receivables Facility structure) or other Securitization Subsidiaries. Look for 'Investments in a Receivables Subsidiary', 'Investments in any Securitization Subsidiary', or 'Investments in connection with any Permitted Securitization'. Answer true if such a separate basket exists — receivables facilities typically require subsidiary-level equity capitalization that needs explicit investment permission. Answer false if receivables facilities are not contemplated or handled elsewhere.";
+# TODO-ENG: add inv_provision.receivables_sub_investments_permitted boolean
+
+insert $inv_b8 isa ontology_question,
+    has question_id "inv_b8",
+    has covenant_type "INV",
+    has question_text "Must intercompany notes be subordinated or pledged to secure the Obligations?",
+    has answer_type "boolean",
+    has display_order 1117,
+    has extraction_prompt "Determine whether intercompany promissory notes evidencing loans permitted by the Permitted Investments list must be either (a) subordinated to the Obligations via a subordination agreement or (b) pledged to the Administrative Agent as Collateral, or both. Look for language such as 'provided that any such intercompany note shall be subject to a subordination agreement reasonably satisfactory to the Administrative Agent' or 'pledged as Collateral under the Security Documents'. Answer true if any such subordination or pledge requirement is imposed. Answer false if intercompany notes may be freely assigned or transferred outside the credit group without restriction — that is a structural gap because the notes represent economic value that could otherwise be moved out.";
+# TODO-ENG: add inv_provision.intercompany_notes_subordinated_or_pledged boolean
+
+insert $inv_b9 isa ontology_question,
+    has question_id "inv_b9",
+    has covenant_type "INV",
+    has question_text "Do Loan Party → Foreign Sub investments require an anti-stripping / Material-IP carve-out condition?",
+    has answer_type "boolean",
+    has display_order 1118,
+    has extraction_prompt "Determine whether Investments made by Loan Parties into Foreign Subsidiaries are subject to an anti-stripping condition — a condition requiring the investment to be made at fair market value, on arms-length terms, or NOT to consist of Material Intellectual Property. Look for language such as 'provided that no Material Intellectual Property shall be contributed to a Foreign Subsidiary under this clause' or 'all such Investments shall be on terms substantially similar to those between unrelated parties'. Answer true if any such anti-stripping condition applies specifically to Foreign Sub investments. Answer false if unrestricted value can flow from Loan Parties into Foreign Subs via the foreign-sub basket.";
+# TODO-ENG: add inv_provision.foreign_sub_anti_stripping_required boolean
+
+insert $inv_b10 isa ontology_question,
+    has question_id "inv_b10",
+    has covenant_type "INV",
+    has question_text "Must non-Loan-Party subs receiving investments above a threshold become Loan Parties?",
+    has answer_type "boolean",
+    has display_order 1119,
+    has extraction_prompt "Determine whether the Permitted Investments list (or the guaranty / collateral requirement) contains a joinder-threshold mechanism: any Restricted Subsidiary that is not a Loan Party and receives Investments above a dollar threshold is required to become a Loan Party / Guarantor. Look for language such as 'if any Restricted Subsidiary that is not a Loan Party receives Investments exceeding $X in the aggregate, such Restricted Subsidiary shall be designated a Loan Party' or 'any Material Subsidiary must become a Loan Party'. Answer true if any automatic-joinder threshold mechanism is imposed. Answer false if non-Loan-Party subs may accumulate unlimited Investment balances without becoming bound by the credit package.";
+# TODO-ENG: add inv_provision.non_lp_joinder_threshold_exists boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INV3: INVESTMENTS IN UNRESTRICTED SUBSIDIARIES (3 questions — J.Crew pathway)
@@ -177,6 +300,69 @@ insert $inv_c3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1122,
     has extraction_prompt "Determine whether Material IP (patents, trademarks, software, or IP generating material revenue) can be contributed to an Unrestricted Subsidiary under the investments covenant, without being blocked by the J.Crew blocker. Look for two things: (a) whether the investments covenant itself has any IP-contribution restriction, and (b) whether the J.Crew blocker (typically in the RP/investments definitions) is drafted to bind the Loan Parties' ability to contribute Material IP to unsubs. Answer true if Material IP CAN be transferred (pathway is open), false if the J.Crew blocker closes the pathway. This is THE defining question for J.Crew risk on the investments side.";
+
+insert $inv_c4 isa ontology_question,
+    has question_id "inv_c4",
+    has covenant_type "INV",
+    has question_text "What is the Unrestricted Subsidiary investment basket EBITDA grower percentage?",
+    has answer_type "number",
+    has display_order 1123,
+    has extraction_prompt "Extract the EBITDA grower percentage for the Unrestricted Subsidiary investment basket. Look in the unsub investment clause for a grower formulation 'the greater of $X and Y% of Consolidated EBITDA' — Y is the value to extract. Return as a number representing the percentage (e.g., 50 for 50%, 7.5 for 7.5%; do NOT return 0.50, '50%', or '7.5%'). Return null if the unsub basket has no EBITDA grower component or does not exist.";
+# TODO-ENG: add inv_provision.unsub_basket_pct_ebitda double
+
+insert $inv_c5 isa ontology_question,
+    has question_id "inv_c5",
+    has covenant_type "INV",
+    has question_text "What is the clause reference for the Unrestricted Subsidiary investment basket?",
+    has answer_type "string",
+    has display_order 1124,
+    has extraction_prompt "Extract the clause designation where the Unrestricted Subsidiary investment basket is established, exactly as it appears in the agreement. Look in the Permitted Investments list for the clause establishing the unsub-specific basket — typically a lettered or numbered sub-clause whose description matches the language 'Investments in Unrestricted Subsidiaries'. Return the clause designation verbatim as printed. Return an empty string if no dedicated unsub investment basket exists.";
+# TODO-ENG: add inv_provision.unsub_basket_clause_ref string
+
+insert $inv_c6 isa ontology_question,
+    has question_id "inv_c6",
+    has covenant_type "INV",
+    has question_text "Is there a no-default condition on the Unrestricted Subsidiary investment basket?",
+    has answer_type "boolean",
+    has display_order 1125,
+    has extraction_prompt "Determine whether the Unrestricted Subsidiary investment basket is conditioned on the absence of a Default or Event of Default at the time of the investment. Look for 'so long as no Default or Event of Default shall have occurred and be continuing' within the unsub basket clause itself or a cross-reference to a general conditions block applicable to this basket. Answer true only if the condition explicitly applies to THIS basket. Answer false if unsub investments may be made during an ongoing Event of Default — a structural gap that permits continued value leakage out of the credit group during distress.";
+# TODO-ENG: add inv_provision.unsub_basket_no_default_condition boolean
+
+insert $inv_c7 isa ontology_question,
+    has question_id "inv_c7",
+    has covenant_type "INV",
+    has question_text "Must Material IP contributions to Unrestricted Subsidiaries be at fair market value on arms-length terms?",
+    has answer_type "boolean",
+    has display_order 1126,
+    has extraction_prompt "Determine whether the Permitted Investments list imposes a fair-market-value (FMV) and arms-length pricing condition specifically on contributions of Material Intellectual Property to any Unrestricted Subsidiary. Look for language such as 'provided that any such Investment consisting of Material Intellectual Property shall be made at fair market value on arms-length terms' or a cross-reference to an Affiliate Transaction standard. Answer true if such an FMV / arms-length condition is imposed on IP contributions. Answer false if Material IP may be contributed at book value or without pricing conditions — the J.Crew risk pattern often exploits below-market transfers to strip value from the credit group.";
+# TODO-ENG: add inv_provision.ip_contribution_fmv_required boolean
+
+insert $inv_c8 isa ontology_question,
+    has question_id "inv_c8",
+    has covenant_type "INV",
+    has question_text "Does the covenant expressly prohibit contributing Material IP to any Unrestricted Subsidiary?",
+    has answer_type "boolean",
+    has display_order 1127,
+    has extraction_prompt "Determine whether the Permitted Investments list (or the covenant's opening language) contains an express prohibition — a J.Crew blocker — on contributing Material Intellectual Property to Unrestricted Subsidiaries. Look for language such as 'the Loan Parties shall not contribute any Material Intellectual Property to any Unrestricted Subsidiary' or a cross-reference to a defined J.Crew Blocker. Answer true only if such an express prohibition exists in the investments covenant itself (or is incorporated by reference from the definitions or a separate blocker section). Answer false if the investments covenant is silent on IP contributions to unsubs — silence is the credit-unfriendly default because it leaves the pathway open.";
+# TODO-ENG: add inv_provision.express_ip_to_unsub_blocker boolean
+
+insert $inv_c9 isa ontology_question,
+    has question_id "inv_c9",
+    has covenant_type "INV",
+    has question_text "Is there a follow-on restriction on Unrestricted Subs subsequently transferring contributed Material IP?",
+    has answer_type "boolean",
+    has display_order 1128,
+    has extraction_prompt "Determine whether the Permitted Investments list imposes any restriction on an Unrestricted Subsidiary's subsequent transfer of Material Intellectual Property that was contributed to it by a Loan Party. Look for a Borrower-side covenant such as 'the Borrower shall not permit any Unrestricted Subsidiary to transfer, license, or encumber any Material Intellectual Property that was previously contributed to it by a Loan Party' or similar follow-on restriction. Answer true if any such follow-on restriction exists — this closes the downstream leg of the J.Crew loophole (the IP that exited to the unsub can be further moved to a third party). Answer false if no such restriction exists, which is the dominant market drafting today — once the IP is in the unsub, it is fully outside the credit group's reach.";
+# TODO-ENG: add inv_provision.unsub_ip_transfer_followon_restriction boolean
+
+insert $inv_c10 isa ontology_question,
+    has question_id "inv_c10",
+    has covenant_type "INV",
+    has question_text "Does designating a Restricted Subsidiary as Unrestricted consume Investment capacity at fair market value?",
+    has answer_type "boolean",
+    has display_order 1129,
+    has extraction_prompt "Determine whether the investments covenant provides that designating an existing Restricted Subsidiary as an Unrestricted Subsidiary is itself deemed an Investment in an amount equal to the fair market value of that Subsidiary at the time of designation. Look for language such as 'any designation of a Restricted Subsidiary as an Unrestricted Subsidiary shall be deemed an Investment in an amount equal to the fair market value of such Subsidiary as of the date of designation' or a cross-reference in the Unrestricted-Subsidiary-designation mechanics. Answer true if designation itself counts as a capacity-consuming Investment (credit-friendly — prevents free de-designation of valuable subsidiaries). Answer false if designation is a free act with no investment-capacity impact — that is the structural gap enabling the J.Crew pattern.";
+# TODO-ENG: add inv_provision.unsub_designation_consumes_capacity boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -207,6 +393,42 @@ insert $inv_d3 isa ontology_question,
     has display_order 1132,
     has extraction_prompt "Determine whether the general investment basket includes a grower component tied to Consolidated EBITDA or Total Assets. Look for 'the greater of $X and Y% of Consolidated EBITDA' or 'greater of $X and Y% of Total Assets'. Answer true if any such grower exists, false if the basket is a flat dollar cap.";
 
+insert $inv_d4 isa ontology_question,
+    has question_id "inv_d4",
+    has covenant_type "INV",
+    has question_text "What is the general investment basket EBITDA grower percentage?",
+    has answer_type "number",
+    has display_order 1133,
+    has extraction_prompt "Extract the EBITDA grower percentage for the general (catch-all) investment basket. Look in the basket clause for 'the greater of $X and Y% of Consolidated EBITDA' — Y is the value to extract. Return as a number representing the percentage (e.g., 100 for 100%, 37.5 for 37.5%; do NOT return 0.50, '100%', or '37.5%'). Return null if the general investment basket does not include an EBITDA grower component or does not exist.";
+# TODO-ENG: add inv_provision.general_basket_pct_ebitda double
+
+insert $inv_d5 isa ontology_question,
+    has question_id "inv_d5",
+    has covenant_type "INV",
+    has question_text "What is the clause reference for the general investment basket?",
+    has answer_type "string",
+    has display_order 1134,
+    has extraction_prompt "Extract the clause designation where the general (catch-all) investment basket is established, exactly as printed in the agreement. Look in the Permitted Investments list for the clause establishing the general / catch-all basket — typically a lettered or numbered sub-clause whose description matches the language 'Investments in an aggregate amount not to exceed the greater of $X and Y% of Consolidated EBITDA'. Return the clause designation verbatim as printed. Return an empty string if no general investment basket exists.";
+# TODO-ENG: add inv_provision.general_basket_clause_ref string
+
+insert $inv_d6 isa ontology_question,
+    has question_id "inv_d6",
+    has covenant_type "INV",
+    has question_text "Is there a no-default condition on the general investment basket?",
+    has answer_type "boolean",
+    has display_order 1135,
+    has extraction_prompt "Determine whether the general (catch-all) investment basket is conditioned on the absence of a Default or Event of Default at the time the investment is made. Look within the basket clause for 'so long as no Default or Event of Default shall have occurred and be continuing' or a cross-reference to a general conditions block applicable to this basket. Answer true only if the no-default condition explicitly applies to THIS basket. Answer false if general-basket investments may be made during an ongoing Event of Default — a structural gap that permits continued value leakage during distress.";
+# TODO-ENG: add inv_provision.general_basket_no_default_condition boolean
+
+insert $inv_d7 isa ontology_question,
+    has question_id "inv_d7",
+    has covenant_type "INV",
+    has question_text "Can the general investment basket be stacked with the ratio investment basket?",
+    has answer_type "boolean",
+    has display_order 1136,
+    has extraction_prompt "Determine whether the general (catch-all) investment basket and the ratio investment basket can be used simultaneously against the same investment transaction — effectively summing their individual caps. Look for express no-stacking language such as 'no Investment may be made in reliance on this basket if capacity is available under [the ratio basket]' or cross-reference mechanics that subtract ratio-basket usage from the general basket's availability. Answer true if stacking is permitted OR the covenant is silent on stacking (the credit-unfriendly default — both baskets typically operate as independent pools unless expressly stated otherwise). Answer false only if an express anti-stacking rule prohibits simultaneous use.";
+# TODO-ENG: add inv_provision.general_ratio_stacking_permitted boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INV5: RATIO INVESTMENT BASKET (3 questions)
@@ -235,6 +457,69 @@ insert $inv_e3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1142,
     has extraction_prompt "Determine whether the ratio investment basket has any dollar-cap backstop (i.e., even when the ratio test is satisfied, investment capacity remains limited). Look for 'so long as the ratio does not exceed X.XXx and not to exceed $Y million'. Answer true if any dollar cap is present, false if the basket is truly unlimited once the ratio test clears. Trapdoor patterns — unlimited ratio investments combined with unlimited ratio debt — enable large-scale asset movement.";
+
+insert $inv_e4 isa ontology_question,
+    has question_id "inv_e4",
+    has covenant_type "INV",
+    has question_text "What is the threshold value for the ratio investment basket?",
+    has answer_type "number",
+    has display_order 1143,
+    has extraction_prompt "Extract the numerical threshold for the ratio investment basket — the ratio value that, when satisfied on a pro forma basis, permits investments. Look in the basket clause for the test condition, typically phrased 'Total Net Leverage Ratio does not exceed X.XXx' or 'First Lien Net Leverage Ratio is less than or equal to Y.YY to 1.00'. Return the ratio value as a decimal number (e.g., 5.00 for 5.00x — NOT the multiplier formatting). Return null if no ratio investment basket exists or the threshold is non-numeric.";
+# TODO-ENG: add inv_provision.ratio_basket_threshold double
+
+insert $inv_e5 isa ontology_question,
+    has question_id "inv_e5",
+    has covenant_type "INV",
+    has question_text "Does the ratio investment basket require pro forma compliance at incurrence?",
+    has answer_type "boolean",
+    has display_order 1144,
+    has extraction_prompt "Determine whether the ratio investment basket requires pro forma compliance with the threshold ratio at the time the investment is made. Look for language such as 'on a pro forma basis after giving effect to such Investment' or 'Pro Forma Compliance with [ratio test]'. Answer true if pro forma testing is explicitly required. Answer false if the covenant tests the ratio on a spot/current basis without giving effect to the new investment, or if silent (silence usually reads as spot testing — borrower-friendly).";
+# TODO-ENG: add inv_provision.ratio_basket_requires_pro_forma boolean
+
+insert $inv_e6 isa ontology_question,
+    has question_id "inv_e6",
+    has covenant_type "INV",
+    has question_text "Is the ratio investment basket available under Limited Condition Transaction (LCT) mechanics?",
+    has answer_type "boolean",
+    has display_order 1145,
+    has extraction_prompt "Determine whether the ratio investment basket is available under Limited Condition Transaction (LCT) mechanics — allowing the Borrower to test the ratio at signing of a definitive acquisition agreement rather than at closing. Look for references to 'Limited Condition Transaction', 'LCT Election', or language such as 'at the Borrower's option, the ratio may be tested on the date of the definitive acquisition agreement'. Answer true if LCT availability is extended to this basket. Answer false if LCT applies only to other covenants (e.g., debt incurrence) and not to investments.";
+# TODO-ENG: add inv_provision.ratio_basket_lct_available boolean
+
+insert $inv_e7 isa ontology_question,
+    has question_id "inv_e7",
+    has covenant_type "INV",
+    has question_text "Is there a no-default condition on the ratio investment basket?",
+    has answer_type "boolean",
+    has display_order 1146,
+    has extraction_prompt "Determine whether the ratio investment basket is conditioned on the absence of a Default or Event of Default at the time the investment is made. Look within the basket clause for 'so long as no Default or Event of Default shall have occurred and be continuing' or a cross-reference to a general conditions block applicable to this basket. Answer true only if the condition explicitly applies to THIS basket. Answer false if ratio-basket investments may be made during an ongoing Event of Default — a structural gap that permits continued value leakage during distress.";
+# TODO-ENG: add inv_provision.ratio_basket_no_default_condition boolean
+
+insert $inv_e8 isa ontology_question,
+    has question_id "inv_e8",
+    has covenant_type "INV",
+    has question_text "Can Investments under the ratio basket be reclassified to other Permitted Investment baskets?",
+    has answer_type "boolean",
+    has display_order 1147,
+    has extraction_prompt "Determine whether Investments made under the ratio investment basket can be reclassified or redesignated to a different Permitted Investment basket (effectively refreshing the ratio capacity for new Investments). Look for explicit reclassification mechanics such as 'the Borrower may at any time reclassify any Investment previously made under this basket to any other Permitted Investment basket' or 'redesignation of baskets is permitted'. Answer true if reclassification is permitted — this allows perpetual refresh of capacity (credit-unfriendly). Answer false if reclassification is silent or expressly prohibited.";
+# TODO-ENG: add inv_provision.ratio_basket_reclassification_permitted boolean
+
+insert $inv_e9 isa ontology_question,
+    has question_id "inv_e9",
+    has covenant_type "INV",
+    has question_text "Does the ratio investment basket share capacity with the DI ratio prong?",
+    has answer_type "boolean",
+    has display_order 1148,
+    has extraction_prompt "Determine whether the ratio investment basket and the debt incurrence covenant's ratio prong share a single capacity pool (capacity consumed under one reduces the other), or operate as independent pools. Look for cross-reference language such as 'the aggregate principal amount of Indebtedness permitted under [DI ratio basket] and Investments permitted under [ratio investment basket] shall not exceed $X' or similar reduction mechanic. Answer true if capacity is shared (credit-friendly — prevents double-dipping). Answer false if the two baskets have independent caps, allowing the Borrower to use both simultaneously.";
+# TODO-ENG: add inv_provision.ratio_basket_shares_di_capacity boolean
+
+insert $inv_e10 isa ontology_question,
+    has question_id "inv_e10",
+    has covenant_type "INV",
+    has question_text "Is the ratio test applied at incurrence only, or continuously during the Investment's life?",
+    has answer_type "string",
+    has display_order 1149,
+    has extraction_prompt "Determine whether the ratio test for the ratio investment basket is applied at the time of incurrence only (one-time test at the moment the Investment is made) or continuously (the ratio must remain below the threshold for so long as the Investment is outstanding). Look for language such as 'at the time of such Investment, the Total Net Leverage Ratio does not exceed X.XXx' (incurrence-only) versus 'at all times, the Total Net Leverage Ratio shall not exceed X.XXx' or 'for so long as such Investment remains outstanding' (continuous). Return 'incurrence' if the test applies only at incurrence — the credit-unfriendly default, because deterioration later does not affect the permitted Investment. Return 'continuous' if the Investment becomes automatically non-compliant if the ratio rises later. Return an empty string if no ratio investment basket exists.";
+# TODO-ENG: add inv_provision.ratio_basket_test_timing string
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -273,6 +558,60 @@ insert $inv_f4 isa ontology_question,
     has display_order 1153,
     has extraction_prompt "Determine whether the Permitted Investments list carves out Investments existing on the closing date (often tied to a disclosure schedule). Look for 'Investments existing on the Closing Date and listed on Schedule [X]'. Answer true if any existing-investments grandfather exists.";
 
+insert $inv_f5 isa ontology_question,
+    has question_id "inv_f5",
+    has covenant_type "INV",
+    has question_text "What is the cap on investments in joint ventures (USD)?",
+    has answer_type "number",
+    has display_order 1154,
+    has extraction_prompt "Extract the cap on investments in joint ventures, in US dollars. Look for 'Investments in joint ventures in an aggregate amount not to exceed $X' or 'Investments in any Joint Venture in an aggregate principal amount not to exceed'. Return the fixed-dollar cap as a full integer (e.g., 50000000 for $50 million). Return null if JV investments are uncapped, if no JV basket exists, or if JVs are subsumed within a general basket without a dedicated cap.";
+# TODO-ENG: add inv_provision.jv_basket_cap_usd double
+
+insert $inv_f6 isa ontology_question,
+    has question_id "inv_f6",
+    has covenant_type "INV",
+    has question_text "What is the JV investment basket EBITDA grower percentage?",
+    has answer_type "number",
+    has display_order 1155,
+    has extraction_prompt "Extract the EBITDA grower percentage for the joint venture investment basket. Look in the JV basket clause for a grower formulation 'the greater of $X and Y% of Consolidated EBITDA' — Y is the value to extract. Return as a number representing the percentage (e.g., 4 for 4%, 2.5 for 2.5%; do NOT return 0.04 or '4%'). Return null if the JV basket has no EBITDA grower or does not exist.";
+# TODO-ENG: add inv_provision.jv_basket_pct_ebitda double
+
+insert $inv_f7 isa ontology_question,
+    has question_id "inv_f7",
+    has covenant_type "INV",
+    has question_text "What is the cap on Similar Business investments (USD)?",
+    has answer_type "number",
+    has display_order 1156,
+    has extraction_prompt "Extract the cap on investments in Similar Businesses, in US dollars. Look in the Similar Business basket clause (if any) for a dollar limit — typically 'in an aggregate amount not to exceed $X' or a grower formulation. Return the fixed-dollar cap as a full integer. Return null if Similar Business investments are uncapped, if no such basket exists, or if such investments are subsumed within a general basket.";
+# TODO-ENG: add inv_provision.similar_business_cap_usd double
+
+insert $inv_f8 isa ontology_question,
+    has question_id "inv_f8",
+    has covenant_type "INV",
+    has question_text "What is the cap on Permitted Acquisitions (USD)?",
+    has answer_type "number",
+    has display_order 1157,
+    has extraction_prompt "Extract the cap on Permitted Acquisitions, in US dollars, where such a cap exists. Look for 'Investments constituting a Permitted Acquisition in an aggregate amount not to exceed $X' in the Permitted Investments list. Return the fixed-dollar cap as a full integer. Return null if Permitted Acquisitions are uncapped (the dominant market structure — acquisitions are usually uncapped but conditioned on other requirements such as a ratio test or a no-default condition), or if no dedicated acquisitions basket with a dollar limit exists.";
+# TODO-ENG: add inv_provision.acquisitions_cap_usd double
+
+insert $inv_f9 isa ontology_question,
+    has question_id "inv_f9",
+    has covenant_type "INV",
+    has question_text "Must acquired entities become Restricted Subsidiaries post-closing?",
+    has answer_type "boolean",
+    has display_order 1158,
+    has extraction_prompt "Determine whether the acquisitions basket requires the acquired entity to become a Restricted Subsidiary (or Loan Party) following the acquisition. Look for conditions within the Permitted Acquisition definition or the acquisitions basket clause such as 'the Person so acquired shall become a Restricted Subsidiary of the Borrower' or 'the Borrower shall cause such Person to become a Restricted Subsidiary within [time period]'. Answer true if the acquired entity must join the Restricted Group. Answer false if the basket permits acquiring a Person that may remain an Unrestricted Subsidiary or non-guarantor — a structural gap that lets newly-acquired assets escape the credit perimeter.";
+# TODO-ENG: add inv_provision.acquisition_target_must_join_restricted_group boolean
+
+insert $inv_f10 isa ontology_question,
+    has question_id "inv_f10",
+    has covenant_type "INV",
+    has question_text "What is the schedule reference for existing investments listed at closing?",
+    has answer_type "string",
+    has display_order 1159,
+    has extraction_prompt "Extract the disclosure-schedule reference where existing Investments (as of the Closing Date) are enumerated. Look in the existing-investments carve-out of the Permitted Investments list for language such as 'Investments existing on the Closing Date and listed on Schedule [X]' or 'Investments set forth on Schedule [X] — Existing Investments'. Return the schedule designation verbatim as printed in the agreement. Return an empty string if no such grandfather exists or if the carve-out does not reference a named schedule.";
+# TODO-ENG: add inv_provision.existing_investments_schedule_ref string
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INV7: CROSS-COVENANT LINKS (3 questions)
@@ -301,6 +640,51 @@ insert $inv_g3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1162,
     has extraction_prompt "Determine whether the Contribution Debt basket (a debt incurrence basket that permits debt dollar-for-dollar with new equity contributions) also increases investment capacity. Look for reference to contribution amounts in the investments covenant, or a general rule that 'any amounts used for Restricted Payments or Investments under this clause will reduce the corresponding capacity'. Answer true if contributed equity can be redeployed as unsub investments.";
+
+insert $inv_g4 isa ontology_question,
+    has question_id "inv_g4",
+    has covenant_type "INV",
+    has question_text "Is there a reinvestment window for divestiture proceeds under the Permitted Investments list?",
+    has answer_type "boolean",
+    has display_order 1163,
+    has extraction_prompt "Determine whether the Permitted Investments list permits a reinvestment window for divestiture proceeds (cash proceeds received on the sale, maturity, or other monetization of an Investment) — i.e., cash proceeds may be redeployed as new Investments within a specified time period before counting against basket capacity. Look for language such as 'cash proceeds received in respect of any Investment may be redeployed in any Permitted Investment within 365 days' or 'divestiture proceeds shall not be counted against the basket if reinvested within [time period]'. Answer true if such a reinvestment-window mechanism exists. Answer false if divestiture proceeds reduce basket consumption immediately on receipt, or if no such mechanism is provided.";
+# TODO-ENG: add inv_provision.has_divestiture_reinvestment_window boolean
+
+insert $inv_g5 isa ontology_question,
+    has question_id "inv_g5",
+    has covenant_type "INV",
+    has question_text "Does Contribution Debt capacity track both RP AND Investment usage (single-use)?",
+    has answer_type "boolean",
+    has display_order 1164,
+    has extraction_prompt "Determine whether the Contribution Debt mechanic (debt incurred dollar-for-dollar with new equity contributions) tracks its usage against BOTH the RP basket and the Investment basket — so that amounts used for Investments reduce the capacity available for Restricted Payments under the same equity-contribution-linked capacity, and vice versa. Look for language such as 'amounts used for Restricted Payments or Investments under this clause will reduce the corresponding capacity available under this clause' or similar double-counting-prevention mechanic. Answer true if such dual-tracking exists (credit-friendly — prevents the same equity from supporting both Investments and RP). Answer false if Contribution Debt capacity may be used for both RP and Investments independently without reduction (a structural gap — effectively doubles the economic capacity).";
+# TODO-ENG: add inv_provision.contribution_debt_single_use boolean
+
+insert $inv_g6 isa ontology_question,
+    has question_id "inv_g6",
+    has covenant_type "INV",
+    has question_text "Is cross-basket reallocation between RP and INV capped or one-way?",
+    has answer_type "boolean",
+    has display_order 1165,
+    has extraction_prompt "Determine whether cross-basket reallocation between the general RP basket and the general investment basket (inv_g2 asks whether such reallocation is permitted at all) is subject to a cap, a percentage limit, or a directional restriction. Look for language such as 'provided that no more than $X of capacity shall be reallocated from the RP basket to the Investment basket' or 'reallocation shall be available only from RP to Investments, not the reverse'. Answer true if ANY cap, percentage limit, or directionality restriction applies to reallocation. Answer false if reallocation is unlimited and bi-directional — the credit-unfriendly default.";
+# TODO-ENG: add inv_provision.rp_inv_reallocation_restricted boolean
+
+insert $inv_g7 isa ontology_question,
+    has question_id "inv_g7",
+    has covenant_type "INV",
+    has question_text "Must returns-of-capital be received IN CASH by a Loan Party to feed the RP builder?",
+    has answer_type "boolean",
+    has display_order 1166,
+    has extraction_prompt "Determine whether amounts credited to the RP builder basket as returns-of-capital on Investments must be RECEIVED IN CASH by a Loan Party (or Restricted Subsidiary) — as opposed to being deemed received at the Unrestricted Subsidiary or non-guarantor level. Look for language such as 'returns of capital received in cash by a Restricted Subsidiary', 'cash dividends received by the Borrower', or 'amounts actually received by the Borrower or any Loan Party'. Answer true if cash-receipt-by-Loan-Party is required to trigger the builder feed. Answer false if deemed receipt at an unsub or non-guarantor level is sufficient — that is a structural gap because dividends trapped at the unsub level don't actually strengthen the credit group but would still inflate RP capacity.";
+# TODO-ENG: add inv_provision.returns_must_be_cash_to_lp boolean
+
+insert $inv_g8 isa ontology_question,
+    has question_id "inv_g8",
+    has covenant_type "INV",
+    has question_text "Is there a basket permitting Investments funded by asset-sale reinvestment proceeds?",
+    has answer_type "boolean",
+    has display_order 1167,
+    has extraction_prompt "Determine whether the Permitted Investments list contains a basket specifically funded by proceeds from asset sales — cash proceeds from Permitted Dispositions that may be redeployed as Investments during a reinvestment window (typically 365-540 days). Look for 'Investments funded by Net Cash Proceeds from Dispositions permitted under the Asset Sales covenant' or 'Investments using the reinvestment proceeds permitted under [prepayments section]'. Answer true if such a reinvestment-proceeds Investment basket exists. Answer false if asset-sale proceeds must be applied to debt prepayment rather than permitted for reinvestment as Investments.";
+# TODO-ENG: add inv_provision.asset_sale_reinvestment_basket boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -331,6 +715,174 @@ insert $inv_h3 isa ontology_question,
     has display_order 1172,
     has extraction_prompt "Based on the full investments covenant analysis, provide a short narrative (2-4 sentences) summarizing the most significant credit concerns in the investments package: open J.Crew pathways, unlimited ratio baskets, unlimited non-guarantor sub investments, cross-covenant reallocation with RP, and contribution-debt feedback loops. Identify the two or three highest-severity concerns for a lender. Return as a single string.";
 
+insert $inv_h4 isa ontology_question,
+    has question_id "inv_h4",
+    has covenant_type "INV",
+    has question_text "Is the general investment basket available for Investments in Unrestricted Subsidiaries (stacking)?",
+    has answer_type "boolean",
+    has display_order 1173,
+    has extraction_prompt "Determine whether the general (catch-all) investment basket can be used to fund Investments in Unrestricted Subsidiaries, or whether the general basket carves out unsub investments. Look in the general basket clause for express language such as 'Investments made under this clause may not be made in Unrestricted Subsidiaries' (carve-out) versus silence or broader wording such as 'Investments in any Person' (no carve-out — general basket is available for unsub investments). Answer true if the general basket IS available for unsub investments — this is credit-unfriendly because it stacks on top of any dedicated unsub-specific basket (inv_c1-c2), effectively doubling pathway capacity. Answer false if the general basket expressly excludes Unrestricted Subsidiaries.";
+# TODO-ENG: add inv_provision.general_basket_available_for_unsubs boolean
+
+insert $inv_h5 isa ontology_question,
+    has question_id "inv_h5",
+    has covenant_type "INV",
+    has question_text "Can Contribution Debt capacity be used for Investments in Unrestricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1174,
+    has extraction_prompt "Determine whether Contribution Debt (debt incurred dollar-for-dollar with new equity contributions) may be used to fund Investments in Unrestricted Subsidiaries. Look in the Contribution Debt mechanic or the investments covenant for whether Contribution-Debt-sourced capital that routes to Investments (inv_g3) carves out unsub investments or includes them. Answer true if Contribution-Debt-sourced capital may flow into an Unrestricted Subsidiary — credit-unfriendly because it enables sponsor-backed funding of the off-credit-group entity without counting against any other basket. Answer false if Contribution Debt investments are limited to Loan Parties or Restricted Subsidiaries.";
+# TODO-ENG: add inv_provision.contribution_debt_available_for_unsubs boolean
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INV9: INVESTMENT RETURNS & PROCEEDS (5 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $inv_i1 isa ontology_question,
+    has question_id "inv_i1",
+    has covenant_type "INV",
+    has question_text "Are cash dividends from Investments classified as Net Income (feeds EBITDA / RP builder)?",
+    has answer_type "boolean",
+    has display_order 1180,
+    has extraction_prompt "Determine whether cash dividends received from Investments (particularly from Unrestricted Subsidiaries or non-guarantor entities) are classified for covenant purposes as (a) Net Income — flowing into Consolidated EBITDA and then into the RP Builder Basket via the Cumulative Net Income component — or (b) a return of capital that reduces Investment basket utilization but does NOT feed EBITDA. Look in the definition of 'Consolidated Net Income' or 'Consolidated EBITDA' for treatment of dividends from Unrestricted Subsidiaries or non-consolidated affiliates. Answer true if such dividends are included in Net Income / EBITDA — credit-unfriendly, because it creates a flywheel between investments-out and RP capacity-in. Answer false if dividends are excluded from Net Income (more common credit-friendly treatment).";
+# TODO-ENG: add inv_provision.dividends_feed_net_income boolean
+
+insert $inv_i2 isa ontology_question,
+    has question_id "inv_i2",
+    has covenant_type "INV",
+    has question_text "Does principal repayment on a loan Investment refresh basket capacity?",
+    has answer_type "boolean",
+    has display_order 1181,
+    has extraction_prompt "Determine whether principal repayment of a loan that was originally made as an Investment (e.g., an intercompany loan to a non-guarantor Restricted Subsidiary, or a loan to an Unrestricted Subsidiary) refreshes Investment basket capacity — i.e., the original basket consumption is restored when principal is repaid. Look for language such as 'the aggregate amount of Investments outstanding at any time under this clause' or 'basket capacity shall be deemed restored upon the repayment of principal of any Investment consisting of a loan'. Answer true if loan-principal repayment refreshes capacity (basket tracked on OUTSTANDING basis). Answer false if loan Investments permanently consume basket capacity on a cumulative / gross basis even after repayment.";
+# TODO-ENG: add inv_provision.loan_repayment_refreshes_basket boolean
+
+insert $inv_i3 isa ontology_question,
+    has question_id "inv_i3",
+    has covenant_type "INV",
+    has question_text "Is basket-consumption reduction measured by fair market value or cash received?",
+    has answer_type "boolean",
+    has display_order 1182,
+    has extraction_prompt "Determine whether returns on Investments reduce basket consumption by (a) the fair market value of what is received (including marketable securities, equity stakes, or non-cash assets) or (b) only actual cash received. Look for language specifying the measurement standard — 'cash actually received' versus 'fair market value of the assets received'. Answer true if FMV of non-cash returns counts toward basket reduction — credit-unfriendly, because it allows non-cash returns like stock-in-exchange to refresh capacity even when no cash reaches the credit group. Answer false if only actual cash reduces basket consumption (credit-friendly).";
+# TODO-ENG: add inv_provision.basket_reduction_by_fmv boolean
+
+insert $inv_i4 isa ontology_question,
+    has question_id "inv_i4",
+    has covenant_type "INV",
+    has question_text "Is there a rule for excess returns (received > basket consumption) on Investments?",
+    has answer_type "boolean",
+    has display_order 1183,
+    has extraction_prompt "Determine whether the investments covenant contains a rule addressing cases where a return received on an Investment exceeds the original basket-consumption amount — i.e., the Loan Party receives MORE value back than was originally invested under the basket. Look for language addressing whether such 'excess returns' automatically feed the RP Builder Basket, are reclassified as Net Income, or are credited to the Investment basket as headroom for future Investments. Answer true if any express reclassification rule for excess returns exists (any treatment counts). Answer false if the covenant is silent on excess returns — silence typically means excess returns sit unallocated, a technical gap.";
+# TODO-ENG: add inv_provision.has_excess_returns_rule boolean
+
+insert $inv_i5 isa ontology_question,
+    has question_id "inv_i5",
+    has covenant_type "INV",
+    has question_text "Does writing off an Investment as uncollectible refresh basket capacity?",
+    has answer_type "boolean",
+    has display_order 1184,
+    has extraction_prompt "Determine whether the covenant permits the Borrower to write off an Investment as uncollectible and have the basket consumption for that Investment refreshed (i.e., the basket capacity becomes available again as if the Investment had been returned). Look for language such as 'upon the write-off of any Investment, the basket capacity consumed by such Investment shall be deemed restored' or similar impairment-triggered refresh. Answer true if write-offs refresh capacity. Answer false if written-off Investments continue to count against basket consumption — the credit-friendly default, because it prevents cycling through bad investments to refresh capacity.";
+# TODO-ENG: add inv_provision.write_off_refreshes_basket boolean
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INV10: MANAGEMENT / PORTFOLIO / MISC INVESTMENTS (5 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $inv_j1 isa ontology_question,
+    has question_id "inv_j1",
+    has covenant_type "INV",
+    has question_text "Is there a basket for management / employee investments or loans?",
+    has answer_type "boolean",
+    has display_order 1185,
+    has extraction_prompt "Determine whether the Permitted Investments list includes a basket for Investments made in connection with management compensation — e.g., loans to management, investments in management-held equity, rollover of management equity in connection with a transaction, or purchases from departing employees. Look for 'Investments in connection with management compensation arrangements', 'Investments consisting of loans to officers, directors, or employees', or 'rollover Investments by management'. Answer true if any such management-investment basket exists. Answer false if management-related Investments must fit within a general basket.";
+# TODO-ENG: add inv_provision.has_management_basket boolean
+
+insert $inv_j2 isa ontology_question,
+    has question_id "inv_j2",
+    has covenant_type "INV",
+    has question_text "What is the cap on the management / employee investment basket (USD)?",
+    has answer_type "number",
+    has display_order 1186,
+    has extraction_prompt "Extract the dollar cap on the management / employee investment basket, in US dollars. Look for a Permitted Investments clause such as 'Investments in or loans to officers, directors, and employees in an aggregate amount not to exceed $X' or a grower formulation. Return the fixed-dollar cap as a full integer. Return null if no management basket exists, if the basket is uncapped, or if management investments are subsumed within a broader basket without a dedicated cap.";
+# TODO-ENG: add inv_provision.management_basket_cap_usd double
+
+insert $inv_j3 isa ontology_question,
+    has question_id "inv_j3",
+    has covenant_type "INV",
+    has question_text "Is there a basket for passive portfolio / minority investments?",
+    has answer_type "boolean",
+    has display_order 1187,
+    has extraction_prompt "Determine whether the Permitted Investments list includes a basket for passive portfolio Investments — minority equity stakes in non-strategic entities, typically held for return rather than control. Look for 'portfolio investments', 'passive Investments', 'Investments not constituting a controlling interest', or similar category. Answer true if any such passive-portfolio-investment basket exists. Answer false if all Investments must fit within strategic / operational categories.";
+# TODO-ENG: add inv_provision.has_portfolio_basket boolean
+
+insert $inv_j4 isa ontology_question,
+    has question_id "inv_j4",
+    has covenant_type "INV",
+    has question_text "Is there a separate employee-loans basket (distinct from general management basket)?",
+    has answer_type "boolean",
+    has display_order 1188,
+    has extraction_prompt "Determine whether the Permitted Investments list includes a distinct basket for Investments consisting of loans to employees — separate from the management-investment basket — typically for small-dollar loans (relocation, hardship, employee-stock programs). Look for 'Investments consisting of loans to employees' as its own enumerated basket. Answer true if such a distinct employee-loans basket exists. Answer false if employee loans are subsumed within the management basket (covered by inv_j1) or not separately permitted.";
+# TODO-ENG: add inv_provision.has_employee_loans_basket boolean
+
+insert $inv_j5 isa ontology_question,
+    has question_id "inv_j5",
+    has covenant_type "INV",
+    has question_text "Are Permitted Hedging Obligations expressly carved out of the 'Investment' definition?",
+    has answer_type "boolean",
+    has display_order 1189,
+    has extraction_prompt "Determine whether the defined term 'Investment' expressly excludes Permitted Hedging Obligations. Look in the Investment definition for language such as 'Investment shall not include Hedging Obligations entered into in the ordinary course of business' or 'Permitted Hedging Obligations are excluded from the definition of Investment'. Answer true if Hedging Obligations are expressly carved out of the Investment definition. Answer false if Hedging Obligations are silent (ambiguous) or included in the Investment definition (inv_a7 captures the affirmative inclusion side of the breadth question — this question captures the carve-out side independently).";
+# TODO-ENG: add inv_provision.hedging_carveout_from_definition boolean
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# INV11: POST-INVESTMENT MECHANICS (5 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $inv_k1 isa ontology_question,
+    has question_id "inv_k1",
+    has covenant_type "INV",
+    has question_text "Are long-tenor loan Investments automatically reclassified as Indebtedness (DI covenant)?",
+    has answer_type "boolean",
+    has display_order 1190,
+    has extraction_prompt "Determine whether the investments covenant reclassifies Investment-loans as Indebtedness (for DI-covenant purposes) if the loan remains outstanding beyond a threshold period — e.g., a 1-year note that rolls over indefinitely effectively becomes perpetual financing. Look for language addressing this edge case, such as 'any Investment consisting of a loan with a maturity (including any extensions) exceeding [N] years shall be treated as Indebtedness rather than an Investment for all purposes of this Agreement'. Answer true if such an automatic reclassification applies. Answer false if loan Investments remain classified as Investments regardless of tenor — which permits indefinite intercompany financing to escape the DI covenant's scope.";
+# TODO-ENG: add inv_provision.long_tenor_loan_reclassified_as_debt boolean
+
+insert $inv_k2 isa ontology_question,
+    has question_id "inv_k2",
+    has covenant_type "INV",
+    has question_text "Does an acquired entity becoming a Restricted Subsidiary release basket capacity consumed?",
+    has answer_type "boolean",
+    has display_order 1191,
+    has extraction_prompt "Determine whether investment-basket capacity consumed for an Investment in a Person (e.g., acquisition target, non-guarantor Restricted Subsidiary, Unrestricted Subsidiary) is RELEASED — made available again — when that Person later becomes a Restricted Subsidiary and Loan Party. Look for language such as 'basket capacity consumed for any Investment shall be restored if and when the Person in which such Investment was made becomes a Restricted Subsidiary Loan Party'. Answer true if such a release exists — credit-unfriendly, because it enables cycling through acquisitions or subsidiary-designation changes to refresh basket capacity. Answer false if basket capacity stays consumed even after the target joins the Restricted Group (credit-friendly default).";
+# TODO-ENG: add inv_provision.joinder_releases_basket boolean
+
+insert $inv_k3 isa ontology_question,
+    has question_id "inv_k3",
+    has covenant_type "INV",
+    has question_text "Are Investments in Unrestricted Subsidiaries re-characterized as Restricted Payments?",
+    has answer_type "boolean",
+    has display_order 1192,
+    has extraction_prompt "Determine whether the investments covenant or the Restricted Payments covenant contains a rule re-characterizing certain Investments in Unrestricted Subsidiaries as Restricted Payments — triggering the tighter RP covenant limits (and builder-basket tracking) rather than the Investments covenant. Look for language such as 'Investments in any Unrestricted Subsidiary shall be deemed Restricted Payments for purposes of the Restricted Payments covenant' or a cross-reference linking the two covenants. Answer true if such a re-characterization applies (credit-friendly — funnels unsub investments through the tighter RP framework). Answer false if Investments-in-Unsubs are governed solely by the investments covenant, which is the more common (and more borrower-friendly) structure.";
+# TODO-ENG: add inv_provision.unsub_investment_is_rp boolean
+
+insert $inv_k4 isa ontology_question,
+    has question_id "inv_k4",
+    has covenant_type "INV",
+    has question_text "Is there separate compliance-certificate tracking for Material Property contributed to Unsubs?",
+    has answer_type "boolean",
+    has display_order 1193,
+    has extraction_prompt "Determine whether the investments covenant (or the compliance certificate requirement) mandates separate tracking and disclosure of Material Property (IP, revenue-generating assets) contributed to any Unrestricted Subsidiary — a distinct line-item counter from the aggregate Investment basket. Look for language such as 'the Borrower shall track separately on each annual compliance certificate the fair market value of Material Property contributed to Unrestricted Subsidiaries under this clause' or an affirmative reporting obligation tied to unsub-contributions. Answer true if separate tracking is required. Answer false if Material Property contributions are subsumed within the general basket tracking without distinct reporting — a transparency gap.";
+# TODO-ENG: add inv_provision.separate_material_property_tracking boolean
+
+insert $inv_k5 isa ontology_question,
+    has question_id "inv_k5",
+    has covenant_type "INV",
+    has question_text "Do Loan Party guarantees of Unrestricted Subsidiary debt consume Investment basket capacity?",
+    has answer_type "boolean",
+    has display_order 1194,
+    has extraction_prompt "Determine whether a guarantee issued by a Loan Party of Indebtedness of an Unrestricted Subsidiary counts against the Investment basket — i.e., basket capacity is reduced by the guaranteed amount. Look in the Investment definition for explicit treatment of such guarantees, or in the investments covenant for a tracking rule addressing Loan-Party guarantees of non-Loan-Party debt. Answer true if such guarantees consume Investment basket capacity — credit-friendly, because it prevents off-balance-sheet credit support from bypassing the investments cap. Answer false if guarantees are excluded from the Investment definition's scope (creating a structural gap where Loan-Party credit can back unsub debt without basket consumption).";
+# TODO-ENG: add inv_provision.unsub_guarantee_consumes_basket boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION LINKAGE
@@ -343,6 +895,14 @@ match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_questi
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_question, has question_id "inv_a3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_question, has question_id "inv_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_question, has question_id "inv_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_question, has question_id "inv_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV1"; $q isa ontology_question, has question_id "inv_a7";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # INV2: Investments in Subsidiaries
 match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b1";
@@ -350,6 +910,20 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV2"; $q isa ontology_question, has question_id "inv_b10";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # INV3: Investments in Unrestricted Subsidiaries
@@ -359,6 +933,20 @@ match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_questi
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c10";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # INV4: General Investment Basket
 match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d1";
@@ -367,6 +955,14 @@ match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_questi
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV4"; $q isa ontology_question, has question_id "inv_d7";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # INV5: Ratio Investment Basket
 match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e1";
@@ -374,6 +970,20 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e10";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # INV6: Category-Specific Baskets
@@ -385,6 +995,18 @@ match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_questi
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f4";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f9";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f10";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # INV7: Cross-Covenant Links
 match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g1";
@@ -393,6 +1015,16 @@ match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_questi
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV7"; $q isa ontology_question, has question_id "inv_g8";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # INV8: Vulnerabilities
 match $cat isa ontology_category, has category_id "INV8"; $q isa ontology_question, has question_id "inv_h1";
@@ -400,6 +1032,137 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV8"; $q isa ontology_question, has question_id "inv_h2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "INV8"; $q isa ontology_question, has question_id "inv_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV8"; $q isa ontology_question, has question_id "inv_h4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV8"; $q isa ontology_question, has question_id "inv_h5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# INV9: Investment Returns & Proceeds
+match $cat isa ontology_category, has category_id "INV9"; $q isa ontology_question, has question_id "inv_i1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV9"; $q isa ontology_question, has question_id "inv_i2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV9"; $q isa ontology_question, has question_id "inv_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV9"; $q isa ontology_question, has question_id "inv_i4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV9"; $q isa ontology_question, has question_id "inv_i5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# INV10: Management / Portfolio / Misc Investments
+match $cat isa ontology_category, has category_id "INV10"; $q isa ontology_question, has question_id "inv_j1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV10"; $q isa ontology_question, has question_id "inv_j2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV10"; $q isa ontology_question, has question_id "inv_j3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV10"; $q isa ontology_question, has question_id "inv_j4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV10"; $q isa ontology_question, has question_id "inv_j5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# INV11: Post-Investment Mechanics
+match $cat isa ontology_category, has category_id "INV11"; $q isa ontology_question, has question_id "inv_k1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV11"; $q isa ontology_question, has question_id "inv_k2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV11"; $q isa ontology_question, has question_id "inv_k3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV11"; $q isa ontology_question, has question_id "inv_k4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV11"; $q isa ontology_question, has question_id "inv_k5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OVERFLOW QUESTIONS: INV5 e11-e13, INV6 f11, INV3 c11-c13
+# ═══════════════════════════════════════════════════════════════════════════════
+# The 1140-block (INV5) and 1120-block (INV3) filled to 10 questions each; the
+# 1150-block (INV6) filled to 7 questions. These overflow questions belong to
+# categories INV3, INV5, and INV6 but use display_order slots in the INV8 tail
+# (1175-1178) and the post-INV11 tail (1195-1197). display_order is UI-only and
+# does not bind file layout; category linkage (below in this section) correctly
+# ties each overflow question to its owning category.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $inv_e11 isa ontology_question,
+    has question_id "inv_e11",
+    has covenant_type "INV",
+    has question_text "What is the dollar-cap backstop on the ratio investment basket (USD), if any?",
+    has answer_type "number",
+    has display_order 1175,
+    has extraction_prompt "Extract the dollar-cap backstop on the ratio investment basket, in US dollars, where such a backstop exists. Look for basket language such as 'so long as [ratio test] is met and not to exceed $X million in the aggregate'. Return the cap as a full integer (e.g., 250000000 for $250 million). Return null if the ratio investment basket has no dollar backstop — uncapped when ratio-compliant (inv_e3 captures whether ANY cap exists as a boolean; this question captures the value when one is present) — or if no ratio investment basket exists.";
+# TODO-ENG: add inv_provision.ratio_basket_backstop_cap_usd double
+
+insert $inv_e12 isa ontology_question,
+    has question_id "inv_e12",
+    has covenant_type "INV",
+    has question_text "Does the ratio investment basket track capacity on an OUTSTANDING basis (refreshes on return)?",
+    has answer_type "boolean",
+    has display_order 1176,
+    has extraction_prompt "Determine whether basket capacity under the ratio investment basket is reduced (made available again) when the Loan Parties receive a return ON or return OF that Investment — e.g., a dividend received in cash, proceeds from sale of the investment, or repayment of an intercompany loan. Look for language such as 'the aggregate amount of Investments outstanding at any time under this clause' (outstanding-basis) versus 'the aggregate amount of Investments made under this clause' (cumulative / gross basis). Answer true if the basket is tracked on a NET / OUTSTANDING basis. Answer false if the basket consumes capacity cumulatively — each Investment permanently reduces available capacity regardless of subsequent returns.";
+# TODO-ENG: add inv_provision.ratio_basket_outstanding_basis boolean
+
+insert $inv_e13 isa ontology_question,
+    has question_id "inv_e13",
+    has covenant_type "INV",
+    has question_text "Does the ratio investment basket also condition on a coverage ratio (FCCR / ICR)?",
+    has answer_type "boolean",
+    has display_order 1177,
+    has extraction_prompt "Determine whether the ratio investment basket conditions on a COVERAGE ratio (e.g., Fixed Charge Coverage Ratio, Interest Coverage Ratio) alongside or instead of a leverage ratio. Look for language such as 'provided that the Fixed Charge Coverage Ratio is at least Y.YY to 1.00' as a condition on this basket. Answer true if any coverage-ratio variant applies to this basket. Answer false if the basket uses only leverage-ratio tests — the more common structure.";
+# TODO-ENG: add inv_provision.ratio_basket_has_coverage_ratio boolean
+
+insert $inv_f11 isa ontology_question,
+    has question_id "inv_f11",
+    has covenant_type "INV",
+    has question_text "Does the existing-investments grandfather permit upsizes above the scheduled amounts?",
+    has answer_type "boolean",
+    has display_order 1178,
+    has extraction_prompt "Determine whether the Permitted Investments list's existing-investments grandfather carve-out permits the Loan Parties to UPSIZE existing-scheduled Investments above the amounts listed on the disclosure schedule (inv_f10 captures the schedule reference). Look for language such as 'Investments existing on the Closing Date and listed on Schedule [X] (and any increase, extension, or modification thereof)' (permits upsize) versus strict 'Investments existing on the Closing Date and listed on Schedule [X] in the amounts set forth therein' (no upsize). Answer true if upsizes are permitted — a structural gap that lets scheduled investments balloon under the grandfather. Answer false if the carve-out is limited to the exact amounts listed on the schedule.";
+# TODO-ENG: add inv_provision.existing_investments_upsize_permitted boolean
+
+insert $inv_c11 isa ontology_question,
+    has question_id "inv_c11",
+    has covenant_type "INV",
+    has question_text "Does the Unrestricted Sub investment basket track capacity on an OUTSTANDING basis (refreshes on return)?",
+    has answer_type "boolean",
+    has display_order 1195,
+    has extraction_prompt "Determine whether basket capacity under the Unrestricted Subsidiary investment basket is reduced (made available again) when the Loan Parties receive a return on or return of that Investment — e.g., a dividend paid by the unsub to a Loan Party, proceeds from sale of the unsub, or repayment of an intercompany loan. Look for language such as 'the aggregate amount of Investments outstanding at any time under this clause' (outstanding-basis) versus 'the aggregate amount of Investments made under this clause' (cumulative / gross basis). Answer true if the basket is tracked on a NET / OUTSTANDING basis — permits cycling capital through unsubs. Answer false if the basket consumes capacity cumulatively — each investment permanently reduces available capacity regardless of subsequent returns.";
+# TODO-ENG: add inv_provision.unsub_basket_outstanding_basis boolean
+
+insert $inv_c12 isa ontology_question,
+    has question_id "inv_c12",
+    has covenant_type "INV",
+    has question_text "Is there a timing / blackout restriction on Material IP contributions to Unrestricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1196,
+    has extraction_prompt "Determine whether the investments covenant imposes a timing restriction on Material Intellectual Property contributions to Unrestricted Subsidiaries — e.g., a blackout period following an Event of Default, a distressed-condition test, or a specified triggering event. Look for language such as 'no Material Intellectual Property may be contributed to any Unrestricted Subsidiary during the [N]-month period following any Default or Event of Default', or 'no such contribution permitted if Total Net Leverage Ratio exceeds X.XXx'. Answer true if any such timing or condition-based restriction applies. Answer false if Material IP contributions to Unsubs are not subject to timing or state-based restrictions.";
+# TODO-ENG: add inv_provision.ip_contribution_timing_restriction boolean
+
+insert $inv_c13 isa ontology_question,
+    has question_id "inv_c13",
+    has covenant_type "INV",
+    has question_text "Must contributed Material IP to Unrestricted Subs be valued by independent appraisal?",
+    has answer_type "boolean",
+    has display_order 1197,
+    has extraction_prompt "Determine whether the investments covenant requires independent third-party appraisal of Material Intellectual Property contributed to an Unrestricted Subsidiary — for purposes of calculating basket consumption. Look for language such as 'the fair market value of any Material Intellectual Property so contributed shall be determined by an independent appraisal' versus 'as reasonably determined in good faith by the Borrower'. Answer true if independent appraisal is required (credit-friendly — prevents Borrower-side under-valuation that would consume less basket capacity than appropriate). Answer false if FMV can be determined solely by the Borrower's good-faith judgment.";
+# TODO-ENG: add inv_provision.ip_contribution_requires_independent_appraisal boolean
+
+# Overflow linkages
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV5"; $q isa ontology_question, has question_id "inv_e13";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV6"; $q isa ontology_question, has question_id "inv_f11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c11";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c12";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "INV3"; $q isa ontology_question, has question_id "inv_c13";
 insert (category: $cat, question: $q) isa category_has_question;
 
 
