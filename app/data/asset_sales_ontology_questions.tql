@@ -101,6 +101,22 @@ insert $as_cat9 isa ontology_category,
     has extraction_context_sections "ASSET_SALES,RESTRICTED_PAYMENTS",
     has extraction_batch_hint "Check whether retained asset sale proceeds feed the RP builder basket (a significant capacity source). Identify patterns: high sweep stepdowns, broad non-Collateral carve-outs combined with J.Crew pathways, and ratio-basket dispositions that avoid the sweep entirely.";
 
+insert $as_cat10 isa ontology_category,
+    has category_id "AS10",
+    has name "Specific Disposition Types",
+    has description "Asset-class-specific restrictions: Material IP, real property, receivables-facility assets, equity of subsidiaries.",
+    has display_order 510,
+    has extraction_context_sections "ASSET_SALES,DEFINITIONS",
+    has extraction_batch_hint "For each asset class (Material IP, Real Property, Receivables, Subsidiary Equity), determine whether the covenant imposes a specific restriction distinct from the general dispositions framework. Asset-class-specific treatment is less common in loose drafting but important in protective covenants.";
+
+insert $as_cat11 isa ontology_category,
+    has category_id "AS11",
+    has name "Process & Net Cash Proceeds Definition",
+    has description "Net Cash Proceeds deductions, timing / notice requirements for mandatory prepayments, and required Borrower reporting.",
+    has display_order 511,
+    has extraction_context_sections "ASSET_SALES,DEFINITIONS,MANDATORY_PREPAYMENTS",
+    has extraction_batch_hint "Focus on procedural and definitional mechanics: the deductions permitted in computing Net Cash Proceeds, advance-notice requirements for prepayments, lender opt-out rights, and required officer certificates accompanying dispositions.";
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AS1: CORE STRUCTURE (3 questions)
@@ -129,6 +145,42 @@ insert $as_a3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1202,
     has extraction_prompt "Determine whether permitted dispositions require (a) consideration at fair market value and (b) a minimum cash-consideration component (commonly 75% cash). Look for 'consideration consisting of at least 75% cash or Cash Equivalents' in the general disposition basket. Answer true if any such dual test (FMV + cash %) applies.";
+
+insert $as_a4 isa ontology_question,
+    has question_id "as_a4",
+    has covenant_type "AS",
+    has question_text "Does the dispositions covenant bind Guarantors / Loan Parties?",
+    has answer_type "boolean",
+    has display_order 1203,
+    has extraction_prompt "Determine whether Guarantors (or Loan Parties / Credit Parties) are expressly bound by the dispositions covenant in addition to the Borrower. Look in the covenant's opening clause for phrases such as 'will not, and will not permit any Guarantor to' or 'The Loan Parties shall not make any Disposition'. Answer true if Guarantors or Loan Parties are explicitly named as bound parties. Answer false if only the Borrower (and possibly Restricted Subsidiaries) are bound and Guarantors are not separately named — silence about Guarantors generally means they are not independently bound.";
+# TODO-ENG: add as_provision.binds_guarantors boolean
+
+insert $as_a5 isa ontology_question,
+    has question_id "as_a5",
+    has covenant_type "AS",
+    has question_text "Does the dispositions covenant bind all Restricted Subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1204,
+    has extraction_prompt "Determine whether the dispositions covenant extends to ALL Restricted Subsidiaries, not only Loan Parties / Guarantors. Look for 'will not permit any Restricted Subsidiary to make any Disposition' in the covenant's opening language. Answer true only if all RSubs are covered. Answer false if only Loan Parties / Guarantors are bound — a structural gap because non-guarantor RSubs could dispose of assets without constraint, leaking value out of the credit perimeter.";
+# TODO-ENG: add as_provision.binds_all_restricted_subs boolean
+
+insert $as_a6 isa ontology_question,
+    has question_id "as_a6",
+    has covenant_type "AS",
+    has question_text "What is the section reference for the dispositions / asset sales covenant?",
+    has answer_type "string",
+    has display_order 1205,
+    has extraction_prompt "Extract the section reference for the dispositions / asset sales covenant exactly as it appears in this document. The covenant typically sits inside the Negative Covenants article under a heading such as 'Dispositions', 'Asset Sales', or 'Limitation on Dispositions'. Return the verbatim section number or article designation as a single string using the document's own formatting. Return an empty string if no dispositions covenant exists.";
+# TODO-ENG: add as_provision.dispositions_covenant_section string
+
+insert $as_a7 isa ontology_question,
+    has question_id "as_a7",
+    has covenant_type "AS",
+    has question_text "Is independent appraisal required for the FMV determination on permitted dispositions?",
+    has answer_type "boolean",
+    has display_order 1206,
+    has extraction_prompt "Determine whether the fair-market-value (FMV) test applicable to permitted dispositions requires an independent third-party appraisal, as opposed to being satisfiable by the Borrower's good-faith determination. Look in the general dispositions basket or the Disposition / Asset Sale definition for language such as 'fair market value determined by an independent appraiser' versus 'fair market value as reasonably determined in good faith by the Borrower'. Answer true if independent appraisal is required (credit-friendly — prevents Borrower-side under-valuation of consideration). Answer false if the Borrower's good-faith determination suffices — the more common market practice.";
+# TODO-ENG: add as_provision.fmv_independent_appraisal_required boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -167,6 +219,42 @@ insert $as_b4 isa ontology_question,
     has display_order 1213,
     has extraction_prompt "Determine whether the permitted-dispositions list includes a general / catch-all basket with a dollar or grower cap on fair-market-value. Commonly 'Dispositions of assets with fair market value not to exceed the greater of $X and Y% of Consolidated EBITDA in any fiscal year'. Answer true if any such general basket exists.";
 
+insert $as_b5 isa ontology_question,
+    has question_id "as_b5",
+    has covenant_type "AS",
+    has question_text "What is the general disposition basket cap in USD?",
+    has answer_type "number",
+    has display_order 1214,
+    has extraction_prompt "Extract the fixed-dollar cap on the general (catch-all) disposition basket, in US dollars. Look for 'Dispositions of assets with fair market value not to exceed $X in any fiscal year' or a grower formulation 'the greater of $X and Y% of Consolidated EBITDA'. Return the fixed-dollar cap as a full integer (e.g., 100000000 for $100 million — NOT 100 or '$100M'). Return null if the general disposition basket does not exist or is uncapped.";
+# TODO-ENG: add as_provision.general_basket_cap_usd double
+
+insert $as_b6 isa ontology_question,
+    has question_id "as_b6",
+    has covenant_type "AS",
+    has question_text "What is the general disposition basket EBITDA grower percentage?",
+    has answer_type "number",
+    has display_order 1215,
+    has extraction_prompt "Extract the EBITDA grower percentage for the general (catch-all) disposition basket. Look for 'the greater of $X and Y% of Consolidated EBITDA' in the general basket clause — Y is the value to extract. Return as a number representing the percentage (e.g., 15 for 15%, 7.5 for 7.5%; do NOT return 0.15 or '15%'). Return null if the general basket does not include an EBITDA grower or does not exist.";
+# TODO-ENG: add as_provision.general_basket_pct_ebitda double
+
+insert $as_b7 isa ontology_question,
+    has question_id "as_b7",
+    has covenant_type "AS",
+    has question_text "What is the cap on dispositions to non-Loan-Party Restricted Subsidiaries (USD)?",
+    has answer_type "number",
+    has display_order 1216,
+    has extraction_prompt "Extract the dollar cap on dispositions made by Loan Parties to non-Loan-Party Restricted Subsidiaries (non-guarantor RSubs or Foreign Subsidiaries), in US dollars, where such a cap applies. Look for 'Dispositions by any Loan Party to any Restricted Subsidiary that is not a Loan Party in an aggregate amount not to exceed $X'. Return the fixed-dollar cap as a full integer. Return null if such dispositions are uncapped (as_b2 captures the uncapped case as a boolean) or if no dedicated basket applies.";
+# TODO-ENG: add as_provision.disposition_to_non_lp_sub_cap_usd double
+
+insert $as_b8 isa ontology_question,
+    has question_id "as_b8",
+    has covenant_type "AS",
+    has question_text "Are Casualty Events (insurance / condemnation proceeds) excluded from the Disposition definition?",
+    has answer_type "boolean",
+    has display_order 1217,
+    has extraction_prompt "Determine whether the defined term 'Disposition' (or 'Asset Sale') expressly excludes Casualty Events — loss or destruction of property and insurance / condemnation proceeds received in respect thereof. Look in the definition for a carve-out such as 'Disposition shall not include any Casualty Event' or 'excluding any involuntary loss'. Answer true if Casualty Events are expressly excluded from the Disposition definition — this routes insurance proceeds through a separate mandatory-prepayment path (often with its own sweep mechanics) rather than the general asset-sale sweep. Answer false if Casualty Events fall within the Disposition definition.";
+# TODO-ENG: add as_provision.casualty_events_excluded_from_definition boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AS3: RATIO DISPOSITION BASKET (2 questions)
@@ -187,6 +275,42 @@ insert $as_c2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1221,
     has extraction_prompt "Determine whether the ratio disposition basket uses a 'no worse than' pro forma test (the leverage ratio post-disposition is not worse than immediately before) rather than a fixed threshold. Look for 'the Total Net Leverage Ratio would be no greater than immediately prior to such Disposition'. Answer true if a no-worse-than test is used. This is a permissive formulation because it allows large dispositions even at high leverage, as long as they don't make things worse.";
+
+insert $as_c3 isa ontology_question,
+    has question_id "as_c3",
+    has covenant_type "AS",
+    has question_text "What is the fixed threshold for the ratio disposition basket?",
+    has answer_type "number",
+    has display_order 1222,
+    has extraction_prompt "Extract the numerical leverage-ratio threshold for the ratio disposition basket, where a fixed threshold is used (as opposed to a 'no worse than' formulation — as_c2 captures the formulation choice). Look for 'Dispositions so long as the Total Net Leverage Ratio does not exceed X.XXx' or 'First Lien Net Leverage Ratio is less than or equal to Y.YY to 1.00'. Return the ratio as a decimal number (e.g., 5.00 for 5.00x). Return null if the basket uses a 'no worse than' test (no fixed threshold) or if no ratio disposition basket exists.";
+# TODO-ENG: add as_provision.ratio_basket_threshold double
+
+insert $as_c4 isa ontology_question,
+    has question_id "as_c4",
+    has covenant_type "AS",
+    has question_text "Does the ratio disposition basket require pro forma compliance at disposition?",
+    has answer_type "boolean",
+    has display_order 1223,
+    has extraction_prompt "Determine whether the ratio disposition basket requires pro forma compliance with the ratio test at the time of the disposition — i.e., the test is applied giving effect to the disposition and any related repayment of debt from proceeds. Look for language such as 'on a pro forma basis after giving effect to such Disposition' or 'Pro Forma Compliance'. Answer true if pro forma testing is explicitly required. Answer false if the covenant tests the ratio on a spot / pre-transaction basis without giving effect to the disposition, or if silent (borrower-friendly silence).";
+# TODO-ENG: add as_provision.ratio_basket_requires_pro_forma boolean
+
+insert $as_c5 isa ontology_question,
+    has question_id "as_c5",
+    has covenant_type "AS",
+    has question_text "Is the ratio disposition basket available under Limited Condition Transaction (LCT) mechanics?",
+    has answer_type "boolean",
+    has display_order 1224,
+    has extraction_prompt "Determine whether the ratio disposition basket is available under Limited Condition Transaction (LCT) mechanics — allowing the Borrower to test the ratio at signing of the binding disposition agreement rather than at closing. Look for references to 'Limited Condition Transaction', 'LCT Election', or language extending LCT-testing to this basket. Answer true if LCT is available. Answer false if LCT applies only to other covenants (e.g., debt incurrence or investments) and not to dispositions.";
+# TODO-ENG: add as_provision.ratio_basket_lct_available boolean
+
+insert $as_c6 isa ontology_question,
+    has question_id "as_c6",
+    has covenant_type "AS",
+    has question_text "Is there a no-default condition on the ratio disposition basket?",
+    has answer_type "boolean",
+    has display_order 1225,
+    has extraction_prompt "Determine whether the ratio disposition basket is conditioned on the absence of a Default or Event of Default at the time of the disposition. Look within the basket clause for 'so long as no Default or Event of Default shall have occurred and be continuing' or a cross-reference to a general conditions block applicable to this basket. Answer true only if the condition explicitly applies to THIS basket. Answer false if ratio-basket dispositions may proceed during an ongoing Event of Default — a structural gap permitting continued asset disposition during distress.";
+# TODO-ENG: add as_provision.ratio_basket_no_default_condition boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -217,6 +341,33 @@ insert $as_d3 isa ontology_question,
     has display_order 1232,
     has extraction_prompt "Determine whether the permitted-dispositions list includes a carve-out for licenses — especially non-exclusive licenses of intellectual property. Look for 'Licenses, sublicenses, leases or subleases' or 'licenses of Intellectual Property in the ordinary course'. Answer true if any IP license carve-out exists. Combined with a narrow Disposition definition, broad IP license permissions are a J.Crew-adjacent pathway.";
 
+insert $as_d4 isa ontology_question,
+    has question_id "as_d4",
+    has covenant_type "AS",
+    has question_text "Does the IP-license carve-out distinguish exclusive vs non-exclusive licenses?",
+    has answer_type "boolean",
+    has display_order 1233,
+    has extraction_prompt "Determine whether the permitted-dispositions list's IP-license carve-out distinguishes between EXCLUSIVE licenses (which operate economically like an assignment of the IP) and NON-EXCLUSIVE licenses (which preserve the licensor's ability to use and license to others). Look for language such as 'non-exclusive licenses of Intellectual Property in the ordinary course of business' (credit-friendly — narrow carve-out) versus 'licenses, sublicenses, and other rights with respect to Intellectual Property' without exclusive/non-exclusive distinction (permissive). Answer true if the carve-out is limited to non-exclusive licenses. Answer false if exclusive licenses are also permitted under the carve-out — a structural gap because exclusive IP licenses are functionally equivalent to IP dispositions.";
+# TODO-ENG: add as_provision.ip_license_limited_to_non_exclusive boolean
+
+insert $as_d5 isa ontology_question,
+    has question_id "as_d5",
+    has covenant_type "AS",
+    has question_text "Are leases and subleases limited to ordinary-course scope?",
+    has answer_type "boolean",
+    has display_order 1234,
+    has extraction_prompt "Determine whether the permitted-dispositions list's lease / sublease carve-out is limited to ordinary-course-of-business scope, or whether it also permits larger-scale leasing arrangements that approach the economics of a sale. Look for 'leases and subleases entered into in the ordinary course of business' (credit-friendly) versus unrestricted 'leases of Real Property and tangible assets' (permissive). Answer true if the carve-out is limited to ordinary-course leases. Answer false if non-ordinary-course leases are permitted (potentially a sale-leaseback in substance even without the sale-leaseback label).";
+# TODO-ENG: add as_provision.lease_carveout_limited_to_oc boolean
+
+insert $as_d6 isa ontology_question,
+    has question_id "as_d6",
+    has covenant_type "AS",
+    has question_text "Is there a Foreign Sub intracompany disposition carve-out (foreign-to-foreign transfers)?",
+    has answer_type "boolean",
+    has display_order 1235,
+    has extraction_prompt "Determine whether the permitted-dispositions list includes a carve-out for dispositions of assets between Foreign Subsidiaries (or between non-Loan-Party Restricted Subsidiaries). Look for 'Dispositions between or among Foreign Subsidiaries' or 'Dispositions between Restricted Subsidiaries that are not Loan Parties'. Answer true if any such intracompany foreign-to-foreign carve-out exists. Such transfers are typically credit-neutral (value stays within the Restricted Group) but can enable complex pre-positioning of assets for subsequent exit pathways.";
+# TODO-ENG: add as_provision.foreign_intracompany_carveout boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AS5: MANDATORY PREPAYMENT SWEEP (3 questions)
@@ -245,6 +396,42 @@ insert $as_e3 isa ontology_question,
     has answer_type "integer",
     has display_order 1242,
     has extraction_prompt "Extract the sweep percentage that applies at the highest leverage tier (the least-permissive setting). If the sweep is a flat rate rather than tiered, return that flat rate. Common values: 100, 75, 50. Return as integer (e.g., 100 for 100%, not 1.0). Return null if no asset sale sweep exists.";
+
+insert $as_e4 isa ontology_question,
+    has question_id "as_e4",
+    has covenant_type "AS",
+    has question_text "What is the middle-tier sweep percentage?",
+    has answer_type "integer",
+    has display_order 1243,
+    has extraction_prompt "Extract the middle-tier sweep percentage — the sweep rate that applies at the intermediate leverage band between the top-tier rate (as_e3) and the bottom-tier rate (as_e5). Common values: 75, 50, 25. Return as integer. Return null if the sweep is not tiered (flat rate), if there are only two tiers (no intermediate), or if no asset sale sweep exists.";
+# TODO-ENG: add as_provision.sweep_middle_tier_pct integer
+
+insert $as_e5 isa ontology_question,
+    has question_id "as_e5",
+    has covenant_type "AS",
+    has question_text "What is the bottom-tier sweep percentage (when leverage is lowest)?",
+    has answer_type "integer",
+    has display_order 1244,
+    has extraction_prompt "Extract the bottom-tier sweep percentage — the sweep rate applied at the most-permissive leverage band (lowest leverage). Common values: 0, 25, 50. A 0% sweep at the bottom tier means the Borrower retains all proceeds at low leverage, feeding them to the builder basket or for reinvestment. Return as integer. Return null if the sweep is not tiered or if no asset sale sweep exists.";
+# TODO-ENG: add as_provision.sweep_bottom_tier_pct integer
+
+insert $as_e6 isa ontology_question,
+    has question_id "as_e6",
+    has covenant_type "AS",
+    has question_text "What is the top-to-middle tier leverage threshold (the higher ratio)?",
+    has answer_type "number",
+    has display_order 1245,
+    has extraction_prompt "Extract the leverage-ratio threshold at which the sweep steps down from the top-tier percentage to the middle-tier percentage. This is the HIGHER of the tier thresholds — crossing below this ratio reduces the sweep from top-tier to middle-tier. Common values: 5.00, 4.50, 4.25. Return as a decimal number (e.g., 4.50 for 4.50x). Return null if the sweep is not tiered or if no asset sale sweep exists.";
+# TODO-ENG: add as_provision.sweep_top_threshold double
+
+insert $as_e7 isa ontology_question,
+    has question_id "as_e7",
+    has covenant_type "AS",
+    has question_text "What is the middle-to-bottom tier leverage threshold (the lower ratio)?",
+    has answer_type "number",
+    has display_order 1246,
+    has extraction_prompt "Extract the leverage-ratio threshold at which the sweep steps down from the middle-tier percentage to the bottom-tier percentage. This is the LOWER of the tier thresholds — crossing below this ratio reduces the sweep from middle to bottom. Common values: 4.00, 3.50, 3.00. Return as a decimal number. Return null if the sweep is not tiered, if there are only two tiers (use the single threshold in as_e6), or if no asset sale sweep exists.";
+# TODO-ENG: add as_provision.sweep_bottom_threshold double
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -275,6 +462,42 @@ insert $as_f3 isa ontology_question,
     has display_order 1252,
     has extraction_prompt "Extract the annual aggregate de minimis threshold (in USD, full number not millions) below which dispositions in aggregate are exempt from the sweep. Often the greater of a dollar amount and a percentage of EBITDA. Return the dollar figure only (the EBITDA percentage is a separate consideration). Return null if no aggregate threshold exists.";
 
+insert $as_f4 isa ontology_question,
+    has question_id "as_f4",
+    has covenant_type "AS",
+    has question_text "Are Casualty Event proceeds (insurance / condemnation) exempt from the sweep?",
+    has answer_type "boolean",
+    has display_order 1253,
+    has extraction_prompt "Determine whether Net Cash Proceeds from Casualty Events — proceeds from insurance on destroyed property or condemnation awards — are exempt from the general asset-sale mandatory-prepayment sweep. Look in the Mandatory Prepayments section for carve-outs referencing 'Casualty Events', 'insurance proceeds', or 'condemnation proceeds'. Answer true if Casualty Event proceeds are exempt from the asset-sale sweep (they may be subject to a separate Casualty-Event mandatory prepayment with its own mechanics, which is typical). Answer false if Casualty Events flow through the same general sweep as voluntary dispositions.";
+# TODO-ENG: add as_provision.casualty_events_sweep_exempt boolean
+
+insert $as_f5 isa ontology_question,
+    has question_id "as_f5",
+    has covenant_type "AS",
+    has question_text "Are ordinary-course dispositions exempt from the mandatory prepayment?",
+    has answer_type "boolean",
+    has display_order 1254,
+    has extraction_prompt "Determine whether dispositions in the ordinary course of business (inventory sales, sales of obsolete equipment, licensing in the ordinary course, cash-equivalent turnover) are exempt from the mandatory-prepayment sweep. Look in the Mandatory Prepayments section for carve-outs referencing 'dispositions in the ordinary course of business' or specific sub-categories. Answer true if any ordinary-course-disposition exemption exists (the credit-friendly default — ordinary course value cycling doesn't trigger the sweep). Answer false if all dispositions regardless of type feed the sweep.";
+# TODO-ENG: add as_provision.oc_dispositions_sweep_exempt boolean
+
+insert $as_f6 isa ontology_question,
+    has question_id "as_f6",
+    has covenant_type "AS",
+    has question_text "Are intercompany dispositions (between Loan Parties / Restricted Subs) exempt from the sweep?",
+    has answer_type "boolean",
+    has display_order 1255,
+    has extraction_prompt "Determine whether intercompany dispositions — transfers between Loan Parties, or between Restricted Subsidiaries — are exempt from the mandatory-prepayment sweep. Look in the Mandatory Prepayments section for carve-outs such as 'Dispositions between or among Loan Parties' or 'intercompany Dispositions'. Answer true if intercompany dispositions are sweep-exempt (the credit-friendly default — no external cash proceeds are generated). Answer false if intercompany dispositions trigger the sweep (rare, and would require careful attention to the Net Cash Proceeds definition since intercompany transfers typically lack cash proceeds).";
+# TODO-ENG: add as_provision.intercompany_dispositions_sweep_exempt boolean
+
+insert $as_f7 isa ontology_question,
+    has question_id "as_f7",
+    has covenant_type "AS",
+    has question_text "Are proceeds applied to refinance specific debt exempt from the sweep?",
+    has answer_type "boolean",
+    has display_order 1256,
+    has extraction_prompt "Determine whether Net Cash Proceeds used by the Borrower to repay or refinance specific Indebtedness (e.g., purchase-money debt on the asset sold, or debt of a divested subsidiary) are exempt from the general asset-sale sweep. Look in the Mandatory Prepayments section for carve-outs such as 'proceeds applied to repay Indebtedness secured by the asset Disposed of' or 'proceeds applied to repay Indebtedness of the Restricted Subsidiary so Disposed'. Answer true if any such debt-repayment carve-out exists. Answer false if all Net Cash Proceeds feed the general sweep regardless of specific debt relationships to the disposed assets.";
+# TODO-ENG: add as_provision.specific_debt_repayment_sweep_exempt boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AS7: REINVESTMENT RIGHTS (3 questions)
@@ -304,6 +527,33 @@ insert $as_g3 isa ontology_question,
     has display_order 1262,
     has extraction_prompt "Extract the extension period in days beyond the initial reinvestment period if the Borrower has entered a binding commitment to reinvest before the initial period expires. Common value: 180 days (6 months). Look for 'an additional 180 days if the Borrower has entered into a binding commitment'. Return as integer (days). Return 0 if there is no extension mechanic. Return null if no reinvestment right at all.";
 
+insert $as_g4 isa ontology_question,
+    has question_id "as_g4",
+    has covenant_type "AS",
+    has question_text "Must reinvestment target be a Similar Business or any asset used in the business?",
+    has answer_type "boolean",
+    has display_order 1263,
+    has extraction_prompt "Determine whether qualifying replacement assets for reinvestment are limited to assets of a Similar Business (as defined), or permit reinvestment in any asset used in the Borrower's business — or broader still, any Permitted Investment. Look for language such as 'reinvested in any Replacement Assets used in a Similar Business' (narrow, credit-friendly) versus 'reinvested in any Permitted Investment' or 'any asset used in the business' (broad). Answer true if the reinvestment target is narrowly defined to Similar Business. Answer false if broader reinvestment targets are permitted (structurally permissive — permits reinvestment proceeds to flow into any investment pathway).";
+# TODO-ENG: add as_provision.reinvestment_limited_to_similar_business boolean
+
+insert $as_g5 isa ontology_question,
+    has question_id "as_g5",
+    has covenant_type "AS",
+    has question_text "Does a non-binding intent-to-reinvest notice toll the sweep?",
+    has answer_type "boolean",
+    has display_order 1264,
+    has extraction_prompt "Determine whether the Borrower can toll the mandatory prepayment sweep simply by delivering a non-binding notice of intent to reinvest — as opposed to requiring a binding commitment to reinvest. Look for 'upon delivery of a certificate stating that the Borrower intends to reinvest' versus 'upon entry into a binding commitment to reinvest'. Answer true if a mere non-binding intent notice suffices to toll the sweep (permissive — it lets the Borrower defer decision-making). Answer false if a binding commitment is required (credit-friendly).";
+# TODO-ENG: add as_provision.nonbinding_intent_notice_tolls_sweep boolean
+
+insert $as_g6 isa ontology_question,
+    has question_id "as_g6",
+    has covenant_type "AS",
+    has question_text "Where do unused proceeds (post-window) go — loan prepayment or RP builder?",
+    has answer_type "boolean",
+    has display_order 1265,
+    has extraction_prompt "Determine whether Net Cash Proceeds that remain unreinvested after the reinvestment window expires must be applied to prepay the Loans, or whether they flow to the RP builder basket (Retained Asset Sale Proceeds). Look for language such as 'to the extent not reinvested within [period], such proceeds shall be applied to prepay the Loans pursuant to Section [X]' (credit-friendly) versus 'such unreinvested proceeds shall constitute Retained Asset Sale Proceeds and be available for Restricted Payments' (permissive). Answer true if unreinvested proceeds MUST be applied to prepay the Loans. Answer false if unreinvested proceeds flow to the builder or remain available for RP / Investments without required debt reduction.";
+# TODO-ENG: add as_provision.unreinvested_proceeds_prepay_loans boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AS8: SALE-LEASEBACK TRANSACTIONS (2 questions)
@@ -324,6 +574,33 @@ insert $as_h2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1271,
     has extraction_prompt "Determine whether Net Cash Proceeds from permitted sale-leasebacks are subject to the mandatory prepayment sweep on the same terms as other asset sales. Look for cross-references from sale-leaseback to the Mandatory Prepayments section, or an explicit exemption. Answer true if proceeds are subject to the sweep, false if exempt.";
+
+insert $as_h3 isa ontology_question,
+    has question_id "as_h3",
+    has covenant_type "AS",
+    has question_text "Are permitted sale-leasebacks limited to Operating Lease treatment (vs Capital Lease)?",
+    has answer_type "boolean",
+    has display_order 1272,
+    has extraction_prompt "Determine whether the sale-leaseback framework limits permitted sale-leasebacks to those resulting in Operating Lease treatment under applicable accounting standards — or whether Capitalized Lease Obligations are also permitted via sale-leaseback. Look for language such as 'so long as the resulting lease is treated as an Operating Lease' versus silence on treatment. Answer true if permitted sale-leasebacks are limited to Operating Lease treatment. Answer false if Capital / Finance Leases are also permitted. Under ASC 842 and IFRS 16, most leases now sit on-balance-sheet as liabilities — this question captures whether the covenant treats the resulting obligation as debt.";
+# TODO-ENG: add as_provision.slb_limited_to_operating_lease boolean
+
+insert $as_h4 isa ontology_question,
+    has question_id "as_h4",
+    has covenant_type "AS",
+    has question_text "What is the cap on the sale-leaseback basket (USD)?",
+    has answer_type "number",
+    has display_order 1273,
+    has extraction_prompt "Extract the aggregate dollar cap on permitted sale-leaseback transactions, in US dollars. Look for 'Sale-Leaseback Transactions in an aggregate amount not to exceed $X' or a grower formulation. Return the fixed-dollar cap as a full integer. Return null if sale-leasebacks are uncapped (conditioned only on other requirements such as FMV or ratio test), if no separate sale-leaseback basket exists, or if sale-leasebacks flow through the general disposition basket.";
+# TODO-ENG: add as_provision.slb_basket_cap_usd double
+
+insert $as_h5 isa ontology_question,
+    has question_id "as_h5",
+    has covenant_type "AS",
+    has question_text "Are sale-leasebacks with Affiliates or Related Parties subject to additional restrictions?",
+    has answer_type "boolean",
+    has display_order 1274,
+    has extraction_prompt "Determine whether the sale-leaseback framework imposes additional restrictions on transactions entered into with Affiliates, Related Parties, or the Sponsor (as opposed to arms-length third parties). Look for language such as 'provided that any Sale-Leaseback Transaction with an Affiliate shall satisfy the Affiliate Transactions covenant' or 'Sale-Leaseback Transactions with Affiliates are prohibited'. Answer true if additional affiliate-specific restrictions apply. Answer false if the framework does not distinguish affiliate vs third-party counterparties — a structural gap because sale-leasebacks to Sponsor vehicles can strip value at non-arms-length prices.";
+# TODO-ENG: add as_provision.slb_affiliate_restrictions boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -354,6 +631,97 @@ insert $as_i3 isa ontology_question,
     has display_order 1282,
     has extraction_prompt "Based on the full asset sales analysis, provide a short narrative (2-4 sentences) summarizing the most significant credit concerns in the disposition package: sweep tier structure and stepdowns, de minimis thresholds, reinvestment flexibility, ratio-basket exemptions, non-Collateral carve-outs, license-out pathways, and the interaction with the RP builder basket. Identify the two or three highest-severity concerns. Return as a single string.";
 
+insert $as_i4 isa ontology_question,
+    has question_id "as_i4",
+    has covenant_type "AS",
+    has question_text "Can asset-sale proceeds be redeployed as Investments (link to INV reinvestment basket)?",
+    has answer_type "boolean",
+    has display_order 1283,
+    has extraction_prompt "Determine whether asset-sale Net Cash Proceeds can be redeployed as Investments under the Permitted Investments list — specifically via a basket tied to asset-sale reinvestment mechanics (inv_g8 captures the INV-side basket existence). Look for express cross-reference language such as 'Investments funded by Net Cash Proceeds from Dispositions permitted under the Asset Sales covenant' or a shared reinvestment-window framework between the two covenants. Answer true if asset-sale proceeds can flow into Investments rather than being applied to debt. Answer false if asset-sale proceeds must be applied to Loan prepayment or remain unused.";
+# TODO-ENG: add as_provision.proceeds_redeployable_as_investments boolean
+
+insert $as_i5 isa ontology_question,
+    has question_id "as_i5",
+    has covenant_type "AS",
+    has question_text "Where do proceeds from the sale of an Unrestricted Subsidiary route?",
+    has answer_type "string",
+    has display_order 1284,
+    has extraction_prompt "Determine where proceeds from the sale of an Unrestricted Subsidiary (a divestiture of a previously-designated unsub) are routed under the mandatory prepayment and builder-basket mechanics. The three possibilities are: (a) 'sweep' — proceeds feed the general asset-sale sweep like any other disposition, (b) 'builder' — proceeds feed the RP builder basket as Investment Returns (inv_g1 captures the investments-side mechanic), or (c) 'retained' — proceeds retained by the Borrower outside both the sweep and the builder. Return one of: 'sweep', 'builder', 'retained', or empty string if the covenant is silent. Agreements with 'builder' routing (the most common for unsub sales) create a flywheel between the investments-out covenant and the RP-out capacity.";
+# TODO-ENG: add as_provision.unsub_sale_proceeds_routing string
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS10: SPECIFIC DISPOSITION TYPES (4 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_j1 isa ontology_question,
+    has question_id "as_j1",
+    has covenant_type "AS",
+    has question_text "Is there a separate restriction on dispositions of Material Intellectual Property?",
+    has answer_type "boolean",
+    has display_order 1285,
+    has extraction_prompt "Determine whether the dispositions covenant (or the definitions / J.Crew blocker provisions) imposes a separate, specific restriction on dispositions of Material Intellectual Property — distinct from the general dispositions framework. Look for a stand-alone clause such as 'no Disposition of any Material Intellectual Property shall be permitted under this covenant' or a cross-reference to the J.Crew Blocker. Answer true if a specific Material IP disposition restriction exists. Answer false if Material IP dispositions are governed only by the general dispositions framework (FMV + consideration test + basket caps) — a structural gap because Material IP typically warrants stricter treatment.";
+# TODO-ENG: add as_provision.material_ip_disposition_blocker boolean
+
+insert $as_j2 isa ontology_question,
+    has question_id "as_j2",
+    has covenant_type "AS",
+    has question_text "Is there a separate cap or restriction on real-property dispositions?",
+    has answer_type "boolean",
+    has display_order 1286,
+    has extraction_prompt "Determine whether the dispositions covenant imposes a separate cap or restriction specifically on dispositions of Real Property (mortgaged real estate, headquarters, manufacturing facilities). Look for 'Dispositions of Real Property in an aggregate amount not to exceed $X' or 'Dispositions of any Material Real Property shall require Administrative Agent consent'. Answer true if any real-property-specific restriction exists. Answer false if real-property dispositions are governed only by the general dispositions framework.";
+# TODO-ENG: add as_provision.real_property_disposition_restriction boolean
+
+insert $as_j3 isa ontology_question,
+    has question_id "as_j3",
+    has covenant_type "AS",
+    has question_text "Are Receivables-Facility asset sales separately permitted?",
+    has answer_type "boolean",
+    has display_order 1287,
+    has extraction_prompt "Determine whether the dispositions covenant includes a separate basket for dispositions of Receivables or Related Assets to a Qualified Receivables Facility (a securitization structure). Look for 'Dispositions of Receivables and Related Assets to any Receivables Subsidiary in connection with a Permitted Receivables Facility' or similar. Answer true if any such receivables-facility disposition basket exists. Receivables-facility mechanics typically include both a dispositions-side basket and an investments-side basket (inv_b7) — check both independently.";
+# TODO-ENG: add as_provision.receivables_facility_disposition_basket boolean
+
+insert $as_j4 isa ontology_question,
+    has question_id "as_j4",
+    has covenant_type "AS",
+    has question_text "Is there a separate restriction on dispositions of equity of subsidiaries?",
+    has answer_type "boolean",
+    has display_order 1288,
+    has extraction_prompt "Determine whether the dispositions covenant imposes a specific restriction on dispositions of equity interests of Subsidiaries — separate from dispositions of assets held by those Subsidiaries. Look for language such as 'no Disposition of Equity Interests of any Restricted Subsidiary shall be permitted unless...' or 'Dispositions of Capital Stock of any Loan Party shall require all-lender consent'. Answer true if an equity-disposition-specific restriction exists. Answer false if equity dispositions are governed only by the general dispositions framework — a structural gap because selling subsidiary equity is economically a sale of all the subsidiary's underlying assets and often warrants stricter treatment.";
+# TODO-ENG: add as_provision.equity_disposition_restriction boolean
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AS11: PROCESS & NET CASH PROCEEDS DEFINITION (3 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $as_k1 isa ontology_question,
+    has question_id "as_k1",
+    has covenant_type "AS",
+    has question_text "Does the Net Cash Proceeds definition include taxes, fees, and escrow deductions?",
+    has answer_type "boolean",
+    has display_order 1290,
+    has extraction_prompt "Examine the defined term 'Net Cash Proceeds' (or 'Net Proceeds') for the deductions permitted in calculating the amount subject to the sweep. A broad deduction list includes (a) taxes payable in connection with the disposition, (b) reasonable fees and expenses, (c) escrows, holdbacks, and indemnity reserves, and (d) amounts required to repay Indebtedness secured by the disposed asset. Answer true if the definition permits ALL FOUR categories of deductions (permissive — reduces the sweep base). Answer false if the definition is narrower (credit-friendly — larger sweep base).";
+# TODO-ENG: add as_provision.ncp_broad_deductions boolean
+
+insert $as_k2 isa ontology_question,
+    has question_id "as_k2",
+    has covenant_type "AS",
+    has question_text "Is there a timing / advance-notice requirement before the mandatory prepayment?",
+    has answer_type "boolean",
+    has display_order 1291,
+    has extraction_prompt "Determine whether the mandatory-prepayment mechanics require the Borrower to deliver advance notice to the Administrative Agent before making the prepayment — and whether lenders have an opt-out or rejection right during that notice period. Look for language such as 'the Borrower shall deliver to the Administrative Agent not less than [N] Business Days' notice of any prepayment under this Section', or 'Term Loan Lenders may decline their pro-rata share of the prepayment in which case the amount declined may be retained by the Borrower'. Answer true if any such notice or lender-opt-out mechanism exists. Answer false if prepayments happen automatically without notice or lender-opt-out.";
+# TODO-ENG: add as_provision.prepayment_notice_required boolean
+
+insert $as_k3 isa ontology_question,
+    has question_id "as_k3",
+    has covenant_type "AS",
+    has question_text "Must the Borrower deliver an officer's certificate with FMV and consideration breakdown for dispositions?",
+    has answer_type "boolean",
+    has display_order 1292,
+    has extraction_prompt "Determine whether dispositions above a threshold require the Borrower to deliver to the Administrative Agent an officer's certificate setting forth (a) the fair market value of the consideration received, (b) the cash vs non-cash breakdown of the consideration, and (c) the Borrower's basis for valuation. Look for language such as 'accompanied by a certificate of a Responsible Officer setting forth the fair market value and consideration' or 'prior to any Disposition with a fair market value in excess of $X, the Borrower shall deliver to the Administrative Agent a certificate...'. Answer true if any such officer-certificate requirement exists. Answer false if dispositions proceed without required Borrower reporting — a transparency gap.";
+# TODO-ENG: add as_provision.disposition_officer_certificate_required boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION LINKAGE
@@ -366,6 +734,14 @@ match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS1"; $q isa ontology_question, has question_id "as_a7";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # AS2: Permitted Dispositions
 match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b1";
@@ -376,11 +752,27 @@ match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b4";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS2"; $q isa ontology_question, has question_id "as_b8";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # AS3: Ratio Disposition Basket
 match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS3"; $q isa ontology_question, has question_id "as_c6";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # AS4: Non-Collateral & Ordinary Course
@@ -390,6 +782,12 @@ match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS4"; $q isa ontology_question, has question_id "as_d6";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # AS5: Mandatory Prepayment Sweep
 match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e1";
@@ -397,6 +795,14 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS5"; $q isa ontology_question, has question_id "as_e7";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # AS6: Sweep Exemptions & De Minimis
@@ -406,6 +812,14 @@ match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS6"; $q isa ontology_question, has question_id "as_f7";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # AS7: Reinvestment Rights
 match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g1";
@@ -414,11 +828,23 @@ match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS7"; $q isa ontology_question, has question_id "as_g6";
+insert (category: $cat, question: $q) isa category_has_question;
 
 # AS8: Sale-Leaseback
 match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS8"; $q isa ontology_question, has question_id "as_h5";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # AS9: Cross-Covenant & Vulnerabilities
@@ -427,6 +853,28 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS9"; $q isa ontology_question, has question_id "as_i5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS10: Specific Disposition Types
+match $cat isa ontology_category, has category_id "AS10"; $q isa ontology_question, has question_id "as_j1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS10"; $q isa ontology_question, has question_id "as_j2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS10"; $q isa ontology_question, has question_id "as_j3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS10"; $q isa ontology_question, has question_id "as_j4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# AS11: Process & NCP Definition
+match $cat isa ontology_category, has category_id "AS11"; $q isa ontology_question, has question_id "as_k1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS11"; $q isa ontology_question, has question_id "as_k2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AS11"; $q isa ontology_question, has question_id "as_k3";
 insert (category: $cat, question: $q) isa category_has_question;
 
 
