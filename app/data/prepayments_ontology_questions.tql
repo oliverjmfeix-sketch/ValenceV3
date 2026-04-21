@@ -74,6 +74,14 @@ insert $pp_cat6 isa ontology_category,
     has extraction_context_sections "DEFINITIONS,RESTRICTED_PAYMENTS",
     has extraction_batch_hint "Determine whether Retained ECF (ECF not swept) feeds the RP builder basket. This is a major RP capacity source in deals with significant ECF-sweep stepdowns.";
 
+insert $pp_cat7 isa ontology_category,
+    has category_id "PP7",
+    has name "Debt Issuance Sweep",
+    has description "Mandatory prepayment from proceeds of non-permitted debt issuances. Scope, percentage, and refinancing carve-outs.",
+    has display_order 807,
+    has extraction_context_sections "DEFINITIONS,DEBT_INCURRENCE",
+    has extraction_batch_hint "Identify the debt-issuance mandatory-prepayment trigger. Focus on whether it captures all non-permitted debt (standard), the sweep percentage (typically 100%), and any Refinancing Indebtedness carve-out.";
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PP1: ECF CORE STRUCTURE (3 questions)
@@ -102,6 +110,42 @@ insert $pp_a3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1502,
     has extraction_prompt "Determine whether the first fiscal year (or first partial year following closing) is exempt from the ECF sweep. Look for 'commencing with the fiscal year ending [first full year]' or 'commencing with fiscal year 2026'. Answer true if the first year is explicitly excluded, false if the sweep starts immediately.";
+
+insert $pp_a4 isa ontology_question,
+    has question_id "pp_a4",
+    has covenant_type "PP",
+    has question_text "What is the section reference for mandatory prepayments?",
+    has answer_type "string",
+    has display_order 1503,
+    has extraction_prompt "Extract the section reference for the Mandatory Prepayments section exactly as it appears in the document. Typically sits in Article 2 near Voluntary Prepayments, under a heading such as 'Mandatory Prepayments', 'Prepayments', or 'Mandatory Reduction'. Return the verbatim reference. Return an empty string if no mandatory prepayment section exists.";
+# TODO-ENG: add pp_provision.mandatory_prepay_section_ref string
+
+insert $pp_a5 isa ontology_question,
+    has question_id "pp_a5",
+    has covenant_type "PP",
+    has question_text "What is the ECF de minimis threshold before any sweep applies (USD)?",
+    has answer_type "number",
+    has display_order 1504,
+    has extraction_prompt "Extract the dollar threshold below which NO ECF sweep is required for the fiscal year — i.e., if annual ECF is below $X, the Borrower retains all of it. Look for 'if ECF for such fiscal year is less than $X, no prepayment shall be required' or 'ECF in excess of $X'. Return the threshold as a full integer in USD. Return null if no de minimis exists (sweep applies from dollar one) or if no ECF sweep exists.";
+# TODO-ENG: add pp_provision.ecf_de_minimis_usd double
+
+insert $pp_a6 isa ontology_question,
+    has question_id "pp_a6",
+    has covenant_type "PP",
+    has question_text "What is the section reference for voluntary prepayments?",
+    has answer_type "string",
+    has display_order 1505,
+    has extraction_prompt "Extract the section reference for the Voluntary Prepayments section exactly as it appears in the document. Typically sits in Article 2 with a heading such as 'Voluntary Prepayments', 'Optional Prepayments', or 'Prepayments at the Borrower's Option'. Return the verbatim reference. Return an empty string if no such section exists.";
+# TODO-ENG: add pp_provision.voluntary_prepay_section_ref string
+
+insert $pp_a7 isa ontology_question,
+    has question_id "pp_a7",
+    has covenant_type "PP",
+    has question_text "Must voluntary prepayments go to Term Loans before revolver repayment?",
+    has answer_type "boolean",
+    has display_order 1506,
+    has extraction_prompt "Determine whether voluntary prepayments are required to be applied FIRST to Term Loans before repayment of Revolving Loans, or whether the Borrower has full optionality. Look for 'shall be applied first to the Term Loans and then to the Revolving Loans' versus 'at the Borrower's option, in any order'. Answer true if Term-first application is mandatory. Answer false if Borrower has full optionality (the more common, borrower-friendly structure).";
+# TODO-ENG: add pp_provision.voluntary_prepay_term_first boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -132,6 +176,42 @@ insert $pp_b3 isa ontology_question,
     has display_order 1512,
     has extraction_prompt "Determine whether the lowest tier of the ECF sweep is 0% (full retention below a leverage threshold) and whether that threshold is achievable from opening leverage within a reasonable timeframe (typically 0.5x-1.5x below opening). Look for the 0% tier in the sweep schedule. Answer true if a 0% step-down tier exists at a realistic level, false if the sweep never steps down to 0% or the threshold is unrealistic.";
 
+insert $pp_b4 isa ontology_question,
+    has question_id "pp_b4",
+    has covenant_type "PP",
+    has question_text "What is the middle-tier ECF sweep percentage?",
+    has answer_type "integer",
+    has display_order 1513,
+    has extraction_prompt "Extract the middle-tier ECF sweep percentage — the rate between the top-tier (highest leverage, pp_b2) and the bottom-tier (lowest leverage). Common values: 50, 25. Return as integer. Return null if the sweep is not tiered (flat rate), if there are only two tiers, or if no ECF sweep exists.";
+# TODO-ENG: add pp_provision.ecf_middle_tier_pct integer
+
+insert $pp_b5 isa ontology_question,
+    has question_id "pp_b5",
+    has covenant_type "PP",
+    has question_text "What is the bottom-tier ECF sweep percentage?",
+    has answer_type "integer",
+    has display_order 1514,
+    has extraction_prompt "Extract the bottom-tier ECF sweep percentage — the rate at the lowest leverage tier. Common values: 0, 25. A 0% bottom tier means full ECF retention once leverage crosses the threshold, feeding the RP builder (pp_f1). Return as integer. Return null if the sweep is not tiered or no ECF sweep exists.";
+# TODO-ENG: add pp_provision.ecf_bottom_tier_pct integer
+
+insert $pp_b6 isa ontology_question,
+    has question_id "pp_b6",
+    has covenant_type "PP",
+    has question_text "What is the top-to-middle leverage threshold for ECF sweep stepdown?",
+    has answer_type "number",
+    has display_order 1515,
+    has extraction_prompt "Extract the leverage-ratio threshold at which the ECF sweep steps down from the top-tier percentage to the middle-tier percentage. The higher of the two tier-boundary ratios. Common values: 5.00, 4.50, 4.25. Return as a decimal number. Return null if the sweep is not tiered or no ECF sweep exists.";
+# TODO-ENG: add pp_provision.ecf_top_to_middle_threshold double
+
+insert $pp_b7 isa ontology_question,
+    has question_id "pp_b7",
+    has covenant_type "PP",
+    has question_text "What is the middle-to-bottom leverage threshold for ECF sweep stepdown?",
+    has answer_type "number",
+    has display_order 1516,
+    has extraction_prompt "Extract the leverage-ratio threshold at which the ECF sweep steps down from the middle-tier percentage to the bottom-tier percentage. The lower of the two tier-boundary ratios. Common values: 4.00, 3.50, 3.00. Return as a decimal number. Return null if the sweep is not tiered, if only two tiers exist (use the single threshold in pp_b6), or no ECF sweep exists.";
+# TODO-ENG: add pp_provision.ecf_middle_to_bottom_threshold double
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PP3: ECF SWEEP EXEMPTIONS & RETAINED AMOUNT (3 questions)
@@ -160,6 +240,51 @@ insert $pp_c3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1522,
     has extraction_prompt "Determine whether capital expenditures made during the measurement period are deducted from ECF. Most agreements deduct committed and paid capex. Look for 'less Consolidated Capital Expenditures' in the ECF definition. Answer true if capex is deducted. The standard is broad capex credit (including committed-but-unfunded capex).";
+
+insert $pp_c4 isa ontology_question,
+    has question_id "pp_c4",
+    has covenant_type "PP",
+    has question_text "Are scheduled principal amortization payments deducted from ECF?",
+    has answer_type "boolean",
+    has display_order 1523,
+    has extraction_prompt "Determine whether scheduled principal amortization payments (mandatory 1% Term Loan amortization) paid during the measurement period are deducted from ECF before the sweep applies. Look in the ECF definition for 'less scheduled principal amortization' or 'less scheduled installments of Term Loans'. Answer true if scheduled amortization is deducted (standard — prevents double-counting of already-paid debt). Answer false if scheduled amortization is not deducted (uncommon, lender-friendly — increases sweep base).";
+# TODO-ENG: add pp_provision.scheduled_amort_deducted_from_ecf boolean
+
+insert $pp_c5 isa ontology_question,
+    has question_id "pp_c5",
+    has covenant_type "PP",
+    has question_text "Are mandatory prepayments already paid (asset sale, CoC) deducted from ECF?",
+    has answer_type "boolean",
+    has display_order 1524,
+    has extraction_prompt "Determine whether mandatory prepayments already paid during the measurement period (from asset sale sweep, CoC offer acceptance, debt issuance sweep) are deducted from the ECF calculation — preventing double-counting of the same cash inflow. Look for 'less any other mandatory prepayments required hereunder' in the ECF definition. Answer true if such deductions are permitted (standard, prevents double-sweep). Answer false if the ECF sweep ignores other prepayments (uncommon).";
+# TODO-ENG: add pp_provision.other_mandatory_prepay_deducted_from_ecf boolean
+
+insert $pp_c6 isa ontology_question,
+    has question_id "pp_c6",
+    has covenant_type "PP",
+    has question_text "Is there a cap on the capex deduction from ECF?",
+    has answer_type "boolean",
+    has display_order 1525,
+    has extraction_prompt "Determine whether the capex deduction from ECF is capped (dollar amount, percentage of EBITDA, or tied to a capex budget disclosed in the compliance certificate). Look for 'Consolidated Capital Expenditures not to exceed $X' or 'capital expenditures in an amount consistent with the Capital Expenditure Budget'. Answer true if any cap on the capex deduction exists. Answer false if capex is deductible without limit (permissive — allows aggressive spending to shelter ECF from sweep).";
+# TODO-ENG: add pp_provision.capex_deduction_capped boolean
+
+insert $pp_c7 isa ontology_question,
+    has question_id "pp_c7",
+    has covenant_type "PP",
+    has question_text "Is committed-but-unfunded capex deductible from ECF?",
+    has answer_type "boolean",
+    has display_order 1526,
+    has extraction_prompt "Determine whether capital expenditures COMMITTED TO be made (e.g., contractual obligations, purchase orders) but not yet paid are deductible from ECF — in addition to actual cash capex during the measurement period. Look for 'Consolidated Capital Expenditures, including any committed amounts to be expended within the next fiscal year'. Answer true if committed-but-unfunded capex is deductible (permissive — enables aggressive sheltering). Answer false if only actually-paid capex counts as a deduction.";
+# TODO-ENG: add pp_provision.committed_capex_deductible boolean
+
+insert $pp_c8 isa ontology_question,
+    has question_id "pp_c8",
+    has covenant_type "PP",
+    has question_text "Are Restricted Payments made during the period deducted from ECF?",
+    has answer_type "boolean",
+    has display_order 1527,
+    has extraction_prompt "Determine whether Restricted Payments (dividends, share repurchases) made during the measurement period are deducted from ECF before the sweep applies. Look in the ECF definition for 'less Restricted Payments made in cash during such fiscal year'. Answer true if Restricted Payments are deducted (permissive — enables dividend recaps to shelter ECF from sweep). Answer false if RPs are not deducted (the credit-friendly default — ECF should be before-RP cash, not after).";
+# TODO-ENG: add pp_provision.rps_deducted_from_ecf boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -190,6 +315,42 @@ insert $pp_d3 isa ontology_question,
     has display_order 1532,
     has extraction_prompt "Extract the minimum size of a voluntary prepayment, in USD (full number, not millions). Common values: $1 million, $5 million. Return the dollar figure. Return null if no minimum is specified.";
 
+insert $pp_d4 isa ontology_question,
+    has question_id "pp_d4",
+    has covenant_type "PP",
+    has question_text "What is the advance-notice period (business days) for voluntary prepayments?",
+    has answer_type "integer",
+    has display_order 1533,
+    has extraction_prompt "Extract the advance-notice period in Business Days by which the Borrower must notify the Administrative Agent of a voluntary prepayment. Common values: 1, 3 Business Days (SOFR loans typically require 3 BDs notice for interest-period management). Return as integer in Business Days. Return null if no notice period is specified.";
+# TODO-ENG: add pp_provision.voluntary_prepay_notice_days integer
+
+insert $pp_d5 isa ontology_question,
+    has question_id "pp_d5",
+    has covenant_type "PP",
+    has question_text "Are SOFR breakage costs payable on mid-period voluntary prepayments?",
+    has answer_type "boolean",
+    has display_order 1534,
+    has extraction_prompt "Determine whether the Borrower must pay breakage / funding-loss indemnification on voluntary prepayments made mid-interest-period (other than at the end of a SOFR Interest Period). Look for 'Indemnified Taxes', 'Increased Costs', 'Breakage Costs', or similar compensation provisions tied to mid-period prepayments. Answer true if breakage is payable on mid-period prepayments (standard). Answer false if prepayments can be made at any time without breakage (borrower-friendly — can indicate a base rate facility or specific waiver).";
+# TODO-ENG: add pp_provision.sofr_breakage_on_mid_period_prepay boolean
+
+insert $pp_d6 isa ontology_question,
+    has question_id "pp_d6",
+    has covenant_type "PP",
+    has question_text "Are Dutch auction / open-market prepayments permitted?",
+    has answer_type "boolean",
+    has display_order 1535,
+    has extraction_prompt "Determine whether the Borrower is permitted to repurchase Term Loans via a Dutch Auction or on the open market, at prices below par (as opposed to only at-par prepayments). Look for 'Dutch Auction', 'Open Market Purchase', or 'Term Loan Purchase' as defined terms or provisions. Answer true if either mechanism is permitted. Dutch auctions enable the Borrower to reduce outstanding debt at a discount, which is credit-neutral-to-negative (implied credit weakness behind the discount).";
+# TODO-ENG: add pp_provision.dutch_auction_permitted boolean
+
+insert $pp_d7 isa ontology_question,
+    has question_id "pp_d7",
+    has covenant_type "PP",
+    has question_text "Does the Borrower have a right to prepay to avoid default-rate interest accrual?",
+    has answer_type "boolean",
+    has display_order 1536,
+    has extraction_prompt "Determine whether the Borrower retains the right to voluntarily prepay the Loans at par during the continuance of an Event of Default — specifically to avoid continued accrual of Default Rate interest. Look in the Voluntary Prepayments section for carve-outs or restrictions during an EOD. Answer true if the Borrower retains prepayment rights during an EOD. Answer false if voluntary prepayments are suspended during an EOD (rare, but lender-friendly — it forces the Borrower into remedies rather than debt reduction).";
+# TODO-ENG: add pp_provision.prepay_right_during_eod boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PP5: SOFT CALL / REPRICING PROTECTION (3 questions)
@@ -219,6 +380,33 @@ insert $pp_e3 isa ontology_question,
     has display_order 1542,
     has extraction_prompt "Determine whether the soft call premium is the market-standard 1.00% (101 cents on the dollar). Look for 'a prepayment premium equal to 1.00% of the principal amount prepaid'. Answer true if 1.00%, false if a different premium (2.00%, 0.50%, or a tiered premium). Non-standard premium levels should be flagged.";
 
+insert $pp_e4 isa ontology_question,
+    has question_id "pp_e4",
+    has covenant_type "PP",
+    has question_text "Does the Repricing Transaction definition cover refinancing with new lenders?",
+    has answer_type "boolean",
+    has display_order 1543,
+    has extraction_prompt "Determine whether the 'Repricing Transaction' definition (triggering the soft call premium) is broad enough to cover refinancings with entirely new lenders — as opposed to only rate reductions on the existing loans or amendments with existing lenders. Look for the Repricing Transaction definition and its scope of 'repricing', 'refinancing', or 'replacement' language. Answer true if new-lender refinancings are covered (broad, lender-friendly — captures all refinancing events). Answer false if the definition is limited to amendments / rate reductions without refinancing (narrow, borrower-friendly).";
+# TODO-ENG: add pp_provision.repricing_covers_new_lender_refi boolean
+
+insert $pp_e5 isa ontology_question,
+    has question_id "pp_e5",
+    has covenant_type "PP",
+    has question_text "Does a new Repricing Transaction reset the soft call period?",
+    has answer_type "boolean",
+    has display_order 1544,
+    has extraction_prompt "Determine whether each new Repricing Transaction resets the soft call period (so the 6 or 12 months runs from the most recent repricing, not from the original closing) — meaning repeated refinancings keep the premium active indefinitely. Look for 'commencing on the date of the most recent Repricing Transaction' or 'each Repricing Transaction shall commence a new Soft Call Period'. Answer true if repricing resets the clock (lender-friendly). Answer false if the soft call period runs only from the original closing date (borrower-friendly — can be gamed by waiting out the initial period).";
+# TODO-ENG: add pp_provision.repricing_resets_soft_call boolean
+
+insert $pp_e6 isa ontology_question,
+    has question_id "pp_e6",
+    has covenant_type "PP",
+    has question_text "Are amendments reducing the effective yield treated as Repricing Transactions?",
+    has answer_type "boolean",
+    has display_order 1545,
+    has extraction_prompt "Determine whether an amendment to the credit agreement that has the effect of reducing the Borrower's yield on Term Loans — even without a formal refinancing — is treated as a Repricing Transaction triggering the soft call premium. Look in the Repricing Transaction definition for 'any amendment to this Agreement having the effect of reducing the Effective Yield'. Answer true if such amendments count (broad, lender-friendly). Answer false if only refinancings count (narrower).";
+# TODO-ENG: add pp_provision.amendment_reducing_yield_is_repricing boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PP6: CROSS-COVENANT LINKS (3 questions)
@@ -247,6 +435,74 @@ insert $pp_f3 isa ontology_question,
     has answer_type "string",
     has display_order 1552,
     has extraction_prompt "Based on the full prepayment-mechanics analysis, provide a short narrative (2-4 sentences) summarizing credit-relevant features: ECF sweep tier steepness, total deductions taken, first-year holiday, soft call scope, and the interaction with the RP builder feed. Identify whether the package is lender-friendly, standard, or sponsor-friendly. Return as a single string.";
+
+insert $pp_f4 isa ontology_question,
+    has question_id "pp_f4",
+    has covenant_type "PP",
+    has question_text "When does Retained ECF become available for use (certification vs actual determination)?",
+    has answer_type "boolean",
+    has display_order 1553,
+    has extraction_prompt "Determine whether Retained ECF becomes available for Restricted Payments / Investments / other covenant uses upon DELIVERY of the annual compliance certificate quantifying it, or only upon the LATER of delivery and the end of the sweep payment window (typically 90-120 days post-fiscal-year-end). Look for the definition of 'Retained Excess Cash Flow' or 'Available Amount' for the timing. Answer true if availability is tied to certificate delivery (earlier, borrower-friendly). Answer false if availability is tied to end of the sweep window (later, credit-friendly — protects against use of amounts that are still ambiguous).";
+# TODO-ENG: add pp_provision.retained_ecf_available_on_certification boolean
+
+insert $pp_f5 isa ontology_question,
+    has question_id "pp_f5",
+    has covenant_type "PP",
+    has question_text "Can Term Lenders individually waive their pro-rata share of a mandatory prepayment?",
+    has answer_type "boolean",
+    has display_order 1554,
+    has extraction_prompt "Determine whether individual Term Lenders have the right to WAIVE (decline) their pro-rata share of a mandatory prepayment — in which case the declined amount is retained by the Borrower rather than used to prepay Term Loans. Look for 'Declining Lenders', 'Term Lenders may decline their pro-rata share', or 'Rejected Amount'. Answer true if Lenders can decline prepayments. This is lender-friendly (individual Lenders can stay in the loan at premium rates) but Borrower-beneficial in effect (retained cash remains with the Borrower rather than being applied to Loans).";
+# TODO-ENG: add pp_provision.term_lenders_may_decline_prepay boolean
+
+insert $pp_f6 isa ontology_question,
+    has question_id "pp_f6",
+    has covenant_type "PP",
+    has question_text "Do retained ECF balances carry forward perpetually or reset annually?",
+    has answer_type "boolean",
+    has display_order 1555,
+    has extraction_prompt "Determine whether Retained ECF balances from prior fiscal years remain available perpetually (cumulatively building up in the RP builder basket or equivalent) or reset / expire at the end of each fiscal year. Look for carry-forward language such as 'retained amounts shall remain available until utilized' versus 'expire at the end of the fiscal year'. Answer true if retained balances carry forward perpetually (the common structure — feeds into the builder basket's cumulative nature). Answer false if annual reset applies (uncommon, credit-friendly — limits compounding).";
+# TODO-ENG: add pp_provision.retained_ecf_carries_forward boolean
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PP7: DEBT ISSUANCE SWEEP (4 questions)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert $pp_g1 isa ontology_question,
+    has question_id "pp_g1",
+    has covenant_type "PP",
+    has question_text "Is there a mandatory prepayment from Debt Issuance proceeds?",
+    has answer_type "boolean",
+    has display_order 1560,
+    has extraction_prompt "Determine whether the credit agreement requires mandatory prepayment of the Loans from the Net Cash Proceeds of issuance of non-permitted Indebtedness. Look in the Mandatory Prepayments section for a Debt Issuance sweep — typically 'upon the incurrence of Indebtedness not permitted hereunder, 100% of the Net Cash Proceeds shall be applied to prepay the Loans'. Answer true if any such prepayment exists. Answer false if no debt-issuance sweep is present (common in covenant-lite deals).";
+# TODO-ENG: add pp_provision.debt_issuance_sweep_exists boolean
+
+insert $pp_g2 isa ontology_question,
+    has question_id "pp_g2",
+    has covenant_type "PP",
+    has question_text "What percentage of Debt Issuance proceeds is swept (typically 100%)?",
+    has answer_type "integer",
+    has display_order 1561,
+    has extraction_prompt "Extract the sweep percentage for non-permitted Debt Issuance proceeds. Standard market is 100% (full sweep). Look in the Debt Issuance mandatory-prepayment clause for the percentage. Return as integer (e.g., 100 for 100%). Return null if no Debt Issuance sweep exists (pp_g1 captures existence).";
+# TODO-ENG: add pp_provision.debt_issuance_sweep_pct integer
+
+insert $pp_g3 isa ontology_question,
+    has question_id "pp_g3",
+    has covenant_type "PP",
+    has question_text "Does the Debt Issuance sweep trigger only on non-permitted debt?",
+    has answer_type "boolean",
+    has display_order 1562,
+    has extraction_prompt "Determine whether the Debt Issuance sweep is triggered ONLY when the Borrower incurs Indebtedness not permitted by the Debt Incurrence covenant — as opposed to triggering on any incurrence of new debt including permitted debt. Look for 'upon the incurrence of any Indebtedness not permitted by Section [DI]' versus 'upon the incurrence of any Indebtedness'. Answer true if the sweep is limited to non-permitted debt (borrower-friendly — permits unlimited refinancing and Permitted Debt without triggering). Answer false if any debt incurrence triggers (lender-friendly but unusual).";
+# TODO-ENG: add pp_provision.debt_sweep_only_non_permitted boolean
+
+insert $pp_g4 isa ontology_question,
+    has question_id "pp_g4",
+    has covenant_type "PP",
+    has question_text "Is Permitted Refinancing Indebtedness expressly excluded from the Debt Issuance sweep?",
+    has answer_type "boolean",
+    has display_order 1563,
+    has extraction_prompt "Determine whether Permitted Refinancing Indebtedness (debt that refinances existing permitted debt, no upsize) is EXPRESSLY excluded from the Debt Issuance sweep. Look in the Debt Issuance sweep clause for 'other than Permitted Refinancing Indebtedness' or 'excluding any refinancing of existing Indebtedness'. Answer true if refinancing is expressly carved out (standard — prevents the sweep from capturing credit-neutral refinancings). Answer false if no such carve-out exists (uncommon).";
+# TODO-ENG: add pp_provision.refinancing_excluded_from_debt_sweep boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -293,4 +549,64 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "PP6"; $q isa ontology_question, has question_id "pp_f2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "PP6"; $q isa ontology_question, has question_id "pp_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP6"; $q isa ontology_question, has question_id "pp_f4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP6"; $q isa ontology_question, has question_id "pp_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP6"; $q isa ontology_question, has question_id "pp_f6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP1"; $q isa ontology_question, has question_id "pp_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP1"; $q isa ontology_question, has question_id "pp_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP1"; $q isa ontology_question, has question_id "pp_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP1"; $q isa ontology_question, has question_id "pp_a7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP2"; $q isa ontology_question, has question_id "pp_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP2"; $q isa ontology_question, has question_id "pp_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP2"; $q isa ontology_question, has question_id "pp_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP2"; $q isa ontology_question, has question_id "pp_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP3"; $q isa ontology_question, has question_id "pp_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP3"; $q isa ontology_question, has question_id "pp_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP3"; $q isa ontology_question, has question_id "pp_c6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP3"; $q isa ontology_question, has question_id "pp_c7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP3"; $q isa ontology_question, has question_id "pp_c8";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP4"; $q isa ontology_question, has question_id "pp_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP4"; $q isa ontology_question, has question_id "pp_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP4"; $q isa ontology_question, has question_id "pp_d6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP4"; $q isa ontology_question, has question_id "pp_d7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP5"; $q isa ontology_question, has question_id "pp_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP5"; $q isa ontology_question, has question_id "pp_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP5"; $q isa ontology_question, has question_id "pp_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "PP7"; $q isa ontology_question, has question_id "pp_g1";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP7"; $q isa ontology_question, has question_id "pp_g2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP7"; $q isa ontology_question, has question_id "pp_g3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "PP7"; $q isa ontology_question, has question_id "pp_g4";
 insert (category: $cat, question: $q) isa category_has_question;
