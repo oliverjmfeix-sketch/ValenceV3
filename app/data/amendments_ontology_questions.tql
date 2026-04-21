@@ -103,6 +103,42 @@ insert $amd_a3 isa ontology_question,
     has display_order 1602,
     has extraction_prompt "Determine whether any amendments can become effective with less than Required Lenders consent — for example, technical / non-substantive amendments that can be made by the Administrative Agent and Borrower only, or amendments implementing benchmark-replacement changes without lender vote. Look for 'Administrative Agent and Borrower may amend' without further qualification. Answer true if any such bypass exists, false if ALL amendments require at least Required Lenders. Broad Administrative-Agent-only amendment powers should be flagged.";
 
+insert $amd_a4 isa ontology_question,
+    has question_id "amd_a4",
+    has covenant_type "AMD",
+    has question_text "What is the Required Lenders threshold as a percentage?",
+    has answer_type "integer",
+    has display_order 1603,
+    has extraction_prompt "Extract the Required Lenders voting threshold as a percentage of total commitments / outstanding Loans. Standard: 50 (50%+1, meaning greater than 50%). Some deals use 51 (51%), 66 (supermajority defined as Required Lenders), or other. Look in the Required Lenders definition. Return as integer (e.g., 50 for >50%, 51 for ≥51%). Return null if ambiguous.";
+# TODO-ENG: add amd_provision.required_lenders_pct integer
+
+insert $amd_a5 isa ontology_question,
+    has question_id "amd_a5",
+    has covenant_type "AMD",
+    has question_text "What is the section reference for the Amendments article?",
+    has answer_type "string",
+    has display_order 1604,
+    has extraction_prompt "Extract the section reference for the Amendments, Waivers, and Consents article exactly as it appears in the document. Typically sits in Article 10 or 11 with a heading such as 'Amendments; Waivers', 'Miscellaneous — Amendments'. Return the verbatim reference. Return an empty string if no amendments article exists.";
+# TODO-ENG: add amd_provision.amendments_section_ref string
+
+insert $amd_a6 isa ontology_question,
+    has question_id "amd_a6",
+    has covenant_type "AMD",
+    has question_text "Is there a 'Required Lenders of a Class' concept enabling tranche-specific votes?",
+    has answer_type "boolean",
+    has display_order 1605,
+    has extraction_prompt "Determine whether the agreement defines 'Required Revolving Lenders', 'Required Term Lenders', or 'Required Class Lenders' — separate voting thresholds for specific tranches. Look in the Definitions for these defined terms. Answer true if class-specific voting exists. Class-specific voting can enable tranche-level amendments without triggering the full Required Lenders vote — a common path for Serta-style restructurings because it lets a majority of a single tranche (e.g., the newly-issued super-senior tranche) make binding decisions.";
+# TODO-ENG: add amd_provision.has_class_specific_required_lenders boolean
+
+insert $amd_a7 isa ontology_question,
+    has question_id "amd_a7",
+    has covenant_type "AMD",
+    has question_text "When does an amendment become effective — upon execution or upon delivery to all Lenders?",
+    has answer_type "boolean",
+    has display_order 1606,
+    has extraction_prompt "Determine whether an amendment becomes effective immediately upon execution by the Required Lenders (or other specified consent level), or whether delivery to all Lenders (including non-consenters) is a condition to effectiveness. Look in the amendments article for 'shall be effective upon execution' versus 'shall be effective upon delivery to the Lenders'. Answer true if effective upon execution (standard, faster). Answer false if delivery is required (uncommon, lender-friendly because it gives a window for non-consenters to react).";
+# TODO-ENG: add amd_provision.amendment_effective_on_execution boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AMD2: SACRED RIGHTS (3 questions)
@@ -131,6 +167,42 @@ insert $amd_b3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1612,
     has extraction_prompt "Determine whether the provisions requiring pro-rata application of prepayments among all Term Loan Lenders (or pro-rata sharing generally) are listed as a sacred right. Look for 'changes to Section [pro-rata sharing] that would be adverse to any Lender' in the sacred-rights list. Answer true if pro-rata sharing requires unanimous/affected-lender consent. This was the key question in the Serta restructuring — non-sacred pro-rata is a major structural vulnerability.";
+
+insert $amd_b4 isa ontology_question,
+    has question_id "amd_b4",
+    has covenant_type "AMD",
+    has question_text "Is reduction of interest rates on any Loan a sacred right?",
+    has answer_type "boolean",
+    has display_order 1613,
+    has extraction_prompt "Determine whether a reduction in interest rates, margins, or accrued interest applicable to any Loan is listed as a sacred right requiring each affected Lender's consent. Look in the Amendments article for 'reduction in the rate of interest' in the sacred-rights list. Answer true if interest-rate reductions require affected-lender consent.";
+# TODO-ENG: add amd_provision.interest_reduction_sacred boolean
+
+insert $amd_b5 isa ontology_question,
+    has question_id "amd_b5",
+    has covenant_type "AMD",
+    has question_text "Is reduction of commitment or facility fees a sacred right?",
+    has answer_type "boolean",
+    has display_order 1614,
+    has extraction_prompt "Determine whether reduction of commitment fees, facility fees, or undrawn-revolver fees is listed as a sacred right. Look for 'reduction in any fees payable' in the sacred-rights list. Answer true if fee reductions require affected-lender consent, false if Required Lenders can reduce fees.";
+# TODO-ENG: add amd_provision.fee_reduction_sacred boolean
+
+insert $amd_b6 isa ontology_question,
+    has question_id "amd_b6",
+    has covenant_type "AMD",
+    has question_text "Is any change to the definition of 'Required Lenders' itself a sacred right?",
+    has answer_type "boolean",
+    has display_order 1615,
+    has extraction_prompt "Determine whether amendments to the definition of 'Required Lenders' (or the voting thresholds themselves) require each affected Lender's consent or unanimous consent. Look in the sacred-rights list for 'any amendment to Section [Amendments]' or 'change the definition of Required Lenders'. Answer true if such changes are sacred. Without this protection, Required Lenders could theoretically amend their own definition to lower the threshold.";
+# TODO-ENG: add amd_provision.required_lenders_def_sacred boolean
+
+insert $amd_b7 isa ontology_question,
+    has question_id "amd_b7",
+    has covenant_type "AMD",
+    has question_text "Is waiver of mandatory prepayments a sacred right?",
+    has answer_type "boolean",
+    has display_order 1616,
+    has extraction_prompt "Determine whether waiving or modifying mandatory prepayment requirements (ECF sweep, asset sale sweep, debt issuance sweep) requires each affected Lender's consent. Look for 'change to Section [mandatory prepayments]' in the sacred-rights list. Answer true if mandatory prepayment waivers are sacred. Required-Lenders waiver of mandatory prepayments is a structural gap — it lets majority lenders trade away the Borrower's deleveraging commitments.";
+# TODO-ENG: add amd_provision.mandatory_prepay_waiver_sacred boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -161,6 +233,42 @@ insert $amd_c3 isa ontology_question,
     has display_order 1622,
     has extraction_prompt "Determine whether the interest rate on a specific tranche (e.g., Term B) can be reduced with Required Lenders of that tranche only, rather than each affected Lender. Look for how the sacred-rights clause interacts with tranche-specific amendments. Answer true if Required-Lenders-of-tranche can reduce rate (Borrower-friendly), false if each affected Lender must consent.";
 
+insert $amd_c4 isa ontology_question,
+    has question_id "amd_c4",
+    has covenant_type "AMD",
+    has question_text "Does creating a new senior-priority tranche require each affected (existing) Lender's consent?",
+    has answer_type "boolean",
+    has display_order 1623,
+    has extraction_prompt "Determine whether creating a new Class of Loans with PAYMENT-PRIORITY senior to the existing Loans — not just lien-priority — requires each affected existing Lender's consent. Look for sacred-rights language referencing 'payment priority' or 'waterfall'. Answer true if payment-priority subordination requires each-affected-Lender consent (credit-friendly — blocks classic Serta). Answer false if a Required-Lenders majority can authorize new senior-payment tranches. This is the most precise Serta-protection question.";
+# TODO-ENG: add amd_provision.payment_priority_subordination_sacred boolean
+
+insert $amd_c5 isa ontology_question,
+    has question_id "amd_c5",
+    has covenant_type "AMD",
+    has question_text "Does change to the waterfall / priority-of-payments require affected-lender consent?",
+    has answer_type "boolean",
+    has display_order 1624,
+    has extraction_prompt "Determine whether changes to the payment waterfall — the priority order in which payments are distributed among tranches / Lenders — require each affected Lender's consent. Look for 'changes to Section [waterfall]' or 'priority of payments' in the sacred-rights list. Answer true if waterfall changes are protected at the affected-lender level. Answer false if Required Lenders can modify the waterfall — a material vulnerability.";
+# TODO-ENG: add amd_provision.waterfall_change_sacred boolean
+
+insert $amd_c6 isa ontology_question,
+    has question_id "amd_c6",
+    has covenant_type "AMD",
+    has question_text "Can an individual Guarantor be released with Required Lenders consent (vs affected-lender)?",
+    has answer_type "boolean",
+    has display_order 1625,
+    has extraction_prompt "Determine whether an INDIVIDUAL Guarantor's release (as opposed to substantially-all Guarantor releases captured by amd_d1) can be effected with Required Lenders consent. Look at the Guarantor release provisions — often single-Guarantor releases are permitted with Required Lenders consent if the release is 'in connection with a Permitted Disposition of all the equity of such Guarantor' or similar mechanism. Answer true if Required Lenders can release an individual Guarantor. Answer false if each affected Lender's consent is required.";
+# TODO-ENG: add amd_provision.individual_guarantor_release_required_lenders boolean
+
+insert $amd_c7 isa ontology_question,
+    has question_id "amd_c7",
+    has covenant_type "AMD",
+    has question_text "Are amendments to financial covenants governed by Required Lenders or affected-lender standard?",
+    has answer_type "boolean",
+    has display_order 1626,
+    has extraction_prompt "Determine whether amendments to the financial covenants (maintenance tests in the Financial Covenants article) require Required Lenders only, or the Required Revolving Lenders (if springing / revolver-only), or each affected Lender. Look in the Amendments article for a carve-out such as 'amendments to Section [Financial Covenants] shall require only the consent of Required Revolving Lenders'. Answer true if Required Lenders (or a subset) can amend the financial covenants — standard. Answer false if each affected Lender's consent is required (uncommon, very lender-friendly).";
+# TODO-ENG: add amd_provision.fincov_amendment_required_lenders boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AMD4: SUPER-MAJORITY PROVISIONS (2 questions)
@@ -182,6 +290,42 @@ insert $amd_d2 isa ontology_question,
     has display_order 1631,
     has extraction_prompt "Determine whether releasing substantially all Collateral from the security package requires super-majority or unanimous consent. Look for 'release all or substantially all of the Collateral'. Answer true if elevated consent is required. This is a cornerstone protection — without it, a Required-Lenders majority can unsecure the Loans.";
 
+insert $amd_d3 isa ontology_question,
+    has question_id "amd_d3",
+    has covenant_type "AMD",
+    has question_text "What is the supermajority threshold as a percentage (if distinct from Required Lenders)?",
+    has answer_type "integer",
+    has display_order 1632,
+    has extraction_prompt "Extract the supermajority voting threshold as a percentage of total commitments / outstanding Loans, where the agreement defines a supermajority consent level distinct from Required Lenders. Common values: 66.67 (2/3), 75, or 80. Return as integer representing the percentage (66 for 2/3, 75 for 75%). Return null if no supermajority tier is defined.";
+# TODO-ENG: add amd_provision.supermajority_threshold_pct integer
+
+insert $amd_d4 isa ontology_question,
+    has question_id "amd_d4",
+    has covenant_type "AMD",
+    has question_text "What is the 'substantially all' threshold as a percentage for Collateral / Guarantor releases?",
+    has answer_type "integer",
+    has display_order 1633,
+    has extraction_prompt "Extract the percentage threshold that determines when a Collateral or Guarantor release constitutes 'substantially all' — triggering the super-majority or sacred-right protection. Some agreements define this explicitly (e.g., 'releases affecting more than 25% of the value of the Collateral'). Others leave it undefined as a judgment call. Return as integer representing the percentage trigger. Return null if the phrase 'substantially all' is not numerically defined.";
+# TODO-ENG: add amd_provision.substantially_all_pct_threshold integer
+
+insert $amd_d5 isa ontology_question,
+    has question_id "amd_d5",
+    has covenant_type "AMD",
+    has question_text "Are voting rights of Disqualified Institutions affirmatively stripped?",
+    has answer_type "boolean",
+    has display_order 1634,
+    has extraction_prompt "Determine whether the agreement affirmatively strips voting rights from any Loans held by Disqualified Institutions (DQ'd Lenders — competitors of the Borrower who purchase on the secondary market contrary to the DQ list). Look for 'Loans held by any Disqualified Institution shall be disregarded for purposes of determining Required Lenders' in the Required Lenders definition or the Amendments article. Answer true if DQ voting is stripped. This is a meaningful sponsor-friendly feature but often lender-neutral.";
+
+insert $amd_d6 isa ontology_question,
+    has question_id "amd_d6",
+    has covenant_type "AMD",
+    has question_text "Does automatic collateral release on permitted dispositions require any lender vote?",
+    has answer_type "boolean",
+    has display_order 1635,
+    has extraction_prompt "Determine whether the automatic collateral release upon a Permitted Disposition (captured on the Asset Sales side as ln_k1/ln_k2) requires ANY lender vote or whether it operates purely as a self-executing mechanism. Look for whether the Administrative Agent's acknowledgment is conditional on lender direction. Answer true if the release requires even Administrative Agent acknowledgment (credit-friendly — provides minimal oversight). Answer false if releases are automatic with zero lender action required.";
+# TODO-ENG: add amd_provision.auto_collateral_release_requires_vote boolean
+# TODO-ENG: add amd_provision.dq_voting_stripped boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AMD5: AMENDMENT FEES & NON-PRO-RATA (2 questions)
@@ -202,6 +346,42 @@ insert $amd_e2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1641,
     has extraction_prompt "Determine whether the Borrower may require non-consenting Lenders to assign their Loans to a Borrower-designated replacement at par (or principal plus accrued interest) if consent would otherwise require each affected Lender — sometimes called a 'yank-the-bank' right. Look for 'replace' or 'require assignment of its Loans' language. Answer true if such a right exists. Broad yank-the-bank rights can effectively defeat sacred-right protections.";
+
+insert $amd_e3 isa ontology_question,
+    has question_id "amd_e3",
+    has covenant_type "AMD",
+    has question_text "Must yank-the-bank replacements be at par (vs at a premium)?",
+    has answer_type "boolean",
+    has display_order 1642,
+    has extraction_prompt "Determine whether yank-the-bank assignments must be made at par (100% of principal plus accrued interest) or whether the Borrower must pay a premium to the replaced Lender. Look in the yank-the-bank clause for 'at a price of par' versus 'at a price equal to 101%' or similar premium. Answer true if at-par replacement is permitted (borrower-friendly — no premium owed to dissenting Lenders). Answer false if a premium must be paid (lender-friendly).";
+# TODO-ENG: add amd_provision.yank_at_par boolean
+
+insert $amd_e4 isa ontology_question,
+    has question_id "amd_e4",
+    has covenant_type "AMD",
+    has question_text "Must amendment fees be offered to all Lenders (not just supermajority consenters)?",
+    has answer_type "boolean",
+    has display_order 1643,
+    has extraction_prompt "Determine whether amendment / consent fees must be offered to ALL Lenders of an affected class, or whether they can be offered only to those who consent within a specified window (effectively penalizing late or non-consenters). Look for 'offered to each affected Lender' versus 'offered only to Lenders consenting by [date]'. Answer true if fees must be offered to all Lenders regardless of consent (pure-pro-rata, lender-friendly). Answer false if selective offering is permitted (borrower-friendly — incentivizes fast consent by creating FOMO).";
+# TODO-ENG: add amd_provision.amendment_fees_offered_to_all boolean
+
+insert $amd_e5 isa ontology_question,
+    has question_id "amd_e5",
+    has covenant_type "AMD",
+    has question_text "Is there a minimum notice window for amendment consent solicitation?",
+    has answer_type "integer",
+    has display_order 1644,
+    has extraction_prompt "Extract the minimum notice period in business days (or calendar days) that the Administrative Agent must give Lenders before an amendment consent deadline. Common values: 3, 5 Business Days. Look for 'Lenders shall have at least [N] Business Days to respond' in the Amendments article. Return as integer in business days. Return null if no minimum response window is specified.";
+
+insert $amd_e6 isa ontology_question,
+    has question_id "amd_e6",
+    has covenant_type "AMD",
+    has question_text "Is there a commitment-size threshold below which a Lender can't qualify for amendment fees?",
+    has answer_type "boolean",
+    has display_order 1645,
+    has extraction_prompt "Determine whether the amendment fee structure excludes small-commitment Lenders (below a specified threshold) from amendment / consent fees — sometimes used to drive large-holder consolidation of consent. Look for 'Lenders with Loans or Commitments in excess of $X' in the fee-eligibility language. Answer true if a size threshold applies. Answer false if all Lenders (regardless of size) qualify for fees (pro-rata, standard).";
+# TODO-ENG: add amd_provision.amendment_fees_size_threshold boolean
+# TODO-ENG: add amd_provision.amendment_notice_days integer
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -231,6 +411,42 @@ insert $amd_f3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1652,
     has extraction_prompt "Determine whether the Sponsor, the Sponsor's affiliates, or Sponsor-controlled debt funds can purchase the Borrower's Loans in the secondary market. Look for Disqualified Institutions or Disqualified Lenders definitions — the Sponsor may or may not be listed. Answer true if Sponsor-affiliated purchases are permitted (directly or via unaffiliated debt funds), false if Sponsor purchases are restricted. Sponsor debt holdings are the prerequisite for uptier maneuvers.";
+
+insert $amd_f4 isa ontology_question,
+    has question_id "amd_f4",
+    has covenant_type "AMD",
+    has question_text "Is there a cap on aggregate open-market / Dutch auction repurchases?",
+    has answer_type "boolean",
+    has display_order 1653,
+    has extraction_prompt "Determine whether open-market purchases or Dutch auction repurchases by the Borrower are subject to an aggregate cap (either a dollar amount or a percentage of outstanding Loans). Look for 'in an aggregate amount not to exceed $X' or 'not to exceed [Y]% of the aggregate outstanding principal amount of the Term Loans'. Answer true if any such cap exists. Answer false if repurchases are uncapped.";
+# TODO-ENG: add amd_provision.open_market_purchase_capped boolean
+
+insert $amd_f5 isa ontology_question,
+    has question_id "amd_f5",
+    has covenant_type "AMD",
+    has question_text "Must repurchased Loans be immediately cancelled (vs held by Borrower)?",
+    has answer_type "boolean",
+    has display_order 1654,
+    has extraction_prompt "Determine whether Loans repurchased by the Borrower (via open market or Dutch auction) must be immediately cancelled, or whether the Borrower may hold the repurchased Loans without cancellation (including for later re-transfer or retirement). Look for 'shall be cancelled upon such purchase' versus silence. Answer true if immediate cancellation is required (standard, credit-neutral). Answer false if the Borrower may hold repurchased Loans — a structural feature that enables tranche-level manipulation.";
+# TODO-ENG: add amd_provision.repurchased_loans_cancelled boolean
+
+insert $amd_f6 isa ontology_question,
+    has question_id "amd_f6",
+    has covenant_type "AMD",
+    has question_text "Is there a no-default condition on open-market purchases?",
+    has answer_type "boolean",
+    has display_order 1655,
+    has extraction_prompt "Determine whether open-market or Dutch auction repurchases are prohibited during the continuance of a Default or Event of Default. Look for 'provided that no Default or Event of Default has occurred and is continuing'. Answer true if such a no-default condition applies (credit-friendly — prevents Borrower from reallocating cash to discount-buybacks while Lenders are impaired). Answer false if repurchases are permitted during Defaults.";
+
+insert $amd_f7 isa ontology_question,
+    has question_id "amd_f7",
+    has covenant_type "AMD",
+    has question_text "Is the Disqualified Institutions list publishable to Lenders (for DQ-designation confirmation)?",
+    has answer_type "boolean",
+    has display_order 1656,
+    has extraction_prompt "Determine whether the list of Disqualified Institutions (DQs) is publishable to Lenders — permitting Lenders to see whether an assignee on the secondary market is prohibited. Look for language such as 'the Administrative Agent shall post the DQ List to the Platform upon request' or 'Lenders may request a copy'. Answer true if the DQ list is publishable / disclosable to Lenders (lender-friendly — enables informed secondary-market trading). Answer false if the DQ list is kept confidential even from Lenders (more common, borrower-friendly — protects Sponsor's M&A targeting).";
+# TODO-ENG: add amd_provision.dq_list_publishable boolean
+# TODO-ENG: add amd_provision.open_market_no_default_condition boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -273,4 +489,57 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD6"; $q isa ontology_question, has question_id "amd_f7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD1"; $q isa ontology_question, has question_id "amd_a7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD2"; $q isa ontology_question, has question_id "amd_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD3"; $q isa ontology_question, has question_id "amd_c7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD4"; $q isa ontology_question, has question_id "amd_d6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AMD5"; $q isa ontology_question, has question_id "amd_e6";
 insert (category: $cat, question: $q) isa category_has_question;
