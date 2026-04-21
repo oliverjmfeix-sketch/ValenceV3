@@ -120,6 +120,42 @@ insert $fc_a3 isa ontology_question,
     has display_order 1402,
     has extraction_prompt "Determine whether Term Loan Lenders can enforce a financial covenant breach, or whether enforcement is reserved to the Revolving Lenders (or to a subset). Look for 'breach of the Financial Covenant shall not constitute an Event of Default with respect to the Term Loans'. Answer true if Term Lenders have enforcement rights (more lender-friendly), false if the covenant runs only to revolver.";
 
+insert $fc_a4 isa ontology_question,
+    has question_id "fc_a4",
+    has covenant_type "FC",
+    has question_text "What is the section reference for the Financial Covenants?",
+    has answer_type "string",
+    has display_order 1403,
+    has extraction_prompt "Extract the section reference for the Financial Covenants section exactly as it appears in this document. The section typically sits in the Affirmative Covenants article or as a standalone article, with a heading such as 'Financial Covenant', 'Financial Condition', or 'Leverage Ratio Covenant'. Return the verbatim section reference as a single string. Return an empty string if no financial covenant exists in the agreement.";
+# TODO-ENG: add fc_provision.fincov_section_ref string
+
+insert $fc_a5 isa ontology_question,
+    has question_id "fc_a5",
+    has covenant_type "FC",
+    has question_text "How many fiscal quarters is the initial build-up period before first test?",
+    has answer_type "integer",
+    has display_order 1404,
+    has extraction_prompt "Extract the number of fiscal quarters after the Closing Date during which the financial covenant does NOT apply (the 'Build-Up Period' before first test). Look for language such as 'the Financial Covenant shall be tested commencing with the fiscal quarter ending on or about [date]' or 'no Financial Covenant shall apply for the first [N] fiscal quarters after the Closing Date'. Return the number of quarters as an integer. Return 0 if the test applies from the first quarter-end following closing. Return null if the agreement is silent or if no financial covenant exists.";
+# TODO-ENG: add fc_provision.build_up_period_quarters integer
+
+insert $fc_a6 isa ontology_question,
+    has question_id "fc_a6",
+    has covenant_type "FC",
+    has question_text "Is the financial covenant tested only at scheduled test dates (vs continuously)?",
+    has answer_type "boolean",
+    has display_order 1405,
+    has extraction_prompt "Determine whether the financial covenant is tested ONLY at specified test dates (quarter-end or fiscal-year-end) or whether it could be tested on any date (continuously or at Required Lenders' request). Look for 'as of the last day of each fiscal quarter' (scheduled-only, the standard) versus 'at any time' or 'at all times'. Answer true if the covenant is tested only at scheduled test dates (standard, borrower-friendly — mid-quarter dips don't matter). Answer false if the covenant is tested continuously or on-demand (uncommon but lender-friendly).";
+# TODO-ENG: add fc_provision.tested_at_scheduled_dates_only boolean
+
+insert $fc_a7 isa ontology_question,
+    has question_id "fc_a7",
+    has covenant_type "FC",
+    has question_text "Is there a covenant-suspension mechanism (IPO / Investment Grade ratings)?",
+    has answer_type "boolean",
+    has display_order 1406,
+    has extraction_prompt "Determine whether the financial covenant is suspended (collapses to a no-test state) upon specified events such as an IPO, an upgrade to Investment Grade ratings from both rating agencies, or achievement of a specified leverage level. Look for 'Covenant Suspension Period' as a defined term, or language such as 'so long as the Borrower maintains Investment Grade Ratings from two rating agencies'. Answer true if any such covenant-suspension mechanism exists. Credit-unfriendly because it removes protection at moments when lenders may still need it.";
+# TODO-ENG: add fc_provision.has_covenant_suspension_mechanism boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FC2: LEVERAGE TESTS (3 questions)
@@ -149,6 +185,60 @@ insert $fc_b3 isa ontology_question,
     has display_order 1412,
     has extraction_prompt "Extract the leverage threshold that applies at closing (or during the first test period). If multiple leverage tests exist, extract the total-leverage threshold if present, else first-lien. Return as a number (e.g., 7.50 for 7.50x, NOT 750). If the covenant is springing, extract the test level that would apply when triggered. Return null if no leverage test applies.";
 
+insert $fc_b4 isa ontology_question,
+    has question_id "fc_b4",
+    has covenant_type "FC",
+    has question_text "What is the opening First Lien Leverage Ratio threshold?",
+    has answer_type "number",
+    has display_order 1413,
+    has extraction_prompt "Extract the First Lien (Net) Leverage Ratio threshold that applies at closing (or during the first test period) where a First Lien leverage test exists. Look at the covenant table for 'First Lien Net Leverage Ratio' in the first applicable row. Return as a decimal number (e.g., 5.50 for 5.50x). Return null if there is no first-lien leverage test (fc_b2 captures existence).";
+# TODO-ENG: add fc_provision.opening_first_lien_threshold double
+
+insert $fc_b5 isa ontology_question,
+    has question_id "fc_b5",
+    has covenant_type "FC",
+    has question_text "Is there a Secured (Net) Leverage Ratio test?",
+    has answer_type "boolean",
+    has display_order 1414,
+    has extraction_prompt "Determine whether the financial covenant includes a Secured (Net) Leverage Ratio test — all secured debt (first lien + junior liens, but not unsecured subordinated debt) over Consolidated EBITDA. Look for 'Senior Secured Net Leverage Ratio' or 'Secured Net Leverage Ratio' as a defined term tested in the financial covenant section. Answer true if such a test exists. Secured-leverage tests sit between first-lien (narrowest) and total-leverage (broadest).";
+# TODO-ENG: add fc_provision.has_secured_leverage_test boolean
+
+insert $fc_b6 isa ontology_question,
+    has question_id "fc_b6",
+    has covenant_type "FC",
+    has question_text "Does the leverage definition permit netting of unrestricted cash (net leverage)?",
+    has answer_type "boolean",
+    has display_order 1415,
+    has extraction_prompt "Determine whether the leverage ratio numerator permits netting of unrestricted cash balances from total debt. Look in the Leverage Ratio definition for 'minus the aggregate amount of unrestricted cash' or 'Net' in the ratio name (Total Net Leverage Ratio, First Lien Net Leverage Ratio). Answer true if any cash netting is permitted. Net leverage tests are more borrower-friendly because they let the Borrower demonstrate liquidity offset.";
+# TODO-ENG: add fc_provision.leverage_permits_cash_netting boolean
+
+insert $fc_b7 isa ontology_question,
+    has question_id "fc_b7",
+    has covenant_type "FC",
+    has question_text "What is the dollar cap on cash netting (USD)?",
+    has answer_type "number",
+    has display_order 1416,
+    has extraction_prompt "Extract the dollar cap on the amount of unrestricted cash that may be netted against total debt in the leverage ratio calculation. Common values: 50000000 ($50M), 100000000 ($100M), or uncapped. Return the cap as a full integer. Return null if cash netting is uncapped, if no cash netting is permitted (fc_b6 captures existence), or if no leverage test applies.";
+# TODO-ENG: add fc_provision.cash_netting_cap_usd double
+
+insert $fc_b8 isa ontology_question,
+    has question_id "fc_b8",
+    has covenant_type "FC",
+    has question_text "Are undrawn Letters of Credit excluded from Indebtedness for the leverage calculation?",
+    has answer_type "boolean",
+    has display_order 1417,
+    has extraction_prompt "Determine whether undrawn Letters of Credit are EXCLUDED from the Indebtedness component of the leverage ratio numerator. Look in the Leverage Ratio / Indebtedness definitions for the treatment of LC exposure — often 'Indebtedness shall exclude undrawn LCs'. Answer true if undrawn LCs are excluded (borrower-friendly — LCs don't inflate leverage). Answer false if undrawn LCs count as debt for leverage calculation.";
+# TODO-ENG: add fc_provision.leverage_excludes_undrawn_lcs boolean
+
+insert $fc_b9 isa ontology_question,
+    has question_id "fc_b9",
+    has covenant_type "FC",
+    has question_text "Does the Indebtedness definition exclude ASC 842 Capital Lease Obligations?",
+    has answer_type "boolean",
+    has display_order 1418,
+    has extraction_prompt "Determine whether the Indebtedness definition used for leverage-ratio calculation EXCLUDES Capitalized Lease Obligations arising solely from the ASC 842 / IFRS 16 lease accounting transition (i.e., operating leases that became on-balance-sheet liabilities post-2019). Look for a carve-out such as 'Indebtedness shall not include any Capitalized Lease Obligations arising solely due to ASC 842 treatment' or 'Finance Leases that were classified as Operating Leases under GAAP in effect prior to January 1, 2019'. Answer true if such a carve-out exists (borrower-friendly — prevents accounting-rule changes from inflating leverage). Answer false if all Capital Lease Obligations count.";
+# TODO-ENG: add fc_provision.excludes_asc842_cap_leases boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FC3: COVERAGE TESTS (2 questions)
@@ -170,6 +260,33 @@ insert $fc_c2 isa ontology_question,
     has display_order 1421,
     has extraction_prompt "Determine whether the financial covenant includes a Fixed Charge Coverage Ratio test — EBITDA minus capex over interest plus scheduled debt amortization. Look for 'Fixed Charge Coverage Ratio' as a defined term in the financial covenant section. Answer true if such a test exists. Fixed charge coverage maintenance covenants are essentially absent from modern institutional sponsor deals.";
 
+insert $fc_c3 isa ontology_question,
+    has question_id "fc_c3",
+    has covenant_type "FC",
+    has question_text "What is the minimum Interest Coverage Ratio threshold?",
+    has answer_type "number",
+    has display_order 1422,
+    has extraction_prompt "Extract the minimum Interest Coverage Ratio threshold that applies at closing (or during the first test period) where an ICR test exists. Common values: 2.00, 2.50, 3.00. Return as a decimal number (e.g., 2.50 for 2.50:1.00). Return null if no Interest Coverage Ratio test exists (fc_c1 captures existence).";
+# TODO-ENG: add fc_provision.min_icr_threshold double
+
+insert $fc_c4 isa ontology_question,
+    has question_id "fc_c4",
+    has covenant_type "FC",
+    has question_text "What is the minimum Fixed Charge Coverage Ratio threshold?",
+    has answer_type "number",
+    has display_order 1423,
+    has extraction_prompt "Extract the minimum Fixed Charge Coverage Ratio threshold where an FCCR test exists. Common values: 1.00, 1.10, 1.25. Return as a decimal number. Return null if no FCCR test exists (fc_c2 captures existence).";
+# TODO-ENG: add fc_provision.min_fccr_threshold double
+
+insert $fc_c5 isa ontology_question,
+    has question_id "fc_c5",
+    has covenant_type "FC",
+    has question_text "Is there a Debt Service Coverage Ratio (DSCR) test?",
+    has answer_type "boolean",
+    has display_order 1424,
+    has extraction_prompt "Determine whether the financial covenant includes a Debt Service Coverage Ratio — EBITDA or operating cash flow over scheduled debt service (principal + interest). This is rare in syndicated institutional credit but common in project finance and middle-market bilateral loans. Look for 'Debt Service Coverage Ratio' as a defined term tested in the financial covenant section. Answer true if such a test exists.";
+# TODO-ENG: add fc_provision.has_dscr_test boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FC4: TEST PERIOD & ANNUALIZATION (2 questions)
@@ -190,6 +307,42 @@ insert $fc_d2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1431,
     has extraction_prompt "Determine whether EBITDA can be adjusted on a pro forma basis for Permitted Acquisitions completed during the test period (as if the acquisition had occurred at the start). Look for 'Pro Forma Adjustment', 'Pro Forma Effect', 'Pro Forma Basis' in the EBITDA or Test Period definitions. Answer true if pro forma acquisition EBITDA can be included. This adjustment can materially soften leverage tests following M&A.";
+
+insert $fc_d3 isa ontology_question,
+    has question_id "fc_d3",
+    has covenant_type "FC",
+    has question_text "What is the annualization period (days) for newly acquired entity EBITDA?",
+    has answer_type "integer",
+    has display_order 1432,
+    has extraction_prompt "Extract the post-acquisition period (in days) during which EBITDA of an acquired entity is ANNUALIZED based on partial-period actuals before reverting to standard LTM calculation. Common values: 90, 180, 270, 365 days. Return as integer in days. Return null if no annualization period exists or if pro forma adjustment applies full-LTM retroactively (fc_d2 captures pro forma existence).";
+# TODO-ENG: add fc_provision.annualization_period_days integer
+
+insert $fc_d4 isa ontology_question,
+    has question_id "fc_d4",
+    has covenant_type "FC",
+    has question_text "What is the compliance-certificate delivery lag after quarter-end (days)?",
+    has answer_type "integer",
+    has display_order 1433,
+    has extraction_prompt "Extract the lag in days after the end of each fiscal quarter by which the Borrower must deliver the compliance certificate demonstrating financial covenant compliance. Look in the Affirmative Covenants section (Reporting / Financial Statements) for the certificate delivery deadline. Common values: 45 days (quarterly), 90 days (annual). Return the QUARTERLY lag as an integer in days. Return null if no compliance certificate delivery deadline exists.";
+# TODO-ENG: add fc_provision.compliance_cert_lag_days integer
+
+insert $fc_d5 isa ontology_question,
+    has question_id "fc_d5",
+    has covenant_type "FC",
+    has question_text "Is there a look-forward period after a Material Acquisition before reverting to LTM?",
+    has answer_type "boolean",
+    has display_order 1434,
+    has extraction_prompt "Determine whether the covenant test is 'looked forward' — applied on a forward-looking basis for a specified period following a Material Acquisition or significant transaction — rather than strictly LTM-backward. Look for language such as 'the financial covenant shall be tested on a forward-looking basis for the period of one fiscal year following such Permitted Acquisition' or similar. Answer true if any look-forward mechanism exists. Answer false if only backward-looking testing applies.";
+# TODO-ENG: add fc_provision.has_look_forward_period boolean
+
+insert $fc_d6 isa ontology_question,
+    has question_id "fc_d6",
+    has covenant_type "FC",
+    has question_text "Is pro forma adjustment permitted for debt repayment from retained cash?",
+    has answer_type "boolean",
+    has display_order 1435,
+    has extraction_prompt "Determine whether the leverage calculation permits pro forma effect for prepayments of Indebtedness made using retained cash (as opposed to only new-money prepayments from asset sales or refinancings). Look in the Pro Forma Compliance or Pro Forma Effect definition for 'including any prepayment of Indebtedness'. Answer true if pro forma debt-reduction from any source (including retained cash) is permitted. Answer false if pro forma adjustment only applies to specified transactions. Credit-neutral to slightly sponsor-friendly — allows creative pro forma testing.";
+# TODO-ENG: add fc_provision.pro_forma_debt_repay_from_cash boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -220,6 +373,51 @@ insert $fc_e3 isa ontology_question,
     has display_order 1442,
     has extraction_prompt "Extract the forward-looking period (in months) within which projected cost savings or synergies must be expected to be realized to qualify as an EBITDA add-back. Common values: 12, 18, 24, 36 months. Return as integer. Return null if add-backs do not have a time qualifier or if add-backs are not permitted.";
 
+insert $fc_e4 isa ontology_question,
+    has question_id "fc_e4",
+    has covenant_type "FC",
+    has question_text "What is the cap on aggregate EBITDA add-backs (% of EBITDA before add-backs)?",
+    has answer_type "number",
+    has display_order 1443,
+    has extraction_prompt "Extract the cap as a percentage of Consolidated EBITDA before add-backs on the aggregate of all EBITDA add-backs. Common values: 25, 30, 35. Look in the EBITDA definition for language such as 'the aggregate amount of all such adjustments shall not exceed 25% of Consolidated EBITDA (calculated before giving effect to such adjustments)'. Return as a number representing the percentage (e.g., 25 for 25%). Return null if no cap exists (fc_e2 captures existence) or if add-backs are uncapped.";
+# TODO-ENG: add fc_provision.addback_cap_pct double
+
+insert $fc_e5 isa ontology_question,
+    has question_id "fc_e5",
+    has covenant_type "FC",
+    has question_text "Is independent third-party consultant verification required for cost-savings add-backs?",
+    has answer_type "boolean",
+    has display_order 1444,
+    has extraction_prompt "Determine whether the EBITDA add-back for run-rate cost savings requires INDEPENDENT third-party consultant verification, or whether management certification alone suffices. Look for language such as 'certified by an independent consultant of national standing' versus 'certified by a Responsible Officer of the Borrower'. Answer true if independent consultant verification is required (credit-friendly — reduces add-back abuse). Answer false if management certification alone suffices (borrower-friendly, the prevailing market practice).";
+# TODO-ENG: add fc_provision.addbacks_require_independent_consultant boolean
+
+insert $fc_e6 isa ontology_question,
+    has question_id "fc_e6",
+    has covenant_type "FC",
+    has question_text "Can cost savings be 'expected to be realized' or must they be actually realized?",
+    has answer_type "boolean",
+    has display_order 1445,
+    has extraction_prompt "Determine whether the EBITDA add-back for projected cost savings requires the savings to be ACTUALLY REALIZED within a specified window, or merely 'expected to be realized' or 'projected'. Look for 'actually realized or expected to be realized within 18 months' (permissive) versus 'actually realized' (strict). Answer true if 'expected' / 'projected' language alone suffices (permissive, sponsor-friendly). Answer false if actual realization is required (credit-friendly).";
+# TODO-ENG: add fc_provision.expected_savings_suffices boolean
+
+insert $fc_e7 isa ontology_question,
+    has question_id "fc_e7",
+    has covenant_type "FC",
+    has question_text "Are stock-based compensation add-backs capped?",
+    has answer_type "boolean",
+    has display_order 1446,
+    has extraction_prompt "Determine whether stock-based compensation add-backs to EBITDA are subject to a cap (dollar or percentage). Stock-based comp add-back is common (non-cash) but uncapped treatment can be material in equity-heavy compensation structures. Look for 'stock-based compensation expense' in the EBITDA add-backs list and any accompanying cap language. Answer true if any cap is imposed on stock-based comp add-back. Answer false if uncapped or if stock-based comp is not separately addressed (usually means uncapped).";
+# TODO-ENG: add fc_provision.stock_comp_addback_capped boolean
+
+insert $fc_e8 isa ontology_question,
+    has question_id "fc_e8",
+    has covenant_type "FC",
+    has question_text "Are restructuring charges added back without a time limit (historical and prospective)?",
+    has answer_type "boolean",
+    has display_order 1447,
+    has extraction_prompt "Determine whether restructuring, severance, and one-time charges are added back to EBITDA without a forward-looking time limit — including historical charges and prospective restructurings — as opposed to being limited to charges within a specified period. Look for 'restructuring charges' in the EBITDA add-backs list for any temporal qualifier (e.g., 'in respect of actions taken within the past 24 months'). Answer true if restructuring add-backs apply without a time cap (permissive). Answer false if restructuring add-backs are limited to a specific forward-looking period (credit-friendly — limits abuse for persistent cost-cutters).";
+# TODO-ENG: add fc_provision.restructuring_addbacks_uncapped_by_time boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FC6: EQUITY CURE MECHANICS (3 questions)
@@ -249,6 +447,33 @@ insert $fc_f3 isa ontology_question,
     has display_order 1452,
     has extraction_prompt "Determine whether the equity cure provision requires a minimum gap (in quarters) between consecutive cures — typically 'not in two consecutive quarters' or 'at least three quarters between cures'. Look for 'may not be exercised in any two consecutive fiscal quarters' or similar. Answer true if any gap requirement exists. Without a gap requirement, the Borrower can cure every quarter up to the lifetime cap.";
 
+insert $fc_f4 isa ontology_question,
+    has question_id "fc_f4",
+    has covenant_type "FC",
+    has question_text "What is the per-exercise cap on equity cure (% of EBITDA)?",
+    has answer_type "number",
+    has display_order 1453,
+    has extraction_prompt "Extract the per-exercise cap on equity cure as a percentage of Consolidated EBITDA (before the cure). Common cap: 25% of EBITDA. Look for 'the Cure Amount in respect of any fiscal quarter shall not exceed 25% of Consolidated EBITDA for the applicable Test Period'. Return as a number representing the percentage (e.g., 25 for 25%). Return null if no per-exercise percentage cap exists (the cap may be dollar-only — EOD module's eod_c7 covers the dollar variant).";
+# TODO-ENG: add fc_provision.equity_cure_pct_ebitda_cap double
+
+insert $fc_f5 isa ontology_question,
+    has question_id "fc_f5",
+    has covenant_type "FC",
+    has question_text "Must equity cure come from new cash common equity (vs preferred / dilutive instruments)?",
+    has answer_type "boolean",
+    has display_order 1454,
+    has extraction_prompt "Determine whether the equity cure must come from NEW cash issuance of common equity (or Qualified Equity Interests as defined), as opposed to preferred equity or dilutive instruments. Look for 'Cure Amount shall consist of proceeds from the issuance of Qualified Equity Interests' or 'common equity'. Answer true if common equity is required (credit-friendly — requires genuine sponsor capital commitment). Answer false if preferred equity or disqualified instruments may satisfy the cure (borrower-friendly — allows issuing pref without fresh cash).";
+# TODO-ENG: add fc_provision.equity_cure_requires_common_equity boolean
+
+insert $fc_f6 isa ontology_question,
+    has question_id "fc_f6",
+    has covenant_type "FC",
+    has question_text "Does the equity cure have a retroactive effect on prior test periods?",
+    has answer_type "boolean",
+    has display_order 1455,
+    has extraction_prompt "Determine whether the equity cure can retroactively apply to EBITDA for prior test periods — e.g., if a Q3 breach is identified in Q4 reporting, can a cure exercised in Q4 retroactively add back to the Q3 calculation? Look for 'shall be deemed to have been received on the last day of the fiscal quarter in respect of which such cure is exercised' or similar retroactivity language. Answer true if retroactive application is permitted (borrower-friendly — extends the effective cure window). Answer false if the cure only applies prospectively.";
+# TODO-ENG: add fc_provision.equity_cure_retroactive boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FC7: SPRINGING COVENANT TRIGGERS (2 questions)
@@ -269,6 +494,24 @@ insert $fc_g2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1461,
     has extraction_prompt "Determine whether outstanding but undrawn Letters of Credit count toward the revolver utilization percentage that triggers the springing covenant. Look for 'Revolving Credit Exposure' or 'Revolver Utilization' definitions — these may include LC exposure. Answer true if undrawn LCs count, false if only cash borrowings count toward the trigger. Excluding undrawn LCs is a meaningful borrower-friendly feature.";
+
+insert $fc_g3 isa ontology_question,
+    has question_id "fc_g3",
+    has covenant_type "FC",
+    has question_text "Are cash-collateralized Letters of Credit excluded from the springing trigger?",
+    has answer_type "boolean",
+    has display_order 1462,
+    has extraction_prompt "Determine whether Letters of Credit that have been cash-collateralized are EXCLUDED from the revolver utilization percentage for springing-trigger calculation. Look in the springing-trigger definition for 'excluding any Letters of Credit cash-collateralized in an amount equal to 100% of exposure'. Answer true if cash-collateralized LCs are excluded. Answer false if all LCs count toward the trigger regardless of cash collateralization. Cash-collateralized LC exclusion modestly reduces the Borrower's headroom before springing into compliance testing.";
+# TODO-ENG: add fc_provision.cash_collat_lcs_excluded_from_trigger boolean
+
+insert $fc_g4 isa ontology_question,
+    has question_id "fc_g4",
+    has covenant_type "FC",
+    has question_text "Is the springing trigger measured on quarter-end only or any date?",
+    has answer_type "boolean",
+    has display_order 1463,
+    has extraction_prompt "Determine whether the springing trigger is evaluated ONLY on the last day of each fiscal quarter, or on ANY DAY when the revolver utilization crosses the threshold. Look for 'on the last day of any fiscal quarter' versus 'at any time'. Answer true if the test is last-day-of-quarter only (borrower-friendly — allows mid-quarter maxing-out without triggering). Answer false if the test can be triggered on any date (lender-friendly).";
+# TODO-ENG: add fc_provision.springing_trigger_qe_only boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -291,6 +534,33 @@ insert $fc_h2 isa ontology_question,
     has display_order 1471,
     has extraction_prompt "Based on the full financial covenants analysis, provide a short narrative (2-4 sentences) summarizing the package: cov-lite vs springing vs full-maintenance, opening leverage cushion, add-back permissiveness, equity cure mechanics, and step-down steepness. Identify the key credit-friendly and credit-unfriendly features. Return as a single string.";
 
+insert $fc_h3 isa ontology_question,
+    has question_id "fc_h3",
+    has covenant_type "FC",
+    has question_text "What is the opening cushion over closing leverage (% over expected closing)?",
+    has answer_type "number",
+    has display_order 1472,
+    has extraction_prompt "Extract the cushion — the percentage by which the opening covenant threshold exceeds the expected closing leverage. Common values: 25, 30, 35. For example, if expected closing leverage is 5.00x and opening covenant is 6.50x, cushion is 30%. Derive this if the covenant and closing leverage are both disclosed in the agreement (some agreements disclose expected closing leverage in commitments / flex disclosures). Return as a number representing the percentage. Return null if cushion cannot be derived from the document alone.";
+# TODO-ENG: add fc_provision.opening_cushion_pct double
+
+insert $fc_h4 isa ontology_question,
+    has question_id "fc_h4",
+    has covenant_type "FC",
+    has question_text "What is the ultimate (steady-state) leverage test level?",
+    has answer_type "number",
+    has display_order 1473,
+    has extraction_prompt "Extract the ultimate leverage threshold — the final test level the covenant steps down to after all scheduled step-downs. This is the tightest setting the Borrower must maintain for the remainder of the facility's life. Look at the covenant table for the last row (often representing 'thereafter'). Return as a decimal number (e.g., 4.50 for 4.50x). Return null if the covenant does not step down or if no leverage test exists.";
+# TODO-ENG: add fc_provision.ultimate_leverage_level double
+
+insert $fc_h5 isa ontology_question,
+    has question_id "fc_h5",
+    has covenant_type "FC",
+    has question_text "How many months until the first scheduled step-down?",
+    has answer_type "integer",
+    has display_order 1474,
+    has extraction_prompt "Extract the number of months from the Closing Date to the first scheduled step-down of the leverage covenant. Common values: 12, 18, 24 months. Look at the covenant table for the dividing date between the opening level and the next level. Return as integer in months. Return null if the covenant does not step down (fc_h1 captures existence) or if no step-down schedule is specified.";
+# TODO-ENG: add fc_provision.months_to_first_stepdown integer
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION LINKAGE
@@ -302,6 +572,14 @@ match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC1"; $q isa ontology_question, has question_id "fc_a7";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b1";
 insert (category: $cat, question: $q) isa category_has_question;
@@ -309,15 +587,41 @@ match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b8";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC2"; $q isa ontology_question, has question_id "fc_b9";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c2";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC3"; $q isa ontology_question, has question_id "fc_c5";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC4"; $q isa ontology_question, has question_id "fc_d6";
 insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e1";
@@ -326,6 +630,16 @@ match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e7";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC5"; $q isa ontology_question, has question_id "fc_e8";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f1";
 insert (category: $cat, question: $q) isa category_has_question;
@@ -333,13 +647,29 @@ match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_questio
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f3";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC6"; $q isa ontology_question, has question_id "fc_f6";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g2";
 insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC7"; $q isa ontology_question, has question_id "fc_g4";
+insert (category: $cat, question: $q) isa category_has_question;
 
 match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FC8"; $q isa ontology_question, has question_id "fc_h5";
 insert (category: $cat, question: $q) isa category_has_question;
