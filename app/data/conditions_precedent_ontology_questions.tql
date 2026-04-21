@@ -85,6 +85,33 @@ insert $cp_a3 isa ontology_question,
     has display_order 2002,
     has extraction_prompt "Extract the post-closing grace period in days for perfecting collateral items that were not perfected at closing (mortgages, control agreements, foreign collateral). Common values: 60, 90, 120 days. Return as integer (days). Return null if no grace period applies (collateral must be perfected at closing).";
 
+insert $cp_a4 isa ontology_question,
+    has question_id "cp_a4",
+    has covenant_type "CP",
+    has question_text "Is delivery of a secretary's / officer's certificate a closing condition?",
+    has answer_type "boolean",
+    has display_order 2003,
+    has extraction_prompt "Determine whether a secretary's or officer's certificate — attaching organizational documents (charter, bylaws), evidence of incumbency, and resolutions — is a closing condition. Look for 'certificate of the Secretary (or an Assistant Secretary) or Responsible Officer' in the closing conditions. Answer true if such a certificate is required (essentially universal but verify).";
+# TODO-ENG: add cp_provision.secretary_certificate_required boolean
+
+insert $cp_a5 isa ontology_question,
+    has question_id "cp_a5",
+    has covenant_type "CP",
+    has question_text "Is delivery of good standing certificates a closing condition?",
+    has answer_type "boolean",
+    has display_order 2004,
+    has extraction_prompt "Determine whether delivery of good standing certificates for each Loan Party (from the applicable state of organization) is a closing condition. Look for 'certificates of existence or good standing' or 'good standing certificates dated not more than [N] days prior'. Answer true if required (standard) — verify scope (all Loan Parties vs only Borrower). Answer false if good standing delivery is in a post-closing agreement.";
+# TODO-ENG: add cp_provision.good_standing_required boolean
+
+insert $cp_a6 isa ontology_question,
+    has question_id "cp_a6",
+    has covenant_type "CP",
+    has question_text "Must all upfront fees and transaction expenses be paid at closing?",
+    has answer_type "boolean",
+    has display_order 2005,
+    has extraction_prompt "Determine whether payment of all upfront fees (commitment fees, arrangement fees, upfront OID) and documented transaction expenses (legal fees, filing fees) is a condition to closing. Look for 'all fees and expenses payable on the Closing Date shall have been paid' in the closing conditions. Answer true if fee-payment is a hard condition. Answer false if fees can be paid from proceeds of the initial funding or on a delayed basis (no-net-closing-proceeds structure).";
+# TODO-ENG: add cp_provision.fees_paid_at_closing_cp boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CP2: REPRESENTATIONS & SPECIFIED REPS (2 questions)
@@ -105,6 +132,33 @@ insert $cp_b2 isa ontology_question,
     has answer_type "boolean",
     has display_order 2011,
     has extraction_prompt "Determine whether the Specified Representations are limited to a narrow list: corporate existence, power and authority, due authorization, enforceability, no conflict with charter documents, compliance with sanctions and anti-corruption laws, solvency of the Borrower, use of proceeds, and properly created/perfected Liens. Answer true if the list is narrow (standard acquisition-financing pattern). False if the list is expanded to include financial, operational, or target-specific reps — any expansion is Sponsor-unfriendly and should be flagged.";
+
+insert $cp_b3 isa ontology_question,
+    has question_id "cp_b3",
+    has covenant_type "CP",
+    has question_text "Is 'Target Material Adverse Effect' a CP — and if so, is it measured against the acquisition agreement's MAE?",
+    has answer_type "boolean",
+    has display_order 2012,
+    has extraction_prompt "Determine whether the closing conditions reference a 'Target Material Adverse Effect' or similar MAE concept, and whether this MAE is specifically the MAE as defined in the Acquisition Agreement (so the Lenders' MAE rights track the Sponsor's MAE rights against the seller, with no additional Lender-level escape). Look for 'since [last target date], there shall not have occurred any Target Material Adverse Effect, as defined in the Acquisition Agreement'. Answer true if Target MAE tracks the Acquisition Agreement MAE exactly (standard acquisition-financing pattern — 'certain funds' delivery). Answer false if the Lenders have a separate MAE definition that can trigger independently (Sponsor-unfriendly).";
+# TODO-ENG: add cp_provision.target_mae_tracks_acquisition_agreement boolean
+
+insert $cp_b4 isa ontology_question,
+    has question_id "cp_b4",
+    has covenant_type "CP",
+    has question_text "Are the Specified Representations brought down on each borrowing date?",
+    has answer_type "boolean",
+    has display_order 2013,
+    has extraction_prompt "Determine whether the Specified Representations must be true on the date of each borrowing (not just on the Closing Date). Look in the ongoing CP conditions for 'the Specified Representations shall be true and correct on each date of borrowing'. Answer true if bring-down applies on each borrowing. Answer false if Specified Reps are tested only at Closing and not brought down at subsequent draws.";
+# TODO-ENG: add cp_provision.specified_reps_brought_down boolean
+
+insert $cp_b5 isa ontology_question,
+    has question_id "cp_b5",
+    has covenant_type "CP",
+    has question_text "Is the required 'bring-down' standard 'true in all material respects'?",
+    has answer_type "boolean",
+    has display_order 2014,
+    has extraction_prompt "Determine whether the bring-down standard for representations is 'true and correct IN ALL MATERIAL RESPECTS' (standard, borrower-friendly) or 'true and correct' without a materiality qualifier (strict, lender-friendly). Look in the ongoing CP conditions for 'true and correct in all material respects' versus bare 'true and correct'. Answer true if materiality qualifier applies. Answer false if strict accuracy is required.";
+# TODO-ENG: add cp_provision.bring_down_material_respects_standard boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -135,6 +189,24 @@ insert $cp_c3 isa ontology_question,
     has display_order 2022,
     has extraction_prompt "Determine whether there are any scenarios where revolver drawings are permitted during a Default or EOD — most commonly, drawings to cash-collateralize outstanding Letters of Credit or pay interest/fees on existing Loans. Look for exceptions to the 'no Default' condition, or carve-outs permitting specific draw categories during a Default. Answer true if any draw is permitted during a Default.";
 
+insert $cp_c4 isa ontology_question,
+    has question_id "cp_c4",
+    has covenant_type "CP",
+    has question_text "Is a Responsible Officer's certificate required with each borrowing request?",
+    has answer_type "boolean",
+    has display_order 2023,
+    has extraction_prompt "Determine whether each Borrowing Notice must be accompanied by (or constitute) a certification by a Responsible Officer that the specified conditions are satisfied. Look for 'the Borrowing Notice shall be deemed a certification' or 'the Borrower shall be deemed to represent and warrant on the date of each borrowing'. Answer true if such an officer-level certification is required (standard, lender-friendly). Answer false if borrowings can proceed without express officer-level certification.";
+# TODO-ENG: add cp_provision.officer_cert_required_each_borrowing boolean
+
+insert $cp_c5 isa ontology_question,
+    has question_id "cp_c5",
+    has covenant_type "CP",
+    has question_text "What is the minimum borrowing amount for revolver draws (USD)?",
+    has answer_type "number",
+    has display_order 2024,
+    has extraction_prompt "Extract the minimum size of a revolver borrowing, in USD (full number not millions). Common values: 1000000 ($1M), 5000000 ($5M). Look for 'Revolving Loans shall be in a minimum aggregate amount of $X'. Return the dollar figure. Return null if no minimum is specified or no revolver exists.";
+# TODO-ENG: add cp_provision.min_revolver_borrowing_usd double
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CP4: SOLVENCY, MAE, AND QUALITATIVE (2 questions)
@@ -155,6 +227,24 @@ insert $cp_d2 isa ontology_question,
     has answer_type "boolean",
     has display_order 2031,
     has extraction_prompt "Determine whether absence of a Material Adverse Effect (as defined) is a closing condition at the credit-agreement level. In modern acquisition financings, MAE is typically a condition of the acquisition agreement (not the credit agreement), to avoid giving Lenders an MAE escape route ('certain funds'). Look in the closing conditions for any MAE reference. Answer true if MAE is a credit-agreement closing condition (Lender-friendly, Sponsor-unfriendly), false if MAE is excluded from the credit-agreement CPs (standard acquisition-financing pattern).";
+
+insert $cp_d3 isa ontology_question,
+    has question_id "cp_d3",
+    has covenant_type "CP",
+    has question_text "Is 'Funds Certain' language expressly included (limiting Lenders' escape rights at closing)?",
+    has answer_type "boolean",
+    has display_order 2032,
+    has extraction_prompt "Determine whether the closing conditions expressly include 'Funds Certain' or 'certain funds' provisions limiting Lenders' ability to refuse funding based on anything outside the Specified Representations, absence of Specified Defaults, and the Acquisition Agreement MAE. Look for 'Xerox provisions', 'certain funds provisions', or language tying Lender escape rights to the same events that would permit the Sponsor to walk from the Acquisition Agreement. Answer true if funds-certain structure is included (standard acquisition-financing, sponsor-friendly). Answer false if the CP structure gives Lenders additional escape routes.";
+# TODO-ENG: add cp_provision.funds_certain_language_included boolean
+
+insert $cp_d4 isa ontology_question,
+    has question_id "cp_d4",
+    has covenant_type "CP",
+    has question_text "Is sanctions / anti-corruption compliance a closing condition?",
+    has answer_type "boolean",
+    has display_order 2033,
+    has extraction_prompt "Determine whether compliance with sanctions regimes (OFAC, etc.) and anti-corruption laws (FCPA, UK Bribery Act) is an explicit closing condition — typically via a certification or representation in the Specified Representations list. Look for references to 'OFAC', 'sanctions', 'FCPA', 'Anti-Corruption Laws' in the closing conditions. Answer true if such compliance is an explicit condition (standard and universal in modern credit agreements).";
+# TODO-ENG: add cp_provision.sanctions_compliance_cp boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -183,4 +273,27 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d1";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d2";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP4"; $q isa ontology_question, has question_id "cp_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP1"; $q isa ontology_question, has question_id "cp_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP2"; $q isa ontology_question, has question_id "cp_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP2"; $q isa ontology_question, has question_id "cp_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP2"; $q isa ontology_question, has question_id "cp_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "CP3"; $q isa ontology_question, has question_id "cp_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "CP3"; $q isa ontology_question, has question_id "cp_c5";
 insert (category: $cat, question: $q) isa category_has_question;
