@@ -76,6 +76,33 @@ insert $aff_a2 isa ontology_question,
     has display_order 1701,
     has extraction_prompt "Examine the defined term 'Affiliate'. Determine whether the definition is broad enough to capture the Sponsor, Sponsor-controlled funds, and other Sponsor-affiliated entities. Look for 'control' as the operative test and whether 'Sponsor' is referenced directly or captured via the general control test. Answer true if the Sponsor and its affiliates are unambiguously included. A narrow Affiliate definition is a significant gap — Sponsor-related dealings could escape the covenant.";
 
+insert $aff_a3 isa ontology_question,
+    has question_id "aff_a3",
+    has covenant_type "AFF",
+    has question_text "What is the section reference for the Affiliate Transactions covenant?",
+    has answer_type "string",
+    has display_order 1702,
+    has extraction_prompt "Extract the section reference for the Affiliate Transactions covenant exactly as it appears in the document. Typically in the Negative Covenants article with a heading such as 'Transactions with Affiliates' or 'Affiliate Transactions'. Return the verbatim reference. Return an empty string if no such covenant exists.";
+# TODO-ENG: add aff_provision.aff_section_ref string
+
+insert $aff_a4 isa ontology_question,
+    has question_id "aff_a4",
+    has covenant_type "AFF",
+    has question_text "Does the covenant expressly bind Guarantors / Loan Parties?",
+    has answer_type "boolean",
+    has display_order 1703,
+    has extraction_prompt "Determine whether the covenant expressly binds Guarantors or Loan Parties in addition to the Borrower. Look in the covenant's opening clause for 'will not, and will not permit any Guarantor to' or 'The Loan Parties shall not enter into any transaction'. Answer true if Guarantors / Loan Parties are explicitly named. Answer false if only the Borrower is named.";
+# TODO-ENG: add aff_provision.binds_guarantors boolean
+
+insert $aff_a5 isa ontology_question,
+    has question_id "aff_a5",
+    has covenant_type "AFF",
+    has question_text "Does the Affiliate definition include 10%-or-more equity holders of the Borrower?",
+    has answer_type "boolean",
+    has display_order 1704,
+    has extraction_prompt "Determine whether the defined term 'Affiliate' captures Persons holding 10% or more of the Borrower's equity (common SEC-style threshold). Look in the Affiliate definition for '10% or more of the Equity Interests' or 'beneficial ownership'. Answer true if 10%+ equity holders are captured. Answer false if only control-based definition is used (narrower, may miss minority-but-influential Sponsor co-investors).";
+# TODO-ENG: add aff_provision.affiliate_includes_10pct_holders boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AFF2: ARM'S-LENGTH / FMV REQUIREMENT (2 questions)
@@ -96,6 +123,33 @@ insert $aff_b2 isa ontology_question,
     has answer_type "number",
     has display_order 1711,
     has extraction_prompt "Extract the dollar threshold above which affiliate transactions require board approval or a fairness opinion (in USD, full number not millions). Common values: $25 million, $50 million. Look for 'transactions in excess of $X must be approved by the disinterested members of the board' or 'shall be supported by a fairness opinion'. Return the dollar threshold. Return null if no such threshold exists.";
+
+insert $aff_b3 isa ontology_question,
+    has question_id "aff_b3",
+    has covenant_type "AFF",
+    has question_text "Is an independent fairness opinion required (vs board-only approval)?",
+    has answer_type "boolean",
+    has display_order 1712,
+    has extraction_prompt "Determine whether the threshold-triggering affiliate transactions require an independent FAIRNESS OPINION from a qualified third-party financial advisor, as opposed to mere board approval. Look for 'fairness opinion from an independent investment banking firm' versus 'approval by the disinterested directors'. Answer true if an independent fairness opinion is required (credit-friendly — provides external validation). Answer false if board approval alone suffices (the more common market practice).";
+# TODO-ENG: add aff_provision.fairness_opinion_required boolean
+
+insert $aff_b4 isa ontology_question,
+    has question_id "aff_b4",
+    has covenant_type "AFF",
+    has question_text "Must disinterested directors constitute a quorum and approve the transaction?",
+    has answer_type "boolean",
+    has display_order 1713,
+    has extraction_prompt "Determine whether the affiliate-transaction approval mechanism requires the affirmative vote of a majority of DISINTERESTED DIRECTORS (those with no relationship to the transaction's affiliate counterparty) as a required quorum, not merely a majority of the full board (which may include Sponsor appointees). Look for 'approved by a majority of the disinterested members of the board'. Answer true if disinterested-director approval is required (credit-friendly — increases independence). Answer false if full-board approval suffices.";
+# TODO-ENG: add aff_provision.disinterested_directors_required boolean
+
+insert $aff_b5 isa ontology_question,
+    has question_id "aff_b5",
+    has covenant_type "AFF",
+    has question_text "What is the EBITDA grower percentage on the FMV / approval threshold?",
+    has answer_type "number",
+    has display_order 1714,
+    has extraction_prompt "Extract the EBITDA grower percentage on the fairness-opinion / board-approval threshold for affiliate transactions. Commonly stated as 'the greater of $X and Y% of Consolidated EBITDA' — Y is the value to extract. Return as a number representing the percentage. Return null if the threshold is a flat dollar amount with no EBITDA grower.";
+# TODO-ENG: add aff_provision.threshold_pct_ebitda double
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -126,6 +180,24 @@ insert $aff_c3 isa ontology_question,
     has display_order 1722,
     has extraction_prompt "Determine whether the covenant permits payment of transaction-based fees to the Sponsor (e.g., fees in connection with Permitted Acquisitions, dispositions, debt financings, or equity offerings). Look for 'transaction fees', 'advisory fees in connection with', or 'fees paid pursuant to a Permitted Transaction'. Answer true if transaction fees are expressly permitted. Often these fees are capped as a percentage of transaction value (1-2% common).";
 
+insert $aff_c4 isa ontology_question,
+    has question_id "aff_c4",
+    has covenant_type "AFF",
+    has question_text "What is the management fee EBITDA grower percentage?",
+    has answer_type "number",
+    has display_order 1723,
+    has extraction_prompt "Extract the EBITDA grower percentage for the Sponsor management fee cap. Commonly stated as 'the greater of $X and Y% of Consolidated EBITDA' — Y is the value to extract. Common values: 2, 3. Return as a number representing the percentage. Return null if the management fee cap does not have an EBITDA grower component (aff_c2 captures the dollar side).";
+# TODO-ENG: add aff_provision.mgmt_fee_pct_ebitda double
+
+insert $aff_c5 isa ontology_question,
+    has question_id "aff_c5",
+    has covenant_type "AFF",
+    has question_text "What is the cap on Sponsor transaction fees (as % of transaction value)?",
+    has answer_type "number",
+    has display_order 1724,
+    has extraction_prompt "Extract the cap on Sponsor transaction fees as a percentage of transaction value. Typical values: 1.0 (1%), 1.5 (1.5%), 2.0 (2%). Look for 'transaction fees not to exceed [N]% of the consideration paid' or similar. Return as a number representing the percentage. Return null if transaction fees are uncapped or transaction fees are not expressly permitted (aff_c3 captures existence).";
+# TODO-ENG: add aff_provision.transaction_fee_cap_pct double
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AFF4: OTHER CARVE-OUTS (3 questions)
@@ -155,6 +227,24 @@ insert $aff_d3 isa ontology_question,
     has display_order 1732,
     has extraction_prompt "Determine whether affiliate agreements in place at closing (and listed on a disclosure schedule) are grandfathered. Look for 'existing agreements listed on Schedule [X] and any renewals, extensions, or amendments that are no less favorable to the Loan Parties'. Answer true if any such grandfather exists. Note: broad renewal/amendment rights can effectively perpetuate non-arm's-length arrangements.";
 
+insert $aff_d4 isa ontology_question,
+    has question_id "aff_d4",
+    has covenant_type "AFF",
+    has question_text "Are management/director compensation arrangements subject to an aggregate dollar cap?",
+    has answer_type "boolean",
+    has display_order 1733,
+    has extraction_prompt "Determine whether the employment / director compensation / indemnification carve-out is subject to an aggregate dollar cap, as opposed to uncapped permission for all management compensation. Look for 'provided that the aggregate amount of such compensation shall not exceed $X' or 'in an aggregate amount not to exceed the greater of $X and Y% of EBITDA'. Answer true if any aggregate cap applies. Answer false if management compensation is uncapped within the covenant (common, sponsor-friendly — can enable large discretionary bonuses).";
+# TODO-ENG: add aff_provision.comp_arrangements_capped boolean
+
+insert $aff_d5 isa ontology_question,
+    has question_id "aff_d5",
+    has covenant_type "AFF",
+    has question_text "Are transactions with Unrestricted Subsidiaries exempt from the Affiliate Tx covenant?",
+    has answer_type "boolean",
+    has display_order 1734,
+    has extraction_prompt "Determine whether transactions between the Borrower / Restricted Subsidiaries and Unrestricted Subsidiaries are expressly EXEMPT from the Affiliate Transactions covenant, or whether they are subject to the arm's-length standard. Look for 'transactions with Unrestricted Subsidiaries shall not be subject to this Section' or a carve-out referencing Unrestricted Subsidiaries. Answer true if exempt (sponsor-friendly — permits non-arm's-length dealings with off-credit-group affiliates that are then used in J.Crew pathways). Answer false if Unrestricted Subs count as Affiliates subject to the covenant (credit-friendly).";
+# TODO-ENG: add aff_provision.unsub_transactions_exempt boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CATEGORY → QUESTION LINKAGE
@@ -182,4 +272,27 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF4"; $q isa ontology_question, has question_id "aff_d5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF1"; $q isa ontology_question, has question_id "aff_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF1"; $q isa ontology_question, has question_id "aff_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF1"; $q isa ontology_question, has question_id "aff_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF2"; $q isa ontology_question, has question_id "aff_b3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF2"; $q isa ontology_question, has question_id "aff_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF2"; $q isa ontology_question, has question_id "aff_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "AFF3"; $q isa ontology_question, has question_id "aff_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "AFF3"; $q isa ontology_question, has question_id "aff_c5";
 insert (category: $cat, question: $q) isa category_has_question;
