@@ -85,6 +85,42 @@ insert $fund_a2 isa ontology_question,
     has display_order 1801,
     has extraction_prompt "Determine whether the covenant restricts Borrower-level mergers (the Borrower itself merging with or into another entity), not just subsidiary-level mergers. Look for 'The Borrower will not' as the operative clause, and identify whether Borrower mergers are permitted even within the exception list. Answer true if the covenant directly restricts Borrower-level mergers, false if only subsidiary mergers are restricted.";
 
+insert $fund_a3 isa ontology_question,
+    has question_id "fund_a3",
+    has covenant_type "FUND",
+    has question_text "What is the section reference for the fundamental changes covenant?",
+    has answer_type "string",
+    has display_order 1802,
+    has extraction_prompt "Extract the section reference for the Fundamental Changes / Mergers covenant as it appears in the document. Typically in the Negative Covenants article with a heading such as 'Fundamental Changes', 'Mergers, Consolidations, and Liquidations', or 'Merger, Consolidation or Sale'. Return the verbatim reference. Return an empty string if no such covenant exists.";
+# TODO-ENG: add fund_provision.fund_section_ref string
+
+insert $fund_a4 isa ontology_question,
+    has question_id "fund_a4",
+    has covenant_type "FUND",
+    has question_text "Does the covenant expressly bind Guarantors / Loan Parties in addition to the Borrower?",
+    has answer_type "boolean",
+    has display_order 1803,
+    has extraction_prompt "Determine whether the covenant expressly references Guarantors / Loan Parties as bound parties, not only the Borrower. Look in the covenant's opening clause for 'will not, and will not permit any Guarantor to' or 'The Loan Parties shall not consummate any merger'. Answer true if Guarantors / Loan Parties are explicitly named. Answer false if only the Borrower is named and Guarantors are left unbound (structural gap for Guarantor-level mergers).";
+# TODO-ENG: add fund_provision.binds_guarantors boolean
+
+insert $fund_a5 isa ontology_question,
+    has question_id "fund_a5",
+    has covenant_type "FUND",
+    has question_text "Does the covenant restrict consolidations separately from mergers?",
+    has answer_type "boolean",
+    has display_order 1804,
+    has extraction_prompt "Determine whether the covenant's prohibited-acts list separately restricts 'consolidations' distinct from 'mergers' (in US corporate law, consolidation technically means two or more entities combining into a new entity, while merger means one entity absorbing another). Look for 'merge or consolidate' versus only 'merge'. Answer true if consolidations are separately restricted (broad, lender-friendly). Answer false if only mergers are restricted — which can leave consolidation transactions potentially unrestricted.";
+# TODO-ENG: add fund_provision.covers_consolidations boolean
+
+insert $fund_a6 isa ontology_question,
+    has question_id "fund_a6",
+    has covenant_type "FUND",
+    has question_text "Does the covenant cover Division / reorganization (DE LLC division statutes)?",
+    has answer_type "boolean",
+    has display_order 1805,
+    has extraction_prompt "Determine whether the covenant captures 'Divisions' under DE LLC division statutes and similar state-law restructurings (an LLC splitting into multiple LLCs, potentially stripping assets into the new division without a formal merger). Look for 'Division', 'divisive merger', 'plan of division', or 'reorganize under Section 18-217 of the DE LLC Act'. Answer true if Divisions are expressly captured (lender-friendly — closes the J.Crew-adjacent pathway using DE LLC divisions). Answer false if Divisions are not mentioned (structural gap).";
+# TODO-ENG: add fund_provision.covers_divisions boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUND2: INTRA-GROUP MERGERS (3 questions)
@@ -114,6 +150,42 @@ insert $fund_b3 isa ontology_question,
     has display_order 1812,
     has extraction_prompt "Determine whether Loan Parties can merge INTO non-Loan-Party Restricted Subsidiaries (with the non-Loan Party as the surviving entity). This direction is concerning because it strips guarantor/collateral value out of the security package. Look for any permission allowing this direction, or the absence of a restriction. Answer true if such mergers are permitted (material structural gap), false if prohibited or if surviving entity must be a Loan Party.";
 
+insert $fund_b4 isa ontology_question,
+    has question_id "fund_b4",
+    has covenant_type "FUND",
+    has question_text "Can Foreign Subsidiaries merge with other Foreign Subsidiaries freely?",
+    has answer_type "boolean",
+    has display_order 1813,
+    has extraction_prompt "Determine whether Foreign Subsidiaries can merge with other Foreign Subsidiaries or Restricted Subsidiaries that are not Loan Parties without additional conditions. Look for 'any Foreign Subsidiary may merge with or into any other Foreign Subsidiary' or 'any Restricted Subsidiary that is not a Loan Party may merge with any other such Subsidiary'. Answer true if such intracompany foreign-side mergers are freely permitted (common, credit-neutral). Answer false if restrictions apply.";
+# TODO-ENG: add fund_provision.foreign_sub_mergers_permitted boolean
+
+insert $fund_b5 isa ontology_question,
+    has question_id "fund_b5",
+    has covenant_type "FUND",
+    has question_text "Must intra-group mergers preserve the security package (no lien release)?",
+    has answer_type "boolean",
+    has display_order 1814,
+    has extraction_prompt "Determine whether intra-group mergers (Loan Party to Loan Party, or Restricted Sub to Loan Party) must be structured to preserve the existing security package — i.e., the Liens granted by the merged-away entity transfer to the surviving entity and the Administrative Agent's Collateral position is maintained. Look for 'such merger shall not result in the release of any Lien on the Collateral' or 'the security interest shall continue in the surviving entity'. Answer true if lien preservation is a mandatory condition. Answer false if the covenant is silent on lien preservation (structural gap because a Loan Party merger could theoretically release its own liens).";
+# TODO-ENG: add fund_provision.intra_group_preserves_liens boolean
+
+insert $fund_b6 isa ontology_question,
+    has question_id "fund_b6",
+    has covenant_type "FUND",
+    has question_text "Is the merger of an Immaterial Subsidiary into anything permitted without additional conditions?",
+    has answer_type "boolean",
+    has display_order 1815,
+    has extraction_prompt "Determine whether Immaterial Subsidiaries (below a materiality threshold) can merge freely — into other Restricted Subsidiaries or into third parties — without additional conditions. Look for 'any Immaterial Subsidiary may merge with any Person'. Answer true if immaterial-sub mergers are broadly permitted (common, minor carve-out). Answer false if even Immaterial Subsidiaries must satisfy the general conditions.";
+# TODO-ENG: add fund_provision.immaterial_sub_mergers_free boolean
+
+insert $fund_b7 isa ontology_question,
+    has question_id "fund_b7",
+    has covenant_type "FUND",
+    has question_text "Is Borrower-level intra-group merger (Borrower into a Guarantor) permitted?",
+    has answer_type "boolean",
+    has display_order 1816,
+    has extraction_prompt "Determine whether the Borrower itself can be merged into a Guarantor (with the Guarantor becoming the successor Borrower, or similar entity-substitution mechanic). Look for carve-outs permitting the Borrower to merge into any Loan Party or into a holding company formed for the purpose. Answer true if such Borrower-entity-substitution is permitted (common — enables corporate restructurings). Answer false if Borrower mergers are prohibited altogether.";
+# TODO-ENG: add fund_provision.borrower_substitution_permitted boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUND3: PERMITTED ACQUISITIONS VIA MERGER (2 questions)
@@ -135,6 +207,33 @@ insert $fund_c2 isa ontology_question,
     has display_order 1821,
     has extraction_prompt "Determine whether the surviving entity in a merger-form Permitted Acquisition is required to be a Loan Party (so the target's assets flow into the guarantor/collateral group). Look for 'the surviving entity shall be a Loan Party' or 'the Person surviving such merger becomes a Loan Party immediately thereafter'. Answer true if such a requirement exists, false if non-Loan-Party survivors are permitted.";
 
+insert $fund_c3 isa ontology_question,
+    has question_id "fund_c3",
+    has covenant_type "FUND",
+    has question_text "Is there a no-default condition on merger-form Permitted Acquisitions?",
+    has answer_type "boolean",
+    has display_order 1822,
+    has extraction_prompt "Determine whether merger-form Permitted Acquisitions are conditioned on the absence of a Default or Event of Default at the time of consummation. Look for 'no Default or Event of Default shall have occurred and be continuing'. Answer true if such a condition applies (standard, credit-friendly). Answer false if mergers can be consummated during an EOD.";
+# TODO-ENG: add fund_provision.merger_acquisition_no_default boolean
+
+insert $fund_c4 isa ontology_question,
+    has question_id "fund_c4",
+    has covenant_type "FUND",
+    has question_text "Is there a collateral-joinder timing requirement for the merger-acquired entity?",
+    has answer_type "boolean",
+    has display_order 1823,
+    has extraction_prompt "Determine whether the target of a merger-form Permitted Acquisition must join the security package (execute joinder documents, grant Liens) within a specified time after the merger. Look for 'within 45 days after the consummation of such merger, the surviving entity (if not already a Loan Party) shall execute such joinder'. Answer true if a timing-bound joinder requirement applies (credit-friendly — forces target into the collateral package). Answer false if no timing requirement or no joinder requirement.";
+# TODO-ENG: add fund_provision.merger_target_joinder_required boolean
+
+insert $fund_c5 isa ontology_question,
+    has question_id "fund_c5",
+    has covenant_type "FUND",
+    has question_text "Is there a Similar Business requirement on the merger-acquired entity?",
+    has answer_type "boolean",
+    has display_order 1824,
+    has extraction_prompt "Determine whether the target of a merger-form Permitted Acquisition must be engaged in a Similar Business to the Borrower (as opposed to any business). Look in the Permitted Acquisition definition or the merger clause for 'a Similar Business' requirement. Answer true if a Similar Business requirement applies (credit-friendly — prevents diversifying acquisitions that change the business profile). Answer false if acquisitions of any business are permitted.";
+# TODO-ENG: add fund_provision.merger_similar_business_required boolean
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUND4: DISSOLUTIONS & LIQUIDATIONS (2 questions)
@@ -155,6 +254,33 @@ insert $fund_d2 isa ontology_question,
     has answer_type "boolean",
     has display_order 1831,
     has extraction_prompt "Determine whether Immaterial Subsidiaries (subsidiaries below a materiality threshold) can be dissolved without the upstream-asset-flow requirement. Look for 'any Immaterial Subsidiary may dissolve without any consideration'. Answer true if immaterial-subsidiary dissolutions are permitted freely. This is a minor but common carve-out.";
+
+insert $fund_d3 isa ontology_question,
+    has question_id "fund_d3",
+    has covenant_type "FUND",
+    has question_text "Must the Administrative Agent receive advance notice of dissolutions?",
+    has answer_type "boolean",
+    has display_order 1832,
+    has extraction_prompt "Determine whether dissolutions of Restricted Subsidiaries require advance notice to (or consent of) the Administrative Agent. Look for 'upon prior written notice to the Administrative Agent' or 'with the Administrative Agent's consent'. Answer true if any notice / consent requirement applies. Answer false if dissolutions can proceed without notifying the Administrative Agent (common for Immaterial Subs, uncommon for Material).";
+# TODO-ENG: add fund_provision.dissolution_notice_required boolean
+
+insert $fund_d4 isa ontology_question,
+    has question_id "fund_d4",
+    has covenant_type "FUND",
+    has question_text "Are dissolutions prohibited during the continuance of an Event of Default?",
+    has answer_type "boolean",
+    has display_order 1833,
+    has extraction_prompt "Determine whether dissolutions of Restricted Subsidiaries are prohibited during an Event of Default (as opposed to permitted subject to the asset-flow requirement). Look for 'provided that no Event of Default has occurred and is continuing' in the dissolutions clause. Answer true if dissolutions are blocked during EODs. Answer false if dissolutions can proceed even during distress (credit-friendly default would block).";
+# TODO-ENG: add fund_provision.no_dissolutions_during_eod boolean
+
+insert $fund_d5 isa ontology_question,
+    has question_id "fund_d5",
+    has covenant_type "FUND",
+    has question_text "Is there an aggregate cap on value dissolved/wound-up under the Immaterial-Sub exception?",
+    has answer_type "boolean",
+    has display_order 1834,
+    has extraction_prompt "Determine whether there is an aggregate cap (by dollar value or percentage of Total Assets) on the aggregate value of Restricted Subsidiaries that can be dissolved under the Immaterial-Sub or similar dissolution carve-out. Look for 'provided that the aggregate value of Restricted Subsidiaries dissolved under this clause shall not exceed $X' or 'not to exceed Y% of Consolidated Total Assets'. Answer true if any aggregate cap applies. Answer false if dissolutions can be unlimited in aggregate (even if each is individually immaterial).";
+# TODO-ENG: add fund_provision.dissolution_aggregate_cap boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -184,6 +310,42 @@ insert $fund_e3 isa ontology_question,
     has answer_type "boolean",
     has display_order 1842,
     has extraction_prompt "Determine whether a Borrower-level merger or consolidation requires pro forma compliance with the financial covenant (tested as if the combined entity existed at the start of the test period). Look for 'the Borrower could incur at least $1.00 of additional Indebtedness under the leverage test' or 'pro forma compliance with the Financial Covenant'. Answer true if such a pro forma test applies, false if Borrower-level mergers are permitted without a financial covenant test.";
+
+insert $fund_e4 isa ontology_question,
+    has question_id "fund_e4",
+    has covenant_type "FUND",
+    has question_text "Is a solvency opinion / officer certificate required before the successor entity takes over?",
+    has answer_type "boolean",
+    has display_order 1843,
+    has extraction_prompt "Determine whether a successor Borrower must deliver a solvency certificate or solvency opinion at the time of succession. Look for 'the successor shall deliver a solvency certificate of a Responsible Officer' or 'an opinion of the Borrower's independent auditor as to solvency'. Answer true if any solvency demonstration is required (credit-friendly). Answer false if no solvency delivery is required.";
+# TODO-ENG: add fund_provision.successor_solvency_required boolean
+
+insert $fund_e5 isa ontology_question,
+    has question_id "fund_e5",
+    has covenant_type "FUND",
+    has question_text "Must a legal opinion be delivered confirming the successor entity's capacity?",
+    has answer_type "boolean",
+    has display_order 1844,
+    has extraction_prompt "Determine whether the successor entity must deliver an opinion of counsel (internal or external) confirming that the successor has full corporate authority and that the assumption documents are valid and binding. Look for 'opinion of counsel' delivery in the successor-entity conditions. Answer true if a legal opinion is required. Answer false if no legal opinion is required.";
+# TODO-ENG: add fund_provision.successor_legal_opinion_required boolean
+
+insert $fund_e6 isa ontology_question,
+    has question_id "fund_e6",
+    has covenant_type "FUND",
+    has question_text "Is there a no-Event-of-Default condition on Borrower-level mergers?",
+    has answer_type "boolean",
+    has display_order 1845,
+    has extraction_prompt "Determine whether a Borrower-level merger is conditioned on the absence of an Event of Default at the time of consummation. Look for 'no Event of Default shall have occurred and be continuing' in the Borrower-merger conditions. Answer true if such a condition applies (standard, credit-friendly). Answer false if Borrower-level mergers are permitted during EODs (uncommon and concerning).";
+# TODO-ENG: add fund_provision.borrower_merger_no_eod boolean
+
+insert $fund_e7 isa ontology_question,
+    has question_id "fund_e7",
+    has covenant_type "FUND",
+    has question_text "Is formation of a direct Holding Company parent of the Borrower permitted?",
+    has answer_type "boolean",
+    has display_order 1846,
+    has extraction_prompt "Determine whether the Borrower can insert a new holding company parent immediately above it (a common restructuring for IPO or sponsor exit purposes), with the new HoldCo assuming the Borrower's Obligations. Look for carve-outs permitting 'the Borrower may consummate a transaction in which it becomes a direct or indirect wholly-owned subsidiary of a newly-formed Holding Company' or similar. Answer true if such a HoldCo-insertion carve-out exists (common, borrower-friendly for corporate restructurings). Answer false if the covenant blocks such restructurings.";
+# TODO-ENG: add fund_provision.holdco_insertion_permitted boolean
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -217,4 +379,44 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e2";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND5"; $q isa ontology_question, has question_id "fund_e7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FUND1"; $q isa ontology_question, has question_id "fund_a3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND1"; $q isa ontology_question, has question_id "fund_a4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND1"; $q isa ontology_question, has question_id "fund_a5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND1"; $q isa ontology_question, has question_id "fund_a6";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FUND2"; $q isa ontology_question, has question_id "fund_b4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND2"; $q isa ontology_question, has question_id "fund_b5";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND2"; $q isa ontology_question, has question_id "fund_b6";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND2"; $q isa ontology_question, has question_id "fund_b7";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FUND3"; $q isa ontology_question, has question_id "fund_c3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND3"; $q isa ontology_question, has question_id "fund_c4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND3"; $q isa ontology_question, has question_id "fund_c5";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "FUND4"; $q isa ontology_question, has question_id "fund_d3";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND4"; $q isa ontology_question, has question_id "fund_d4";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "FUND4"; $q isa ontology_question, has question_id "fund_d5";
 insert (category: $cat, question: $q) isa category_has_question;
