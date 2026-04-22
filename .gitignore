@@ -12,9 +12,10 @@ build/
 .venv/
 venv/
 
-# IDE
+# IDE / harness
 .vscode/
 .idea/
+.claude/settings.local.json
 
 # OS
 .DS_Store

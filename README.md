@@ -1,5 +1,7 @@
 # Valence Backend
 
+> **v4 deontic refactor in progress on branch `v4-deontic`. v3 frozen snapshot lives at `../valence-backend-v3-frozen/` and is tagged as `v3.0-final`.**
+
 Legal document analysis platform that extracts typed primitives from credit agreements and enables 100% accurate Q&A against structured data in TypeDB.
 
 ## Architecture

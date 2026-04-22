@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     
     # TypeDB Cloud Configuration
     typedb_address: str = "https://localhost:1729"
-    typedb_database: str = "valence"
+    typedb_database: str = "valence_v4"
     typedb_username: str = "admin"
     typedb_password: str = ""
     typedb_tls_enabled: bool = True
