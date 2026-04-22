@@ -215,6 +215,254 @@ norms:
     predicate: qualified_ipo_has_occurred
 
 # ─────────────────────────────────────────────────────────────────────────────
+# § 6.06 missing subclauses — (d), (e), (g), (h), (i), (l), (m), (n),
+# (r), (s), (t), (u), (v), (w).
+#
+# Placeholder policy: source_page and source_text verification deferred to the
+# pre-Prompt-08 PDF-reading pass (per docs/v4_known_gaps.md).
+# Norm-kind mappings are provisional based on the prompt's example list; the
+# verification pass may reclassify if the operative text surfaces different
+# semantics.
+# ─────────────────────────────────────────────────────────────────────────────
+
+- norm_id: dc_rp_6_06_d_option_exercise_repurchase
+  norm_kind: option_exercise_repurchase_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [repurchase_equity]
+  scoped_objects: [equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(d)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_e_cash_equity_funded
+  norm_kind: cash_equity_funded_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(e)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_g_concurrent_dividend
+  norm_kind: concurrent_receipt_dividend_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(g)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_h_purchase_price_adjustment
+  norm_kind: purchase_price_adjustment_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(h)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_i_director_fees
+  norm_kind: director_fees_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [pay_holdco_overhead]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(i)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_l_permitted_reorganization
+  norm_kind: permitted_reorganization_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity, make_intercompany_payment]
+  scoped_objects: [equity_interest, cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(l)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_m_parent_investment_funding
+  norm_kind: parent_investment_funding_permission
+  modality: permission
+  # Per Prompt 06 judgment: modeled as a single parent norm with sub_clauses
+  # annotation rather than four separate norms. Operations layer reads sub_clauses
+  # to cite specific sub-clause when rendering. Cleaner than four near-identical
+  # norms; easier to read. Flag if granular per-sub-clause citations are needed.
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  sub_clauses:
+    - sub_ref: "6.06(m)(i)"
+      description: <source_text_verification_required>
+    - sub_ref: "6.06(m)(ii)"
+      description: <source_text_verification_required>
+    - sub_ref: "6.06(m)(iii)"
+      description: <source_text_verification_required>
+    - sub_ref: "6.06(m)(iv)"
+      description: <source_text_verification_required>
+  source_section: "6.06(m)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_n_transactions_equity_payment
+  norm_kind: transactions_equity_payment_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity]
+  scoped_objects: [equity_interest, cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(n)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_r_non_collateral_distribution
+  norm_kind: non_collateral_distribution_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(r)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_s_ahydo_catchup_rp
+  norm_kind: ahydo_catchup_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(s)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_t_transfer_pricing
+  norm_kind: transfer_pricing_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_intercompany_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(t)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_u_receivables_fees
+  norm_kind: receivables_fee_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(u)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_v_fractional_shares
+  norm_kind: fractional_share_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [repurchase_equity]
+  scoped_objects: [equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(v)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_w_asset_disposition_dividend
+  norm_kind: asset_disposition_dividend_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(w)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+# ─────────────────────────────────────────────────────────────────────────────
 # § 6.09 — Restricted Debt Payments (reallocation sources for 6.06(j))
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -236,6 +484,148 @@ norms:
   serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q12]
   # Reallocates into 6.06(j) via norm_contributes_to_capacity edge
   reallocates_to: dc_rp_6_06_j_general_rp_basket
+  condition: null
+
+# § 6.09(a) tailored sub-baskets (A)–(H) — distinct RDP permissions. Per Q3
+# gold, only (A) Cumulative Amount usage is confirmed reallocable to RP;
+# (B)–(H) have no explicit reallocation edge per Q3 gold ("may or may not be
+# available for reallocation"). question_role is omitted on the non-reallocating
+# sub-baskets — they exist as RDP permissions but don't feed 6.06(j).
+# All placeholders per the pre-Prompt-08 verification pass.
+
+- norm_id: dc_rp_6_09_a_A_cumulative_amount_usage
+  norm_kind: cumulative_amount_rdp_usage_permission
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: reallocable
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  capacity_aggregation_function: sum
+  source_norm_ids:
+    - dc_rp_cumulative_amount
+  source_section: "6.09(a)(A)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: reallocation_source
+  serves_questions: [duck_creek_q3, duck_creek_rp_q4]
+  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  condition: null
+
+- norm_id: dc_rp_6_09_a_B_permitted_refinancing
+  norm_kind: permitted_refinancing_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(B)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_C_like_for_like_refinancing
+  norm_kind: like_for_like_refinancing_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(C)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_D_intragroup_payments
+  norm_kind: intragroup_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party, restricted_sub]
+  scoped_actions: [pay_subordinated_debt, make_intercompany_payment]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  # Per prompt: "multiple sub-clauses"; captured as annotation pending verification.
+  sub_clauses_note: "6.09(a)(D) has multiple sub-clauses governing intra-group payments — sub-clause enumeration deferred to pre-Prompt-08 verification pass."
+  source_section: "6.09(a)(D)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_E_scheduled_payments
+  norm_kind: scheduled_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(E)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_F_cash_equity_funded
+  norm_kind: cash_equity_funded_rdp_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(F)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_G_conversion_qualified_capital_stock
+  norm_kind: conversion_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(G)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_09_a_H_ahydo_catchup
+  norm_kind: ahydo_catchup_rdp_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.09(a)(H)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  serves_questions: []
   condition: null
 
 # ─────────────────────────────────────────────────────────────────────────────
