@@ -2,6 +2,7 @@
 
 - `752c847` — Initial audit committed. Contained errors (see below).
 - (correction commit, superseding `752c847`) — Audit corrected. Earlier claims that the gold-answer file contained five prose errors were wrong. Gold answers are accurate. Audit now includes Section 2.10(c)(iv) as a distinct norm (missing from initial version) and identifies one depth-3 condition tree requiring Strategy A flattening.
+- Pre-Prompt-06 — Added two new concerns: formulaic-cap scalability and source-text/page verification deadline. J.Crew blocker row in per-norm table updated to reflect modality=prohibition + new predicate name (see Prompt 06 pre-work Part 2).
 
 ## Duck Creek RP condition-tree audit (pre-Prompt-05) — source-verified
 
@@ -101,3 +102,21 @@ During Prompt 05:
 
 - **J.Crew blocker exact wording location.** The blocker text appears in the definitional/designation mechanics (roughly page 83 of the agreement). Ground truth should record the exact source_section reference, which requires page-level verification during Prompt 05 authoring.
 - **Cumulative Amount clauses (g), (h), (i), (j), (k), (l).** Several additional sources beyond the three "greatest of" tests and starter. For ground-truth completeness these should each map to a source entity (joint venture dividends, Unsub redesignation FMV, receivables/royalty/license collections, 50% cumulative deferred revenues, etc.). Not blocking condition-tree audit but needed for Q1 ground truth.
+
+## Formulaic caps — scalability concern
+
+Current schema supports `cap_usd` (scalar dollar) and `cap_grower_pct` (scalar percentage) on norm. For caps expressed as formulas — e.g., 6.06(q) post-IPO "7% of IPO proceeds + 7% of market cap" — ground truth uses a `cap_formula` string attribute that the operations layer parses at query time.
+
+This is acceptable for 2-3 norms. If formulaic caps exceed 5 norms during v4 extension to other covenants, add structured `cap_formula_components` attributes to norm (typed fields rather than string parsing). MFN and DI covenants may surface additional formulaic patterns; revisit at extension time.
+
+Tracked for post-pilot review.
+
+## Source text and source_page verification
+
+Ground-truth YAML (commits `3466fb9`, `bb4e6c8`, `7890eac`) contains `<page_unknown>` and `<source_text_verification_required>` placeholders on norms where operative text or page references were not available during authoring. As of commit `7890eac`: **55 of 57 norms** carry `<page_unknown>`; **54 of 57** carry a source_text placeholder. The only fully-verified norms are §2.10(c)(i), §2.10(c)(iv), and the J.Crew blocker (operative-text excerpts available during authoring).
+
+These placeholders MUST be resolved before Prompt 08 runs. The Prompt 08 round-trip check compares extraction's `source_text` output to ground truth's `source_text` — placeholder strings will fail the check trivially.
+
+Resolution approach: dedicated PDF-reading pass before Prompt 08, reading the Duck Creek agreement section by section and filling in verbatim text + page numbers for every placeholder. Estimated effort: 1-2 hours. The pass also double-checks the audit's per-norm classifications against operative text for any norms added during ground truth extension (the 22 new norms in `7890eac` use provisional norm_kind mappings that may need reclassification).
+
+Tracked for pre-Prompt-08 completion.
