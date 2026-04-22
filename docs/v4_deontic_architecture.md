@@ -104,6 +104,10 @@ The full TypeQL for the deontic layer lives in `app/data/schema_v4_deontic.tql`.
 
 **TypeDB 3.x syntax note.** Where the TypeQL examples in this section declare an abstract subtype, the `@abstract` annotation appears in a separate statement from `sub` per TypeDB 3.x rules (the two cannot combine — error `ANN9`). Examples below show the actual loadable syntax. Inline annotations on top-level abstract types (`party @abstract`, `action_class @abstract`, `object_class @abstract`) are permitted and used where applicable.
 
+**Schema evolution pattern.** Additive schema changes — adding new attributes, new relations, new ownership on existing types — apply **in-place** via a TypeDB 3.x SCHEMA transaction. No database rebuild is required; existing data is preserved. Type-definition changes — renaming types, altering subtype hierarchies, changing relation roles — require a full rebuild (drop database, recreate from schema files). The distinction was verified during the compound-threshold schema extension (commit `bb4e6c8`): adding four new attributes on `state_predicate` and one new attribute on `event_instance` landed via a single `define`-block SCHEMA transaction without data loss.
+
+Prefer additive changes. When a schema change is required, design it as an additive extension first (new attribute owned optionally; old behavior preserved; new behavior gated on the new attribute) before considering non-additive alternatives. This preserves the option to evolve without re-extracting.
+
 ### 4.1 Attribute definitions
 
 ```tql
@@ -266,13 +270,50 @@ entity state_predicate,
     owns source_page;
 ```
 
-Concrete predicate labels (enumerated in seed, not entity subtypes — each predicate's evaluation lives in a function keyed on its label): `no_event_of_default_exists`, `first_lien_net_leverage_at_or_below`, `senior_secured_leverage_at_or_below`, `total_leverage_at_or_below`, `pro_forma_no_worse`, `incurrence_test_satisfied`, `pro_forma_compliance_financial_covenants`, `board_approval_obtained`, `officer_certificate_delivered`, `qualified_ipo_has_occurred`, `retained_asset_sale_proceeds` (Judgment 3: asset-sale proceeds that survive the Asset Sale Sweep; appears as a capacity source to the builder basket via `norm_contributes_to_capacity`, not as an action class).
+Concrete predicate labels are enumerated in seed, not as entity subtypes — each predicate's evaluation lives in a `predicate_holds` branch keyed on its label. The **predicate catalog** below lists every label the v4 pilot recognises together with a semantic gloss (what "true" means) and a brief downstream note where non-obvious. Polarity matters at three layers: condition evaluation, defeater activation, and renderer phrasing. When adding a new predicate, always author its gloss alongside the label.
+
+**Predicate catalog** (16 entries; status field: `impl` = branch exists in `predicate_holds`; `stub` = label known but evaluation branch not yet implemented):
+
+- `no_event_of_default_exists` [impl] — true when no Event of Default has occurred and is continuing. Appears as a universal precondition on most discretionary permissions. Pilot stub branch: currently defaults to true until the EoD flag lands on `event_instance` (documented in the function-file header).
+
+- `first_lien_net_leverage_at_or_below` [impl] — true when First Lien Leverage Ratio on a Pro Forma Basis for the applicable Test Period is at or below `threshold_value_double` (compared via `operator_comparison`). Atomic leaf in ratio-basket conditions — §6.06(o), §6.05(z), sweep tier 50% upper bound, sweep tier 0%.
+
+- `first_lien_net_leverage_above` [impl] — true when First Lien Leverage Ratio on a Pro Forma Basis is strictly greater than `threshold_value_double`. Used as the trigger for the 100% sweep tier and as the lower-bound half of the sweep-tier-50% AND condition.
+
+- `senior_secured_leverage_at_or_below` [impl] — true when Senior Secured Leverage Ratio on a Pro Forma Basis is at or below `threshold_value_double`. Same pattern as first-lien; reserved for norms that gate on senior-secured rather than first-lien leverage.
+
+- `total_leverage_at_or_below` [impl] — true when Total Leverage Ratio on a Pro Forma Basis is at or below `threshold_value_double`. Same pattern; reserved for norms gated on total leverage.
+
+- `pro_forma_no_worse` [impl] — true when the pro forma value of the predicate named in `reference_predicate_label` (after giving effect to the Subject Transaction) is no worse than the pre-transaction value. Used as the "no-worse" alternative in ratio-basket disjunctions (e.g., §6.06(o) OR branch).
+
+- `incurrence_test_satisfied` [impl] — true when the incurrence test identified by `reference_predicate_label` is met at `threshold_value_double`. Pilot implementation reads the first-lien ratio unconditionally; `reference_predicate_label` will be honored when multi-ratio incurrence patterns surface.
+
+- `pro_forma_compliance_financial_covenants` [stub] — true when, on a Pro Forma Basis, the borrower is in compliance with all maintenance financial covenants. Common deontic gate on discretionary permissions. `predicate_holds` branch not yet implemented.
+
+- `board_approval_obtained` [stub] — true when the borrower's board of directors has approved the proposed action. Structural/procedural predicate, not a ratio. `predicate_holds` branch not yet implemented.
+
+- `officer_certificate_delivered` [stub] — true when an officer's certificate attesting to the required compliance facts has been delivered to the Administrative Agent. Procedural predicate. `predicate_holds` branch not yet implemented.
+
+- `qualified_ipo_has_occurred` [stub] — true when a Qualified IPO has occurred (as defined in the agreement's definitional section). Required precondition for post-IPO permissions like §6.06(q). `predicate_holds` branch not yet implemented.
+
+- `retained_asset_sale_proceeds` [n/a as atomic] — true when there is a positive balance of Retained Asset Sale Proceeds available. **Capacity-state predicate, not an atomic condition leaf** — appears as a capacity source to the builder basket via `norm_contributes_to_capacity` (Judgment 3), not inside a `condition_has_child` tree. No `predicate_holds` branch needed.
+
+- `unsub_would_own_or_license_material_ip_at_designation` [stub] — true when the proposed designation of a Restricted Subsidiary as an Unrestricted Subsidiary would result in the new Unrestricted Subsidiary owning or holding an exclusive license (from Holdings or its Restricted Subsidiaries) to any Material Intellectual Property. **The J.Crew blocker prohibition (on `designate_unrestricted_subsidiary`) fires when this predicate is true; designation is permitted when false.** `predicate_holds` branch not yet implemented.
+
+- `is_product_line_or_line_of_business_sale` [stub] — true when the proposed Asset Sale is of all or substantially all of a product line or line of business identified by the Borrowers to the Administrative Agent. Structural component of the §2.10(c)(iv) sweep-exemption condition (the AND in the Strategy-A-flattened disjunction). `predicate_holds` branch not yet implemented.
+
+- `individual_proceeds_at_or_below` [impl] — true when the Prepayable Net Cash Proceeds of the individual Asset Sale are at or below the effective threshold `greater_of(threshold_value_double, threshold_grower_pct * consolidated_ebitda_ltm / 100)`. Compound-threshold predicate per the paragraph above. §2.10(c)(i) Individual Asset Sale Threshold half.
+
+- `annual_aggregate_at_or_below` [impl] — true when the aggregate Prepayable Net Cash Proceeds for all Asset Sales exceeding the Individual Asset Sale Threshold in the fiscal year are at or below the effective threshold (same `greater_of` formula). §2.10(c)(i) Annual Asset Sale Threshold half.
 
 **Threshold values are per-instance attributes, not baked into labels.** A norm whose condition is "first lien net leverage ≤ 5.75" and another whose condition is "first lien net leverage ≤ 6.25" reference the *same* `state_predicate_label` (`first_lien_net_leverage_at_or_below`) with different `threshold_value_double` values on their respective `state_predicate` instances. The projection layer (Prompt 07) creates one `state_predicate` instance per distinct (label, threshold) pair extracted from the agreement, and each condition's atomic leaf references the appropriate instance. `operator_comparison` defaults to the semantic implied by the label (`at_or_below`), but the attribute lets projection override for cleaner generalisation if needed. `reference_predicate_label` is populated for predicates like `pro_forma_no_worse` whose semantics require pointing to the baseline predicate they compare against.
 
 **Compound thresholds.** Some predicates (e.g., Duck Creek's `individual_proceeds_at_or_below`, `annual_aggregate_at_or_below`) have thresholds of the form "greater of $X or Y% of Z." Encoded via `threshold_is_greater_of=true`, `threshold_value_double` (the dollar component), `threshold_grower_pct` (the percentage), and `threshold_grower_reference` (the state attribute name to multiply — typically `consolidated_ebitda_ltm`). `predicate_holds` computes `effective_threshold = max(threshold_value_double, threshold_grower_pct * state_value / 100)` at evaluation time and compares the candidate value against it. Expressed in TypeQL 3.x as two inner disjuncts (`base >= grower; candidate <= base` or `grower > base; candidate <= grower`) since the language has no built-in `max()`.
 
 #### 4.5.1 Predicate label contract
+
+**Semantic convention.** Every predicate's gloss in §4.5's catalog specifies what "true" means. Reading polarity correctly matters at three layers: condition evaluation (`condition_holds` dispatches on the predicate and threshold attrs), defeater activation (a defeater fires when its condition holds), and renderer phrasing (the natural-language rendering in Prompt 12 must match the predicate's semantic direction). When adding a new predicate, always author its gloss alongside the label.
+
 
 State predicate instances use **clean labels** — the predicate concept name without threshold values embedded in the string. Thresholds are stored as instance attributes (`threshold_value_double`, `threshold_value_string`, `operator_comparison`, `reference_predicate_label`), not encoded in the label suffix.
 
