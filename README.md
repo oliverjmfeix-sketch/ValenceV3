@@ -150,3 +150,8 @@ ValenceV3/
 ├── railway.toml
 └── CLAUDE.md
 ```
+
+## v4 Foundational Rules
+
+v4 development follows the foundational rules in [`docs/v4_foundational_rules.md`](docs/v4_foundational_rules.md). Every PR is reviewed against them.
+
