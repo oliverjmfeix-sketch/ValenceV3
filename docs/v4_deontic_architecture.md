@@ -89,6 +89,13 @@ Defeaters connect to norms via the typed `defeats` relation (Rule 2.5), never vi
 ### 3.8 event
 A concrete or hypothetical happening that a norm is evaluated against. `event_instance` has an `event_kind` (e.g., `proposed_dividend`, `proposed_investment`, `proposed_sale_of_division`), structured attributes (`amount_usd`, `target_party`, `ratio_snapshot_first_lien_net_leverage`, `is_no_worse_pro_forma`), and `is_hypothetical` boolean. Question 6 ("if the ratio is 6.0x…") is modeled by constructing an event_instance with `ratio_snapshot_first_lien_net_leverage = 6.0`, `is_no_worse_pro_forma = true`, and passing it to the condition evaluator.
 
+**Pilot-scope design note.** In v4 pilot scope, `event_instance` carries both:
+
+- **World-state facts** (ratio snapshots, EoD status, pro forma compliance flags) that condition evaluation reads
+- **Proposed-action details** (action_class, amount, target) that norm applicability filters against
+
+Some theoretical deontic-logic treatments separate these into distinct `world_state` and `event` entities. The pilot conflates them because Duck Creek's six gold-standard questions always evaluate a single proposed action against a single world state, making the separation a distinction without operational difference. If future work needs to evaluate multiple hypothetical actions against the same world state, the separation can be introduced via a schema migration that moves world-state attributes from `event_instance` to a new `world_state` entity referenced via a new `event_takes_place_in` relation.
+
 ---
 
 ## 4. Schema design
@@ -245,6 +252,23 @@ Concrete predicate labels (enumerated in seed, not entity subtypes — each pred
 
 **Threshold values are per-instance attributes, not baked into labels.** A norm whose condition is "first lien net leverage ≤ 5.75" and another whose condition is "first lien net leverage ≤ 6.25" reference the *same* `state_predicate_label` (`first_lien_net_leverage_at_or_below`) with different `threshold_value_double` values on their respective `state_predicate` instances. The projection layer (Prompt 07) creates one `state_predicate` instance per distinct (label, threshold) pair extracted from the agreement, and each condition's atomic leaf references the appropriate instance. `operator_comparison` defaults to the semantic implied by the label (`at_or_below`), but the attribute lets projection override for cleaner generalisation if needed. `reference_predicate_label` is populated for predicates like `pro_forma_no_worse` whose semantics require pointing to the baseline predicate they compare against.
 
+#### 4.5.1 Predicate label contract
+
+State predicate instances use **clean labels** — the predicate concept name without threshold values embedded in the string. Thresholds are stored as instance attributes (`threshold_value_double`, `threshold_value_string`, `operator_comparison`, `reference_predicate_label`), not encoded in the label suffix.
+
+**Correct:** `state_predicate_label="first_lien_net_leverage_at_or_below"`, `threshold_value_double=5.75`, `operator_comparison="at_or_below"`
+
+**Incorrect (deprecated):** `state_predicate_label="first_lien_net_leverage_at_or_below_5_75"` (threshold in label suffix)
+
+This contract is binding for all layers:
+
+- **Extraction** (v3 pipeline with Prompt 07 additions) — produces clean labels.
+- **Projection** (Prompt 07's projection engine) — emits state_predicate instances with clean labels plus threshold attributes.
+- **Ground truth** (Prompt 05's `duck_creek_rp_ground_truth.yaml`) — references predicates by clean label, threshold by attribute.
+- **Functions** (`predicate_holds` and downstream) — read threshold from instance attribute, not from label parsing.
+
+The round-trip check at Prompt 08 compares extracted predicate labels to ground-truth labels. Label format drift between layers will cause spurious round-trip failures. Flag any code path producing suffixed labels as a bug.
+
 ### 4.6 Condition entity and recursive tree relation
 
 ```tql
@@ -382,6 +406,9 @@ norm plays defeats:defeated;
 ### 4.9 Event instance entity and evaluation relations
 
 ```tql
+# event_instance carries both world-state snapshots (ratio values, EoD flags)
+# and proposed-action details (action_class, amount, target) in pilot scope.
+# See §3.8 for the rationale and the migration path if separation is needed later.
 entity event_instance,
     owns event_instance_id @key,
     owns action_class_label,           # which action is proposed
