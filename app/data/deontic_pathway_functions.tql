@@ -7,52 +7,36 @@ define
 # uses these for Q3 (reallocation pathways) and Q4 (asset-sale proceeds →
 # retained-proceeds state → builder capacity → dividend action).
 #
-# These are scaffolded for the pilot. state_reachable uses a bounded-depth
-# recursion via $max_hops. For cycles, the bound acts as the cutoff.
+# Signatures take `$ws: event_instance`. state_reachable is bounded-depth via
+# $max_hops (TypeDB 3.x integer).
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# norm_enables_hop — true iff some permission norm for $action_label is in
-# force in the given world state AND transitions from_state → to_state.
-# PILOT: transitions are currently marked by two state_predicate labels on
-# the norm — `transition_from_*` / `transition_to_*` prefixes in source_text
-# are not machine-checkable, so the pilot stubs this by checking whether an
-# applicable permission exists with an object whose object_class_label
-# matches the to_state. Prompt 06 will introduce a typed state_transition
-# relation for richer pathway modelling. `$from_state` is referenced in a
-# parameter-use guard (TypeDB 3.x rejects unused arguments); the guard is
-# structural only — real state-machine logic lands in Prompt 06.
-fun norm_enables_hop($action_label: string, $from_state: string, $to_state: string, $world_state_id: string) -> boolean:
+# norm_enables_hop — PILOT: true iff some applicable permission for
+# $action_label exists with an object whose object_class_label matches
+# $to_state. $from_state referenced via parameter-use guard. Prompt 06 will
+# introduce a typed state_transition relation for richer pathway modelling.
+fun norm_enables_hop($action_label: string, $from_state: string, $to_state: string, $ws: event_instance) -> boolean:
     match
-        let $n in applicable_permissions($action_label, "borrower", $to_state, $world_state_id);
-        # parameter-use guard for $from_state — matches any object_class
-        # labelled with the from-state name; the transition shape is a
-        # future-work refinement.
+        let $n in applicable_permissions($action_label, "borrower", $to_state, $ws);
         $from_obj isa object_class, has object_class_label $fol;
         $fol == $from_state;
     return check;
 
-# state_reachable — bounded-depth recursive reachability. Base case:
-# $from_state == $to_state trivially reaches. Inductive case: some action
-# enables a hop directly. Deeper recursion is deferred to Prompt 06 when
-# state_transition typing lands — this pilot version supports direct and
-# one-hop reachability only.
-fun state_reachable($from_state: string, $to_state: string, $world_state_id: string, $max_hops: integer) -> boolean:
+# state_reachable — bounded-depth reachability. Base case: already at target.
+# One-hop: some in-force permission with an object matching $to_state.
+# Deeper recursion deferred (needs typed state transitions).
+fun state_reachable($from_state: string, $to_state: string, $ws: event_instance, $max_hops: integer) -> boolean:
     match
         {
-            # base case: already at the target
             $from_state == $to_state;
             $max_hops >= 0;
         } or {
-            # one-hop: some norm directly enables the transition
             $max_hops >= 1;
-            # "any" action can make the hop — we don't yet type action-by-state;
-            # use a catch-all by letting applicable_permissions fire over the
-            # target object. This is the pragmatic pilot approximation.
             $n isa norm, has modality "permission";
             (norm: $n, object: $obj) isa norm_scopes_object;
             $obj has object_class_label $ol;
             $ol == $to_state;
-            let $inf = norm_is_in_force($n, $world_state_id);
+            let $inf = norm_is_in_force($n, $ws);
             $inf == true;
         };
     return check;

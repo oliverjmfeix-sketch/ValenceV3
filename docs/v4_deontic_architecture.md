@@ -142,6 +142,17 @@ attribute child_index, value integer;
 # capacity contribution metadata (attribute on norm_contributes_to_capacity relation, not on norms)
 attribute aggregation_function, value string;  # greatest_of|sum|min|max — how multiple norm_contributes_to_capacity edges compose
 
+# state_predicate instance metadata — thresholds and comparison mode live on the
+# predicate instance, not in the label. A label like "first_lien_net_leverage_at_or_below"
+# with threshold_value_double 5.75 is a distinct instance from the same label with
+# threshold 6.25; predicate_holds reads the threshold via `$pred has threshold_value_double`.
+# reference_predicate_label points to another predicate (used by pro_forma_no_worse
+# to name the baseline predicate the counterfactual is "no worse than").
+attribute threshold_value_double, value double;
+attribute threshold_value_string, value string;
+attribute operator_comparison, value string;      # at_or_below|at_or_above|equals|less_than|greater_than
+attribute reference_predicate_label, value string;
+
 # provenance (reused from v3 schema; listed here for completeness of the deontic layer)
 # attribute source_text, value string;
 # attribute source_section, value string;
@@ -221,12 +232,18 @@ The six object-class labels listed in the requirements (`cash`, `equity_interest
 ```tql
 entity state_predicate,
     owns state_predicate_label @key,
+    owns threshold_value_double,
+    owns threshold_value_string,
+    owns operator_comparison,
+    owns reference_predicate_label,
     owns source_text,
     owns source_section,
     owns source_page;
 ```
 
 Concrete predicate labels (enumerated in seed, not entity subtypes — each predicate's evaluation lives in a function keyed on its label): `no_event_of_default_exists`, `first_lien_net_leverage_at_or_below`, `senior_secured_leverage_at_or_below`, `total_leverage_at_or_below`, `pro_forma_no_worse`, `incurrence_test_satisfied`, `pro_forma_compliance_financial_covenants`, `board_approval_obtained`, `officer_certificate_delivered`, `qualified_ipo_has_occurred`, `retained_asset_sale_proceeds` (Judgment 3: asset-sale proceeds that survive the Asset Sale Sweep; appears as a capacity source to the builder basket via `norm_contributes_to_capacity`, not as an action class).
+
+**Threshold values are per-instance attributes, not baked into labels.** A norm whose condition is "first lien net leverage ≤ 5.75" and another whose condition is "first lien net leverage ≤ 6.25" reference the *same* `state_predicate_label` (`first_lien_net_leverage_at_or_below`) with different `threshold_value_double` values on their respective `state_predicate` instances. The projection layer (Prompt 07) creates one `state_predicate` instance per distinct (label, threshold) pair extracted from the agreement, and each condition's atomic leaf references the appropriate instance. `operator_comparison` defaults to the semantic implied by the label (`at_or_below`), but the attribute lets projection override for cleaner generalisation if needed. `reference_predicate_label` is populated for predicates like `pro_forma_no_worse` whose semantics require pointing to the baseline predicate they compare against.
 
 ### 4.6 Condition entity and recursive tree relation
 
@@ -248,6 +265,8 @@ relation condition_has_child,
 condition plays condition_has_child:parent;
 condition plays condition_has_child:child;
 ```
+
+**Operator support in TypeDB 3.x.** `condition_holds` supports `atomic`, `or`, and `and` natively. `and` uses a count-based implementation (total child count vs count of children whose atomic predicate holds) verified against two fixtures during a pre-Prompt-05 probe — it avoids recursion through negation, which TypeDB 3.x (error `FUN9`) refuses. `and` is currently restricted to depth-2 (AND of atomic children); deeper nested AND-of-OR-of-atomics is handled by flattening at projection time into either (a) a disjunction of conjunctions or (b) a conjunction of disjunctions as appropriate. `not`, `for_all`, and `exists` are not supported in the pilot. `not` is handled architecturally by defining state predicates in positive form (e.g., `no_event_of_default_exists` rather than `NOT event_of_default_exists`), which matches the predicate list in §4.5. `for_all` and `exists` are not needed for RP pilot scope.
 
 ### 4.7 Norm entity and its relations
 
@@ -413,107 +432,124 @@ basket_reallocates_to plays norm_extracted_from:fact;
 
 ## 5. Function library
 
-All deontic logic lives in TypeDB functions (Rule 5.2), organized into files matching the existing per-concern pattern. Python callers are thin. Every function below has a signature contract; full implementations come in subsequent prompts. Every function accepts `$pid: string` as the provision anchor unless otherwise noted.
+All deontic logic lives in TypeDB functions (Rule 5.2), organized into files matching the existing per-concern pattern. Python callers are thin.
+
+**Signature convention.** Functions take entity concepts directly (e.g., `state_predicate`, `condition`, `event_instance`, `norm`) rather than their string identifiers. This sidesteps TypeDB 3.x's value/attribute variable-binding restriction: a function parameter declared `string` cannot be bound from a variable pattern-matched as `has state_predicate_label $x` — the driver treats the same variable as attribute in one context and value in another and refuses the function call. Callers pass entity concepts obtained via `match` queries. Python operation wrappers (Prompt 10) accept string ids at the API boundary and perform the lookup before invoking functions. Where a label or threshold is *not* pattern-bound via `has` (e.g., `$action_label: string` passed in literally by the caller), string parameters remain.
+
+**World-state representation.** The "world state" argument is a concrete `event_instance` carrying the ratio snapshots and flags that predicates read. Functions take `$ws: event_instance` directly. There is no separate `world_state` entity — `event_instance` serves both as "the action being proposed" and "the state snapshot against which predicates evaluate."
 
 ### 5.1 `app/data/deontic_condition_functions.tql`
 
 ```
-fun predicate_holds($predicate_label: string, $event: event_instance) -> boolean
+fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean
 ```
-Evaluates a single state predicate against an event_instance. Atomic leaf of condition evaluation.
+Evaluates a single state predicate against an event_instance. Reads `threshold_value_double`, `operator_comparison`, and `reference_predicate_label` from the predicate instance where relevant. Atomic leaf of condition evaluation.
 
 ```
-fun condition_holds($cond_id: string, $event: event_instance) -> boolean
+fun child_count($cond: condition) -> integer
+fun holding_atomic_child_count($cond: condition, $ws: event_instance) -> integer
 ```
-Recursively evaluates a condition tree. Handles `and`/`or`/`not`/`for_all`/`exists` by dispatch on `condition_operator`; hits `predicate_holds` at leaves.
+Helpers used by `condition_holds` for the AND branch (count total children vs count of children whose atomic predicate holds).
+
+```
+fun condition_holds($cond: condition, $ws: event_instance) -> boolean
+```
+Evaluates a condition tree. Supports `atomic`, `or`, and `and` (depth-2 per §4.6). `not`/`for_all`/`exists` are not supported in the pilot.
 
 ### 5.2 `app/data/deontic_norm_functions.tql`
 
 ```
-fun applicable_permissions($pid: string, $action_label: string, $event: event_instance) -> { norm }
+fun applicable_permissions($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> { norm }
+fun applicable_prohibitions($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> { norm }
 ```
-Stream of permission norms whose `norm_scopes_action` matches `$action_label`, whose condition `condition_holds` on `$event`, and which are not defeated.
+Streams of norms matching action / subject_role / object_label filters and in force in `$ws`. Object-scope semantics: a norm either has a matching `norm_scopes_object` edge or has no object-scope edge at all.
 
 ```
-fun applicable_prohibitions($pid: string, $action_label: string, $event: event_instance) -> { norm }
+fun norm_is_defeated($n: norm, $ws: event_instance) -> boolean
 ```
-Analogous for prohibitions.
+True iff some defeater connected to `$n` via `defeats` has a `defeater_has_condition` whose condition holds in `$ws`.
 
 ```
-fun norm_is_defeated($norm: norm, $event: event_instance) -> boolean
+fun norm_is_in_force($n: norm, $ws: event_instance) -> boolean
 ```
-Returns true iff any defeater connected via `defeats` has a `defeater_has_condition` that holds on `$event`.
+Composition: not defeated AND (no attached condition OR attached condition holds). Wraps `norm_is_defeated` + `condition_holds`.
 
 ```
-fun norm_is_structurally_complete($norm: norm) -> boolean
+fun norm_is_structurally_complete($n: norm) -> boolean
 ```
-Returns true iff the norm has: modality, subject (via `norm_binds_subject`), action (via `norm_scopes_action`), condition root (via `norm_has_condition`), and source_text. Storage rejects norms where this returns false (Rule 2.3).
+True iff the norm has: modality, source_text/section/page, subject (via `norm_binds_subject`), and at least one of `norm_scopes_action` or `norm_scopes_instrument`. Storage rejects norms where this returns false (Rule 2.3).
 
 ### 5.3 `app/data/deontic_capacity_functions.tql`
 
 ```
-fun additive_capacity($pid: string, $action_label: string) -> double
+fun additive_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> double
 ```
-Sum of `cap_usd` across permissions scoping `$action_label` with `capacity_composition == "additive"` that share no `shares_capacity_pool` edge.
+Sum of `cap_usd` across applicable permissions with `capacity_composition == "additive"`.
 
 ```
-fun fungible_capacity($pid: string, $action_label: string) -> double
+fun categorical_capacities($action_label: string, $subject_role: string, $ws: event_instance) -> { norm, cap_usd }
 ```
-For permissions with `capacity_composition == "fungible"` (shared pool), returns the single pool cap.
+Stream of (norm, cap_usd) for applicable permissions with `capacity_composition == "categorical"`. Return's second slot is the `cap_usd` attribute concept (not a bare `double`) — TypeDB 3.x stream returns must match inferred attribute type of the source variable.
 
 ```
-fun categorical_capacities($pid: string, $action_label: string) -> { norm, double }
+fun has_unlimited_conditional_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> boolean
 ```
-Stream of (norm, cap) for permissions with `capacity_composition == "categorical"` (per-category caps that do not sum).
+True iff any applicable permission has `capacity_composition == "unlimited_on_condition"`.
 
 ```
-fun computed_from_sources_capacity($pid: string, $norm: norm) -> double
+fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_instance) -> double
+fun computed_from_sources_capacity_sum($norm_id: string, $ws: event_instance) -> double
 ```
-Sums capacities of typed source entities (e.g., builder sources) contributing to a `computed_from_sources` norm via `norm_contributes_to_capacity`.
+For a pool norm whose `capacity_composition` is `computed_from_sources`, applies the named aggregation across contributing norms via the `aggregation_function` attribute on `norm_contributes_to_capacity`. Split into per-aggregation variants because TypeDB 3.x functions allow only one `reduce` per body. Python operations (Prompt 10) dispatch by reading the pool norm's `aggregation_function` before calling.
 
 ```
-fun total_capacity_for_action($pid: string, $action_label: string, $include_reallocated: boolean) -> double
+fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $ws: event_instance) -> double
 ```
-Composite: additive + starter/builder components + optional reallocated inflows via `basket_reallocates_to`. Returns double.
+PILOT STUB: returns 0 until Prompt 07 projects v3's `basket_reallocates_to` edges into `norm_contributes_to_capacity` bridges. Parameter-use guards reference all three arguments.
 
 ### 5.4 `app/data/deontic_pathway_functions.tql`
 
 ```
-fun norm_enables_hop($source_norm: norm, $target_norm: norm) -> boolean
+fun norm_enables_hop($action_label: string, $from_state: string, $to_state: string, $ws: event_instance) -> boolean
 ```
-True iff exercising `$source_norm` creates the precondition for `$target_norm` (e.g., a designate_unrestricted_subsidiary power enables subsequent dividend-of-unsub-equity permissions).
+PILOT: true iff some applicable permission exists with an object whose `object_class_label` matches `$to_state`. Prompt 06 will add typed state-transition relations for richer modelling.
 
 ```
-fun state_reachable($pid: string, $initial_event: event_instance, $target_predicate: string) -> boolean
+fun state_reachable($from_state: string, $to_state: string, $ws: event_instance, $max_hops: integer) -> boolean
 ```
-True iff there is a composition of norm exercises starting from `$initial_event` after which `$target_predicate` holds.
-
-```
-fun enumerate_pathways($pid: string, $source_kind: string, $source_label: string, $target_kind: string, $target_label: string, $direction: string) -> { norm }
-```
-Stream of norm sequences composing `$source` into `$target`. Each anchor is a `(kind, label)` pair where `kind ∈ {"action_class", "state_predicate"}`. A pathway hop is either a norm (action-composition edge) or a `norm_contributes_to_capacity` edge (capacity-sourcing edge, used when an anchor is a state_predicate). `$direction` ∈ {`forward`, `backward`}.
+Bounded-depth reachability. Base case: `$from_state == $to_state`. One-hop: some in-force permission targeting `$to_state`. Deeper recursion deferred.
 
 ### 5.5 `app/data/deontic_validation_functions.tql`
 
 ```
-fun covenant_norm_coverage($pid: string) -> double
+fun norm_has_required_fields($n: norm) -> boolean
+fun norm_has_scope($n: norm) -> boolean
 ```
-Ratio of extracted-facts that project to at least one norm, over total extracted facts. Target ≥ 0.95 on Duck Creek.
+Splitter functions used by the storage gate: `norm_has_required_fields` checks modality + all three source attributes + at least one `norm_binds_subject`; `norm_has_scope` checks at least one `norm_scopes_action` or `norm_scopes_instrument`. `norm_is_structurally_complete` (§5.2) is their conjunction.
 
 ```
-fun segment_expected_norm_count_check($pid: string, $segment_label: string) -> boolean
+fun covenant_missing_expected_norm_kinds($covenant: string, $deal_id: string) -> { modality }
 ```
-True iff the count of norms projected from segment `$segment_label` meets the expected range from `rp_deontic_mappings.tql`.
+PILOT STUB returning empty stream until the `expected_norm_kind` seed lands (Prompt 06). Signature is stable; body will diff against the seed's per-covenant expected set. Return-type stream slot is `modality` (attribute concept) rather than bare `string` to match TypeDB 3.x stream return inference.
 
 ### 5.6 `app/data/deontic_pattern_functions.tql`
 
 ```
-fun has_jcrew_pattern_deontic($pid: string) -> boolean
-fun has_serta_pattern_deontic($pid: string) -> boolean
-fun has_trapdoor_permission_deontic($pid: string) -> boolean
-fun has_collateral_leakage_pattern_deontic($pid: string) -> boolean
+fun has_unlimited_conditional_without_cap($deal_id: string) -> boolean
 ```
-Each replaces a v3 pattern flag with a norm-graph query. Returns true iff the pattern's constitutive norm shape is present (e.g., J.Crew = a transfer_material_intellectual_property permission held by a loan_party whose target is an unrestricted_sub_party with a weak `ip_definition` defeater pattern).
+Detects the trapdoor pattern: a permission whose capacity is `unlimited_on_condition` with no fallback `cap_usd`.
+
+```
+fun has_exception_defeating_critical_prohibition($deal_id: string) -> boolean
+```
+Detects when a critical prohibition (make_dividend_payment or transfer_material_intellectual_property) has an active `defeats` edge.
+
+```
+fun has_undefined_reference_term($deal_id: string) -> boolean
+```
+PILOT STUB returning false until Prompt 07's cross-reference between norm `source_text` and v3's ip/transfer/materiality definitions lands.
+
+Additional detectors (`has_jcrew_pattern_deontic`, `has_serta_pattern_deontic`, `has_collateral_leakage_pattern_deontic`) will be added as their constitutive norm shapes are characterised during projection (Prompt 07).
 
 ---
 

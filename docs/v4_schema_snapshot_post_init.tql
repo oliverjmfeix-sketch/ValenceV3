@@ -1176,6 +1176,14 @@ attribute child_index,
  value integer;
 attribute aggregation_function,
  value string;
+attribute threshold_value_double,
+ value double;
+attribute threshold_value_string,
+ value string;
+attribute operator_comparison,
+ value string;
+attribute reference_predicate_label,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2230,10 +2238,14 @@ entity unrestricted_subsidiary_equity_or_assets,
 entity business_division,
   sub object_class;
 entity state_predicate,
+  owns operator_comparison,
+  owns reference_predicate_label,
   owns source_page,
   owns source_section,
   owns source_text,
   owns state_predicate_label @key,
+  owns threshold_value_double,
+  owns threshold_value_string,
   plays condition_references_predicate:predicate;
 entity condition,
   owns condition_id @key,
@@ -2558,46 +2570,75 @@ relation event_targets_party,
 relation event_targets_instrument,
   relates event,
   relates instrument;
-fun predicate_holds($pred: state_predicate, $world_state_id: string) -> boolean:
+fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;
-        $ev isa event_instance, has event_instance_id $wsid;
-        $wsid == $world_state_id;
         {
             $pl == "no_event_of_default_exists";
             # PILOT STUB: defaults to true until EoD flag lands on event_instance.
         } or {
             $pl == "pro_forma_no_worse";
-            $ev has is_no_worse_pro_forma true;
+            $ws has is_no_worse_pro_forma true;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_5_50";
-            $ev has ratio_snapshot_first_lien_net_leverage $r550;
-            $r550 <= 5.50;
+            $pl == "first_lien_net_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_fl;
+            $ws has ratio_snapshot_first_lien_net_leverage $r_fl;
+            $r_fl <= $thresh_fl;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_5_75";
-            $ev has ratio_snapshot_first_lien_net_leverage $r575;
-            $r575 <= 5.75;
+            $pl == "senior_secured_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_ss;
+            $ws has ratio_snapshot_senior_secured_leverage $r_ss;
+            $r_ss <= $thresh_ss;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_6_25";
-            $ev has ratio_snapshot_first_lien_net_leverage $r625;
-            $r625 <= 6.25;
+            $pl == "total_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_tl;
+            $ws has ratio_snapshot_total_leverage $r_tl;
+            $r_tl <= $thresh_tl;
+        } or {
+            # incurrence_test_satisfied: threshold + reference_predicate_label
+            # tells us which ratio to read. For the RP pilot we treat the
+            # reference as a first-lien ratio check.
+            $pl == "incurrence_test_satisfied";
+            $pred has threshold_value_double $thresh_inc;
+            $ws has ratio_snapshot_first_lien_net_leverage $r_inc;
+            $r_inc <= $thresh_inc;
         };
     return check;
-fun condition_holds($cond: condition, $world_state_id: string) -> boolean:
+fun child_count($cond: condition) -> integer:
+    match
+        (parent: $cond, child: $c) isa condition_has_child;
+    reduce $n = count($c);
+    return first $n;
+fun holding_atomic_child_count($cond: condition, $ws: event_instance) -> integer:
+    match
+        (parent: $cond, child: $c) isa condition_has_child;
+        $c has condition_operator "atomic";
+        (condition: $c, predicate: $pred) isa condition_references_predicate;
+        let $h = predicate_holds($pred, $ws);
+        $h == true;
+    reduce $n = count($c);
+    return first $n;
+fun condition_holds($cond: condition, $ws: event_instance) -> boolean:
     match
         $cond has condition_operator $op;
         {
             $op == "atomic";
-            (condition: $cond, predicate: $pred) isa condition_references_predicate;
-            let $h_atomic = predicate_holds($pred, $world_state_id);
+            (condition: $cond, predicate: $pred_a) isa condition_references_predicate;
+            let $h_atomic = predicate_holds($pred_a, $ws);
             $h_atomic == true;
         } or {
             $op == "or";
-            (parent: $cond, child: $child) isa condition_has_child;
-            $child has condition_operator "atomic";
-            (condition: $child, predicate: $child_pred) isa condition_references_predicate;
-            let $h_or = predicate_holds($child_pred, $world_state_id);
+            (parent: $cond, child: $child_or) isa condition_has_child;
+            $child_or has condition_operator "atomic";
+            (condition: $child_or, predicate: $child_pred) isa condition_references_predicate;
+            let $h_or = predicate_holds($child_pred, $ws);
             $h_or == true;
+        } or {
+            $op == "and";
+            let $total = child_count($cond);
+            let $holding = holding_atomic_child_count($cond, $ws);
+            $total == $holding;
+            $total > 0;
         };
     return check;
 fun norm_is_structurally_complete($n: norm) -> boolean:
@@ -2613,27 +2654,26 @@ fun norm_is_structurally_complete($n: norm) -> boolean:
             (norm: $n, instrument: $instr) isa norm_scopes_instrument;
         };
     return check;
-fun norm_is_defeated($n: norm, $world_state_id: string) -> boolean:
+fun norm_is_defeated($n: norm, $ws: event_instance) -> boolean:
     match
         (defeater: $d, defeated: $n) isa defeats;
         (defeater: $d, root: $cond) isa defeater_has_condition;
-        let $ch = condition_holds($cond, $world_state_id);
+        let $ch = condition_holds($cond, $ws);
         $ch == true;
     return check;
-fun norm_is_in_force($n: norm, $world_state_id: string) -> boolean:
+fun norm_is_in_force($n: norm, $ws: event_instance) -> boolean:
     match
-        let $def = norm_is_defeated($n, $world_state_id);
+        let $def = norm_is_defeated($n, $ws);
         $def == false;
         {
-            # no attached condition — norm applies unconditionally once not defeated
             not { (norm: $n, root: $any_cond) isa norm_has_condition; };
         } or {
             (norm: $n, root: $cond) isa norm_has_condition;
-            let $ch = condition_holds($cond, $world_state_id);
+            let $ch = condition_holds($cond, $ws);
             $ch == true;
         };
     return check;
-fun applicable_permissions($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> { norm }:
+fun applicable_permissions($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> { norm }:
     match
         $n isa norm, has modality $mod;
         $mod == "permission";
@@ -2644,18 +2684,16 @@ fun applicable_permissions($action_label: string, $subject_role: string, $object
         $ac has action_class_label $al;
         $al == $action_label;
         {
-            # norm has an object scope that matches
             (norm: $n, object: $obj) isa norm_scopes_object;
             $obj has object_class_label $ol;
             $ol == $object_label;
         } or {
-            # norm has no object scope — applies to any object
             not { (norm: $n, object: $any_obj) isa norm_scopes_object; };
         };
-        let $inf = norm_is_in_force($n, $world_state_id);
+        let $inf = norm_is_in_force($n, $ws);
         $inf == true;
     return { $n };
-fun applicable_prohibitions($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> { norm }:
+fun applicable_prohibitions($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> { norm }:
     match
         $n isa norm, has modality $mod;
         $mod == "prohibition";
@@ -2672,31 +2710,31 @@ fun applicable_prohibitions($action_label: string, $subject_role: string, $objec
         } or {
             not { (norm: $n, object: $any_obj) isa norm_scopes_object; };
         };
-        let $inf = norm_is_in_force($n, $world_state_id);
+        let $inf = norm_is_in_force($n, $ws);
         $inf == true;
     return { $n };
-fun additive_capacity($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> double:
+fun additive_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> double:
     match
-        let $n in applicable_permissions($action_label, $subject_role, $object_label, $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, $object_label, $ws);
         $n has capacity_composition $cc;
         $cc == "additive";
         $n has cap_usd $c;
     reduce $total = sum($c);
     return first $total;
-fun categorical_capacities($action_label: string, $subject_role: string, $world_state_id: string) -> { norm, cap_usd }:
+fun categorical_capacities($action_label: string, $subject_role: string, $ws: event_instance) -> { norm, cap_usd }:
     match
-        let $n in applicable_permissions($action_label, $subject_role, "", $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, "", $ws);
         $n has capacity_composition $cc;
         $cc == "categorical";
         $n has cap_usd $c;
     return { $n, $c };
-fun has_unlimited_conditional_capacity($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> boolean:
+fun has_unlimited_conditional_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> boolean:
     match
-        let $n in applicable_permissions($action_label, $subject_role, $object_label, $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, $object_label, $ws);
         $n has capacity_composition $cc;
         $cc == "unlimited_on_condition";
     return check;
-fun computed_from_sources_capacity_greatest_of($norm_id: string, $world_state_id: string) -> double:
+fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
@@ -2706,12 +2744,12 @@ fun computed_from_sources_capacity_greatest_of($norm_id: string, $world_state_id
             links (contributor: $contrib, pool: $pool),
             has aggregation_function $agg;
         $agg == "greatest_of";
-        let $inf = norm_is_in_force($contrib, $world_state_id);
+        let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $best = max($c);
     return first $best;
-fun computed_from_sources_capacity_sum($norm_id: string, $world_state_id: string) -> double:
+fun computed_from_sources_capacity_sum($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
@@ -2721,52 +2759,41 @@ fun computed_from_sources_capacity_sum($norm_id: string, $world_state_id: string
             links (contributor: $contrib, pool: $pool),
             has aggregation_function $agg;
         $agg == "sum";
-        let $inf = norm_is_in_force($contrib, $world_state_id);
+        let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $total = sum($c);
     return first $total;
-fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $world_state_id: string) -> double:
+fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $ws: event_instance) -> double:
     match
         $n isa norm, has norm_id $sentinel;
         $sentinel == "__reallocation_stub_sentinel__";
         $n has cap_usd $c;
-        # Parameter-use guards — constraints that never fire against real data
-        # but satisfy "every argument must be referenced":
         $action_stub isa action_class, has action_class_label $al;
         $al == $target_action_label;
         $party_stub isa party, has party_role $pr;
         $pr == $subject_role;
-        $ev_stub isa event_instance, has event_instance_id $evid;
-        $evid == $world_state_id;
+        $ws has event_instance_id $evid;
     reduce $total = sum($c);
     return first $total;
-fun norm_enables_hop($action_label: string, $from_state: string, $to_state: string, $world_state_id: string) -> boolean:
+fun norm_enables_hop($action_label: string, $from_state: string, $to_state: string, $ws: event_instance) -> boolean:
     match
-        let $n in applicable_permissions($action_label, "borrower", $to_state, $world_state_id);
-        # parameter-use guard for $from_state — matches any object_class
-        # labelled with the from-state name; the transition shape is a
-        # future-work refinement.
+        let $n in applicable_permissions($action_label, "borrower", $to_state, $ws);
         $from_obj isa object_class, has object_class_label $fol;
         $fol == $from_state;
     return check;
-fun state_reachable($from_state: string, $to_state: string, $world_state_id: string, $max_hops: integer) -> boolean:
+fun state_reachable($from_state: string, $to_state: string, $ws: event_instance, $max_hops: integer) -> boolean:
     match
         {
-            # base case: already at the target
             $from_state == $to_state;
             $max_hops >= 0;
         } or {
-            # one-hop: some norm directly enables the transition
             $max_hops >= 1;
-            # "any" action can make the hop — we don't yet type action-by-state;
-            # use a catch-all by letting applicable_permissions fire over the
-            # target object. This is the pragmatic pilot approximation.
             $n isa norm, has modality "permission";
             (norm: $n, object: $obj) isa norm_scopes_object;
             $obj has object_class_label $ol;
             $ol == $to_state;
-            let $inf = norm_is_in_force($n, $world_state_id);
+            let $inf = norm_is_in_force($n, $ws);
             $inf == true;
         };
     return check;

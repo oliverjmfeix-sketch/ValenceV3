@@ -5,82 +5,115 @@ define
 #
 # Evaluates predicate trees (condition entity + condition_has_child recursion)
 # against a "world state" — represented here by an event_instance carrying the
-# snapshot attributes (ratio levels, is_no_worse_pro_forma, ...). The
-# $world_state_id parameter resolves to an event_instance_id.
+# snapshot attributes (ratio levels, is_no_worse_pro_forma, ...).
 #
-# ── PILOT LIMITATIONS ────────────────────────────────────────────────────────
-# Both predicate_holds and condition_holds take entity concepts (not ids) as
-# their primary argument — TypeDB 3.x infers `has X $v` variables as attribute
-# concepts and refuses to re-type them as value when passed across function
-# parameters declared `string`. Passing the concept keeps label-extraction
-# inside the callee and sidesteps the conflict.
+# ── SIGNATURES ───────────────────────────────────────────────────────────────
+# Functions take the `state_predicate` / `condition` / `event_instance` concepts
+# directly. Passing via id (`$world_state_id: string`) hits TypeDB 3.x's
+# value/attribute variable-inference boundary when the id is bound through a
+# `has X $v` pattern in the caller. Entity-concept parameters avoid that.
+# Python wrappers (Prompt 10) accept string ids at the API boundary and resolve
+# the concept before calling.
 #
-# condition_holds is currently **depth-bounded**: it supports `atomic` leaves
-# and one-level `or` of atomic children. Depth-arbitrary `and`/`not` would
-# require recursive self-calls through a negation, which TypeDB 3.x
-# (error FUN9) refuses during function-translation. This limitation is fine
-# for the RP pilot: the Duck Creek gold conditions are all either single
-# atomic predicates or a disjunction of atomic predicates (e.g., Q6:
-# "ratio ≤ 5.75 OR no-worse"). Deeper trees will be handled either by
-# flattening at projection time (Prompt 07) or by a non-recursive evaluator
-# added later.
-# ── END PILOT LIMITATIONS ────────────────────────────────────────────────────
+# ── OPERATOR SUPPORT ─────────────────────────────────────────────────────────
+# `condition_holds` supports:
+#   - atomic  (delegates to predicate_holds)
+#   - or      (any atomic-child predicate holds)
+#   - and     (depth-2: total child count == count of children whose atomic
+#              predicate holds; non-recursive, count-based per Approach A probe)
+# `not`, `for_all`, `exists` are not supported in the pilot. `not` is handled
+# architecturally by defining predicates in positive form (e.g.,
+# `no_event_of_default_exists`). Deeper nesting beyond depth-2 AND/OR is handled
+# at projection time by flattening to atomic disjunctions/conjunctions.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # predicate_holds — atomic predicate evaluation.
-# Takes the state_predicate concept; label-extraction happens inside.
-# Labels honored in the RP pilot:
-#   - no_event_of_default_exists   (PILOT STUB: always true — EoD flag not yet
-#                                   modelled on event_instance)
-#   - pro_forma_no_worse           (checks event_instance.is_no_worse_pro_forma)
-#   - first_lien_net_leverage_at_or_below_{5_50,5_75,6_25}
-#     (threshold encoded in the label — Prompt 06 may introduce a cleaner
-#      threshold carrier).
-fun predicate_holds($pred: state_predicate, $world_state_id: string) -> boolean:
+# Labels honored in the RP pilot (clean — thresholds read from instance attrs):
+#   - no_event_of_default_exists             (PILOT STUB: true)
+#   - pro_forma_no_worse                     (event_instance.is_no_worse_pro_forma)
+#   - first_lien_net_leverage_at_or_below    (threshold_value_double vs ratio snapshot)
+#   - senior_secured_leverage_at_or_below    (same)
+#   - total_leverage_at_or_below             (same)
+#   - incurrence_test_satisfied              (threshold_value_double vs ratio snapshot,
+#                                             reference_predicate_label picks which ratio)
+fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;
-        $ev isa event_instance, has event_instance_id $wsid;
-        $wsid == $world_state_id;
         {
             $pl == "no_event_of_default_exists";
             # PILOT STUB: defaults to true until EoD flag lands on event_instance.
         } or {
             $pl == "pro_forma_no_worse";
-            $ev has is_no_worse_pro_forma true;
+            $ws has is_no_worse_pro_forma true;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_5_50";
-            $ev has ratio_snapshot_first_lien_net_leverage $r550;
-            $r550 <= 5.50;
+            $pl == "first_lien_net_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_fl;
+            $ws has ratio_snapshot_first_lien_net_leverage $r_fl;
+            $r_fl <= $thresh_fl;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_5_75";
-            $ev has ratio_snapshot_first_lien_net_leverage $r575;
-            $r575 <= 5.75;
+            $pl == "senior_secured_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_ss;
+            $ws has ratio_snapshot_senior_secured_leverage $r_ss;
+            $r_ss <= $thresh_ss;
         } or {
-            $pl == "first_lien_net_leverage_at_or_below_6_25";
-            $ev has ratio_snapshot_first_lien_net_leverage $r625;
-            $r625 <= 6.25;
+            $pl == "total_leverage_at_or_below";
+            $pred has threshold_value_double $thresh_tl;
+            $ws has ratio_snapshot_total_leverage $r_tl;
+            $r_tl <= $thresh_tl;
+        } or {
+            # incurrence_test_satisfied: threshold + reference_predicate_label
+            # tells us which ratio to read. For the RP pilot we treat the
+            # reference as a first-lien ratio check.
+            $pl == "incurrence_test_satisfied";
+            $pred has threshold_value_double $thresh_inc;
+            $ws has ratio_snapshot_first_lien_net_leverage $r_inc;
+            $r_inc <= $thresh_inc;
         };
     return check;
 
+# child_count — total number of children under $cond.
+fun child_count($cond: condition) -> integer:
+    match
+        (parent: $cond, child: $c) isa condition_has_child;
+    reduce $n = count($c);
+    return first $n;
+
+# holding_atomic_child_count — number of atomic children of $cond whose
+# referenced predicate holds in $ws. Used by the AND branch of condition_holds.
+fun holding_atomic_child_count($cond: condition, $ws: event_instance) -> integer:
+    match
+        (parent: $cond, child: $c) isa condition_has_child;
+        $c has condition_operator "atomic";
+        (condition: $c, predicate: $pred) isa condition_references_predicate;
+        let $h = predicate_holds($pred, $ws);
+        $h == true;
+    reduce $n = count($c);
+    return first $n;
+
 # condition_holds — depth-bounded predicate-tree evaluation.
-# Handles:
-#   - atomic (delegates to predicate_holds)
-#   - or of atomic children (Q6-style disjunctions)
-# AND/NOT are TODO (see pilot-limitations note above).
-fun condition_holds($cond: condition, $world_state_id: string) -> boolean:
+# atomic: delegates to predicate_holds.
+# or:     any atomic child's predicate holds.
+# and:    total children == holding atomic children (Approach A from probe).
+fun condition_holds($cond: condition, $ws: event_instance) -> boolean:
     match
         $cond has condition_operator $op;
         {
             $op == "atomic";
-            (condition: $cond, predicate: $pred) isa condition_references_predicate;
-            let $h_atomic = predicate_holds($pred, $world_state_id);
+            (condition: $cond, predicate: $pred_a) isa condition_references_predicate;
+            let $h_atomic = predicate_holds($pred_a, $ws);
             $h_atomic == true;
         } or {
             $op == "or";
-            (parent: $cond, child: $child) isa condition_has_child;
-            $child has condition_operator "atomic";
-            (condition: $child, predicate: $child_pred) isa condition_references_predicate;
-            let $h_or = predicate_holds($child_pred, $world_state_id);
+            (parent: $cond, child: $child_or) isa condition_has_child;
+            $child_or has condition_operator "atomic";
+            (condition: $child_or, predicate: $child_pred) isa condition_references_predicate;
+            let $h_or = predicate_holds($child_pred, $ws);
             $h_or == true;
+        } or {
+            $op == "and";
+            let $total = child_count($cond);
+            let $holding = holding_atomic_child_count($cond, $ws);
+            $total == $holding;
+            $total > 0;
         };
     return check;

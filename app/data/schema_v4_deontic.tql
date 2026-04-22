@@ -60,6 +60,14 @@ attribute child_index, value integer;
 # capacity contribution metadata — attribute on norm_contributes_to_capacity relation
 attribute aggregation_function, value string;  # greatest_of|sum|min|max
 
+# state_predicate instance metadata — thresholds are per-instance, not per-label.
+# A predicate like "first_lien_net_leverage_at_or_below" may have different
+# threshold_value_double values across deals (5.50 here, 6.25 there).
+attribute threshold_value_double, value double;
+attribute threshold_value_string, value string;
+attribute operator_comparison, value string;      # at_or_below|at_or_above|equals|less_than|greater_than
+attribute reference_predicate_label, value string;
+
 
 # ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
 
@@ -122,6 +130,10 @@ entity business_division sub object_class;
 
 entity state_predicate,
     owns state_predicate_label @key,
+    owns threshold_value_double,
+    owns threshold_value_string,
+    owns operator_comparison,
+    owns reference_predicate_label,
     owns source_text,
     owns source_section,
     owns source_page;

@@ -7,52 +7,49 @@ define
 # amount for an action/subject/object tuple. Dispatch on capacity_composition
 # attribute of each applicable permission (§4.1 enum).
 #
+# Signatures use `$ws: event_instance` for world state, consistent with the
+# rest of the function library.
+#
 # reallocated_capacity_to requires v3 `basket_reallocates_to` edges bridging
-# into the v4 norm layer; the pilot stub below returns 0 until Prompt 07
-# wires projection onto those edges.
+# into the v4 norm layer; the pilot stub returns 0 until Prompt 07 wires
+# projection onto those edges.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# additive_capacity — sum of cap_usd across all applicable permissions with
-# capacity_composition "additive".
-fun additive_capacity($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> double:
+# additive_capacity — sum of cap_usd across applicable permissions whose
+# capacity_composition is "additive".
+fun additive_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> double:
     match
-        let $n in applicable_permissions($action_label, $subject_role, $object_label, $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, $object_label, $ws);
         $n has capacity_composition $cc;
         $cc == "additive";
         $n has cap_usd $c;
     reduce $total = sum($c);
     return first $total;
 
-# categorical_capacities — stream of (norm, cap_usd) for categorical
-# permissions (per-category caps that do not sum). Object scope ignored
-# ("" as a pass-any sentinel — matches applicable_permissions fallback
-# branch when no norm has an object edge).
-# Return type's second slot uses the attribute concept `cap_usd` directly
-# (not `double`) — TypeDB 3.x infers `has X $v` variables as attribute
-# concepts, and the streaming return must match the inferred type.
-fun categorical_capacities($action_label: string, $subject_role: string, $world_state_id: string) -> { norm, cap_usd }:
+# categorical_capacities — stream of (norm, cap_usd) for categorical permissions.
+# Return type's second slot is `cap_usd` (attribute) not `double` — TypeDB 3.x
+# infers `has X $v` as attribute concept; the stream return must agree.
+fun categorical_capacities($action_label: string, $subject_role: string, $ws: event_instance) -> { norm, cap_usd }:
     match
-        let $n in applicable_permissions($action_label, $subject_role, "", $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, "", $ws);
         $n has capacity_composition $cc;
         $cc == "categorical";
         $n has cap_usd $c;
     return { $n, $c };
 
-# has_unlimited_conditional_capacity — true iff any applicable permission is
-# capacity_composition "unlimited_on_condition". The norm's condition is
-# already required to hold by applicable_permissions -> norm_is_in_force.
-fun has_unlimited_conditional_capacity($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> boolean:
+# has_unlimited_conditional_capacity — true iff any applicable permission has
+# capacity_composition "unlimited_on_condition". (applicable_permissions
+# already enforces that the norm's own condition holds.)
+fun has_unlimited_conditional_capacity($action_label: string, $subject_role: string, $object_label: string, $ws: event_instance) -> boolean:
     match
-        let $n in applicable_permissions($action_label, $subject_role, $object_label, $world_state_id);
+        let $n in applicable_permissions($action_label, $subject_role, $object_label, $ws);
         $n has capacity_composition $cc;
         $cc == "unlimited_on_condition";
     return check;
 
-# computed_from_sources_capacity — applies a norm's aggregation_function
-# across its source norms via norm_contributes_to_capacity. PILOT: implements
-# greatest_of only (the builder-basket case). Sum/min/max variants live as
-# sibling functions below when needed.
-fun computed_from_sources_capacity_greatest_of($norm_id: string, $world_state_id: string) -> double:
+# computed_from_sources_capacity_greatest_of — max across contributing source
+# norms. Pilot: implements greatest_of (builder-basket case). Sum sibling below.
+fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
@@ -62,16 +59,14 @@ fun computed_from_sources_capacity_greatest_of($norm_id: string, $world_state_id
             links (contributor: $contrib, pool: $pool),
             has aggregation_function $agg;
         $agg == "greatest_of";
-        let $inf = norm_is_in_force($contrib, $world_state_id);
+        let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $best = max($c);
     return first $best;
 
-# computed_from_sources_capacity_sum — same as above but aggregation_function
-# "sum". Callers dispatch by reading the pool norm's stored aggregation_function
-# attribute.
-fun computed_from_sources_capacity_sum($norm_id: string, $world_state_id: string) -> double:
+# computed_from_sources_capacity_sum — sum across contributing source norms.
+fun computed_from_sources_capacity_sum($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
@@ -81,30 +76,24 @@ fun computed_from_sources_capacity_sum($norm_id: string, $world_state_id: string
             links (contributor: $contrib, pool: $pool),
             has aggregation_function $agg;
         $agg == "sum";
-        let $inf = norm_is_in_force($contrib, $world_state_id);
+        let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $total = sum($c);
     return first $total;
 
-# reallocated_capacity_to — sum of cap_usd for norms that scope
-# $target_action_label and share capacity with an RP basket via v3's
-# basket_reallocates_to. PILOT STUB: returns 0 until Prompt 07 projects the
-# v3 reallocation edges into norm-level links. Keeping the signature in
-# place so the renderer contract is stable. All three parameters are
-# referenced in the stub body (TypeDB 3.x rejects unused function arguments).
-fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $world_state_id: string) -> double:
+# reallocated_capacity_to — PILOT STUB returning 0. Parameter-use guards
+# reference all three args (TypeDB 3.x rejects unused arguments). Replace
+# when Prompt 07 projects v3 basket_reallocates_to into norm_contributes_to_capacity.
+fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $ws: event_instance) -> double:
     match
         $n isa norm, has norm_id $sentinel;
         $sentinel == "__reallocation_stub_sentinel__";
         $n has cap_usd $c;
-        # Parameter-use guards — constraints that never fire against real data
-        # but satisfy "every argument must be referenced":
         $action_stub isa action_class, has action_class_label $al;
         $al == $target_action_label;
         $party_stub isa party, has party_role $pr;
         $pr == $subject_role;
-        $ev_stub isa event_instance, has event_instance_id $evid;
-        $evid == $world_state_id;
+        $ws has event_instance_id $evid;
     reduce $total = sum($c);
     return first $total;
