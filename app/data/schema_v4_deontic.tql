@@ -1,0 +1,322 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Deontic Schema Overlay
+#
+# Purpose: adds the deontic layer (party, action_class, object_class,
+# state_predicate, condition, norm, defeater, event_instance, violation_consequent)
+# on top of v3's schema_unified.tql.
+#
+# Load order: schema_unified.tql MUST be loaded first. This file extends v3's
+# entity graph with:
+#   - The eight deontic primitives (per architecture doc §3)
+#   - Role aliases that let v3 extracted entities play `fact` in norm_extracted_from
+#
+# TypeDB 3.x syntax throughout. No `rule` keyword (functions live in
+# deontic_*_functions.tql — Prompt 04+).
+#
+# Reference: docs/v4_deontic_architecture.md §4 is the authoritative spec.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+define
+
+# ─── §4.1 Attribute definitions ─────────────────────────────────────────────────
+
+# identifiers
+attribute norm_id, value string;
+attribute party_id, value string;
+attribute condition_id, value string;
+attribute event_instance_id, value string;
+
+# modality + classification closed taxonomies (values enforced at projection)
+attribute modality, value string;              # permission|prohibition|obligation|power|immunity|exception
+attribute capacity_composition, value string;  # additive|fungible|shared_pool|categorical|computed_from_sources|unlimited_on_condition|n_a
+attribute action_scope, value string;          # specific|general|reallocable
+attribute condition_operator, value string;    # atomic|and|or|not|for_all|exists
+attribute defeater_type, value string;         # exception|lex_specialis|lex_posterior|higher_consent
+attribute party_role, value string;            # borrower|loan_party|restricted_sub|unrestricted_sub|holdings|agent|required_lenders
+
+# action + object class labels (closed taxonomies — concrete-type instances hold the label)
+attribute action_class_label, value string;
+attribute object_class_label, value string;
+attribute instrument_class_label, value string;
+attribute state_predicate_label, value string;
+
+# norm scalars
+attribute cap_usd, value double;
+attribute cap_grower_pct, value double;
+# attribute cap_uses_greater_of — already declared in schema_unified.tql
+attribute computed_from_sources, value boolean;
+
+# event snapshots
+attribute ratio_snapshot_first_lien_net_leverage, value double;
+attribute ratio_snapshot_senior_secured_leverage, value double;
+attribute ratio_snapshot_total_leverage, value double;
+attribute is_no_worse_pro_forma, value boolean;
+attribute is_hypothetical, value boolean;
+attribute proposed_amount_usd, value double;
+
+# condition/contribution metadata
+attribute child_index, value integer;
+
+# capacity contribution metadata — attribute on norm_contributes_to_capacity relation
+attribute aggregation_function, value string;  # greatest_of|sum|min|max
+
+
+# ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
+
+entity party @abstract,
+    owns party_id @key,
+    owns party_role;
+
+entity borrower_party sub party;
+entity loan_party sub party;
+entity restricted_sub_party sub party;
+entity unrestricted_sub_party sub party;
+entity holdings_party sub party;
+entity agent_party sub party;
+entity required_lenders_party sub party;
+
+
+# ─── §4.3 Action class hierarchy ────────────────────────────────────────────────
+
+entity action_class @abstract,
+    owns action_class_label @key;
+
+entity make_restricted_payment sub action_class;
+entity make_restricted_payment @abstract;  # abstract annotation applied post-declaration (TypeDB 3.x: annotations cannot combine with `sub`)
+entity make_dividend_payment sub make_restricted_payment;
+entity repurchase_equity sub make_restricted_payment;
+entity make_tax_distribution sub make_restricted_payment;
+entity pay_holdco_overhead sub make_restricted_payment;
+
+entity pay_subordinated_debt sub action_class;
+entity make_investment sub action_class;
+entity designate_unrestricted_subsidiary sub action_class;
+entity make_intercompany_payment sub action_class;
+entity transfer_material_intellectual_property sub action_class;
+
+
+# ─── §4.4 Object class hierarchy (RP-relevant subset) ───────────────────────────
+
+entity object_class @abstract,
+    owns object_class_label @key;
+
+# financial instruments — abstract sub-hierarchy under object_class
+entity instrument_class sub object_class,
+    owns instrument_class_label;
+entity instrument_class @abstract;  # abstract annotation applied post-declaration
+
+entity equity_interest sub instrument_class;
+entity holdco_equity sub equity_interest;
+entity restricted_sub_equity sub equity_interest;
+entity unrestricted_sub_equity sub equity_interest;
+entity subordinated_debt_instrument sub instrument_class;
+entity material_intellectual_property sub instrument_class;
+
+# non-instrument objects
+entity cash sub object_class;
+entity unrestricted_subsidiary_equity_or_assets sub object_class;
+entity business_division sub object_class;
+
+
+# ─── §4.5 State predicate ───────────────────────────────────────────────────────
+
+entity state_predicate,
+    owns state_predicate_label @key,
+    owns source_text,
+    owns source_section,
+    owns source_page;
+
+
+# ─── §4.6 Condition entity and recursive tree relation ──────────────────────────
+
+entity condition,
+    owns condition_id @key,
+    owns condition_operator;
+
+relation condition_references_predicate,
+    relates condition,
+    relates predicate;
+condition plays condition_references_predicate:condition;
+state_predicate plays condition_references_predicate:predicate;
+
+relation condition_has_child,
+    relates parent,
+    relates child,
+    owns child_index;
+condition plays condition_has_child:parent;
+condition plays condition_has_child:child;
+
+
+# ─── §4.7 Norm entity and its relations ─────────────────────────────────────────
+
+entity norm,
+    owns norm_id @key,
+    owns modality,
+    owns capacity_composition,
+    owns action_scope,
+    owns cap_usd,
+    owns cap_grower_pct,
+    owns cap_uses_greater_of,
+    owns computed_from_sources,
+    owns source_text,
+    owns source_section,
+    owns source_page,
+    owns confidence;
+
+relation norm_binds_subject,
+    relates norm,
+    relates subject;
+norm plays norm_binds_subject:norm;
+party plays norm_binds_subject:subject;
+
+relation norm_held_by,
+    relates norm,
+    relates beneficiary;
+norm plays norm_held_by:norm;
+party plays norm_held_by:beneficiary;
+
+relation norm_scopes_action,
+    relates norm,
+    relates action;
+norm plays norm_scopes_action:norm;
+action_class plays norm_scopes_action:action;
+
+relation norm_scopes_instrument,
+    relates norm,
+    relates instrument;
+norm plays norm_scopes_instrument:norm;
+instrument_class plays norm_scopes_instrument:instrument;
+
+relation norm_scopes_object,
+    relates norm,
+    relates object;
+norm plays norm_scopes_object:norm;
+object_class plays norm_scopes_object:object;
+
+relation norm_has_condition,
+    relates norm,
+    relates root;
+norm plays norm_has_condition:norm;
+condition plays norm_has_condition:root;
+
+# violation consequent — Anderson reduction
+entity violation_consequent,
+    owns source_text,
+    owns source_section,
+    owns source_page;
+
+relation norm_has_violation_consequent,
+    relates norm,
+    relates consequent;
+norm plays norm_has_violation_consequent:norm;
+violation_consequent plays norm_has_violation_consequent:consequent;
+
+# provenance anchor — norm to the extracted fact(s) that justify it (Rule 3.2)
+relation norm_extracted_from,
+    relates norm,
+    relates fact;
+norm plays norm_extracted_from:norm;
+# Role aliases for extractable v3 entities declared at §4.10 below.
+
+# capacity contribution — for additive/computed_from_sources composition
+relation norm_contributes_to_capacity,
+    relates contributor,
+    relates pool,
+    owns child_index,
+    owns aggregation_function;
+norm plays norm_contributes_to_capacity:contributor;
+norm plays norm_contributes_to_capacity:pool;
+
+
+# ─── §4.8 Defeater and the defeats edge ─────────────────────────────────────────
+
+entity defeater,
+    owns defeater_type,
+    owns source_text,
+    owns source_section,
+    owns source_page;
+
+relation defeater_has_condition,
+    relates defeater,
+    relates root;
+defeater plays defeater_has_condition:defeater;
+condition plays defeater_has_condition:root;
+
+relation defeats,
+    relates defeater,
+    relates defeated;
+defeater plays defeats:defeater;
+norm plays defeats:defeated;
+
+
+# ─── §4.9 Event instance entity and evaluation relations ────────────────────────
+
+entity event_instance,
+    owns event_instance_id @key,
+    owns action_class_label,
+    owns proposed_amount_usd,
+    owns is_hypothetical,
+    owns ratio_snapshot_first_lien_net_leverage,
+    owns ratio_snapshot_senior_secured_leverage,
+    owns ratio_snapshot_total_leverage,
+    owns is_no_worse_pro_forma;
+
+relation event_targets_party,
+    relates event,
+    relates target;
+event_instance plays event_targets_party:event;
+party plays event_targets_party:target;
+
+relation event_targets_instrument,
+    relates event,
+    relates instrument;
+event_instance plays event_targets_instrument:event;
+instrument_class plays event_targets_instrument:instrument;
+
+
+# ─── §4.10 Role aliases for v3 extracted entities (play `fact` in norm_extracted_from) ───
+#
+# Each v3 extractable entity that projects to a norm must declare it plays
+# `fact` so norm_extracted_from can anchor to the extracted evidence.
+# Maintained by hand — explicitness is the SSoT (Rule 1.1). Adding a new
+# extractable entity type in later covenant work requires adding a line here.
+
+# RP basket family (concrete subtypes of rp_basket)
+builder_basket plays norm_extracted_from:fact;
+ratio_basket plays norm_extracted_from:fact;
+general_rp_basket plays norm_extracted_from:fact;
+management_equity_basket plays norm_extracted_from:fact;
+tax_distribution_basket plays norm_extracted_from:fact;
+holdco_overhead_basket plays norm_extracted_from:fact;
+equity_award_basket plays norm_extracted_from:fact;
+unsub_distribution_basket plays norm_extracted_from:fact;
+general_investment_basket plays norm_extracted_from:fact;
+
+# RDP basket family
+refinancing_rdp_basket plays norm_extracted_from:fact;
+general_rdp_basket plays norm_extracted_from:fact;
+ratio_rdp_basket plays norm_extracted_from:fact;
+builder_rdp_basket plays norm_extracted_from:fact;
+equity_funded_rdp_basket plays norm_extracted_from:fact;
+
+# J.Crew blocker + pathways + reallocations
+jcrew_blocker plays norm_extracted_from:fact;
+investment_pathway plays norm_extracted_from:fact;
+basket_reallocates_to plays norm_extracted_from:fact;
+
+# Asset-sale mechanics (Q4 feed into builder)
+asset_sale_sweep plays norm_extracted_from:fact;
+sweep_tier plays norm_extracted_from:fact;
+
+# Unrestricted sub mechanics (Q2)
+unsub_designation plays norm_extracted_from:fact;
+
+# Definitional entities (renderer + blocker-scope questions)
+ip_definition plays norm_extracted_from:fact;
+transfer_definition plays norm_extracted_from:fact;
+materiality_definition plays norm_extracted_from:fact;
+
+# Cross-covenant / permission entities
+intercompany_dividend_permission plays norm_extracted_from:fact;
+lien_release_mechanics plays norm_extracted_from:fact;
+amendment_threshold plays norm_extracted_from:fact;

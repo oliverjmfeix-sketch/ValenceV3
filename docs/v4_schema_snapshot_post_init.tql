@@ -1,0 +1,2560 @@
+define
+
+attribute deal_id,
+ value string;
+attribute provision_id,
+ value string;
+attribute question_id,
+ value string;
+attribute concept_id,
+ value string;
+attribute category_id,
+ value string;
+attribute answer_id,
+ value string;
+attribute basket_id,
+ value string;
+attribute source_id,
+ value string;
+attribute tier_id,
+ value string;
+attribute blocker_id,
+ value string;
+attribute exception_id,
+ value string;
+attribute threshold_id,
+ value string;
+attribute designation_id,
+ value string;
+attribute reallocation_id,
+ value string;
+attribute pathway_id,
+ value string;
+attribute qualification_id,
+ value string;
+attribute citation_id,
+ value string;
+attribute name,
+ value string;
+attribute display_name,
+ value string;
+attribute description,
+ value string;
+attribute display_order,
+ value integer;
+attribute created_at,
+ value datetime;
+attribute updated_at,
+ value datetime;
+attribute extracted_at,
+ value datetime;
+attribute source_text,
+ value string;
+attribute source_page,
+ value integer;
+attribute source_section,
+ value string;
+attribute section_reference,
+ value string;
+attribute confidence,
+ value string;
+attribute analysis_category,
+ value string;
+attribute analysis_detail,
+ value string;
+attribute analysis_value,
+ value string;
+attribute analysis_flag,
+ value boolean;
+attribute question_text,
+ value string;
+attribute question_number,
+ value integer;
+attribute answer_type,
+ value string;
+attribute ui_display_type,
+ value string;
+attribute is_required,
+ value boolean;
+attribute default_value,
+ value string;
+attribute covenant_type,
+ value string;
+attribute extraction_prompt,
+ value string;
+attribute storage_value_type,
+ value string;
+attribute target_field_name,
+ value string;
+attribute target_entity_type,
+ value string;
+attribute target_concept_type,
+ value string;
+attribute target_relation_type,
+ value string;
+attribute target_attribute_name,
+ value string;
+attribute segment_type_id,
+ value string;
+attribute find_description,
+ value string;
+attribute rp_universe_field,
+ value string;
+attribute deal_name,
+ value string;
+attribute borrower_name,
+ value string;
+attribute deal_date,
+ value date;
+attribute deal_amount,
+ value double;
+attribute deal_currency,
+ value string;
+attribute deal_type,
+ value string;
+attribute facility_type,
+ value string;
+attribute document_url,
+ value string;
+attribute document_hash,
+ value string;
+attribute page_count,
+ value integer;
+attribute answer_boolean,
+ value boolean;
+attribute answer_integer,
+ value integer;
+attribute answer_double,
+ value double;
+attribute answer_string,
+ value string;
+attribute answer_date,
+ value date;
+attribute applicability_status,
+ value string;
+attribute attributed_field_name,
+ value string;
+attribute benchmark_value_double,
+ value double;
+attribute benchmark_value_boolean_pct,
+ value double;
+attribute sample_size,
+ value integer;
+attribute as_of_date,
+ value date;
+attribute qualification_type,
+ value string;
+attribute cross_reference_type,
+ value string;
+attribute cross_reference_explanation,
+ value string;
+attribute citation_context,
+ value string;
+attribute jcrew_pattern_detected,
+ value boolean;
+attribute serta_pattern_detected,
+ value boolean;
+attribute collateral_leakage_pattern_detected,
+ value boolean;
+attribute yield_exclusion_pattern_detected,
+ value boolean;
+attribute reclassification_loophole_detected,
+ value boolean;
+attribute bridge_to_term_loophole_detected,
+ value boolean;
+attribute leverage_threshold,
+ value double;
+attribute sweep_percentage,
+ value double;
+attribute is_highest_tier,
+ value boolean;
+attribute start_date_language,
+ value string;
+attribute uses_greatest_of_tests,
+ value boolean;
+attribute dollar_amount,
+ value double;
+attribute ebitda_percentage,
+ value double;
+attribute uses_greater_of,
+ value boolean;
+attribute percentage,
+ value double;
+attribute is_primary_test,
+ value boolean;
+attribute retained_ecf_formula,
+ value string;
+attribute lookback_period,
+ value string;
+attribute lookback_quarters,
+ value integer;
+attribute fc_multiplier,
+ value double;
+attribute not_otherwise_applied,
+ value boolean;
+attribute excludes_cure_contributions,
+ value boolean;
+attribute excludes_disqualified_stock,
+ value boolean;
+attribute ratio_threshold,
+ value double;
+attribute ratio_type,
+ value string;
+attribute is_unlimited_if_met,
+ value boolean;
+attribute has_no_worse_test,
+ value boolean;
+attribute no_worse_threshold,
+ value double;
+attribute no_worse_is_uncapped,
+ value boolean;
+attribute test_date_type,
+ value string;
+attribute lct_treatment_available,
+ value boolean;
+attribute pro_forma_basis,
+ value boolean;
+attribute basket_amount_usd,
+ value double;
+attribute basket_grower_pct,
+ value double;
+attribute is_per_annum,
+ value boolean;
+attribute default_condition,
+ value string;
+attribute annual_cap_usd,
+ value double;
+attribute annual_cap_pct_ebitda,
+ value double;
+attribute cap_uses_greater_of,
+ value boolean;
+attribute carryforward_permitted,
+ value boolean;
+attribute carryforward_max_years,
+ value integer;
+attribute eligible_person_scope,
+ value string;
+attribute standalone_taxpayer_limit,
+ value boolean;
+attribute hypothetical_tax_rate,
+ value double;
+attribute tax_sharing_permitted,
+ value boolean;
+attribute estimated_taxes_permitted,
+ value boolean;
+attribute covers_management_fees,
+ value boolean;
+attribute covers_admin_expenses,
+ value boolean;
+attribute covers_franchise_taxes,
+ value boolean;
+attribute management_fee_recipient_scope,
+ value string;
+attribute requires_arms_length,
+ value boolean;
+attribute covers_cashless_exercise,
+ value boolean;
+attribute covers_tax_withholding,
+ value boolean;
+attribute covers_transfer,
+ value boolean;
+attribute covers_designation,
+ value boolean;
+attribute covers_ip,
+ value boolean;
+attribute covers_material_assets,
+ value boolean;
+attribute covers_exclusive_licensing,
+ value boolean;
+attribute covers_nonexclusive_licensing,
+ value boolean;
+attribute covers_pledge,
+ value boolean;
+attribute covers_abandonment,
+ value boolean;
+attribute binds_loan_parties,
+ value boolean;
+attribute binds_restricted_subs,
+ value boolean;
+attribute is_sacred_right,
+ value boolean;
+attribute coverage_scope,
+ value string;
+attribute scope_limitation,
+ value string;
+attribute requires_no_default,
+ value boolean;
+attribute requires_board_approval,
+ value boolean;
+attribute dollar_cap_usd,
+ value double;
+attribute pct_cap_assets,
+ value double;
+attribute redesignation_permitted,
+ value boolean;
+attribute covers_equity_interests,
+ value boolean;
+attribute covers_indebtedness,
+ value boolean;
+attribute covers_assets,
+ value boolean;
+attribute covers_proceeds,
+ value boolean;
+attribute is_categorical,
+ value boolean;
+attribute requires_valid_designation,
+ value boolean;
+attribute sweep_section_reference,
+ value string;
+attribute has_ratio_disposition_basket,
+ value boolean;
+attribute ratio_disposition_threshold,
+ value double;
+attribute sweep_id,
+ value string;
+attribute individual_de_minimis_usd,
+ value double;
+attribute individual_de_minimis_pct,
+ value double;
+attribute individual_uses_greater_of,
+ value boolean;
+attribute annual_de_minimis_usd,
+ value double;
+attribute annual_de_minimis_pct,
+ value double;
+attribute annual_uses_greater_of,
+ value boolean;
+attribute annual_permits_carryforward,
+ value boolean;
+attribute exempt_non_collateral,
+ value boolean;
+attribute exempt_ordinary_course,
+ value boolean;
+attribute exempt_casualty,
+ value boolean;
+attribute exempt_below_threshold,
+ value boolean;
+attribute exempt_ratio_basket,
+ value boolean;
+attribute has_starter_amount_source,
+ value boolean;
+attribute has_cni_source,
+ value boolean;
+attribute has_ecf_source,
+ value boolean;
+attribute has_ebitda_fc_source,
+ value boolean;
+attribute has_equity_proceeds_source,
+ value boolean;
+attribute has_asset_proceeds_source,
+ value boolean;
+attribute has_investment_returns_source,
+ value boolean;
+attribute has_debt_conversion_source,
+ value boolean;
+attribute starter_dollar_amount,
+ value double;
+attribute starter_ebitda_pct,
+ value double;
+attribute starter_uses_greater_of,
+ value boolean;
+attribute cni_percentage,
+ value double;
+attribute cni_is_primary_test,
+ value boolean;
+attribute ecf_retained_formula,
+ value string;
+attribute ecf_lookback_quarters,
+ value integer;
+attribute ebitda_fc_multiplier,
+ value double;
+attribute equity_proceeds_pct,
+ value double;
+attribute equity_excludes_cure,
+ value boolean;
+attribute equity_excludes_disqualified,
+ value boolean;
+attribute asset_proceeds_pct,
+ value double;
+attribute asset_proceeds_sweep_section,
+ value string;
+attribute asset_proceeds_ratio_disposition,
+ value boolean;
+attribute asset_proceeds_ratio_threshold,
+ value double;
+attribute required_lenders_pct,
+ value double;
+attribute has_sacred_rights,
+ value boolean;
+attribute reallocation_source,
+ value string;
+attribute reallocation_amount_usd,
+ value double;
+attribute is_bidirectional,
+ value boolean;
+attribute reduces_source_basket,
+ value boolean;
+attribute reduction_is_dollar_for_dollar,
+ value boolean;
+attribute reduction_while_outstanding_only,
+ value boolean;
+attribute reallocation_grower_pct,
+ value double;
+attribute basket_type_name,
+ value string;
+attribute provision_type_name,
+ value string;
+attribute mapping_id,
+ value string;
+attribute capacity_category,
+ value string;
+attribute capacity_effect,
+ value string;
+attribute pathway_source_type,
+ value string;
+attribute pathway_target_type,
+ value string;
+attribute cap_dollar_usd,
+ value double;
+attribute cap_pct_total_assets,
+ value double;
+attribute is_uncapped,
+ value boolean;
+attribute can_stack_with_other_baskets,
+ value boolean;
+attribute requires_same_or_lower_priority,
+ value boolean;
+attribute requires_same_or_later_maturity,
+ value boolean;
+attribute requires_no_increase_in_principal,
+ value boolean;
+attribute permits_refinancing_with_equity,
+ value boolean;
+attribute subject_to_intercreditor,
+ value boolean;
+attribute shares_with_rp_builder,
+ value boolean;
+attribute uses_closing_ratio_alternative,
+ value boolean;
+attribute requires_qualified_stock_only,
+ value boolean;
+attribute requires_cash_common_equity,
+ value boolean;
+attribute oid_amortization_method,
+ value string;
+attribute oid_amortization_years,
+ value integer;
+attribute sunset_exists,
+ value boolean;
+attribute sunset_period_months,
+ value integer;
+attribute sunset_tied_to_maturity,
+ value boolean;
+attribute sunset_resets_on_refi,
+ value boolean;
+attribute sunset_timing_loophole,
+ value boolean;
+attribute restricts_borrower,
+ value boolean;
+attribute restricts_guarantors,
+ value boolean;
+attribute restricts_restricted_subs,
+ value boolean;
+attribute restricts_holdings,
+ value boolean;
+attribute includes_cash_dividends,
+ value boolean;
+attribute includes_share_buybacks,
+ value boolean;
+attribute includes_distributions,
+ value boolean;
+attribute includes_debt_prepayments,
+ value boolean;
+attribute includes_investments,
+ value boolean;
+attribute includes_guarantees,
+ value boolean;
+attribute rdp_includes_voluntary_payments,
+ value boolean;
+attribute rdp_includes_optional_payments,
+ value boolean;
+attribute rdp_includes_prepayments,
+ value boolean;
+attribute rdp_includes_redemptions,
+ value boolean;
+attribute rdp_includes_defeasance,
+ value boolean;
+attribute rdp_includes_open_market_purchases,
+ value boolean;
+attribute covers_employees,
+ value boolean;
+attribute covers_officers,
+ value boolean;
+attribute covers_directors,
+ value boolean;
+attribute covers_consultants,
+ value boolean;
+attribute covers_estates,
+ value boolean;
+attribute covers_sponsor_employees,
+ value boolean;
+attribute trigger_death,
+ value boolean;
+attribute trigger_disability,
+ value boolean;
+attribute trigger_termination,
+ value boolean;
+attribute trigger_retirement,
+ value boolean;
+attribute trigger_change_of_control,
+ value boolean;
+attribute covers_consolidated_group,
+ value boolean;
+attribute covers_combined_group,
+ value boolean;
+attribute covers_similar_groups,
+ value boolean;
+attribute covers_disregarded_entities,
+ value boolean;
+attribute covers_net_settlement,
+ value boolean;
+attribute covers_clawback,
+ value boolean;
+attribute covers_forfeiture,
+ value boolean;
+attribute covers_insurance_premiums,
+ value boolean;
+attribute covers_director_fees,
+ value boolean;
+attribute covers_audit_fees,
+ value boolean;
+attribute covers_legal_fees,
+ value boolean;
+attribute covers_patents,
+ value boolean;
+attribute covers_trademarks,
+ value boolean;
+attribute covers_copyrights,
+ value boolean;
+attribute covers_trade_secrets,
+ value boolean;
+attribute covers_software,
+ value boolean;
+attribute covers_domain_names,
+ value boolean;
+attribute covers_know_how,
+ value boolean;
+attribute covers_customer_data,
+ value boolean;
+attribute covers_licenses_granted,
+ value boolean;
+attribute covers_licenses_received,
+ value boolean;
+attribute covers_assignment,
+ value boolean;
+attribute covers_sale,
+ value boolean;
+attribute covers_contribution_to_capital,
+ value boolean;
+attribute covers_non_renewal,
+ value boolean;
+attribute binds_holdings,
+ value boolean;
+attribute binds_borrower_only,
+ value boolean;
+attribute covers_post_designation,
+ value boolean;
+attribute reduced_by_rp_usage,
+ value boolean;
+attribute reduced_by_rdp_usage,
+ value boolean;
+attribute reduced_by_investment_usage,
+ value boolean;
+attribute reduced_by_designation,
+ value boolean;
+attribute rebuilds_builder_basket,
+ value boolean;
+attribute includes_noncash_at_fmv,
+ value boolean;
+attribute reduces_investment_basket,
+ value boolean;
+attribute rebuild_is_capped,
+ value boolean;
+attribute rebuild_cap_formula,
+ value string;
+attribute redesignation_returns_investment,
+ value boolean;
+attribute redesignation_valuation_method,
+ value string;
+attribute distributions_can_cascade,
+ value boolean;
+attribute has_anti_duplication,
+ value boolean;
+attribute interest_coverage_threshold,
+ value double;
+attribute has_multiple_tiers,
+ value boolean;
+attribute ratio_basket_avoids_sweep,
+ value boolean;
+attribute sweep_exempt_ratio_threshold,
+ value double;
+attribute basket_can_rebuild,
+ value boolean;
+attribute requires_ratio_test,
+ value boolean;
+attribute permission_id,
+ value string;
+attribute permits_to_borrower,
+ value boolean;
+attribute permits_to_guarantors,
+ value boolean;
+attribute permits_to_holdings,
+ value boolean;
+attribute permits_to_non_guarantor_subs,
+ value boolean;
+attribute definition_id,
+ value string;
+attribute has_standalone_definition,
+ value boolean;
+attribute definition_source,
+ value string;
+attribute verbatim_text,
+ value string;
+attribute excludes_trade_secrets,
+ value boolean;
+attribute excludes_know_how,
+ value boolean;
+attribute excludes_software,
+ value boolean;
+attribute excludes_inbound_licenses,
+ value boolean;
+attribute excludes_customer_data,
+ value boolean;
+attribute excludes_exclusive_licensing,
+ value boolean;
+attribute excludes_any_licensing,
+ value boolean;
+attribute excludes_pledge,
+ value boolean;
+attribute excludes_abandonment,
+ value boolean;
+attribute is_subjective,
+ value boolean;
+attribute has_dollar_threshold,
+ value boolean;
+attribute has_percentage_threshold,
+ value boolean;
+attribute determined_by_board,
+ value boolean;
+attribute enumerated_on_schedule,
+ value boolean;
+attribute defined_negatively,
+ value boolean;
+attribute can_be_manipulated,
+ value boolean;
+attribute release_id,
+ value string;
+attribute auto_release_on_transfer,
+ value boolean;
+attribute requires_agent_consent,
+ value boolean;
+attribute requires_lender_consent,
+ value boolean;
+attribute requires_all_lender_consent_for_ip,
+ value boolean;
+attribute amendment_id,
+ value string;
+attribute provision_type,
+ value string;
+attribute requires_all_lender_consent,
+ value boolean;
+attribute requires_supermajority,
+ value boolean;
+attribute supermajority_threshold,
+ value double;
+attribute required_lenders_sufficient,
+ value boolean;
+attribute target_entity_attribute,
+ value string;
+attribute source_name,
+ value string;
+attribute exception_name,
+ value string;
+attribute exclusion_id,
+ value string;
+attribute exclusion_type,
+ value string;
+attribute exclusion_has_cap,
+ value boolean;
+attribute exclusion_cap_usd,
+ value double;
+attribute exclusion_cap_pct_ebitda,
+ value double;
+attribute exclusion_conditions,
+ value string;
+attribute can_stack_with_other_exclusions,
+ value boolean;
+attribute excludes_from_mfn,
+ value boolean;
+attribute exclusion_scope,
+ value string;
+attribute applies_when,
+ value string;
+attribute condition_logic,
+ value string;
+attribute yield_def_id,
+ value string;
+attribute defined_term,
+ value string;
+attribute includes_margin,
+ value boolean;
+attribute includes_floor_benefit,
+ value boolean;
+attribute includes_oid,
+ value boolean;
+attribute includes_upfront_fees,
+ value boolean;
+attribute includes_commitment_fees,
+ value boolean;
+attribute includes_other_fees,
+ value boolean;
+attribute comparison_baseline,
+ value string;
+attribute sunset_id,
+ value string;
+attribute sunset_trigger_event,
+ value string;
+attribute freebie_id,
+ value string;
+attribute dollar_amount_usd,
+ value double;
+attribute ebitda_pct,
+ value double;
+attribute stacks_with_general_basket,
+ value boolean;
+attribute general_basket_amount_usd,
+ value double;
+attribute total_mfn_exempt_capacity_usd,
+ value double;
+attribute mfn_universe_field,
+ value string;
+attribute di_universe_field,
+ value string;
+attribute mfn_exists,
+ value boolean;
+attribute threshold_bps,
+ value integer;
+attribute margin_only_threshold,
+ value boolean;
+attribute automatic_adjustment,
+ value boolean;
+attribute adjustment_scope,
+ value string;
+attribute bilateral_protection,
+ value boolean;
+attribute differentiates_fixed_floating,
+ value boolean;
+attribute yield_determination_authority,
+ value string;
+attribute yield_recalculated_at_incurrence,
+ value boolean;
+attribute reference_rate_changes_affect_yield,
+ value boolean;
+attribute market_price_affects_yield,
+ value boolean;
+attribute amendment_consent_threshold,
+ value string;
+attribute sacred_right_status,
+ value boolean;
+attribute transaction_specific_waiver,
+ value boolean;
+attribute agent_discretion,
+ value boolean;
+attribute affected_lender_optout,
+ value boolean;
+attribute ratio_test_type_id,
+ value string;
+attribute condition_type_id,
+ value string;
+attribute priority_id,
+ value string;
+attribute facility_type_id,
+ value string;
+attribute incremental_id,
+ value string;
+attribute di_covenant_exists,
+ value boolean;
+attribute has_separate_secured_covenant,
+ value boolean;
+attribute has_separate_unsecured_covenant,
+ value boolean;
+attribute unlimited_ratio_debt_detected,
+ value boolean;
+attribute ied_avoids_mfn_detected,
+ value boolean;
+attribute basket_stacking_risk_detected,
+ value boolean;
+attribute trapdoor_basket_detected,
+ value boolean;
+attribute numerator_formula,
+ value string;
+attribute denominator_formula,
+ value string;
+attribute comparison_operator,
+ value string;
+attribute is_financial_test,
+ value boolean;
+attribute is_structural,
+ value boolean;
+attribute rank,
+ value integer;
+attribute is_term,
+ value boolean;
+attribute is_revolving,
+ value boolean;
+attribute is_incremental,
+ value boolean;
+attribute free_and_clear_amount_usd,
+ value double;
+attribute free_and_clear_pct_ebitda,
+ value double;
+attribute free_and_clear_is_grower,
+ value boolean;
+attribute prepayments_prong_exists,
+ value boolean;
+attribute prepayments_includes_junior,
+ value boolean;
+attribute prepayments_includes_buybacks,
+ value boolean;
+attribute ratio_prong_exists,
+ value boolean;
+attribute ratio_prong_threshold,
+ value double;
+attribute ratio_prong_test_type,
+ value string;
+attribute ratio_prong_unlimited,
+ value boolean;
+attribute ied_permitted,
+ value boolean;
+attribute ied_triggers_mfn,
+ value boolean;
+attribute ied_requires_intercreditor,
+ value boolean;
+attribute mfn_threshold_bps,
+ value integer;
+attribute mfn_sunset_months,
+ value integer;
+attribute mfn_excludes_freebie,
+ value boolean;
+attribute mfn_excludes_acquisitions,
+ value boolean;
+attribute mfn_excludes_maturity_outside,
+ value boolean;
+attribute reclassification_permitted,
+ value boolean;
+attribute reclassification_automatic,
+ value boolean;
+attribute reclassification_bidirectional,
+ value boolean;
+attribute basket_cap_usd,
+ value double;
+attribute basket_cap_pct_ebitda,
+ value double;
+attribute is_grower,
+ value boolean;
+attribute permits_secured,
+ value boolean;
+attribute permits_unsecured,
+ value boolean;
+attribute requires_pro_forma_ratio,
+ value boolean;
+attribute pro_forma_threshold,
+ value double;
+attribute tier_number,
+ value integer;
+attribute leverage_floor,
+ value double;
+attribute leverage_ceiling,
+ value double;
+attribute capacity_usd,
+ value double;
+attribute capacity_pct_ebitda,
+ value double;
+attribute is_unlimited,
+ value boolean;
+attribute threshold_value,
+ value double;
+attribute is_incurrence_test,
+ value boolean;
+attribute is_mandatory,
+ value boolean;
+attribute is_maximum,
+ value boolean;
+attribute reduction_is_permanent,
+ value boolean;
+attribute pool_name,
+ value string;
+attribute triggers_for_term_loans,
+ value boolean;
+attribute triggers_for_revolvers,
+ value boolean;
+attribute triggers_for_ied,
+ value boolean;
+attribute freebie_exempt_usd,
+ value double;
+attribute shares_capacity,
+ value boolean;
+attribute max_lien_priority,
+ value string;
+attribute is_dollar_for_dollar,
+ value boolean;
+attribute addback_cap_pct,
+ value double;
+attribute addbacks_capped,
+ value boolean;
+attribute aggregate_secured_lien_cap,
+ value double;
+attribute asset_sale_reloads_incremental,
+ value boolean;
+attribute auto_lien_permission,
+ value boolean;
+attribute basket_arbitrage_detected,
+ value boolean;
+attribute basket_reload_on_prepayment,
+ value boolean;
+attribute blocker_eod_only,
+ value boolean;
+attribute blocker_payment_bankruptcy_only,
+ value boolean;
+attribute builder_repayment_reloads_debt,
+ value boolean;
+attribute contribution_debt_builds_rp,
+ value boolean;
+attribute contribution_rp_dollar_for_dollar,
+ value boolean;
+attribute cross_covenant_basket_sharing,
+ value boolean;
+attribute debt_lien_capacity_shared,
+ value boolean;
+attribute default_blocker_scope,
+ value string;
+attribute freebie_ratio_stacking_permitted,
+ value boolean;
+attribute general_basket_has_lien_basket,
+ value boolean;
+attribute grower_basket_count,
+ value integer;
+attribute has_sublimit_baskets,
+ value boolean;
+attribute incremental_has_lien_basket,
+ value boolean;
+attribute indebtedness_definition_broad,
+ value boolean;
+attribute intercompany_leakage_risk,
+ value boolean;
+attribute liens_covenant_section,
+ value string;
+attribute max_first_lien_capacity_usd,
+ value double;
+attribute max_total_capacity_usd,
+ value double;
+attribute mfn_sunset_expired,
+ value boolean;
+attribute no_worse_test_detected,
+ value boolean;
+attribute outside_collateral_liens_permitted,
+ value boolean;
+attribute pro_forma_includes_synergies,
+ value boolean;
+attribute ratio_debt_has_lien_basket,
+ value boolean;
+attribute ratios_first_ordering,
+ value boolean;
+attribute rp_to_debt_conversion_permitted,
+ value boolean;
+attribute structural_seniority_risk,
+ value boolean;
+attribute synergies_require_expectation,
+ value boolean;
+attribute synergy_cap_pct,
+ value double;
+attribute total_freebie_capacity_usd,
+ value double;
+attribute unlimited_reclass_detected,
+ value boolean;
+attribute unsub_redesignation_permitted,
+ value boolean;
+attribute unsub_unlimited_debt,
+ value boolean;
+attribute uses_first_lien_leverage,
+ value boolean;
+attribute uses_fixed_charge_coverage,
+ value boolean;
+attribute uses_interest_coverage,
+ value boolean;
+attribute uses_senior_secured_leverage,
+ value boolean;
+attribute uses_total_leverage,
+ value boolean;
+attribute vulnerability_notes,
+ value string;
+attribute agent_consent_nurd,
+ value boolean;
+attribute amortization_permitted,
+ value boolean;
+attribute amortization_prohibited,
+ value boolean;
+attribute basket_splitting_permitted,
+ value boolean;
+attribute binds_borrower,
+ value boolean;
+attribute binds_guarantors,
+ value boolean;
+attribute collateral_parity_required,
+ value boolean;
+attribute contribution_multiplier,
+ value double;
+attribute currency_matching_required,
+ value boolean;
+attribute freebie_excluded_from_ratio,
+ value boolean;
+attribute freebie_refresh_permitted,
+ value boolean;
+attribute general_basket_addable,
+ value boolean;
+attribute guarantor_parity_required,
+ value boolean;
+attribute ied_covenant_parity,
+ value boolean;
+attribute ied_junior_lien_permitted,
+ value boolean;
+attribute ied_maturity_restriction,
+ value boolean;
+attribute ied_permitted_forms,
+ value string;
+attribute ied_permitted_incurrors,
+ value string;
+attribute ied_shares_cap,
+ value boolean;
+attribute ied_unsecured_permitted,
+ value boolean;
+attribute lct_max_concurrent,
+ value integer;
+attribute lct_permitted,
+ value boolean;
+attribute lender_participation_voluntary,
+ value boolean;
+attribute maturity_91_day_inside_permitted,
+ value boolean;
+attribute maturity_inside_permitted,
+ value boolean;
+attribute maturity_restriction_applies,
+ value boolean;
+attribute mfn_applies,
+ value boolean;
+attribute mfn_de_minimis_amount,
+ value double;
+attribute mfn_excludes_arranger_fees,
+ value boolean;
+attribute mfn_excludes_fixed_rate,
+ value boolean;
+attribute mfn_includes_floors,
+ value boolean;
+attribute mfn_includes_oid,
+ value boolean;
+attribute mfn_includes_upfront_fees,
+ value boolean;
+attribute mfn_maturity_exclusion_months,
+ value integer;
+attribute mfn_oid_amortization_years,
+ value integer;
+attribute mfn_uses_all_in_yield,
+ value boolean;
+attribute minimum_tranche_size,
+ value double;
+attribute notional_cap_usd,
+ value double;
+attribute permits_revolving,
+ value boolean;
+attribute permits_term_loans,
+ value boolean;
+attribute permitted_premium_pct,
+ value double;
+attribute ratio_prong_first_lien_threshold,
+ value double;
+attribute ratio_prong_total_threshold,
+ value double;
+attribute reclassification_limited,
+ value boolean;
+attribute reclassification_mfn_applies,
+ value boolean;
+attribute reclassification_requires_notice,
+ value boolean;
+attribute reclassification_type,
+ value string;
+attribute requires_covenant_parity,
+ value boolean;
+attribute requires_no_eod_only,
+ value boolean;
+attribute requires_subordination,
+ value boolean;
+attribute intercompany_subordination_scope,
+ value string;
+attribute requires_wal_parity,
+ value boolean;
+attribute wal_restriction_applies,
+ value boolean;
+attribute extraction_context_sections,
+ value string;
+attribute extraction_batch_hint,
+ value string;
+attribute synthesis_guidance,
+ value string;
+attribute metadata_id,
+ value string;
+attribute extraction_section_hint,
+ value string;
+attribute extraction_priority,
+ value integer;
+attribute target_attribute,
+ value string;
+attribute requires_context,
+ value boolean;
+attribute context_entities,
+ value string;
+attribute exemption_id,
+ value string;
+attribute exemption_name,
+ value string;
+attribute norm_id,
+ value string;
+attribute party_id,
+ value string;
+attribute condition_id,
+ value string;
+attribute event_instance_id,
+ value string;
+attribute modality,
+ value string;
+attribute capacity_composition,
+ value string;
+attribute action_scope,
+ value string;
+attribute condition_operator,
+ value string;
+attribute defeater_type,
+ value string;
+attribute party_role,
+ value string;
+attribute action_class_label,
+ value string;
+attribute object_class_label,
+ value string;
+attribute instrument_class_label,
+ value string;
+attribute state_predicate_label,
+ value string;
+attribute cap_usd,
+ value double;
+attribute cap_grower_pct,
+ value double;
+attribute computed_from_sources,
+ value boolean;
+attribute ratio_snapshot_first_lien_net_leverage,
+ value double;
+attribute ratio_snapshot_senior_secured_leverage,
+ value double;
+attribute ratio_snapshot_total_leverage,
+ value double;
+attribute is_no_worse_pro_forma,
+ value boolean;
+attribute is_hypothetical,
+ value boolean;
+attribute proposed_amount_usd,
+ value double;
+attribute child_index,
+ value integer;
+attribute aggregation_function,
+ value string;
+entity deal,
+  owns borrower_name,
+  owns created_at,
+  owns deal_amount,
+  owns deal_currency,
+  owns deal_date,
+  owns deal_id @key,
+  owns deal_name,
+  owns deal_type,
+  owns facility_type,
+  owns updated_at,
+  plays comparison_includes_deal:deal,
+  plays deal_has_document:deal,
+  plays deal_has_provision:deal;
+entity document,
+  owns created_at,
+  owns document_hash,
+  owns document_url @key,
+  owns page_count,
+  plays deal_has_document:document;
+entity provision @abstract,
+  owns condition_logic,
+  owns extracted_at,
+  owns provision_id @key,
+  owns section_reference,
+  owns source_page,
+  plays answer_has_citation:cited_answer,
+  plays answer_has_qualification:qualified_answer,
+  plays concept_applicability:provision,
+  plays deal_has_provision:provision,
+  plays has_provenance:attributed_entity,
+  plays provision_cross_reference:source_provision,
+  plays provision_cross_reference:target_provision,
+  plays provision_has_answer:provision;
+entity mfn_provision,
+  sub provision,
+  owns adjustment_scope,
+  owns affected_lender_optout,
+  owns agent_discretion,
+  owns amendment_consent_threshold,
+  owns automatic_adjustment,
+  owns bilateral_protection,
+  owns bridge_to_term_loophole_detected,
+  owns margin_only_threshold,
+  owns mfn_exists,
+  owns reclassification_loophole_detected,
+  owns sacred_right_status,
+  owns threshold_bps,
+  owns transaction_specific_waiver,
+  owns yield_exclusion_pattern_detected,
+  plays di_provision_links_mfn:mfn_prov,
+  plays has_amendment_threshold:entity_with_threshold,
+  plays incremental_triggers_mfn:mfn_prov,
+  plays provision_has_exclusion:provision,
+  plays provision_has_freebie:provision,
+  plays provision_has_sunset:provision,
+  plays provision_has_yield_def:provision;
+entity rp_provision,
+  sub provision,
+  owns collateral_leakage_pattern_detected,
+  owns includes_cash_dividends,
+  owns includes_debt_prepayments,
+  owns includes_distributions,
+  owns includes_guarantees,
+  owns includes_investments,
+  owns includes_share_buybacks,
+  owns jcrew_pattern_detected,
+  owns rdp_includes_defeasance,
+  owns rdp_includes_open_market_purchases,
+  owns rdp_includes_optional_payments,
+  owns rdp_includes_prepayments,
+  owns rdp_includes_redemptions,
+  owns rdp_includes_voluntary_payments,
+  owns restricts_borrower,
+  owns restricts_guarantors,
+  owns restricts_holdings,
+  owns restricts_restricted_subs,
+  owns serta_pattern_detected,
+  plays di_provision_links_rp:rp_prov,
+  plays has_amendment_threshold:entity_with_threshold,
+  plays provision_has_asset_sale_sweep:provision,
+  plays provision_has_basket:provision,
+  plays provision_has_blocker:provision,
+  plays provision_has_definition:provision,
+  plays provision_has_intercompany_permission:provision,
+  plays provision_has_lien_release:provision,
+  plays provision_has_pathway:provision,
+  plays provision_has_rdp_basket:provision,
+  plays provision_has_sweep_tier:provision,
+  plays provision_has_unsub:provision;
+entity rp_basket @abstract,
+  owns basket_id @key,
+  owns capacity_category,
+  owns confidence,
+  owns default_condition,
+  owns display_name,
+  owns requires_ratio_test,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays basket_reallocates_to:source_basket,
+  plays basket_reallocates_to:target_basket,
+  plays provision_has_basket:basket,
+  plays shares_capacity_pool:pool_member;
+entity builder_basket,
+  sub rp_basket,
+  owns asset_proceeds_pct,
+  owns asset_proceeds_ratio_disposition,
+  owns asset_proceeds_ratio_threshold,
+  owns asset_proceeds_sweep_section,
+  owns basket_amount_usd,
+  owns cni_is_primary_test,
+  owns cni_percentage,
+  owns ebitda_fc_multiplier,
+  owns ecf_lookback_quarters,
+  owns ecf_retained_formula,
+  owns equity_excludes_cure,
+  owns equity_excludes_disqualified,
+  owns equity_proceeds_pct,
+  owns has_asset_proceeds_source,
+  owns has_cni_source,
+  owns has_debt_conversion_source,
+  owns has_ebitda_fc_source,
+  owns has_ecf_source,
+  owns has_equity_proceeds_source,
+  owns has_investment_returns_source,
+  owns has_starter_amount_source,
+  owns reduced_by_designation,
+  owns reduced_by_investment_usage,
+  owns reduced_by_rdp_usage,
+  owns reduced_by_rp_usage,
+  owns start_date_language,
+  owns starter_dollar_amount,
+  owns starter_ebitda_pct,
+  owns starter_uses_greater_of,
+  owns uses_greatest_of_tests,
+  plays di_feeds_rp_builder:builder,
+  plays norm_extracted_from:fact;
+entity ratio_basket,
+  sub rp_basket,
+  owns has_multiple_tiers,
+  owns has_no_worse_test,
+  owns interest_coverage_threshold,
+  owns is_unlimited_if_met,
+  owns lct_treatment_available,
+  owns no_worse_is_uncapped,
+  owns no_worse_threshold,
+  owns pro_forma_basis,
+  owns ratio_threshold,
+  owns ratio_type,
+  owns test_date_type,
+  plays norm_extracted_from:fact;
+entity general_rp_basket,
+  sub rp_basket,
+  owns basket_amount_usd,
+  owns basket_grower_pct,
+  owns is_per_annum,
+  plays norm_extracted_from:fact;
+entity management_equity_basket,
+  sub rp_basket,
+  owns annual_cap_pct_ebitda,
+  owns annual_cap_usd,
+  owns cap_uses_greater_of,
+  owns carryforward_max_years,
+  owns carryforward_permitted,
+  owns covers_consultants,
+  owns covers_directors,
+  owns covers_employees,
+  owns covers_estates,
+  owns covers_officers,
+  owns covers_sponsor_employees,
+  owns eligible_person_scope,
+  owns trigger_change_of_control,
+  owns trigger_death,
+  owns trigger_disability,
+  owns trigger_retirement,
+  owns trigger_termination,
+  plays norm_extracted_from:fact;
+entity tax_distribution_basket,
+  sub rp_basket,
+  owns covers_combined_group,
+  owns covers_consolidated_group,
+  owns covers_disregarded_entities,
+  owns covers_similar_groups,
+  owns estimated_taxes_permitted,
+  owns hypothetical_tax_rate,
+  owns standalone_taxpayer_limit,
+  owns tax_sharing_permitted,
+  plays norm_extracted_from:fact;
+entity holdco_overhead_basket,
+  sub rp_basket,
+  owns annual_cap_usd,
+  owns covers_admin_expenses,
+  owns covers_audit_fees,
+  owns covers_director_fees,
+  owns covers_franchise_taxes,
+  owns covers_insurance_premiums,
+  owns covers_legal_fees,
+  owns covers_management_fees,
+  owns management_fee_recipient_scope,
+  owns requires_arms_length,
+  owns requires_board_approval,
+  plays norm_extracted_from:fact;
+entity equity_award_basket,
+  sub rp_basket,
+  owns annual_cap_usd,
+  owns carryforward_permitted,
+  owns covers_cashless_exercise,
+  owns covers_clawback,
+  owns covers_forfeiture,
+  owns covers_net_settlement,
+  owns covers_tax_withholding,
+  plays norm_extracted_from:fact;
+entity unsub_distribution_basket,
+  sub rp_basket,
+  owns covers_assets,
+  owns covers_equity_interests,
+  owns covers_indebtedness,
+  owns covers_proceeds,
+  owns distributions_can_cascade,
+  owns has_anti_duplication,
+  owns includes_noncash_at_fmv,
+  owns is_categorical,
+  owns rebuild_cap_formula,
+  owns rebuild_is_capped,
+  owns rebuilds_builder_basket,
+  owns redesignation_returns_investment,
+  owns redesignation_valuation_method,
+  owns reduces_investment_basket,
+  owns requires_valid_designation,
+  plays norm_extracted_from:fact;
+entity general_investment_basket,
+  sub rp_basket,
+  owns basket_amount_usd,
+  owns basket_grower_pct,
+  plays norm_extracted_from:fact;
+entity investment_provision,
+  sub provision,
+  plays provision_has_basket:provision;
+entity sweep_tier,
+  owns confidence,
+  owns is_highest_tier,
+  owns leverage_threshold,
+  owns ratio_basket_avoids_sweep,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns sweep_exempt_ratio_threshold,
+  owns sweep_percentage,
+  owns tier_id @key,
+  plays norm_extracted_from:fact,
+  plays provision_has_sweep_tier:tier;
+entity jcrew_blocker,
+  owns binds_borrower_only,
+  owns binds_holdings,
+  owns binds_loan_parties,
+  owns binds_restricted_subs,
+  owns blocker_id @key,
+  owns confidence,
+  owns covers_abandonment,
+  owns covers_assignment,
+  owns covers_contribution_to_capital,
+  owns covers_copyrights,
+  owns covers_customer_data,
+  owns covers_designation,
+  owns covers_domain_names,
+  owns covers_exclusive_licensing,
+  owns covers_ip,
+  owns covers_know_how,
+  owns covers_licenses_granted,
+  owns covers_licenses_received,
+  owns covers_material_assets,
+  owns covers_non_renewal,
+  owns covers_nonexclusive_licensing,
+  owns covers_patents,
+  owns covers_pledge,
+  owns covers_post_designation,
+  owns covers_sale,
+  owns covers_software,
+  owns covers_trade_secrets,
+  owns covers_trademarks,
+  owns covers_transfer,
+  owns is_sacred_right,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays blocker_covers_ip_type:blocker,
+  plays blocker_has_exception:blocker,
+  plays has_amendment_threshold:entity_with_threshold,
+  plays norm_extracted_from:fact,
+  plays provision_has_blocker:blocker;
+entity blocker_exception @abstract,
+  owns confidence,
+  owns exception_id @key,
+  owns exception_name,
+  owns scope_limitation,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays blocker_has_exception:exception;
+entity nonexclusive_license_exception,
+  sub blocker_exception;
+entity intercompany_exception,
+  sub blocker_exception;
+entity immaterial_ip_exception,
+  sub blocker_exception;
+entity fair_value_exception,
+  sub blocker_exception;
+entity ordinary_course_exception,
+  sub blocker_exception;
+entity license_back_exception,
+  sub blocker_exception;
+entity unsub_designation,
+  owns confidence,
+  owns designation_id @key,
+  owns dollar_cap_usd,
+  owns pct_cap_assets,
+  owns redesignation_permitted,
+  owns requires_board_approval,
+  owns requires_no_default,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays norm_extracted_from:fact,
+  plays provision_has_unsub:designation;
+entity asset_sale_sweep,
+  owns annual_de_minimis_pct,
+  owns annual_de_minimis_usd,
+  owns annual_permits_carryforward,
+  owns annual_uses_greater_of,
+  owns confidence,
+  owns exempt_below_threshold,
+  owns exempt_casualty,
+  owns exempt_non_collateral,
+  owns exempt_ordinary_course,
+  owns exempt_ratio_basket,
+  owns individual_de_minimis_pct,
+  owns individual_de_minimis_usd,
+  owns individual_uses_greater_of,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns sweep_id @key,
+  plays norm_extracted_from:fact,
+  plays provision_has_asset_sale_sweep:sweep;
+entity cross_covenant_mapping,
+  owns basket_type_name,
+  owns mapping_id @key,
+  owns provision_type_name;
+entity basket_capacity_class,
+  owns basket_type_name,
+  owns capacity_category,
+  owns mapping_id @key;
+entity investment_pathway,
+  owns basket_can_rebuild,
+  owns can_stack_with_other_baskets,
+  owns cap_dollar_usd,
+  owns cap_pct_total_assets,
+  owns cap_uses_greater_of,
+  owns confidence,
+  owns is_uncapped,
+  owns pathway_id @key,
+  owns pathway_source_type,
+  owns pathway_target_type,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays norm_extracted_from:fact,
+  plays provision_has_pathway:pathway;
+entity rdp_basket @abstract,
+  owns basket_id @key,
+  owns capacity_category,
+  owns confidence,
+  owns default_condition,
+  owns display_name,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays basket_reallocates_to:source_basket,
+  plays basket_reallocates_to:target_basket,
+  plays provision_has_rdp_basket:rdp_basket;
+entity refinancing_rdp_basket,
+  sub rdp_basket,
+  owns not_otherwise_applied,
+  owns permits_refinancing_with_equity,
+  owns requires_no_increase_in_principal,
+  owns requires_qualified_stock_only,
+  owns requires_same_or_later_maturity,
+  owns requires_same_or_lower_priority,
+  owns subject_to_intercreditor,
+  plays norm_extracted_from:fact;
+entity general_rdp_basket,
+  sub rdp_basket,
+  owns basket_amount_usd,
+  owns basket_grower_pct,
+  plays norm_extracted_from:fact;
+entity ratio_rdp_basket,
+  sub rdp_basket,
+  owns is_unlimited_if_met,
+  owns pro_forma_basis,
+  owns ratio_threshold,
+  owns ratio_type,
+  owns test_date_type,
+  owns uses_closing_ratio_alternative,
+  plays norm_extracted_from:fact;
+entity builder_rdp_basket,
+  sub rdp_basket,
+  owns shares_with_rp_builder,
+  owns subject_to_intercreditor,
+  plays norm_extracted_from:fact;
+entity equity_funded_rdp_basket,
+  sub rdp_basket,
+  owns not_otherwise_applied,
+  owns requires_cash_common_equity,
+  owns requires_qualified_stock_only,
+  plays norm_extracted_from:fact;
+entity intercompany_dividend_permission,
+  owns confidence,
+  owns permission_id @key,
+  owns permits_to_borrower,
+  owns permits_to_guarantors,
+  owns permits_to_holdings,
+  owns permits_to_non_guarantor_subs,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays norm_extracted_from:fact,
+  plays provision_has_intercompany_permission:permission;
+entity definition_analysis @abstract,
+  owns confidence,
+  owns defined_term,
+  owns definition_id @key,
+  owns definition_source,
+  owns has_standalone_definition,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns verbatim_text,
+  plays provision_has_definition:definition;
+entity ip_definition,
+  sub definition_analysis,
+  owns excludes_customer_data,
+  owns excludes_inbound_licenses,
+  owns excludes_know_how,
+  owns excludes_software,
+  owns excludes_trade_secrets,
+  plays norm_extracted_from:fact;
+entity transfer_definition,
+  sub definition_analysis,
+  owns excludes_abandonment,
+  owns excludes_any_licensing,
+  owns excludes_exclusive_licensing,
+  owns excludes_pledge,
+  plays norm_extracted_from:fact;
+entity materiality_definition,
+  sub definition_analysis,
+  owns can_be_manipulated,
+  owns defined_negatively,
+  owns determined_by_board,
+  owns enumerated_on_schedule,
+  owns has_dollar_threshold,
+  owns has_percentage_threshold,
+  owns is_subjective,
+  owns uses_greater_of,
+  plays norm_extracted_from:fact;
+entity lien_release_mechanics,
+  owns auto_release_on_transfer,
+  owns confidence,
+  owns release_id @key,
+  owns requires_agent_consent,
+  owns requires_all_lender_consent_for_ip,
+  owns requires_lender_consent,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays norm_extracted_from:fact,
+  plays provision_has_lien_release:lien_release;
+entity amendment_threshold,
+  owns amendment_id @key,
+  owns confidence,
+  owns has_sacred_rights,
+  owns provision_type,
+  owns required_lenders_pct,
+  owns required_lenders_sufficient,
+  owns requires_all_lender_consent,
+  owns requires_supermajority,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns supermajority_threshold,
+  plays has_amendment_threshold:threshold,
+  plays norm_extracted_from:fact;
+entity mfn_exclusion,
+  owns applies_when,
+  owns can_stack_with_other_exclusions,
+  owns confidence,
+  owns excludes_from_mfn,
+  owns exclusion_cap_pct_ebitda,
+  owns exclusion_cap_usd,
+  owns exclusion_conditions,
+  owns exclusion_has_cap,
+  owns exclusion_id @key,
+  owns exclusion_scope,
+  owns exclusion_type,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays provision_has_exclusion:exclusion;
+entity mfn_yield_definition,
+  owns comparison_baseline,
+  owns confidence,
+  owns defined_term,
+  owns differentiates_fixed_floating,
+  owns includes_commitment_fees,
+  owns includes_floor_benefit,
+  owns includes_margin,
+  owns includes_oid,
+  owns includes_other_fees,
+  owns includes_upfront_fees,
+  owns market_price_affects_yield,
+  owns oid_amortization_method,
+  owns oid_amortization_years,
+  owns reference_rate_changes_affect_yield,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns yield_def_id @key,
+  owns yield_determination_authority,
+  owns yield_recalculated_at_incurrence,
+  plays provision_has_yield_def:yield_def;
+entity mfn_sunset_provision,
+  owns confidence,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns sunset_exists,
+  owns sunset_id @key,
+  owns sunset_period_months,
+  owns sunset_resets_on_refi,
+  owns sunset_tied_to_maturity,
+  owns sunset_timing_loophole,
+  owns sunset_trigger_event,
+  plays provision_has_sunset:sunset;
+entity mfn_freebie_basket,
+  owns confidence,
+  owns dollar_amount_usd,
+  owns ebitda_pct,
+  owns freebie_id @key,
+  owns general_basket_amount_usd,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns stacks_with_general_basket,
+  owns total_mfn_exempt_capacity_usd,
+  owns uses_greater_of,
+  plays provision_has_freebie:freebie;
+entity concept @abstract,
+  owns concept_id @key,
+  owns description,
+  owns display_order,
+  owns name,
+  owns target_entity_attribute @card(0..),
+  owns target_entity_type,
+  plays concept_applicability:concept,
+  plays concept_hierarchy:child,
+  plays concept_hierarchy:parent;
+entity facility_prong,
+  sub concept;
+entity yield_component,
+  sub concept;
+entity fee_exclusion,
+  sub concept;
+entity lien_priority,
+  sub concept;
+entity governance_concept,
+  sub concept;
+entity sunset_type,
+  sub concept;
+entity covered_person,
+  sub concept;
+entity repurchase_trigger,
+  sub concept;
+entity loophole_type,
+  sub concept;
+entity protection_type,
+  sub concept;
+entity dividend_definition_element,
+  sub concept;
+entity ip_type,
+  sub concept,
+  plays blocker_covers_ip_type:ip_type;
+entity transfer_type,
+  sub concept;
+entity blocker_binding_entity,
+  sub concept;
+entity blocker_timing,
+  sub concept;
+entity investment_basket,
+  sub concept;
+entity default_type,
+  sub concept;
+entity reallocation_target,
+  sub concept;
+entity builder_reduction_type,
+  sub concept;
+entity intercompany_recipient_type,
+  sub concept;
+entity tax_group_type,
+  sub concept;
+entity overhead_cost_type,
+  sub concept;
+entity transaction_cost_type,
+  sub concept;
+entity equity_award_type,
+  sub concept;
+entity rdp_payment_type,
+  sub concept;
+entity reallocation_reduction_type,
+  sub concept;
+entity exempt_sale_type,
+  sub concept;
+entity unsub_distribution_condition,
+  sub concept;
+entity ratio_required_basket,
+  sub concept;
+entity no_default_basket,
+  sub concept;
+entity ontology_category,
+  owns category_id @key,
+  owns description,
+  owns display_order,
+  owns extraction_batch_hint,
+  owns extraction_context_sections,
+  owns name,
+  owns synthesis_guidance,
+  plays category_has_question:category,
+  plays category_hierarchy:child_category,
+  plays category_hierarchy:parent_category;
+entity ontology_question,
+  owns answer_type,
+  owns covenant_type,
+  owns default_value,
+  owns description,
+  owns display_order,
+  owns extraction_prompt,
+  owns is_required,
+  owns question_id @key,
+  owns question_number,
+  owns question_text,
+  owns storage_value_type,
+  owns target_entity_type,
+  owns target_relation_type,
+  owns ui_display_type,
+  plays category_has_question:question,
+  plays provision_has_answer:question,
+  plays question_annotates_attribute:question,
+  plays question_targets_concept:question,
+  plays question_targets_entity:question,
+  plays question_targets_field:question;
+entity document_segment_type,
+  owns di_universe_field,
+  owns display_order,
+  owns find_description,
+  owns mfn_universe_field,
+  owns name,
+  owns rp_universe_field,
+  owns segment_type_id @key;
+entity attribute_provenance,
+  owns attributed_field_name,
+  owns confidence,
+  owns extracted_at,
+  owns source_page,
+  owns source_section,
+  owns source_text,
+  plays has_provenance:provenance;
+entity comparison_set,
+  owns created_at,
+  owns description,
+  owns name,
+  plays comparison_includes_deal:comparison;
+entity benchmark,
+  owns as_of_date,
+  owns benchmark_value_boolean_pct,
+  owns benchmark_value_double,
+  owns question_id,
+  owns sample_size;
+entity qualification,
+  owns description,
+  owns qualification_id @key,
+  owns qualification_type,
+  owns source_page,
+  owns source_text,
+  plays answer_has_qualification:qualification;
+entity source_citation,
+  owns citation_context,
+  owns citation_id @key,
+  owns source_page,
+  owns source_text,
+  plays answer_has_citation:citation;
+entity extraction_metadata,
+  owns context_entities,
+  owns extraction_priority,
+  owns extraction_prompt,
+  owns extraction_section_hint,
+  owns metadata_id @key,
+  owns requires_context,
+  owns target_attribute,
+  owns target_entity_type;
+entity blocker_prohibition_type,
+  sub concept;
+entity blocker_carveout_type,
+  sub concept;
+entity covered_entity_type,
+  sub concept;
+entity protected_asset_type,
+  sub concept;
+entity investment_basket_type,
+  sub concept;
+entity designation_condition_type,
+  sub concept;
+entity ip_inclusion_type,
+  sub concept;
+entity transfer_inclusion_type,
+  sub concept;
+entity material_definition_method,
+  sub concept;
+entity material_threshold_basis,
+  sub concept;
+entity ratio_test_type,
+  owns comparison_operator,
+  owns denominator_formula,
+  owns description,
+  owns name,
+  owns numerator_formula,
+  owns ratio_test_type_id @key,
+  plays basket_uses_ratio_test:ratio_test,
+  plays tier_uses_ratio_test:ratio_test;
+entity debt_condition_type,
+  owns condition_type_id @key,
+  owns description,
+  owns is_financial_test,
+  owns is_structural,
+  owns name,
+  plays basket_requires_condition:condition;
+entity di_lien_priority,
+  owns description,
+  owns name,
+  owns priority_id @key,
+  owns rank,
+  plays basket_permits_lien:priority;
+entity di_facility_type,
+  owns facility_type_id @key,
+  owns is_incremental,
+  owns is_revolving,
+  owns is_term,
+  owns name,
+  plays incremental_permits_facility:fac_type;
+entity di_provision,
+  sub provision,
+  owns addback_cap_pct,
+  owns addbacks_capped,
+  owns aggregate_secured_lien_cap,
+  owns asset_sale_reloads_incremental,
+  owns auto_lien_permission,
+  owns basket_arbitrage_detected,
+  owns basket_reload_on_prepayment,
+  owns basket_stacking_risk_detected,
+  owns binds_borrower,
+  owns binds_guarantors,
+  owns binds_restricted_subs,
+  owns blocker_eod_only,
+  owns blocker_payment_bankruptcy_only,
+  owns builder_repayment_reloads_debt,
+  owns contribution_debt_builds_rp,
+  owns contribution_rp_dollar_for_dollar,
+  owns cross_covenant_basket_sharing,
+  owns debt_lien_capacity_shared,
+  owns default_blocker_scope,
+  owns di_covenant_exists,
+  owns freebie_ratio_stacking_permitted,
+  owns general_basket_has_lien_basket,
+  owns grower_basket_count,
+  owns has_separate_secured_covenant,
+  owns has_separate_unsecured_covenant,
+  owns has_sublimit_baskets,
+  owns ied_avoids_mfn_detected,
+  owns incremental_has_lien_basket,
+  owns indebtedness_definition_broad,
+  owns intercompany_leakage_risk,
+  owns intercompany_subordination_scope,
+  owns lct_max_concurrent,
+  owns lct_permitted,
+  owns liens_covenant_section,
+  owns max_first_lien_capacity_usd,
+  owns max_total_capacity_usd,
+  owns mfn_sunset_expired,
+  owns no_worse_test_detected,
+  owns outside_collateral_liens_permitted,
+  owns pro_forma_includes_synergies,
+  owns ratio_debt_has_lien_basket,
+  owns ratios_first_ordering,
+  owns rp_to_debt_conversion_permitted,
+  owns structural_seniority_risk,
+  owns synergies_require_expectation,
+  owns synergy_cap_pct,
+  owns total_freebie_capacity_usd,
+  owns trapdoor_basket_detected,
+  owns unlimited_ratio_debt_detected,
+  owns unlimited_reclass_detected,
+  owns unsub_redesignation_permitted,
+  owns unsub_unlimited_debt,
+  owns uses_first_lien_leverage,
+  owns uses_fixed_charge_coverage,
+  owns uses_interest_coverage,
+  owns uses_senior_secured_leverage,
+  owns uses_total_leverage,
+  owns vulnerability_notes,
+  plays di_provision_links_mfn:di_prov,
+  plays di_provision_links_rp:di_prov,
+  plays provision_has_di_basket:provision,
+  plays provision_has_incremental:provision,
+  plays provision_has_leverage_tier:provision;
+entity incremental_facility,
+  owns agent_consent_nurd,
+  owns amortization_permitted,
+  owns amortization_prohibited,
+  owns basket_splitting_permitted,
+  owns collateral_parity_required,
+  owns confidence,
+  owns currency_matching_required,
+  owns free_and_clear_amount_usd,
+  owns free_and_clear_is_grower,
+  owns free_and_clear_pct_ebitda,
+  owns freebie_excluded_from_ratio,
+  owns freebie_refresh_permitted,
+  owns general_basket_addable,
+  owns guarantor_parity_required,
+  owns ied_covenant_parity,
+  owns ied_junior_lien_permitted,
+  owns ied_maturity_restriction,
+  owns ied_permitted,
+  owns ied_permitted_forms,
+  owns ied_permitted_incurrors,
+  owns ied_requires_intercreditor,
+  owns ied_shares_cap,
+  owns ied_triggers_mfn,
+  owns ied_unsecured_permitted,
+  owns incremental_id @key,
+  owns lct_permitted,
+  owns lender_participation_voluntary,
+  owns maturity_91_day_inside_permitted,
+  owns maturity_inside_permitted,
+  owns maturity_restriction_applies,
+  owns mfn_applies,
+  owns mfn_de_minimis_amount,
+  owns mfn_excludes_acquisitions,
+  owns mfn_excludes_arranger_fees,
+  owns mfn_excludes_fixed_rate,
+  owns mfn_excludes_freebie,
+  owns mfn_excludes_maturity_outside,
+  owns mfn_includes_floors,
+  owns mfn_includes_oid,
+  owns mfn_includes_upfront_fees,
+  owns mfn_maturity_exclusion_months,
+  owns mfn_oid_amortization_years,
+  owns mfn_sunset_expired,
+  owns mfn_sunset_months,
+  owns mfn_threshold_bps,
+  owns mfn_uses_all_in_yield,
+  owns minimum_tranche_size,
+  owns permits_revolving,
+  owns permits_term_loans,
+  owns prepayments_includes_buybacks,
+  owns prepayments_includes_junior,
+  owns prepayments_prong_exists,
+  owns ratio_prong_exists,
+  owns ratio_prong_first_lien_threshold,
+  owns ratio_prong_test_type,
+  owns ratio_prong_threshold,
+  owns ratio_prong_total_threshold,
+  owns ratio_prong_unlimited,
+  owns reclassification_automatic,
+  owns reclassification_bidirectional,
+  owns reclassification_limited,
+  owns reclassification_mfn_applies,
+  owns reclassification_permitted,
+  owns reclassification_requires_notice,
+  owns reclassification_type,
+  owns requires_covenant_parity,
+  owns requires_no_default,
+  owns requires_no_eod_only,
+  owns requires_wal_parity,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns wal_restriction_applies,
+  plays incremental_permits_facility:incremental,
+  plays incremental_triggers_mfn:incremental,
+  plays provision_has_incremental:incremental;
+entity di_basket @abstract,
+  owns basket_cap_pct_ebitda,
+  owns basket_cap_usd,
+  owns basket_id @key,
+  owns capacity_category,
+  owns confidence,
+  owns default_condition,
+  owns display_name,
+  owns is_grower,
+  owns is_unlimited_if_met,
+  owns permits_secured,
+  owns permits_unsecured,
+  owns pro_forma_threshold,
+  owns requires_pro_forma_ratio,
+  owns requires_ratio_test,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays basket_permits_lien:basket,
+  plays basket_reduces_basket:source_basket,
+  plays basket_reduces_basket:target_basket,
+  plays basket_requires_condition:basket,
+  plays basket_uses_ratio_test:basket,
+  plays di_shares_capacity_pool:pool_member,
+  plays provision_has_di_basket:di_basket;
+entity credit_agreement_basket,
+  sub di_basket;
+entity incremental_basket,
+  sub di_basket;
+entity ratio_debt_basket,
+  sub di_basket,
+  owns ratio_threshold;
+entity general_basket,
+  sub di_basket;
+entity acquisition_basket,
+  sub di_basket;
+entity capital_lease_basket,
+  sub di_basket;
+entity purchase_money_basket,
+  sub di_basket;
+entity intercompany_basket,
+  sub di_basket,
+  owns requires_subordination;
+entity refinancing_basket,
+  sub di_basket,
+  owns permitted_premium_pct;
+entity hedging_basket,
+  sub di_basket,
+  owns notional_cap_usd;
+entity lc_basket,
+  sub di_basket;
+entity sale_leaseback_basket,
+  sub di_basket;
+entity foreign_subsidiary_basket,
+  sub di_basket;
+entity earnout_basket,
+  sub di_basket;
+entity working_capital_basket,
+  sub di_basket;
+entity contribution_basket,
+  sub di_basket,
+  owns contribution_multiplier,
+  plays di_feeds_rp_builder:contrib;
+entity ied_basket,
+  sub di_basket;
+entity non_guarantor_basket,
+  sub di_basket;
+entity ratio_secured_basket,
+  sub di_basket;
+entity ratio_unsecured_basket,
+  sub di_basket;
+entity leverage_tier,
+  owns capacity_pct_ebitda,
+  owns capacity_usd,
+  owns confidence,
+  owns is_unlimited,
+  owns leverage_ceiling,
+  owns leverage_floor,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  owns tier_id @key,
+  owns tier_number,
+  plays provision_has_leverage_tier:tier,
+  plays tier_uses_ratio_test:tier;
+entity party @abstract,
+  owns party_id @key,
+  owns party_role,
+  plays event_targets_party:target,
+  plays norm_binds_subject:subject,
+  plays norm_held_by:beneficiary;
+entity borrower_party,
+  sub party;
+entity loan_party,
+  sub party;
+entity restricted_sub_party,
+  sub party;
+entity unrestricted_sub_party,
+  sub party;
+entity holdings_party,
+  sub party;
+entity agent_party,
+  sub party;
+entity required_lenders_party,
+  sub party;
+entity action_class @abstract,
+  owns action_class_label @key,
+  plays norm_scopes_action:action;
+entity make_restricted_payment @abstract,
+  sub action_class;
+entity make_dividend_payment,
+  sub make_restricted_payment;
+entity repurchase_equity,
+  sub make_restricted_payment;
+entity make_tax_distribution,
+  sub make_restricted_payment;
+entity pay_holdco_overhead,
+  sub make_restricted_payment;
+entity pay_subordinated_debt,
+  sub action_class;
+entity make_investment,
+  sub action_class;
+entity designate_unrestricted_subsidiary,
+  sub action_class;
+entity make_intercompany_payment,
+  sub action_class;
+entity transfer_material_intellectual_property,
+  sub action_class;
+entity object_class @abstract,
+  owns object_class_label @key,
+  plays norm_scopes_object:object;
+entity instrument_class @abstract,
+  sub object_class,
+  owns instrument_class_label,
+  plays event_targets_instrument:instrument,
+  plays norm_scopes_instrument:instrument;
+entity equity_interest,
+  sub instrument_class;
+entity holdco_equity,
+  sub equity_interest;
+entity restricted_sub_equity,
+  sub equity_interest;
+entity unrestricted_sub_equity,
+  sub equity_interest;
+entity subordinated_debt_instrument,
+  sub instrument_class;
+entity material_intellectual_property,
+  sub instrument_class;
+entity cash,
+  sub object_class;
+entity unrestricted_subsidiary_equity_or_assets,
+  sub object_class;
+entity business_division,
+  sub object_class;
+entity state_predicate,
+  owns source_page,
+  owns source_section,
+  owns source_text,
+  owns state_predicate_label @key,
+  plays condition_references_predicate:predicate;
+entity condition,
+  owns condition_id @key,
+  owns condition_operator,
+  plays condition_has_child:child,
+  plays condition_has_child:parent,
+  plays condition_references_predicate:condition,
+  plays defeater_has_condition:root,
+  plays norm_has_condition:root;
+entity norm,
+  owns action_scope,
+  owns cap_grower_pct,
+  owns cap_usd,
+  owns cap_uses_greater_of,
+  owns capacity_composition,
+  owns computed_from_sources,
+  owns confidence,
+  owns modality,
+  owns norm_id @key,
+  owns source_page,
+  owns source_section,
+  owns source_text,
+  plays defeats:defeated,
+  plays norm_binds_subject:norm,
+  plays norm_contributes_to_capacity:contributor,
+  plays norm_contributes_to_capacity:pool,
+  plays norm_extracted_from:norm,
+  plays norm_has_condition:norm,
+  plays norm_has_violation_consequent:norm,
+  plays norm_held_by:norm,
+  plays norm_scopes_action:norm,
+  plays norm_scopes_instrument:norm,
+  plays norm_scopes_object:norm;
+entity violation_consequent,
+  owns source_page,
+  owns source_section,
+  owns source_text,
+  plays norm_has_violation_consequent:consequent;
+entity defeater,
+  owns defeater_type,
+  owns source_page,
+  owns source_section,
+  owns source_text,
+  plays defeater_has_condition:defeater,
+  plays defeats:defeater;
+entity event_instance,
+  owns action_class_label,
+  owns event_instance_id @key,
+  owns is_hypothetical,
+  owns is_no_worse_pro_forma,
+  owns proposed_amount_usd,
+  owns ratio_snapshot_first_lien_net_leverage,
+  owns ratio_snapshot_senior_secured_leverage,
+  owns ratio_snapshot_total_leverage,
+  plays event_targets_instrument:event,
+  plays event_targets_party:event;
+relation provision_has_exclusion,
+  sub provision_has_extracted_entity,
+  relates exclusion as extracted,
+  relates provision;
+relation provision_has_yield_def,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates yield_def as extracted;
+relation provision_has_sunset,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates sunset as extracted;
+relation provision_has_freebie,
+  sub provision_has_extracted_entity,
+  relates freebie as extracted,
+  relates provision;
+relation deal_has_document,
+  relates deal,
+  relates document;
+relation deal_has_provision,
+  relates deal,
+  relates provision;
+relation comparison_includes_deal,
+  relates comparison,
+  relates deal;
+relation concept_hierarchy,
+  relates child,
+  relates parent;
+relation category_hierarchy,
+  relates child_category,
+  relates parent_category;
+relation concept_applicability,
+  relates concept,
+  relates provision,
+  owns applicability_status,
+  owns confidence,
+  owns source_page,
+  owns source_section,
+  owns source_text;
+relation category_has_question,
+  relates category,
+  relates question;
+relation question_targets_field,
+  relates question,
+  owns target_entity_type,
+  owns target_field_name;
+relation question_targets_concept,
+  relates question,
+  owns target_concept_type;
+relation question_targets_entity,
+  relates question,
+  owns target_entity_type,
+  owns target_relation_type;
+relation question_annotates_attribute,
+  relates question,
+  owns target_attribute_name,
+  owns target_entity_type;
+relation provision_has_answer,
+  relates provision,
+  relates question,
+  owns answer_boolean,
+  owns answer_date,
+  owns answer_double,
+  owns answer_id @key,
+  owns answer_integer,
+  owns answer_string,
+  owns confidence,
+  owns extracted_at,
+  owns source_page,
+  owns source_section,
+  owns source_text;
+relation has_provenance,
+  relates attributed_entity,
+  relates provenance;
+relation answer_has_qualification,
+  relates qualification,
+  relates qualified_answer;
+relation answer_has_citation,
+  relates citation,
+  relates cited_answer;
+relation provision_cross_reference,
+  relates source_provision,
+  relates target_provision,
+  owns cross_reference_explanation,
+  owns cross_reference_type,
+  owns source_page,
+  owns source_text;
+relation provision_has_extracted_entity @abstract,
+  relates extracted;
+relation provision_has_basket,
+  sub provision_has_extracted_entity,
+  relates basket as extracted,
+  relates provision;
+relation entity_has_child @abstract,
+  relates child,
+  relates parent;
+relation provision_has_rdp_basket,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates rdp_basket as extracted;
+relation provision_has_blocker,
+  sub provision_has_extracted_entity,
+  relates blocker as extracted,
+  relates provision;
+relation blocker_has_exception,
+  sub entity_has_child,
+  relates blocker as parent,
+  relates exception as child;
+relation blocker_covers_ip_type,
+  relates blocker,
+  relates ip_type,
+  owns coverage_scope;
+relation provision_has_unsub,
+  sub provision_has_extracted_entity,
+  relates designation as extracted,
+  relates provision;
+relation provision_has_sweep_tier,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates tier as extracted;
+relation provision_has_asset_sale_sweep,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates sweep as extracted;
+relation provision_has_pathway,
+  sub provision_has_extracted_entity,
+  relates pathway as extracted,
+  relates provision;
+relation basket_reallocates_to,
+  relates source_basket,
+  relates target_basket,
+  owns capacity_effect,
+  owns confidence,
+  owns is_bidirectional,
+  owns reallocation_amount_usd,
+  owns reallocation_grower_pct,
+  owns reallocation_source,
+  owns reduces_source_basket,
+  owns reduction_is_dollar_for_dollar,
+  owns reduction_while_outstanding_only,
+  owns section_reference,
+  owns source_page,
+  owns source_text,
+  plays norm_extracted_from:fact;
+relation shares_capacity_pool,
+  relates pool_member;
+relation provision_has_intercompany_permission,
+  sub provision_has_extracted_entity,
+  relates permission as extracted,
+  relates provision;
+relation provision_has_definition,
+  sub provision_has_extracted_entity,
+  relates definition as extracted,
+  relates provision;
+relation provision_has_lien_release,
+  sub provision_has_extracted_entity,
+  relates lien_release as extracted,
+  relates provision;
+relation has_amendment_threshold,
+  sub provision_has_extracted_entity,
+  relates entity_with_threshold,
+  relates threshold as extracted;
+relation provision_has_incremental,
+  sub provision_has_extracted_entity,
+  relates incremental as extracted,
+  relates provision;
+relation provision_has_di_basket,
+  sub provision_has_extracted_entity,
+  relates di_basket as extracted,
+  relates provision;
+relation provision_has_leverage_tier,
+  sub provision_has_extracted_entity,
+  relates provision,
+  relates tier as extracted;
+relation basket_uses_ratio_test,
+  relates basket,
+  relates ratio_test,
+  owns is_incurrence_test,
+  owns threshold_value;
+relation basket_requires_condition,
+  relates basket,
+  relates condition,
+  owns is_mandatory;
+relation basket_permits_lien,
+  relates basket,
+  relates priority,
+  owns is_maximum;
+relation basket_reduces_basket,
+  relates source_basket,
+  relates target_basket,
+  owns reduction_is_permanent;
+relation di_shares_capacity_pool,
+  relates pool_member,
+  owns pool_name;
+relation incremental_permits_facility,
+  relates fac_type,
+  relates incremental;
+relation tier_uses_ratio_test,
+  relates ratio_test,
+  relates tier,
+  owns is_incurrence_test,
+  owns threshold_value;
+relation incremental_triggers_mfn,
+  relates incremental,
+  relates mfn_prov,
+  owns freebie_exempt_usd,
+  owns mfn_sunset_months,
+  owns triggers_for_ied,
+  owns triggers_for_revolvers,
+  owns triggers_for_term_loans;
+relation di_provision_links_mfn,
+  relates di_prov,
+  relates mfn_prov;
+relation di_provision_links_rp,
+  relates di_prov,
+  relates rp_prov;
+relation di_feeds_rp_builder,
+  relates builder,
+  relates contrib,
+  owns is_dollar_for_dollar;
+relation condition_references_predicate,
+  relates condition,
+  relates predicate;
+relation condition_has_child,
+  relates child,
+  relates parent,
+  owns child_index;
+relation norm_binds_subject,
+  relates norm,
+  relates subject;
+relation norm_held_by,
+  relates beneficiary,
+  relates norm;
+relation norm_scopes_action,
+  relates action,
+  relates norm;
+relation norm_scopes_instrument,
+  relates instrument,
+  relates norm;
+relation norm_scopes_object,
+  relates norm,
+  relates object;
+relation norm_has_condition,
+  relates norm,
+  relates root;
+relation norm_has_violation_consequent,
+  relates consequent,
+  relates norm;
+relation norm_extracted_from,
+  relates fact,
+  relates norm;
+relation norm_contributes_to_capacity,
+  relates contributor,
+  relates pool,
+  owns aggregation_function,
+  owns child_index;
+relation defeater_has_condition,
+  relates defeater,
+  relates root;
+relation defeats,
+  relates defeated,
+  relates defeater;
+relation event_targets_party,
+  relates event,
+  relates target;
+relation event_targets_instrument,
+  relates event,
+  relates instrument;

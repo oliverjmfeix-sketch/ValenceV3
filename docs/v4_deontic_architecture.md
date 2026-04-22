@@ -137,6 +137,9 @@ attribute proposed_amount_usd, value double;
 # condition metadata
 attribute child_index, value integer;
 
+# capacity contribution metadata (attribute on norm_contributes_to_capacity relation, not on norms)
+attribute aggregation_function, value string;  # greatest_of|sum|min|max — how multiple norm_contributes_to_capacity edges compose
+
 # provenance (reused from v3 schema; listed here for completeness of the deontic layer)
 # attribute source_text, value string;
 # attribute source_section, value string;
@@ -310,18 +313,22 @@ relation norm_extracted_from,
     relates norm,
     relates fact;
 norm plays norm_extracted_from:norm;
-# the abstract parent `provision_has_extracted_entity` defines `extracted` role;
-# every such entity can play `fact` via role alias
-# (declared in projection mapping, not here)
+# Role aliases for extractable v3 entities (builder_basket, ratio_basket, jcrew_blocker, etc.)
+# are declared as `plays` statements in §4.10. Adding a new extractable entity type requires
+# adding one `plays norm_extracted_from:fact` declaration in `schema_v4_deontic.tql` and
+# one `deontic_mapping` row (Prompt 07).
 
 # capacity contribution — for additive/computed_from_sources composition
 relation norm_contributes_to_capacity,
     relates contributor,
     relates pool,
-    owns child_index;
+    owns child_index,
+    owns aggregation_function;
 norm plays norm_contributes_to_capacity:contributor;
 norm plays norm_contributes_to_capacity:pool;
 ```
+
+The `aggregation_function` attribute on the relation (not on either norm) records how contributing-norm capacities compose into the pool norm. Builder basket uses `greatest_of` across its source norms (CNI source vs ECF source vs EBITDA fixed-charge source vs starter). Additive capacity uses `sum`. Other aggregation modes are reserved for future covenants.
 
 ### 4.8 Defeater and the defeats edge
 
@@ -385,6 +392,8 @@ investment_pathway plays norm_extracted_from:fact;
 basket_reallocates_to plays norm_extracted_from:fact;
 # etc., one per v3 extracted entity that projects to a norm
 ```
+
+**Extensibility note.** This list grows when new covenants are added to v4. Each new extractable entity type in v3 (e.g., MFN entities, DI entities when those covenants move to deontic modeling) must add a `plays norm_extracted_from:fact` declaration here, and a corresponding `deontic_mapping` row in the projection seed. The list is maintained by hand; no auto-generation — explicitness is the point (Rule 1.1, SSoT).
 
 ### 4.11 What is intentionally NOT in the deontic schema
 
