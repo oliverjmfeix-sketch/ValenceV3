@@ -31,8 +31,9 @@ world_states:
       ratio_snapshot_first_lien_net_leverage: <value_unknown>
       ratio_snapshot_senior_secured_leverage: <value_unknown>
       ratio_snapshot_total_leverage: <value_unknown>
-      # J.Crew blocker predicate — default true since no designation is pending
-      designation_excludes_material_ip_from_unsub: true
+      # J.Crew blocker predicate — prohibition fires when true. Default false
+      # since no designation is pending at baseline (no Material IP transfer risk).
+      unsub_would_own_or_license_material_ip_at_designation: false
       # Asset sale predicates — inactive at baseline (no pending asset sale)
       is_product_line_or_line_of_business_sale: false
       individual_proceeds_at_or_below: true        # vacuously true when no sale proposed
@@ -63,7 +64,7 @@ world_states:
       ratio_snapshot_first_lien_net_leverage: 6.0
       ratio_snapshot_senior_secured_leverage: <value_unknown>   # Q6 only specifies first-lien
       ratio_snapshot_total_leverage: <value_unknown>
-      designation_excludes_material_ip_from_unsub: true         # not relevant to Q6
+      unsub_would_own_or_license_material_ip_at_designation: false   # not relevant to Q6
       is_product_line_or_line_of_business_sale: false           # Q6 is a dividend, not a sale
       individual_proceeds_at_or_below: true
       annual_aggregate_at_or_below: true

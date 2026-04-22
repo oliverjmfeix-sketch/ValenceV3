@@ -160,6 +160,20 @@ attribute threshold_value_string, value string;
 attribute operator_comparison, value string;      # at_or_below|at_or_above|equals|less_than|greater_than
 attribute reference_predicate_label, value string;
 
+# Compound-threshold support — for predicates whose effective threshold is
+# greater_of(dollar, grower_pct * reference_state_value). Typical Duck Creek
+# pattern: individual_proceeds_at_or_below with threshold_value_double=$20M,
+# threshold_grower_pct=15, threshold_grower_reference="consolidated_ebitda_ltm",
+# threshold_is_greater_of=true. predicate_holds dispatches on the flag to pick
+# the effective threshold per evaluation.
+attribute threshold_value_double_secondary, value double;   # reserved for non-grower 2-component thresholds
+attribute threshold_is_greater_of, value boolean;
+attribute threshold_grower_pct, value double;
+attribute threshold_grower_reference, value string;
+
+# Event-instance financial state — referenced by compound-threshold predicates.
+attribute consolidated_ebitda_ltm, value double;
+
 # provenance (reused from v3 schema; listed here for completeness of the deontic layer)
 # attribute source_text, value string;
 # attribute source_section, value string;
@@ -241,6 +255,10 @@ entity state_predicate,
     owns state_predicate_label @key,
     owns threshold_value_double,
     owns threshold_value_string,
+    owns threshold_value_double_secondary,
+    owns threshold_is_greater_of,
+    owns threshold_grower_pct,
+    owns threshold_grower_reference,
     owns operator_comparison,
     owns reference_predicate_label,
     owns source_text,
@@ -251,6 +269,8 @@ entity state_predicate,
 Concrete predicate labels (enumerated in seed, not entity subtypes — each predicate's evaluation lives in a function keyed on its label): `no_event_of_default_exists`, `first_lien_net_leverage_at_or_below`, `senior_secured_leverage_at_or_below`, `total_leverage_at_or_below`, `pro_forma_no_worse`, `incurrence_test_satisfied`, `pro_forma_compliance_financial_covenants`, `board_approval_obtained`, `officer_certificate_delivered`, `qualified_ipo_has_occurred`, `retained_asset_sale_proceeds` (Judgment 3: asset-sale proceeds that survive the Asset Sale Sweep; appears as a capacity source to the builder basket via `norm_contributes_to_capacity`, not as an action class).
 
 **Threshold values are per-instance attributes, not baked into labels.** A norm whose condition is "first lien net leverage ≤ 5.75" and another whose condition is "first lien net leverage ≤ 6.25" reference the *same* `state_predicate_label` (`first_lien_net_leverage_at_or_below`) with different `threshold_value_double` values on their respective `state_predicate` instances. The projection layer (Prompt 07) creates one `state_predicate` instance per distinct (label, threshold) pair extracted from the agreement, and each condition's atomic leaf references the appropriate instance. `operator_comparison` defaults to the semantic implied by the label (`at_or_below`), but the attribute lets projection override for cleaner generalisation if needed. `reference_predicate_label` is populated for predicates like `pro_forma_no_worse` whose semantics require pointing to the baseline predicate they compare against.
+
+**Compound thresholds.** Some predicates (e.g., Duck Creek's `individual_proceeds_at_or_below`, `annual_aggregate_at_or_below`) have thresholds of the form "greater of $X or Y% of Z." Encoded via `threshold_is_greater_of=true`, `threshold_value_double` (the dollar component), `threshold_grower_pct` (the percentage), and `threshold_grower_reference` (the state attribute name to multiply — typically `consolidated_ebitda_ltm`). `predicate_holds` computes `effective_threshold = max(threshold_value_double, threshold_grower_pct * state_value / 100)` at evaluation time and compares the candidate value against it. Expressed in TypeQL 3.x as two inner disjuncts (`base >= grower; candidate <= base` or `grower > base; candidate <= grower`) since the language has no built-in `max()`.
 
 #### 4.5.1 Predicate label contract
 
@@ -417,7 +437,8 @@ entity event_instance,
     owns ratio_snapshot_first_lien_net_leverage,
     owns ratio_snapshot_senior_secured_leverage,
     owns ratio_snapshot_total_leverage,
-    owns is_no_worse_pro_forma;
+    owns is_no_worse_pro_forma,
+    owns consolidated_ebitda_ltm;      # for compound-threshold grower-pct predicates
 
 relation event_targets_party,
     relates event,

@@ -68,6 +68,20 @@ attribute threshold_value_string, value string;
 attribute operator_comparison, value string;      # at_or_below|at_or_above|equals|less_than|greater_than
 attribute reference_predicate_label, value string;
 
+# Compound threshold support — for predicates whose effective threshold is
+# greater_of(dollar_amount, growth_pct * reference_state_value). Typical
+# pattern: individual_proceeds_at_or_below with threshold_value_double=$20M,
+# threshold_grower_pct=15.0, threshold_grower_reference="consolidated_ebitda_ltm",
+# threshold_is_greater_of=true. predicate_holds dispatches on
+# threshold_is_greater_of to pick the effective threshold.
+attribute threshold_value_double_secondary, value double;   # reserved for 2-component thresholds other than grower-style
+attribute threshold_is_greater_of, value boolean;
+attribute threshold_grower_pct, value double;
+attribute threshold_grower_reference, value string;         # e.g., "consolidated_ebitda_ltm"
+
+# Event-instance financial state — referenced by compound-threshold predicates.
+attribute consolidated_ebitda_ltm, value double;
+
 
 # ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
 
@@ -132,6 +146,10 @@ entity state_predicate,
     owns state_predicate_label @key,
     owns threshold_value_double,
     owns threshold_value_string,
+    owns threshold_value_double_secondary,
+    owns threshold_is_greater_of,
+    owns threshold_grower_pct,
+    owns threshold_grower_reference,
     owns operator_comparison,
     owns reference_predicate_label,
     owns source_text,
@@ -271,7 +289,8 @@ entity event_instance,
     owns ratio_snapshot_first_lien_net_leverage,
     owns ratio_snapshot_senior_secured_leverage,
     owns ratio_snapshot_total_leverage,
-    owns is_no_worse_pro_forma;
+    owns is_no_worse_pro_forma,
+    owns consolidated_ebitda_ltm;
 
 relation event_targets_party,
     relates event,

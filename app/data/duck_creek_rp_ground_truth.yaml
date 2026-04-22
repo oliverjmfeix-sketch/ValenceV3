@@ -265,32 +265,30 @@ norms:
 # Upstream precondition — J.Crew blocker on Unsub designation
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_jcrew_blocker_unsub_designation
-  norm_kind: jcrew_blocker_condition
-  modality: permission
-  # J.Crew blocker encoded as a permission on designate_unrestricted_subsidiary
-  # conditioned on the positive predicate "designation excludes material IP."
-  # Rationale (judgment call per Prompt 05 report): the operative text
-  # structures this as "no Restricted Subsidiary may be designated as an
-  # Unrestricted Subsidiary if... [owns material IP]." The natural positive
-  # framing is: designation is permitted when the IP-exclusion predicate
-  # holds. Modelled as permission + atomic positive condition per prompt §
-  # "upstream_precondition" guidance.
+- norm_id: dc_rp_jcrew_blocker
+  norm_kind: jcrew_blocker_prohibition
+  modality: prohibition
+  # J.Crew blocker encoded as a prohibition on designate_unrestricted_subsidiary
+  # with an atomic positive condition — the prohibition fires when the
+  # predicate holds (Unsub would own or exclusively license Material IP at
+  # designation). Matches operative-text phrasing: "no Restricted Subsidiary
+  # may be designated as an Unrestricted Subsidiary if... [would own Material IP]."
+  # Flipped from modality=permission per Prompt 06 pre-work Part 2.
   capacity_composition: n_a
   action_scope: specific
-  subject_role: [borrower, loan_party]
+  subject_role: [borrower, loan_party, restricted_sub]
   scoped_actions: [designate_unrestricted_subsidiary]
-  scoped_objects: [unrestricted_subsidiary_equity_or_assets]
+  scoped_objects: [material_intellectual_property]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Unrestricted Subsidiary' / designation mechanics"
+  source_section: "Definition of 'Unrestricted Subsidiary' (agreement page ~83)"
   source_page: <page_unknown>       # approximately p.83 per audit, human verification required
   source_text: "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if, immediately after giving effect to such designation, such Unrestricted Subsidiary would own or have an exclusive license (from Holdings or its Restricted Subsidiaries) at the time of such designation to any Material Intellectual Property."
   question_role: upstream_precondition
   serves_questions: [duck_creek_q2, duck_creek_rp_q9]
   condition:
     type: atomic
-    predicate: designation_excludes_material_ip_from_unsub
+    predicate: unsub_would_own_or_license_material_ip_at_designation
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CUMULATIVE AMOUNT — builder basket and its twelve source clauses (a)–(l) + (m)
@@ -825,9 +823,9 @@ predicates_introduced:
   - label: qualified_ipo_has_occurred
     value_type: boolean
     already_in_predicate_holds: false     # NEW — add to predicate_holds for 6.06(q) post-IPO
-  - label: designation_excludes_material_ip_from_unsub
+  - label: unsub_would_own_or_license_material_ip_at_designation
     value_type: boolean
-    already_in_predicate_holds: false     # NEW — add to predicate_holds for J.Crew blocker
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for J.Crew blocker (prohibition fires when true)
   - label: is_product_line_or_line_of_business_sale
     value_type: boolean
     already_in_predicate_holds: false     # NEW — add to predicate_holds for 2.10(c)(iv)

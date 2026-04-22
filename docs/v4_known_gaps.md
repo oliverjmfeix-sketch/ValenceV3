@@ -22,7 +22,7 @@ An earlier version of this audit (committed in `752c847`) asserted five discrepa
 | Q1 | Available Retained ECF Amount source | see defined term; defaults floor at $0 per fiscal year | — | Defn (b)(y) |
 | Q1 | EBITDA minus 140% Fixed Charges source | floor at $0 per fiscal quarter | — | Defn (b)(z) |
 | Q2 | 6.06(p) unsub equity distribution | unconditional | — | §6.06(p) |
-| Q2 | J.Crew blocker (upstream on Unsub designation) | `designation_excludes_material_ip_from_unsub` (positive predicate) | 1 | Defn "Unrestricted Subsidiary" / designation mechanics ~p.83 |
+| Q2 | J.Crew blocker (upstream on Unsub designation) | `unsub_would_own_or_license_material_ip_at_designation` (atomic; prohibition fires when true) | 1 | Defn "Unrestricted Subsidiary" / designation mechanics ~p.83 |
 | Q3 | 6.06(j) general RP basket ($130m/100% EBITDA) | unconditional | — | §6.06(j) |
 | Q3 | 6.09(a)(I) general RDP sub-basket ($130m/100% EBITDA) | unconditional | — | §6.09(a)(I) |
 | Q3 | 6.03(y) general investment ($130m/100% EBITDA) | unconditional | — | §6.03(y) |

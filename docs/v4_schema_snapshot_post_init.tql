@@ -1184,6 +1184,16 @@ attribute operator_comparison,
  value string;
 attribute reference_predicate_label,
  value string;
+attribute threshold_value_double_secondary,
+ value double;
+attribute threshold_is_greater_of,
+ value boolean;
+attribute threshold_grower_pct,
+ value double;
+attribute threshold_grower_reference,
+ value string;
+attribute consolidated_ebitda_ltm,
+ value double;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2244,7 +2254,11 @@ entity state_predicate,
   owns source_section,
   owns source_text,
   owns state_predicate_label @key,
+  owns threshold_grower_pct,
+  owns threshold_grower_reference,
+  owns threshold_is_greater_of,
   owns threshold_value_double,
+  owns threshold_value_double_secondary,
   owns threshold_value_string,
   plays condition_references_predicate:predicate;
 entity condition,
@@ -2293,6 +2307,7 @@ entity defeater,
   plays defeats:defeater;
 entity event_instance,
   owns action_class_label,
+  owns consolidated_ebitda_ltm,
   owns event_instance_id @key,
   owns is_hypothetical,
   owns is_no_worse_pro_forma,
@@ -2602,6 +2617,50 @@ fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
             $pred has threshold_value_double $thresh_inc;
             $ws has ratio_snapshot_first_lien_net_leverage $r_inc;
             $r_inc <= $thresh_inc;
+        } or {
+            # first_lien_net_leverage_above — sweep tier 100% trigger
+            $pl == "first_lien_net_leverage_above";
+            $pred has threshold_value_double $thresh_above;
+            $ws has ratio_snapshot_first_lien_net_leverage $r_above;
+            $r_above > $thresh_above;
+        } or {
+            # individual_proceeds_at_or_below — §2.10(c)(i) per-sale de minimis.
+            # Effective threshold = greater_of(threshold_value_double,
+            # threshold_grower_pct * consolidated_ebitda_ltm / 100). The two
+            # inner disjuncts express max() without a built-in.
+            $pl == "individual_proceeds_at_or_below";
+            $pred has threshold_value_double $ip_base;
+            $pred has threshold_is_greater_of true;
+            $pred has threshold_grower_pct $ip_pct;
+            $ws has consolidated_ebitda_ltm $ip_ebitda;
+            $ws has proposed_amount_usd $ip_proceeds;
+            let $ip_grower = $ip_pct * $ip_ebitda / 100.0;
+            {
+                $ip_base >= $ip_grower;
+                $ip_proceeds <= $ip_base;
+            } or {
+                $ip_grower > $ip_base;
+                $ip_proceeds <= $ip_grower;
+            };
+        } or {
+            # annual_aggregate_at_or_below — §2.10(c)(i) annual aggregate de minimis.
+            # Same greater-of pattern. Reads proposed_amount_usd as a proxy for
+            # aggregate proceeds until projection layer tracks annual aggregate
+            # separately (Prompt 07+).
+            $pl == "annual_aggregate_at_or_below";
+            $pred has threshold_value_double $aa_base;
+            $pred has threshold_is_greater_of true;
+            $pred has threshold_grower_pct $aa_pct;
+            $ws has consolidated_ebitda_ltm $aa_ebitda;
+            $ws has proposed_amount_usd $aa_proceeds;
+            let $aa_grower = $aa_pct * $aa_ebitda / 100.0;
+            {
+                $aa_base >= $aa_grower;
+                $aa_proceeds <= $aa_base;
+            } or {
+                $aa_grower > $aa_base;
+                $aa_proceeds <= $aa_grower;
+            };
         };
     return check;
 fun child_count($cond: condition) -> integer:
