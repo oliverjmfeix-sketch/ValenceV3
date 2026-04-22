@@ -1,0 +1,123 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Duck Creek RP World States — v4 Pilot Baseline
+#
+# World states are event_instance fixtures the v4 operations layer and the
+# acceptance test use to evaluate conditions. Two states below:
+#
+#   dc_baseline_closing  — facts known at Duck Creek's closing, used as the
+#                          default world for Q1/Q2/Q3/Q4/Q5 capacity questions
+#                          that don't ask about a hypothetical ratio.
+#   dc_q6_hypothetical   — Q6's hypothetical (First Lien Net Leverage = 6.0x,
+#                          proposed $200M business-division dividend).
+#
+# Values marked <value_unknown> must be filled in before the acceptance test
+# runs. The list at the bottom catalogues these.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+world_states:
+
+  - world_state_id: dc_baseline_closing
+    description: >
+      Pilot baseline state representing Duck Creek at/around Closing Date.
+      Used for capacity questions (Q1/Q3/Q4/Q5 and 22-set Q1/Q2/Q4/Q5/Q12)
+      where the question doesn't specify a hypothetical snapshot.
+    state_timestamp: <closing_date_unknown>      # Closing Date per agreement; human verification required
+    predicate_values:
+      # Deontic-gate predicates the v4 functions read
+      no_event_of_default_exists: true
+      pro_forma_compliance_financial_covenants: true
+      qualified_ipo_has_occurred: false
+      # Ratio snapshots — values unknown without financial close-date figures
+      ratio_snapshot_first_lien_net_leverage: <value_unknown>
+      ratio_snapshot_senior_secured_leverage: <value_unknown>
+      ratio_snapshot_total_leverage: <value_unknown>
+      # J.Crew blocker predicate — default true since no designation is pending
+      designation_excludes_material_ip_from_unsub: true
+      # Asset sale predicates — inactive at baseline (no pending asset sale)
+      is_product_line_or_line_of_business_sale: false
+      individual_proceeds_at_or_below: true        # vacuously true when no sale proposed
+      annual_aggregate_at_or_below: true
+    financial_figures:
+      consolidated_ebitda_ltm: <value_unknown>     # required for grower-pct caps; from financial statements
+      cumulative_cni_since_closing_fq_start: 0.0   # zero at closing — no accumulation yet
+      available_retained_ecf_amount: 0.0
+      cumulative_ebitda_since_closing_fq_start: 0.0
+      cumulative_fixed_charges_since_closing_fq_start: 0.0
+      cumulative_deferred_revenues: 0.0
+      ipo_proceeds_usd: 0.0                        # pre-IPO
+      market_cap_usd: 0.0                          # pre-IPO
+    proposed_action: null                          # no action proposed at baseline
+
+  - world_state_id: dc_q6_hypothetical
+    description: >
+      Q6's hypothetical: Borrower proposes to dividend a business division
+      worth $200M (negative EBITDA). Pro forma First Lien Net Leverage = 6.0x,
+      which is above the Ratio RP basket threshold (5.75x) but is represented
+      in Q6 as "no worse" (the business division had negative EBITDA, so its
+      removal does not increase leverage).
+    state_timestamp: <hypothetical>
+    predicate_values:
+      no_event_of_default_exists: true
+      pro_forma_compliance_financial_covenants: true
+      qualified_ipo_has_occurred: false
+      ratio_snapshot_first_lien_net_leverage: 6.0
+      ratio_snapshot_senior_secured_leverage: <value_unknown>   # Q6 only specifies first-lien
+      ratio_snapshot_total_leverage: <value_unknown>
+      designation_excludes_material_ip_from_unsub: true         # not relevant to Q6
+      is_product_line_or_line_of_business_sale: false           # Q6 is a dividend, not a sale
+      individual_proceeds_at_or_below: true
+      annual_aggregate_at_or_below: true
+    financial_figures:
+      consolidated_ebitda_ltm: <value_unknown>
+    # Q6 hypothetical specifies is_no_worse_pro_forma = true; encoded below
+    # as an attribute that the pro_forma_no_worse predicate reads.
+    is_no_worse_pro_forma: true
+    proposed_action:
+      action_class: make_dividend_payment
+      scoped_object: business_division
+      proposed_amount_usd: 200_000_000
+      target_party_role: shareholders
+      target_party_description: "external shareholders of the Borrower / Holdings"
+      is_hypothetical: true
+      notes: >
+        Q6: "If the Borrower owns an asset/business division that has assets
+        worth $200m, but EBITDA of such business is negative, can the Borrower
+        dividend the asset/business division to shareholders if the First Lien
+        Net Leverage Ratio is 6.0x?" Answer: yes via 6.06(o) because even at
+        6.0x (above the 5.75x threshold), the transaction is no-worse
+        pro forma (negative-EBITDA business division removal does not
+        increase leverage).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Values requiring manual verification before acceptance test
+# ─────────────────────────────────────────────────────────────────────────────
+# The following <value_unknown> markers need to be filled in from the Duck
+# Creek agreement's closing deliverables / financial statements before the
+# acceptance test (Prompt 08) runs. Per Rule 3.3, these are explicitly
+# unknown here rather than fabricated.
+
+values_requiring_manual_verification:
+  - path: dc_baseline_closing.state_timestamp
+    description: Closing Date of the agreement
+    source_hint: cover page of DISCO PARENT, INC. credit agreement; Definitions §"Closing Date"
+  - path: dc_baseline_closing.predicate_values.ratio_snapshot_first_lien_net_leverage
+    description: First Lien Leverage Ratio at closing
+    source_hint: closing compliance certificate or equivalent financial deliverable
+  - path: dc_baseline_closing.predicate_values.ratio_snapshot_senior_secured_leverage
+    description: Senior Secured Leverage Ratio at closing
+    source_hint: same
+  - path: dc_baseline_closing.predicate_values.ratio_snapshot_total_leverage
+    description: Total Leverage Ratio at closing
+    source_hint: same
+  - path: dc_baseline_closing.financial_figures.consolidated_ebitda_ltm
+    description: Consolidated EBITDA LTM at closing — required for all grower-pct caps ($130M / 100% EBITDA, etc.)
+    source_hint: closing compliance certificate
+  - path: dc_q6_hypothetical.predicate_values.ratio_snapshot_senior_secured_leverage
+    description: Senior Secured Leverage Ratio in Q6 hypothetical — not specified by Q6
+    source_hint: Q6 text only specifies first-lien; can be left unset or inferred
+  - path: dc_q6_hypothetical.predicate_values.ratio_snapshot_total_leverage
+    description: Total Leverage Ratio in Q6 hypothetical — not specified by Q6
+    source_hint: same
+  - path: dc_q6_hypothetical.financial_figures.consolidated_ebitda_ltm
+    description: Consolidated EBITDA LTM used in Q6 hypothetical — implied by the hypothetical but not given
+    source_hint: set to the baseline value once baseline is populated

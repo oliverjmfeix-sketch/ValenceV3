@@ -1,0 +1,839 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Duck Creek RP Ground Truth — v4 Pilot Baseline
+#
+# Source: DISCO PARENT, INC. credit agreement (posting version 7/30/25)
+# Audit basis: docs/v4_known_gaps.md, commit 8b1cdb3
+# Serves: app/data/gold_standard/lawyer_dc_rp.json (6 questions) and
+#         app/data/gold_standard/xtract_dc_rp_mfn.json (22 questions; RP subset Q1-Q12)
+#
+# Conventions (per Prompt 05):
+#   1. Multi-norm questions — see question_role field
+#   2. Full source enumeration — Cumulative Amount clauses (a)-(m) all encoded
+#   3. Clean predicate labels — thresholds as instance attributes (§4.5.1)
+#   4. Strategy A flattening — applied to Section 2.10(c)(iv) (depth-3) only
+#
+# Page numbers marked <page_unknown> where operative text access was limited
+# during authoring. Section 2.10 text verified from extracted operative text
+# (Downloads/Duck_Creek_Section_2_10.txt); other sections cited by section
+# number but not page. Human verification of page numbers required before
+# Prompt 06 projection work anchors on them.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+deal_id: 6e76ed06
+deal_name: Duck Creek Technologies
+covenant_type: rp
+source_agreement: "DISCO PARENT, INC. credit agreement, posting version 7/30/25"
+
+norms:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# § 6.06 — Restricted Payments permissions
+# ─────────────────────────────────────────────────────────────────────────────
+
+- norm_id: dc_rp_6_06_a_intercompany
+  norm_kind: intercompany_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [restricted_sub, loan_party]
+  scoped_actions: [make_intercompany_payment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(a)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required for 6.06(a) quote>"
+  question_role: primary
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_b_mgmt_equity_repurchase
+  norm_kind: management_equity_basket_permission
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [repurchase_equity]
+  scoped_objects: [equity_interest, holdco_equity]
+  cap_usd: 20_000_000
+  cap_grower_pct: 15.0
+  cap_uses_greater_of: true
+  # Carryforward/carryback mechanics — judgment call per Prompt 05 report.
+  # Option chosen: single base norm + cap_adjustments annotation; operations
+  # layer (Prompt 10) interprets the annotation to compute year-adjusted caps.
+  cap_adjustments:
+    carryforward_usd: 20_000_000
+    carryforward_grower_pct: 15.0
+    carryforward_uses_greater_of: true
+    carryback_usd: 20_000_000
+    carryback_grower_pct: 15.0
+    carryback_uses_greater_of: true
+  source_section: "6.06(b)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; base $20M/15% EBITDA with symmetric carryforward/carryback per Xtract Q6 gold>"
+  question_role: primary
+  serves_questions: [duck_creek_rp_q6]
+  condition: null
+
+- norm_id: dc_rp_6_06_c_tax_distributions
+  norm_kind: tax_distribution_basket_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_tax_distribution]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(c)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required for 6.06(c) tax distribution permission>"
+  question_role: primary
+  serves_questions: []
+  condition: null
+
+- norm_id: dc_rp_6_06_f_cumulative_amount_usage
+  norm_kind: builder_usage_permission
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: general
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  capacity_aggregation_function: sum
+  source_norm_ids:
+    - dc_rp_cumulative_amount
+  source_section: "6.06(f)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.06(f) uses Cumulative Amount>"
+  question_role: primary
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1, duck_creek_rp_q2, duck_creek_rp_q3]
+  condition: null
+
+- norm_id: dc_rp_6_06_j_general_rp_basket
+  norm_kind: general_rp_basket_permission
+  modality: permission
+  capacity_composition: additive
+  action_scope: reallocable
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: 130_000_000
+  cap_grower_pct: 100.0
+  cap_uses_greater_of: true
+  source_section: "6.06(j)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; $130M / 100% EBITDA general RP basket reallocable>"
+  question_role: primary
+  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q5, duck_creek_rp_q12]
+  condition: null
+
+- norm_id: dc_rp_6_06_k_parent_overhead
+  norm_kind: holdco_overhead_basket_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [pay_holdco_overhead]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(k)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.06(k) parent company overhead expenses>"
+  question_role: primary
+  serves_questions: [duck_creek_rp_q11]
+  # NOTE: Xtract report flags this as a concern — scope not limited to
+  # Borrower-attributable expenses. Flag for v4 classification harness.
+  condition: null
+
+- norm_id: dc_rp_6_06_o_ratio_rp_basket
+  norm_kind: ratio_basket_permission
+  modality: permission
+  capacity_composition: unlimited_on_condition
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity]
+  scoped_objects: [cash, equity_interest, business_division]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(o)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.06(o) Ratio RP basket — unlimited when First Lien Leverage Ratio ≤ 5.75x OR no-worse pro forma>"
+  question_role: primary
+  serves_questions: [duck_creek_q6, duck_creek_rp_q7]
+  condition:
+    type: OR
+    children:
+      - type: atomic
+        predicate: first_lien_net_leverage_at_or_below
+        threshold_value_double: 5.75
+        operator_comparison: at_or_below
+      - type: atomic
+        predicate: pro_forma_no_worse
+        reference_predicate_label: first_lien_net_leverage
+
+- norm_id: dc_rp_6_06_p_unsub_equity_distribution
+  norm_kind: unsub_distribution_basket_permission
+  modality: permission
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [unrestricted_subsidiary_equity_or_assets]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.06(p)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.06(p) permits dividend of Unrestricted Subsidiary equity or assets — unconditional once designation is legitimate>"
+  question_role: primary
+  serves_questions: [duck_creek_q2, duck_creek_rp_q9]
+  condition: null
+
+- norm_id: dc_rp_6_06_q_post_ipo_basket
+  norm_kind: post_ipo_basket_permission
+  modality: permission
+  capacity_composition: categorical
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null                                  # 7% of IPO proceeds + 7% market cap — formulaic
+  cap_grower_pct: null
+  # Formulaic cap expressed in attribute because schema has no
+  # formulaic-cap primitive. Operations layer computes at runtime.
+  cap_formula: "per_annum_sum(0.07 * ipo_proceeds_usd, 0.07 * market_cap_usd)"
+  source_section: "6.06(q)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.06(q) post-IPO dividend basket>"
+  question_role: primary
+  serves_questions: [duck_creek_rp_q10]
+  condition:
+    type: atomic
+    predicate: qualified_ipo_has_occurred
+
+# ─────────────────────────────────────────────────────────────────────────────
+# § 6.09 — Restricted Debt Payments (reallocation sources for 6.06(j))
+# ─────────────────────────────────────────────────────────────────────────────
+
+- norm_id: dc_rp_6_09_a_general_rdp_basket
+  norm_kind: general_rdp_basket_permission
+  modality: permission
+  capacity_composition: additive
+  action_scope: reallocable
+  subject_role: [borrower, loan_party]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [subordinated_debt_instrument]
+  cap_usd: 130_000_000
+  cap_grower_pct: 100.0
+  cap_uses_greater_of: true
+  source_section: "6.09(a)(I)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.09(a)(I) general RDP basket $130M/100% EBITDA reallocable>"
+  question_role: reallocation_source
+  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q12]
+  # Reallocates into 6.06(j) via norm_contributes_to_capacity edge
+  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  condition: null
+
+# ─────────────────────────────────────────────────────────────────────────────
+# § 6.03 — Investments (reallocation source for 6.06(j))
+# ─────────────────────────────────────────────────────────────────────────────
+
+- norm_id: dc_rp_6_03_y_general_investment_basket
+  norm_kind: general_investment_basket_permission
+  modality: permission
+  capacity_composition: additive
+  action_scope: reallocable
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: 130_000_000
+  cap_grower_pct: 100.0
+  cap_uses_greater_of: true
+  source_section: "6.03(y)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.03(y) general investment basket $130M/100% EBITDA reallocable>"
+  question_role: reallocation_source
+  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q12]
+  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  condition: null
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Upstream precondition — J.Crew blocker on Unsub designation
+# ─────────────────────────────────────────────────────────────────────────────
+
+- norm_id: dc_rp_jcrew_blocker_unsub_designation
+  norm_kind: jcrew_blocker_condition
+  modality: permission
+  # J.Crew blocker encoded as a permission on designate_unrestricted_subsidiary
+  # conditioned on the positive predicate "designation excludes material IP."
+  # Rationale (judgment call per Prompt 05 report): the operative text
+  # structures this as "no Restricted Subsidiary may be designated as an
+  # Unrestricted Subsidiary if... [owns material IP]." The natural positive
+  # framing is: designation is permitted when the IP-exclusion predicate
+  # holds. Modelled as permission + atomic positive condition per prompt §
+  # "upstream_precondition" guidance.
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [designate_unrestricted_subsidiary]
+  scoped_objects: [unrestricted_subsidiary_equity_or_assets]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Unrestricted Subsidiary' / designation mechanics"
+  source_page: <page_unknown>       # approximately p.83 per audit, human verification required
+  source_text: "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if, immediately after giving effect to such designation, such Unrestricted Subsidiary would own or have an exclusive license (from Holdings or its Restricted Subsidiaries) at the time of such designation to any Material Intellectual Property."
+  question_role: upstream_precondition
+  serves_questions: [duck_creek_q2, duck_creek_rp_q9]
+  condition:
+    type: atomic
+    predicate: designation_excludes_material_ip_from_unsub
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUMULATIVE AMOUNT — builder basket and its twelve source clauses (a)–(l) + (m)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+- norm_id: dc_rp_cumulative_amount
+  norm_kind: builder_basket_aggregate
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: general
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  capacity_aggregation_function: sum
+  source_norm_ids:
+    - dc_rp_cumulative_amount_a_starter
+    - dc_rp_cumulative_amount_b_aggregate
+    - dc_rp_cumulative_amount_c_declined_ecf
+    - dc_rp_cumulative_amount_d_declined_asset_sale
+    - dc_rp_cumulative_amount_e_sale_leaseback
+    - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds
+    - dc_rp_cumulative_amount_g_joint_venture_returns
+    - dc_rp_cumulative_amount_h_unsub_redesignation_fmv
+    - dc_rp_cumulative_amount_i_receivables_royalty_license
+    - dc_rp_cumulative_amount_j_investment_returns
+    - dc_rp_cumulative_amount_k_cumulative_deferred_revenues
+    - dc_rp_cumulative_amount_l_other
+    # (m) is a netting subtraction — see capacity_source_reductions below
+  capacity_source_reductions:
+    - dc_rp_cumulative_amount_m_netting   # Option 2 per Prompt 05 judgment call
+  source_section: "Definition of 'Cumulative Amount'"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; top-level Cumulative Amount is a sum of clauses (a) through (l), less clause (m) netting adjustments>"
+  question_role: primary
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1, duck_creek_rp_q2]
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_a_starter
+  norm_kind: builder_source_starter
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: 130_000_000
+  cap_grower_pct: 100.0
+  cap_uses_greater_of: true
+  source_section: "Definition of 'Cumulative Amount', clause (a)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; clause (a): greater of $130M and 100% EBITDA as starter amount>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_q5, duck_creek_rp_q1, duck_creek_rp_q12]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_aggregate
+  norm_kind: builder_source_b_aggregate
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  capacity_aggregation_function: greatest_of
+  source_norm_ids:
+    - dc_rp_cumulative_amount_b_x_cni
+    - dc_rp_cumulative_amount_b_y_ecf
+    - dc_rp_cumulative_amount_b_z_ebitda_fc
+  source_section: "Definition of 'Cumulative Amount', clause (b)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; clause (b) is the greatest of three sub-tests (b)(x), (b)(y), (b)(z)>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_x_cni
+  norm_kind: builder_source_cni
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: 50.0              # 50% of cumulative Consolidated Net Income
+  cap_formula: "0.50 * cumulative_cni(since=closing_fiscal_quarter_start, floor_per_quarter=0)"
+  source_section: "Definition of 'Cumulative Amount', clause (b)(x)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 50% of cumulative Consolidated Net Income with per-fiscal-quarter floor of $0>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_y_ecf
+  norm_kind: builder_source_ecf
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  cap_formula: "available_retained_ecf_amount(since=first_full_fy_after_closing, floor_per_fy=0)"
+  source_section: "Definition of 'Cumulative Amount', clause (b)(y)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; Available Retained ECF Amount — Excess Cash Flow not required to be applied to prepay Term Loans or other debt, floor per fiscal year $0>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+  norm_kind: builder_source_ebitda_fc
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  cap_formula: "cumulative_ebitda(since=closing_fiscal_quarter_start) - 1.40 * cumulative_fixed_charges(since=closing_fiscal_quarter_start)  # floor_per_quarter=0"
+  source_section: "Definition of 'Cumulative Amount', clause (b)(z)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, floor per fiscal quarter $0>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_c_declined_ecf
+  norm_kind: builder_source_declined_ecf
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (c)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; Declined ECF Sweep Proceeds (ECF prepayments declined by lenders)>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_d_declined_asset_sale
+  norm_kind: builder_source_declined_asset_sale
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (d)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; Declined Asset Sale Proceeds>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_e_sale_leaseback
+  norm_kind: builder_source_sale_leaseback
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (e)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; proceeds from sale/leaseback transactions>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_f_retained_asset_sale_proceeds
+  norm_kind: builder_source_retained_asset_sale
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (f) / Definition of 'Retained Asset Sale Proceeds'"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; Retained Asset Sale Proceeds — non-swept portion of Asset Sale Net Cash Proceeds surviving §2.10(c) tiers, exemptions, and de minimis filters>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_q4, duck_creek_q5, duck_creek_rp_q2, duck_creek_rp_q8]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  # Feeds via structural pathway: asset sale → sweep tiers and exemptions → retention → this source norm
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_g_joint_venture_returns
+  norm_kind: builder_source_joint_venture_returns
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (g)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; joint venture dividends and returns>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_h_unsub_redesignation_fmv
+  norm_kind: builder_source_unsub_redesignation_fmv
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest, unrestricted_subsidiary_equity_or_assets]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (h)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; FMV of assets of an Unrestricted Subsidiary redesignated as Restricted or transferred to Borrower or a Restricted Subsidiary>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_i_receivables_royalty_license
+  norm_kind: builder_source_receivables_royalty_license
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (i)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; proceeds from sales of receivables, royalties, or licenses>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_j_investment_returns
+  norm_kind: builder_source_investment_returns
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (j)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; returns on ALL investments including those refilling the basket used>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_k_cumulative_deferred_revenues
+  norm_kind: builder_source_deferred_revenues
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: 50.0
+  cap_formula: "0.50 * cumulative_deferred_revenues"
+  source_section: "Definition of 'Cumulative Amount', clause (k)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 50% of cumulative deferred revenues>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_l_other
+  norm_kind: builder_source_other
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (l)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; catch-all additional builder source per agreement's clause (l)>"
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q2]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_m_netting
+  norm_kind: builder_source_netting_reduction
+  modality: permission
+  capacity_composition: computed_from_sources
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: []          # no action scope — this is a capacity deduction, not an action grant
+  scoped_objects: []
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "Definition of 'Cumulative Amount', clause (m)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; netting reduction — amounts already used from the Cumulative Amount are subtracted>"
+  # Option 2 per Prompt 05 judgment call: modelled with special role so
+  # operations layer subtracts after positive aggregation. Avoids schema
+  # change (no aggregation_direction/subtract flag on the relation).
+  question_role: capacity_source_reduction
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount
+  reduces_parent: true          # signal to operations layer
+  condition: null
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ASSET SALE PATHWAYS — §6.05(z), §2.10(c) — feed Retained Asset Sale Proceeds
+# ═══════════════════════════════════════════════════════════════════════════════
+
+- norm_id: dc_rp_6_05_z_unlimited_asset_sale_basket
+  norm_kind: unlimited_asset_sale_basket_permission
+  modality: permission
+  capacity_composition: unlimited_on_condition
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_investment]   # asset sale proceeds reinvested; ultimate RP flow via Retained ASP → builder
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "6.05(z)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; 6.05(z) permits Asset Sale when First Lien Leverage Ratio ≤ greater of 6.00x and pre-transaction ratio (no-worse)>"
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: OR
+    children:
+      - type: atomic
+        predicate: first_lien_net_leverage_at_or_below
+        threshold_value_double: 6.00
+        operator_comparison: at_or_below
+      - type: atomic
+        predicate: pro_forma_no_worse
+        reference_predicate_label: first_lien_net_leverage
+
+- norm_id: dc_rp_2_10_c_iv_product_line_sweep_exemption
+  norm_kind: sweep_exemption_product_line
+  modality: permission
+  # Strategy A FLATTENED per Convention 4. Pre-flattening depth-3 tree:
+  #   AND(is_product_line_or_line_of_business_sale,
+  #       OR(first_lien_ratio_at_or_below(6.25), pro_forma_no_worse(first_lien)))
+  # Post-flattening depth-2 disjunction of conjunctions — see condition below.
+  capacity_composition: unlimited_on_condition
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_investment]   # exemption prevents sweep → retained → builder
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "2.10(c)(iv)"
+  source_page: 106                   # confirmed from extracted Section 2.10 text
+  source_text: "no such prepayment shall be required under this clause (c) with respect to any Net Cash Proceeds of any Asset Sale if (A) such Asset Sale is a disposition of all or substantially all of a product line or line of business identified by the Borrowers to the Administrative Agent from time to time, and (B) the First Lien Leverage Ratio computed on a Pro Forma Basis... is less than or equal to the greater of (x) 6.25 to 1.00 and (y) the First Lien Leverage Ratio for the most recently ended Test Period (determined without giving effect to the Subject Transactions on a Pro Forma Basis) as of the Applicable Date of Determination."
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: OR
+    children:
+      - type: AND
+        children:
+          - type: atomic
+            predicate: is_product_line_or_line_of_business_sale
+          - type: atomic
+            predicate: first_lien_net_leverage_at_or_below
+            threshold_value_double: 6.25
+            operator_comparison: at_or_below
+      - type: AND
+        children:
+          - type: atomic
+            predicate: is_product_line_or_line_of_business_sale
+          - type: atomic
+            predicate: pro_forma_no_worse
+            reference_predicate_label: first_lien_net_leverage
+
+- norm_id: dc_rp_2_10_c_i_de_minimis_exemption
+  norm_kind: sweep_exemption_de_minimis
+  modality: permission
+  capacity_composition: unlimited_on_condition
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [make_investment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  source_section: "2.10(c)(i)"
+  source_page: 105                   # confirmed from extracted Section 2.10 text
+  source_text: "no such prepayment shall be required under this clause (c)... to the extent either (or both) (x) the Prepayable Net Cash Proceeds of such Asset Sale do not exceed the greater of (1) $20,000,000 and (2) 15% of Consolidated EBITDA for the applicable Test Period (the 'Individual Asset Sale Threshold') and/or (y) the aggregate Prepayable Net Cash Proceeds for all such Asset Sales that exceed the Individual Asset Sale Threshold in such fiscal year do not exceed the Annual Asset Sale Threshold"
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: OR
+    children:
+      - type: atomic
+        predicate: individual_proceeds_at_or_below
+        threshold_value_double: 20_000_000
+        threshold_value_string: "greater_of(20_000_000, 15% EBITDA)"
+        operator_comparison: at_or_below
+      - type: atomic
+        predicate: annual_aggregate_at_or_below
+        threshold_value_double: 40_000_000
+        threshold_value_string: "greater_of(40_000_000, 30% EBITDA)"
+        operator_comparison: at_or_below
+
+- norm_id: dc_rp_sweep_tier_100pct
+  norm_kind: sweep_tier
+  modality: obligation
+  # Obligation: the borrower MUST sweep 100% of Net Cash Proceeds when ratio > 5.75x.
+  # Violation consequent: mandatory prepayment of Term Loans (§2.10(h), (i))
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [pay_subordinated_debt]   # sweep proceeds repay Term Loans
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  sweep_percentage: 100
+  source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (a)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; clause (a) of Applicable Net Cash Proceeds Percentage — 100% sweep when First Lien Leverage Ratio exceeds 5.75x>"
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: atomic
+    predicate: first_lien_net_leverage_above
+    threshold_value_double: 5.75
+    operator_comparison: greater_than
+
+- norm_id: dc_rp_sweep_tier_50pct
+  norm_kind: sweep_tier
+  modality: obligation
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  sweep_percentage: 50
+  source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (b)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; clause (b) — 50% sweep when First Lien Leverage Ratio is in (5.50x, 5.75x] band>"
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: AND
+    children:
+      - type: atomic
+        predicate: first_lien_net_leverage_above
+        threshold_value_double: 5.50
+        operator_comparison: greater_than
+      - type: atomic
+        predicate: first_lien_net_leverage_at_or_below
+        threshold_value_double: 5.75
+        operator_comparison: at_or_below
+
+- norm_id: dc_rp_sweep_tier_0pct
+  norm_kind: sweep_tier
+  modality: obligation
+  capacity_composition: n_a
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [pay_subordinated_debt]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: null
+  sweep_percentage: 0
+  source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (c)"
+  source_page: <page_unknown>
+  source_text: "<operative-text verification required; clause (c) — 0% sweep (full retention) when First Lien Leverage Ratio ≤ 5.50x>"
+  question_role: primary
+  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  condition:
+    type: atomic
+    predicate: first_lien_net_leverage_at_or_below
+    threshold_value_double: 5.50
+    operator_comparison: at_or_below
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PREDICATE DEFINITIONS — clean labels, meanings, value types
+#
+# Predicates introduced in this ground truth. Listed here as a reference block
+# so that the Prompt 06 seed, the projection (Prompt 07), and predicate_holds
+# (Prompt 04) agree on the label set.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+predicates_introduced:
+  - label: first_lien_net_leverage_at_or_below
+    value_type: ratio (double)
+    already_in_predicate_holds: true
+  - label: first_lien_net_leverage_above
+    value_type: ratio (double)
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for sweep-tier 100%
+  - label: pro_forma_no_worse
+    value_type: n/a (reference-based)
+    already_in_predicate_holds: true
+  - label: qualified_ipo_has_occurred
+    value_type: boolean
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for 6.06(q) post-IPO
+  - label: designation_excludes_material_ip_from_unsub
+    value_type: boolean
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for J.Crew blocker
+  - label: is_product_line_or_line_of_business_sale
+    value_type: boolean
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for 2.10(c)(iv)
+  - label: individual_proceeds_at_or_below
+    value_type: ratio-or-dollar (greater_of semantics)
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for de minimis
+  - label: annual_aggregate_at_or_below
+    value_type: ratio-or-dollar (greater_of semantics)
+    already_in_predicate_holds: false     # NEW — add to predicate_holds for de minimis
