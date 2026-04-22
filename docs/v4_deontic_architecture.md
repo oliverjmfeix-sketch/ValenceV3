@@ -95,6 +95,8 @@ A concrete or hypothetical happening that a norm is evaluated against. `event_in
 
 The full TypeQL for the deontic layer lives in `app/data/schema_v4_deontic.tql`. Below is the authoritative specification. TypeDB 3.x syntax throughout: explicit `entity`/`relation`/`attribute` kinds; subtyping via `sub`; relation roles via `relates`; attribute ownership via `owns`; no `rule`, only `fun` (Rule 6.1).
 
+**TypeDB 3.x syntax note.** Where the TypeQL examples in this section declare an abstract subtype, the `@abstract` annotation appears in a separate statement from `sub` per TypeDB 3.x rules (the two cannot combine — error `ANN9`). Examples below show the actual loadable syntax. Inline annotations on top-level abstract types (`party @abstract`, `action_class @abstract`, `object_class @abstract`) are permitted and used where applicable.
+
 ### 4.1 Attribute definitions
 
 ```tql
@@ -169,7 +171,10 @@ entity required_lenders_party sub party;
 entity action_class @abstract,
     owns action_class_label @key;
 
-entity make_restricted_payment sub action_class @abstract;
+# TypeDB 3.x: @abstract cannot combine with sub in one statement.
+# Declared in two statements.
+entity make_restricted_payment sub action_class;
+entity make_restricted_payment @abstract;
 entity make_dividend_payment sub make_restricted_payment;
 entity repurchase_equity sub make_restricted_payment;
 entity pay_subordinated_debt sub action_class;
@@ -189,9 +194,12 @@ A norm scopes an **object** — the thing the action applies to. The `object_cla
 entity object_class @abstract,
     owns object_class_label @key;
 
-# financial instruments — a sub-abstract under object_class
-entity instrument_class sub object_class @abstract,
+# financial instruments — a sub-abstract under object_class.
+# TypeDB 3.x: @abstract cannot combine with sub in one statement.
+# Declared in two statements.
+entity instrument_class sub object_class,
     owns instrument_class_label;
+entity instrument_class @abstract;
 
 entity equity_interest sub instrument_class;
 entity holdco_equity sub equity_interest;

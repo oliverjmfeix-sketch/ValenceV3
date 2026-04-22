@@ -1,0 +1,70 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Pattern detector functions
+#
+# Port of v3's pattern flags (jcrew_pattern_detected, serta_pattern_detected,
+# collateral_leakage_pattern_detected) to deontic-norm queries. Each detector
+# asks a structural question about the norm graph rather than relying on a
+# pre-computed flag (Rule 2.1 — legal conclusions in the graph, not in prose).
+#
+# PILOT: three detectors below (trapdoor, exception_defeating_critical_prohibition,
+# undefined_reference_term). Others (serta, collateral_leakage) can be added
+# once their constitutive norm shape is characterised.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# has_unlimited_conditional_without_cap — "unlimited when tested, unmapped
+# when not" trapdoor pattern. A permission whose capacity is uncapped while
+# its ratio condition holds, and which provides no fallback cap_usd when the
+# condition fails. PILOT: detects the structural signature — a norm with
+# capacity_composition "unlimited_on_condition" AND no cap_usd attribute set.
+fun has_unlimited_conditional_without_cap($deal_id: string) -> boolean:
+    match
+        $n isa norm, has modality "permission";
+        $n has capacity_composition $cc;
+        $cc == "unlimited_on_condition";
+        not { $n has cap_usd $c; };
+        # parameter-use guard: pilot scans the whole DB regardless of deal;
+        # when projection tags norms with deal_id (Prompt 07) this guard
+        # becomes a real filter.
+        $d_stub isa deal, has deal_id $did;
+        $did == $deal_id;
+    return check;
+
+# has_exception_defeating_critical_prohibition — a prohibition marked critical
+# (by its action_class being make_restricted_payment or
+# transfer_material_intellectual_property) that has an active defeater. The
+# "critical" set is encoded inline here for the pilot; later work may lift
+# it to a seeded "critical_action_class" attribute if the set grows.
+fun has_exception_defeating_critical_prohibition($deal_id: string) -> boolean:
+    match
+        $n isa norm, has modality "prohibition";
+        (norm: $n, action: $ac) isa norm_scopes_action;
+        $ac has action_class_label $al;
+        {
+            $al == "transfer_material_intellectual_property";
+        } or {
+            $al == "make_dividend_payment";
+        };
+        (defeater: $d, defeated: $n) isa defeats;
+        # parameter-use guard — placeholder for deal-scoping (Prompt 07).
+        $d_stub isa deal, has deal_id $did;
+        $did == $deal_id;
+    return check;
+
+# has_undefined_reference_term — PILOT STUB. Detects norms whose source_text
+# references a capitalised defined term that the agreement's v3 extracted
+# definitions do not define. Real implementation requires cross-referencing
+# source_text substrings against v3's ip_definition / transfer_definition /
+# materiality_definition entities, which is scaffolded in Prompt 07. For now
+# the function returns false (no undefined terms flagged) so dependent
+# operations compile.
+fun has_undefined_reference_term($deal_id: string) -> boolean:
+    match
+        # Sentinel that never fires against real data — returns false.
+        $n isa norm, has norm_id $sentinel;
+        $sentinel == "__undefined_ref_stub_sentinel__";
+        # parameter-use guard — placeholder for deal-scoping (Prompt 07).
+        $d_stub isa deal, has deal_id $did;
+        $did == $deal_id;
+    return check;

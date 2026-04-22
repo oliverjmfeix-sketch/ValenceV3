@@ -1,0 +1,48 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Validation functions
+#
+# Pre-insert structural gates (Rule 2.3) and post-extraction coverage checks.
+# Called by the storage layer and the completeness harness (§9.1).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# norm_has_required_fields — minimum set of attributes. A subset of
+# norm_is_structurally_complete (which also requires scope). Used by storage
+# as a first-pass filter before scope is checked.
+fun norm_has_required_fields($n: norm) -> boolean:
+    match
+        $n has modality $m;
+        $n has source_text $st;
+        $n has source_section $ss;
+        $n has source_page $sp;
+        (norm: $n, subject: $subject) isa norm_binds_subject;
+    return check;
+
+# norm_has_scope — at least one norm_scopes_action or norm_scopes_instrument.
+fun norm_has_scope($n: norm) -> boolean:
+    match
+        {
+            (norm: $n, action: $a) isa norm_scopes_action;
+        } or {
+            (norm: $n, instrument: $i) isa norm_scopes_instrument;
+        };
+    return check;
+
+# covenant_missing_expected_norm_kinds — PILOT STUB. Returns empty stream
+# until the `expected_norm_kind` seed lands in Prompt 06. The signature
+# is stable; the match body will be replaced with a real diff against
+# the seed's per-covenant expected set. Parameter-use guards reference both
+# arguments (TypeDB 3.x rejects unused arguments) while guaranteeing the
+# stub never produces output against real data.
+fun covenant_missing_expected_norm_kinds($covenant: string, $deal_id: string) -> { modality }:
+    match
+        $x isa norm, has norm_id $sentinel_id;
+        $sentinel_id == "__expected_kinds_stub_sentinel__";
+        $x has modality $sentinel_mod;
+        # parameter-use guards:
+        $x has source_section $sect;
+        $sect == $covenant;
+        $d_stub isa deal, has deal_id $did;
+        $did == $deal_id;
+    return { $sentinel_mod };

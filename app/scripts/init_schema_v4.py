@@ -24,6 +24,7 @@ script so schema drift is visible in git.
 """
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import time
@@ -56,10 +57,48 @@ DATA_DIR = REPO_ROOT / "app" / "data"
 DOCS_DIR = REPO_ROOT / "docs"
 SCHEMA_V3 = DATA_DIR / "schema_unified.tql"
 SCHEMA_V4 = DATA_DIR / "schema_v4_deontic.tql"
+PRIMITIVES_SEED = DATA_DIR / "deontic_primitives_seed.tql"
 SNAPSHOT_PRE = DOCS_DIR / "v4_schema_snapshot_pre_init.tql"
 SNAPSHOT_POST = DOCS_DIR / "v4_schema_snapshot_post_init.tql"
 
+# Function files — loaded in dependency order. predicate_holds must exist
+# before condition_holds; condition_holds before norm_is_in_force; etc.
+FUNCTION_FILES = [
+    DATA_DIR / "deontic_condition_functions.tql",
+    DATA_DIR / "deontic_norm_functions.tql",
+    DATA_DIR / "deontic_capacity_functions.tql",
+    DATA_DIR / "deontic_pathway_functions.tql",
+    DATA_DIR / "deontic_validation_functions.tql",
+    DATA_DIR / "deontic_pattern_functions.tql",
+]
+
 EXPECTED_DB = "valence_v4"
+
+# The 18 singleton primitive types seeded by deontic_primitives_seed.tql.
+# 9 concrete object_class subtypes + 9 concrete action_class subtypes.
+# make_restricted_payment and instrument_class are abstract — no instance.
+CONCRETE_OBJECT_CLASSES = [
+    "cash",
+    "business_division",
+    "unrestricted_subsidiary_equity_or_assets",
+    "equity_interest",
+    "holdco_equity",
+    "restricted_sub_equity",
+    "unrestricted_sub_equity",
+    "subordinated_debt_instrument",
+    "material_intellectual_property",
+]
+CONCRETE_ACTION_CLASSES = [
+    "make_dividend_payment",
+    "repurchase_equity",
+    "make_tax_distribution",
+    "pay_holdco_overhead",
+    "pay_subordinated_debt",
+    "make_investment",
+    "designate_unrestricted_subsidiary",
+    "make_intercompany_payment",
+    "transfer_material_intellectual_property",
+]
 
 
 def preflight() -> str:
@@ -160,6 +199,68 @@ def load_schema_file(driver, db_name: str, filepath: Path) -> None:
         raise
 
 
+def primitives_already_seeded(driver, db_name: str) -> bool:
+    """Return True iff any concrete object_class or action_class instance exists.
+
+    The seed is idempotent — if even one singleton is already present we skip.
+    """
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        probe = tx.query(
+            "match $e isa cash; select $e;"
+        ).resolve()
+        return len(list(probe.as_concept_rows())) > 0
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def load_primitives_seed(driver, db_name: str, filepath: Path) -> None:
+    """Load the singleton primitives seed as one WRITE transaction."""
+    if not filepath.exists():
+        raise FileNotFoundError(f"Primitives seed missing: {filepath}")
+    logger.info("Loading primitives seed: %s", filepath.name)
+    content = filepath.read_text(encoding="utf-8")
+
+    tx = driver.transaction(db_name, TransactionType.WRITE)
+    t0 = time.perf_counter()
+    try:
+        tx.query(content).resolve()
+        tx.commit()
+        ms = (time.perf_counter() - t0) * 1000
+        logger.info("  primitives seed committed in %.0f ms", ms)
+    except Exception:
+        if tx.is_open():
+            tx.close()
+        raise
+
+
+def count_primitive_instances(driver, db_name: str) -> dict[str, int]:
+    """Return per-type instance counts for the concrete action/object classes.
+
+    Uses `isa!` (exact-type match) rather than `isa` (polymorphic match) so
+    a query for `equity_interest` doesn't also pick up instances of its
+    subtypes (holdco_equity, restricted_sub_equity, unrestricted_sub_equity).
+    The 9 concrete object-class singletons then each count exactly once.
+    """
+    counts: dict[str, int] = {}
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        for label in CONCRETE_OBJECT_CLASSES + CONCRETE_ACTION_CLASSES:
+            result = tx.query(f"match $e isa! {label}; select $e;").resolve()
+            counts[label] = len(list(result.as_concept_rows()))
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+    return counts
+
+
 def verify_types(driver, db_name: str) -> list[str]:
     """Return sorted list of all labelled types (entity/relation/attribute) in the db.
 
@@ -183,20 +284,45 @@ def verify_types(driver, db_name: str) -> list[str]:
     return sorted(labels)
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Initialize the valence_v4 database.")
+    p.add_argument(
+        "--seed-primitives",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Seed the 18 concrete action/object class singletons after schema load (default: true)",
+    )
+    p.add_argument(
+        "--load-functions",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Load the six deontic_*_functions.tql files (default: true)",
+    )
+    return p.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
     preflight()
     driver = connect()
 
-    # ── pre-load snapshot ─────────────────────────────────────────────────────
-    logger.info("Exporting pre-init schema snapshot")
-    pre_schema = export_schema(driver, EXPECTED_DB)
-    if pre_schema is None:
-        write_snapshot(
-            SNAPSHOT_PRE,
-            f"# database {EXPECTED_DB!r} did not exist at pre-init time — no schema to dump.\n",
+    # ── pre-load snapshot (one-shot: preserve the original "before v4 existed"
+    #    snapshot; later re-runs keep it frozen) ────────────────────────────────
+    if SNAPSHOT_PRE.exists():
+        logger.info(
+            "Pre-init snapshot already on disk (%s) — preserving as the historical record",
+            SNAPSHOT_PRE.name,
         )
     else:
-        write_snapshot(SNAPSHOT_PRE, pre_schema)
+        logger.info("Exporting pre-init schema snapshot")
+        pre_schema = export_schema(driver, EXPECTED_DB)
+        if pre_schema is None:
+            write_snapshot(
+                SNAPSHOT_PRE,
+                f"# database {EXPECTED_DB!r} did not exist at pre-init time — no schema to dump.\n",
+            )
+        else:
+            write_snapshot(SNAPSHOT_PRE, pre_schema)
 
     # ── create db if missing ──────────────────────────────────────────────────
     if not driver.databases.contains(EXPECTED_DB):
@@ -209,6 +335,34 @@ def main() -> int:
     # ── load schemas ──────────────────────────────────────────────────────────
     load_schema_file(driver, EXPECTED_DB, SCHEMA_V3)
     load_schema_file(driver, EXPECTED_DB, SCHEMA_V4)
+
+    # ── load deontic functions (SCHEMA transaction per file, in dep order) ────
+    if args.load_functions:
+        logger.info("Loading %d deontic function files", len(FUNCTION_FILES))
+        for fn_file in FUNCTION_FILES:
+            load_schema_file(driver, EXPECTED_DB, fn_file)
+    else:
+        logger.info("Skipping deontic function load (--no-load-functions)")
+
+    # ── seed primitive singletons (idempotent) ────────────────────────────────
+    if args.seed_primitives:
+        if primitives_already_seeded(driver, EXPECTED_DB):
+            logger.info("Primitives already seeded — skipping")
+        else:
+            load_primitives_seed(driver, EXPECTED_DB, PRIMITIVES_SEED)
+
+        counts = count_primitive_instances(driver, EXPECTED_DB)
+        obj_counts = {k: v for k, v in counts.items() if k in CONCRETE_OBJECT_CLASSES}
+        act_counts = {k: v for k, v in counts.items() if k in CONCRETE_ACTION_CLASSES}
+        obj_total = sum(obj_counts.values())
+        act_total = sum(act_counts.values())
+        logger.info("  object_class singletons: %d (expected %d)", obj_total, len(CONCRETE_OBJECT_CLASSES))
+        logger.info("  action_class singletons: %d (expected %d)", act_total, len(CONCRETE_ACTION_CLASSES))
+        bad = {k: v for k, v in counts.items() if v != 1}
+        if bad:
+            logger.warning("Primitive count drift (expected 1 each): %s", bad)
+    else:
+        logger.info("Skipping primitive seeding (--no-seed-primitives)")
 
     # ── post-load snapshot ────────────────────────────────────────────────────
     logger.info("Exporting post-init schema snapshot")

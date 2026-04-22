@@ -1,0 +1,107 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Norm evaluation functions
+#
+# Applicability / defeasibility / structural integrity checks over `norm`
+# instances. Composes condition_functions via norm_is_in_force.
+#
+# `$world_state_id` throughout resolves to an event_instance_id (same contract
+# as deontic_condition_functions.tql).
+#
+# Object-scope semantics: a norm either (a) has a norm_scopes_object edge that
+# must match the caller's $object_label, or (b) has no object-scope edge at
+# all, in which case it applies to any object. Callers that don't care about
+# object scope can pass any label — unscoped norms still match.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# norm_is_structurally_complete — Rule 2.3 gate for pre-insert validation.
+# Requires modality, source text/section/page, a bound subject party, and
+# EITHER a scoped action OR a scoped instrument.
+fun norm_is_structurally_complete($n: norm) -> boolean:
+    match
+        $n has modality $m;
+        $n has source_text $st;
+        $n has source_section $ss;
+        $n has source_page $sp;
+        (norm: $n, subject: $subject) isa norm_binds_subject;
+        {
+            (norm: $n, action: $action) isa norm_scopes_action;
+        } or {
+            (norm: $n, instrument: $instr) isa norm_scopes_instrument;
+        };
+    return check;
+
+# norm_is_defeated — true iff some defeater's condition holds against $n.
+# condition_holds takes the condition concept directly (see
+# deontic_condition_functions.tql for the value/attribute rationale).
+fun norm_is_defeated($n: norm, $world_state_id: string) -> boolean:
+    match
+        (defeater: $d, defeated: $n) isa defeats;
+        (defeater: $d, root: $cond) isa defeater_has_condition;
+        let $ch = condition_holds($cond, $world_state_id);
+        $ch == true;
+    return check;
+
+# norm_is_in_force — composition: not defeated AND (no condition OR condition holds).
+fun norm_is_in_force($n: norm, $world_state_id: string) -> boolean:
+    match
+        let $def = norm_is_defeated($n, $world_state_id);
+        $def == false;
+        {
+            # no attached condition — norm applies unconditionally once not defeated
+            not { (norm: $n, root: $any_cond) isa norm_has_condition; };
+        } or {
+            (norm: $n, root: $cond) isa norm_has_condition;
+            let $ch = condition_holds($cond, $world_state_id);
+            $ch == true;
+        };
+    return check;
+
+# applicable_permissions — stream of permission norms that match action/subject/
+# object filters AND are in force in the given world state.
+fun applicable_permissions($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> { norm }:
+    match
+        $n isa norm, has modality $mod;
+        $mod == "permission";
+        (norm: $n, subject: $subject) isa norm_binds_subject;
+        $subject has party_role $pr;
+        $pr == $subject_role;
+        (norm: $n, action: $ac) isa norm_scopes_action;
+        $ac has action_class_label $al;
+        $al == $action_label;
+        {
+            # norm has an object scope that matches
+            (norm: $n, object: $obj) isa norm_scopes_object;
+            $obj has object_class_label $ol;
+            $ol == $object_label;
+        } or {
+            # norm has no object scope — applies to any object
+            not { (norm: $n, object: $any_obj) isa norm_scopes_object; };
+        };
+        let $inf = norm_is_in_force($n, $world_state_id);
+        $inf == true;
+    return { $n };
+
+# applicable_prohibitions — analogous to applicable_permissions for modality
+# "prohibition".
+fun applicable_prohibitions($action_label: string, $subject_role: string, $object_label: string, $world_state_id: string) -> { norm }:
+    match
+        $n isa norm, has modality $mod;
+        $mod == "prohibition";
+        (norm: $n, subject: $subject) isa norm_binds_subject;
+        $subject has party_role $pr;
+        $pr == $subject_role;
+        (norm: $n, action: $ac) isa norm_scopes_action;
+        $ac has action_class_label $al;
+        $al == $action_label;
+        {
+            (norm: $n, object: $obj) isa norm_scopes_object;
+            $obj has object_class_label $ol;
+            $ol == $object_label;
+        } or {
+            not { (norm: $n, object: $any_obj) isa norm_scopes_object; };
+        };
+        let $inf = norm_is_in_force($n, $world_state_id);
+        $inf == true;
+    return { $n };

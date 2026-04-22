@@ -1,0 +1,83 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Deontic primitive singletons
+#
+# One instance per concrete object_class and action_class subtype.
+# These are GLOBAL — "cash" is the same concept across all deals. Parties are
+# NOT seeded here (deal-specific, created in projection layer — Prompt 07).
+# State predicates are NOT seeded here (deferred to Prompt 06).
+#
+# `make_restricted_payment` and `instrument_class` are abstract — no instance.
+# Loaded by init_schema_v4.py in a WRITE transaction; idempotent via existence
+# check before insert (see init_schema_v4.py::seed_primitives).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ─── Object class singletons ───────────────────────────────────────────────────
+
+# non-instrument objects
+$oc_cash isa cash,
+    has object_class_label "cash";
+
+$oc_biz_div isa business_division,
+    has object_class_label "business_division";
+
+$oc_unsub_ea isa unrestricted_subsidiary_equity_or_assets,
+    has object_class_label "unrestricted_subsidiary_equity_or_assets";
+
+# equity interest family — each carries both object_class_label and instrument_class_label
+$oc_equity isa equity_interest,
+    has object_class_label "equity_interest",
+    has instrument_class_label "equity_interest";
+
+$oc_holdco_eq isa holdco_equity,
+    has object_class_label "holdco_equity",
+    has instrument_class_label "holdco_equity";
+
+$oc_restricted_sub_eq isa restricted_sub_equity,
+    has object_class_label "restricted_sub_equity",
+    has instrument_class_label "restricted_sub_equity";
+
+$oc_unrestricted_sub_eq isa unrestricted_sub_equity,
+    has object_class_label "unrestricted_sub_equity",
+    has instrument_class_label "unrestricted_sub_equity";
+
+# other instruments
+$oc_sub_debt isa subordinated_debt_instrument,
+    has object_class_label "subordinated_debt_instrument",
+    has instrument_class_label "subordinated_debt_instrument";
+
+$oc_mip isa material_intellectual_property,
+    has object_class_label "material_intellectual_property",
+    has instrument_class_label "material_intellectual_property";
+
+# ─── Action class singletons ───────────────────────────────────────────────────
+
+# RP family (concrete subtypes of make_restricted_payment abstract parent)
+$ac_div isa make_dividend_payment,
+    has action_class_label "make_dividend_payment";
+
+$ac_repurchase isa repurchase_equity,
+    has action_class_label "repurchase_equity";
+
+$ac_tax_dist isa make_tax_distribution,
+    has action_class_label "make_tax_distribution";
+
+$ac_holdco_overhead isa pay_holdco_overhead,
+    has action_class_label "pay_holdco_overhead";
+
+# standalone action classes
+$ac_sub_debt_pay isa pay_subordinated_debt,
+    has action_class_label "pay_subordinated_debt";
+
+$ac_investment isa make_investment,
+    has action_class_label "make_investment";
+
+$ac_unsub_designate isa designate_unrestricted_subsidiary,
+    has action_class_label "designate_unrestricted_subsidiary";
+
+$ac_intercompany isa make_intercompany_payment,
+    has action_class_label "make_intercompany_payment";
+
+$ac_mip_transfer isa transfer_material_intellectual_property,
+    has action_class_label "transfer_material_intellectual_property";

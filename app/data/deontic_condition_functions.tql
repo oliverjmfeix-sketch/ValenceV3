@@ -1,0 +1,86 @@
+define
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Condition evaluation functions
+#
+# Evaluates predicate trees (condition entity + condition_has_child recursion)
+# against a "world state" — represented here by an event_instance carrying the
+# snapshot attributes (ratio levels, is_no_worse_pro_forma, ...). The
+# $world_state_id parameter resolves to an event_instance_id.
+#
+# ── PILOT LIMITATIONS ────────────────────────────────────────────────────────
+# Both predicate_holds and condition_holds take entity concepts (not ids) as
+# their primary argument — TypeDB 3.x infers `has X $v` variables as attribute
+# concepts and refuses to re-type them as value when passed across function
+# parameters declared `string`. Passing the concept keeps label-extraction
+# inside the callee and sidesteps the conflict.
+#
+# condition_holds is currently **depth-bounded**: it supports `atomic` leaves
+# and one-level `or` of atomic children. Depth-arbitrary `and`/`not` would
+# require recursive self-calls through a negation, which TypeDB 3.x
+# (error FUN9) refuses during function-translation. This limitation is fine
+# for the RP pilot: the Duck Creek gold conditions are all either single
+# atomic predicates or a disjunction of atomic predicates (e.g., Q6:
+# "ratio ≤ 5.75 OR no-worse"). Deeper trees will be handled either by
+# flattening at projection time (Prompt 07) or by a non-recursive evaluator
+# added later.
+# ── END PILOT LIMITATIONS ────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# predicate_holds — atomic predicate evaluation.
+# Takes the state_predicate concept; label-extraction happens inside.
+# Labels honored in the RP pilot:
+#   - no_event_of_default_exists   (PILOT STUB: always true — EoD flag not yet
+#                                   modelled on event_instance)
+#   - pro_forma_no_worse           (checks event_instance.is_no_worse_pro_forma)
+#   - first_lien_net_leverage_at_or_below_{5_50,5_75,6_25}
+#     (threshold encoded in the label — Prompt 06 may introduce a cleaner
+#      threshold carrier).
+fun predicate_holds($pred: state_predicate, $world_state_id: string) -> boolean:
+    match
+        $pred has state_predicate_label $pl;
+        $ev isa event_instance, has event_instance_id $wsid;
+        $wsid == $world_state_id;
+        {
+            $pl == "no_event_of_default_exists";
+            # PILOT STUB: defaults to true until EoD flag lands on event_instance.
+        } or {
+            $pl == "pro_forma_no_worse";
+            $ev has is_no_worse_pro_forma true;
+        } or {
+            $pl == "first_lien_net_leverage_at_or_below_5_50";
+            $ev has ratio_snapshot_first_lien_net_leverage $r550;
+            $r550 <= 5.50;
+        } or {
+            $pl == "first_lien_net_leverage_at_or_below_5_75";
+            $ev has ratio_snapshot_first_lien_net_leverage $r575;
+            $r575 <= 5.75;
+        } or {
+            $pl == "first_lien_net_leverage_at_or_below_6_25";
+            $ev has ratio_snapshot_first_lien_net_leverage $r625;
+            $r625 <= 6.25;
+        };
+    return check;
+
+# condition_holds — depth-bounded predicate-tree evaluation.
+# Handles:
+#   - atomic (delegates to predicate_holds)
+#   - or of atomic children (Q6-style disjunctions)
+# AND/NOT are TODO (see pilot-limitations note above).
+fun condition_holds($cond: condition, $world_state_id: string) -> boolean:
+    match
+        $cond has condition_operator $op;
+        {
+            $op == "atomic";
+            (condition: $cond, predicate: $pred) isa condition_references_predicate;
+            let $h_atomic = predicate_holds($pred, $world_state_id);
+            $h_atomic == true;
+        } or {
+            $op == "or";
+            (parent: $cond, child: $child) isa condition_has_child;
+            $child has condition_operator "atomic";
+            (condition: $child, predicate: $child_pred) isa condition_references_predicate;
+            let $h_or = predicate_holds($child_pred, $world_state_id);
+            $h_or == true;
+        };
+    return check;
