@@ -1,20 +1,17 @@
+## Document history
+
+- `752c847` — Initial audit committed. Contained errors (see below).
+- (correction commit, superseding `752c847`) — Audit corrected. Earlier claims that the gold-answer file contained five prose errors were wrong. Gold answers are accurate. Audit now includes Section 2.10(c)(iv) as a distinct norm (missing from initial version) and identifies one depth-3 condition tree requiring Strategy A flattening.
+
 ## Duck Creek RP condition-tree audit (pre-Prompt-05) — source-verified
 
 The Duck Creek gold-standard answers (`app/data/gold_standard/lawyer_dc_rp.json`) were audited against the operative text of the Duck Creek agreement to determine condition-tree shapes the projection engine must represent. Current `condition_holds` implementation supports depth-2: atomic, OR of atomics, AND of atomics.
 
-**Audit basis:** Duck Creek agreement (DISCO PARENT, INC. credit agreement, August 2025, 264 pages), Sections 1 (Definitions), 6.03, 6.05, 6.06, 6.09, and 2.10.
+### Audit basis and review note
 
-### Gold-answer prose corrections discovered during audit
+This audit was verified against the operative text of the DISCO PARENT, INC. credit agreement (posting version 7/30/25), Sections 1 (Definitions), 2.10 (Prepayments), 6.03, 6.05, 6.06, and 6.09. Primary sources are cited per-norm below.
 
-Five material differences between gold-answer prose and operative agreement text. Ground-truth authoring in Prompt 05 must use operative text, not gold summary.
-
-| Gold claim | Operative text | Correction |
-|---|---|---|
-| Q4: "ratio is 6.25x or less" for 6.05(z) | "First Lien Leverage Ratio... no greater than the greater of (x) 6.00 to 1.00 and (y) [pre-transaction ratio]" | Threshold is **6.00x**, not 6.25x |
-| Q4: "sale of a product line AND ratio test" for 6.05(z) | No product-line requirement anywhere in 6.05(z) | **No product-line AND.** 6.05(z) is ratio-gated only. |
-| Q4: "proceeds not swept when ratio ≤ 5.75x (50%)" | Applicable Net Cash Proceeds Percentage: >5.75x → 100% sweep, 5.50x–5.75x → 50% sweep, ≤5.50x → 0% sweep | Gold describes retention; operative defines sweep. Math equivalent but draft tiers opposite. |
-| Q4: "de minimis of $20M/15% EBITDA **individual and** $40M/30% EBITDA **annual**" | Section 2.10(c)(i): "either (or both) (x) [individual] **and/or** (y) [annual]" | **Disjunctive** (either qualifies the sale as de minimis), not AND. |
-| Q2: J.Crew blocker applies as defeater on 6.06(p) (implied by `requires_entities`) | J.Crew blocker text is at the Unrestricted Subsidiary designation step: "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if... such Unrestricted Subsidiary would own or have an exclusive license... to any Material Intellectual Property." | **Not a defeater on 6.06(p).** Blocker is a condition on `designate_unrestricted_subsidiary` action, upstream of 6.06(p). Once an Unsub exists legitimately, 6.06(p) is unconditional. |
+An earlier version of this audit (committed in `752c847`) asserted five discrepancies between the gold-answer file and operative text. On re-review, those claims were incorrect — the gold is accurate. The most consequential error in the earlier audit was conflating Section 6.05(z) (general unlimited asset sale basket, 6.00x threshold, no product-line requirement) with Section 2.10(c)(iv) (product-line-sale sweep exemption, 6.25x threshold, product-line AND requirement). Both provisions exist and both contribute to Retained Asset Sale Proceeds via different pathways. The gold answer for Q4 was describing 2.10(c)(iv); the earlier audit read only 6.05(z) and treated the discrepancy as gold error.
 
 ### Per-norm classifications
 
@@ -31,6 +28,7 @@ Five material differences between gold-answer prose and operative agreement text
 | Q3 | 6.03(y) general investment ($130m/100% EBITDA) | unconditional | — | §6.03(y) |
 | Q3 | Reallocation edges (6.06(j) ← 6.09(a), 6.06(j) ← 6.03(y)) | structural (no condition tree) | — | §6.06(j) cross-refs |
 | Q4 | 6.05(z) unlimited asset sale basket | `first_lien_ratio_at_or_below(6.00) OR pro_forma_no_worse(first_lien)` | 2 | §6.05(z) |
+| Q4 | 2.10(c)(iv) product-line sweep exemption | `is_product_line_or_line_of_business_sale AND (first_lien_ratio_at_or_below(6.25) OR pro_forma_no_worse(first_lien))` | 3 (requires Strategy A flattening) | §2.10(c)(iv) |
 | Q4 | Sweep tier 100% (>5.75x) | `first_lien_ratio_above(5.75)` | 1 | Defn "Applicable Net Cash Proceeds Percentage" clause (a) |
 | Q4 | Sweep tier 50% (5.50–5.75x) | `first_lien_ratio_above(5.50) AND first_lien_ratio_at_or_below(5.75)` | 2 | Defn "Applicable Net Cash Proceeds Percentage" clause (b) |
 | Q4 | Sweep tier 0% (≤5.50x) | `first_lien_ratio_at_or_below(5.50)` | 1 | Defn "Applicable Net Cash Proceeds Percentage" clause (c) |
@@ -54,19 +52,50 @@ Not in current Duck Creek RP gold scope (investment-side, not RP-side), but conf
 | Unconditional | 11 norms |
 | Atomic (depth-1) | 3 |
 | OR of atomics (depth-2) | 3 |
-| AND of atomics (depth-2) | 1 |
-| Deeper than depth-2 | **0** |
+| AND of atomics (depth-2) | 1 (de minimis OR across two atomic thresholds — both components are per-fiscal-year structural tests) |
+| Depth-3 (AND of atomic and OR-of-atomics) | 1 (Section 2.10(c)(iv)) |
 
-**Every condition in Duck Creek RP fits within depth-2 natively.** No Strategy A flattening required anywhere. Current `condition_holds` implementation (commit `7a295cc`: atomic + OR + AND) is sufficient without modification.
+One norm (Section 2.10(c)(iv)) is depth-3 pre-flattening. Strategy A flattening is required for this one case.
+
+### Strategy A flattening for Section 2.10(c)(iv)
+
+Section 2.10(c)(iv) exempts product-line-sale proceeds from the mandatory prepayment sweep if both (A) the sale is of all or substantially all of a product line or line of business AND (B) the First Lien Leverage Ratio is ≤ 6.25x on a Pro Forma Basis (after giving pro forma effect to the sweep) OR no-worse pro forma.
+
+The depth-3 condition tree:
+
+```
+AND
+├── atomic: is_product_line_or_line_of_business_sale
+└── OR
+    ├── atomic: first_lien_ratio_at_or_below, threshold=6.25
+    └── atomic: pro_forma_no_worse, reference=first_lien_net_leverage
+```
+
+Under Strategy A (Boolean distribution at ground-truth-authoring time), this becomes:
+
+```
+OR
+├── AND
+│   ├── atomic: is_product_line_or_line_of_business_sale
+│   └── atomic: first_lien_ratio_at_or_below, threshold=6.25
+└── AND
+    ├── atomic: is_product_line_or_line_of_business_sale
+    └── atomic: pro_forma_no_worse, reference=first_lien_net_leverage
+```
+
+Each branch is depth-2 (AND of atomics), which fits current `condition_holds` support. The `is_product_line_or_line_of_business_sale` atomic appears twice (one per branch) — this is the duplication cost of Strategy A; acceptable for this one case.
+
+Prompt 05 ground truth encodes this flattened form directly. Projection (Prompt 07) must emit the same flattened shape.
 
 ### Resolution plan — ground truth authoring
 
 During Prompt 05:
 
-1. Use operative text for all source_text fields in ground-truth YAML (not gold-answer paraphrase).
-2. Apply the five corrections above when encoding Q2, Q4.
-3. Model J.Crew blocker as a condition on `designate_unrestricted_subsidiary`, not as a defeater on 6.06(p).
-4. If a condition tree deeper than depth-2 surfaces in a norm we haven't yet audited (e.g., a later-added Duck Creek covenant or a newly-surfaced exception), flag before encoding.
+1. Use operative text for all source_text fields in ground-truth YAML.
+2. Ground truth should reference the correct operative provision for each gold claim — in particular, Q4's gold answer describes Section 2.10(c)(iv) (product-line exemption, 6.25x) and Section 6.05(z) (general basket, 6.00x) as two distinct pathways feeding Retained Asset Sale Proceeds.
+3. Model J.Crew blocker as an atomic positive condition on `designate_unrestricted_subsidiary` (the operative text placement). Q2's gold answer does not require a defeater on 6.06(p); the `requires_entities` metadata reflects upstream relevance of the blocker, which is preserved by encoding the blocker as a separate norm.
+4. Encode Section 2.10(c)(iv) in the Strategy A flattened form described above — a two-branch OR, each branch an AND of the product-line atomic and one of the ratio atomics.
+5. If a condition tree deeper than depth-2 surfaces in a norm we haven't yet audited (e.g., a later-added Duck Creek covenant or a newly-surfaced exception), flag before encoding.
 
 ### Remaining open items for Prompt 05
 
