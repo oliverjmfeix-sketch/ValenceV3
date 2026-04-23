@@ -119,6 +119,14 @@ EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
         probe_type="ontology_question",
         probe_query='match $q isa ontology_question, has question_id "rp_v4_F_cc"; select $q;',
     ),
+    # Per-deal party instances — one file per deal. Duck Creek only for pilot.
+    # Projection binds norm subjects to these instances by party_role match.
+    # Adding a new deal = new seed file with the same shape, appended here.
+    SeedFile(
+        "duck_creek_parties_seed.tql",
+        probe_type="party",
+        probe_query='match $p isa party, has party_id "6e76ed06__borrower"; select $p;',
+    ),
 ]
 
 

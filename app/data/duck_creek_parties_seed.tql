@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Per-deal party instances — Duck Creek Technologies (DISCO Parent Inc.)
+# deal_id: 6e76ed06
+#
+# Projection emits norm_binds_subject edges from each projected norm to the
+# party instance matching the mapping's default_subject_role. Without per-deal
+# party instances in valence_v4, these edges fail to bind and A1 structural
+# completeness fails for every norm.
+#
+# One instance per party_role value declared in schema_v4_deontic.tql §4.2.
+# Party entity types are concrete subtypes of `party`; each inherits
+# `party_id @key` + `party_role` ownership.
+#
+# Adding a new deal is a new seed file with the same structure — keyed by
+# {deal_id}__{role}, named with the borrower's actual name. Other deals load
+# via the DEAL_SEEDS registry in app/services/seed_loader.py.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$p_borrower isa borrower_party,
+    has party_id "6e76ed06__borrower",
+    has party_role "borrower";
+
+$p_loan_party isa loan_party,
+    has party_id "6e76ed06__loan_party",
+    has party_role "loan_party";
+
+$p_restricted_sub isa restricted_sub_party,
+    has party_id "6e76ed06__restricted_sub",
+    has party_role "restricted_sub";
+
+$p_unrestricted_sub isa unrestricted_sub_party,
+    has party_id "6e76ed06__unrestricted_sub",
+    has party_role "unrestricted_sub";
+
+$p_holdings isa holdings_party,
+    has party_id "6e76ed06__holdings",
+    has party_role "holdings";
+
+$p_agent isa agent_party,
+    has party_id "6e76ed06__agent",
+    has party_role "agent";
+
+$p_required_lenders isa required_lenders_party,
+    has party_id "6e76ed06__required_lenders",
+    has party_role "required_lenders";

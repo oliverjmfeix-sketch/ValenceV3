@@ -82,6 +82,7 @@ class V3Entity:
     entity_type: str                           # concrete subtype (builder_basket, etc.)
     basket_id: str | None                      # for baskets
     attrs: dict                                # all owned attributes as python values
+    deal_id: str | None = None                 # deal prefix for non-basket norm_id fallback
 
 
 @dataclass
@@ -317,6 +318,7 @@ def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Enti
                         entity_type=v3_type,
                         basket_id=bid,
                         attrs=_fetch_entity_attrs(tx, None, bid),
+                        deal_id=deal_id,
                     ))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("v3 basket fetch failed for %s: %s", v3_type, str(exc)[:160])
@@ -334,6 +336,7 @@ def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Enti
                         entity_type=v3_type,
                         basket_id=None,
                         attrs={},  # blocker attrs fetched on demand in Part 5
+                        deal_id=deal_id,
                     ))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("v3 non-basket fetch failed for %s: %s", v3_type, str(exc)[:160])
@@ -386,8 +389,21 @@ def _fetch_entity_attrs(tx, concept, identifier: str | None) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _make_norm_id(entity: V3Entity, mapping: MappingRecord) -> str:
-    """Deterministic norm_id scheme: {basket_id}:norm:{modality}:0"""
-    anchor = entity.basket_id or f"{entity.entity_type}_instance"
+    """Deterministic norm_id scheme.
+
+    Baskets: `{basket_id}:norm:{modality}:0` where basket_id has the deal
+    prefix (e.g., `6e76ed06_rp_builder_basket:norm:permission:0`).
+
+    Non-basket entities (jcrew_blocker): `{deal_id}_{entity_type}_instance:
+    norm:{modality}:0` — the deal_id prefix lets `clear_v4_projection_for_deal`
+    find these norms via `norm_id contains deal_id` even though they have
+    no basket_id attribute.
+    """
+    if entity.basket_id:
+        anchor = entity.basket_id
+    else:
+        deal_prefix = entity.deal_id or "unknown_deal"
+        anchor = f"{deal_prefix}_{entity.entity_type}_instance"
     return f"{anchor}:norm:{mapping.target_modality}:0"
 
 
@@ -748,14 +764,90 @@ def _attach_predicate(driver, db_name, cid: str, pid: str,
 # Orchestration
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
+    """Remove existing v4 projection output for a deal before re-projecting.
+
+    Preserves v3 extracted entities (rp_basket, jcrew_blocker, etc.) — those
+    are the $12.95 extraction artifact and must NOT be dropped. Only v4 norms,
+    conditions, defeaters, and their relations are cleared, scoped to the
+    specific deal via norm_id prefix.
+
+    Returns counts of what was removed per type.
+    """
+    counts = {"norms": 0, "conditions": 0, "defeaters": 0}
+
+    # Count + delete norms and any relations/conditions anchored to them.
+    # Norm IDs produced by project_entity start with the deal_id + "_rp_" or
+    # include it as a prefix. We match via `contains deal_id` on norm_id, which
+    # catches both scheme variants.
+    nid_pattern = deal_id
+    tx = driver.transaction(db_name, TransactionType.WRITE)
+    try:
+        # Delete conditions first (safe even if no norm_has_condition edge —
+        # condition_id strings carry norm_id prefix per construct_condition_id).
+        tx.query(f'''
+            match
+              $c isa condition, has condition_id $cid;
+              $cid contains "{nid_pattern}";
+            delete $c;
+        ''').resolve()
+        # Delete norms (their norm_binds_subject / norm_scopes_* / norm_has_condition
+        # / norm_extracted_from edges drop automatically when the norm is removed).
+        tx.query(f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+            delete $n;
+        ''').resolve()
+        # Defeaters are emitted per-deal in Fix 6. Clear any existing ones
+        # associated with this deal via defeats edges to cleared norms — the
+        # defeats relation drops with norms, but the defeater entity lingers.
+        # Delete defeaters whose source references the deal (we store
+        # defeater_id starting with the deal_id prefix).
+        tx.query(f'''
+            match
+              $d isa defeater;
+              try {{ $d has defeater_id $did; $did contains "{nid_pattern}"; }};
+            delete $d;
+        ''').resolve()
+        tx.commit()
+    except Exception as exc:  # noqa: BLE001
+        if tx.is_open():
+            tx.close()
+        logger.warning("clear step partially failed: %s", str(exc)[:200])
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Post-clear inventory (for reporting)
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        r = tx.query(f'match $n isa norm, has norm_id $nid; $nid contains "{nid_pattern}"; select $n;').resolve()
+        counts["norms_remaining"] = len(list(r.as_concept_rows()))
+    except Exception:
+        counts["norms_remaining"] = -1
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return counts
+
+
 def project_deal(driver, db_name: str, deal_id: str, dry_run: bool = False) -> ProjectionReport:
     """Project all v3 extracted entities for a deal into v4 norms.
 
     Steps:
       1. Load mappings + specs + instrument_label set from graph
-      2. Polymorphic fetch v3 entities for deal
-      3. Per entity: look up mapping, apply projection
-      4. Report structural completeness + predicate lookup failures
+      2. Non-dry-run: clear existing v4 projection output for the deal
+         (preserves v3 extraction)
+      3. Polymorphic fetch v3 entities for deal
+      4. Per entity: look up mapping, apply projection
+      5. Report structural completeness + predicate lookup failures
 
     Returns the ProjectionReport summary regardless of dry_run.
     """
@@ -777,6 +869,12 @@ def project_deal(driver, db_name: str, deal_id: str, dry_run: bool = False) -> P
                 tx.close()
         except Exception:  # noqa: BLE001
             pass
+
+    # Clear previous projection output so re-runs are idempotent. v3 extraction
+    # entities (rp_basket, jcrew_blocker) are not touched.
+    if not dry_run:
+        clear_counts = clear_v4_projection_for_deal(driver, db_name, deal_id)
+        logger.info("cleared previous v4 projection output: %s", clear_counts)
 
     logger.info("Fetching v3 entities for deal %s", deal_id)
     entities = load_v3_entities_for_deal(driver, db_name, deal_id)
