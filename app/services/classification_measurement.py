@@ -36,8 +36,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 _main_env = Path("C:/Users/olive/ValenceV3/.env")
 if _main_env.exists():
-    load_dotenv(_main_env, override=False)
-load_dotenv(REPO_ROOT / ".env", override=False)
+    load_dotenv(_main_env, override=True)
+load_dotenv(REPO_ROOT / ".env", override=True)
 
 import re  # noqa: E402
 import time  # noqa: E402
@@ -226,24 +226,163 @@ def load_ground_truth(path: Path = DEFAULT_GROUND_TRUTH) -> dict:
 
 
 def _list_extracted_norms(tx) -> list[dict]:
-    """Return list of norm records currently in valence_v4, each with id + kind + relevant scalars."""
+    """Return list of norm records currently in valence_v4, each with id +
+    kind + modality + primary scoped action + primary scoped object.
+
+    The scoped_action / scoped_object attributes let the harness join each
+    extracted norm to its ground-truth counterpart via structural tuple
+    (norm_kind, modality, primary_action, primary_object) rather than by
+    norm_id — extraction and ground-truth use disjoint id schemes.
+
+    'primary' = one representative label per norm. Picked as the
+    lexicographically-first matching action_class_label / object_class_label
+    (or instrument_class_label). Deterministic so the same norm always
+    produces the same tuple.
+    """
     try:
-        result = tx.query(
-            "match $n isa norm, has norm_id $nid, has norm_kind $nk; select $nid, $nk;"
-        ).resolve()
+        result = tx.query("""
+            match
+              $n isa norm, has norm_id $nid, has norm_kind $nk;
+              try { $n has modality $mod; };
+              try { $n has source_text $st; };
+              try { $n has source_section $ss; };
+            select $nid, $nk, $mod, $st, $ss;
+        """).resolve()
         rows = list(result.as_concept_rows())
     except Exception:
         rows = []
-    norms = []
+
+    norms: list[dict] = []
     for r in rows:
         try:
-            norms.append({
-                "norm_id": r.get("nid").as_attribute().get_value(),
-                "norm_kind": r.get("nk").as_attribute().get_value(),
-            })
+            nid = r.get("nid").as_attribute().get_value()
         except Exception:
             continue
+        mod_concept = r.get("mod")
+        modality = mod_concept.as_attribute().get_value() if mod_concept else None
+        st_concept = r.get("st")
+        source_text = st_concept.as_attribute().get_value() if st_concept else None
+        ss_concept = r.get("ss")
+        source_section = ss_concept.as_attribute().get_value() if ss_concept else None
+        norms.append({
+            "norm_id": nid,
+            "norm_kind": r.get("nk").as_attribute().get_value(),
+            "modality": modality,
+            "source_text": source_text,
+            "source_section": source_section,
+        })
+
+    # Augment with primary action + object labels (per-norm follow-up queries).
+    for n in norms:
+        nid = n["norm_id"]
+        action_labels: list[str] = []
+        object_labels: list[str] = []
+        try:
+            q_action = f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  (norm: $n, action: $a) isa norm_scopes_action;
+                  $a has action_class_label $lbl;
+                select $lbl;
+            '''
+            for row in tx.query(q_action).resolve().as_concept_rows():
+                action_labels.append(row.get("lbl").as_attribute().get_value())
+        except Exception:
+            pass
+        try:
+            q_object = f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  (norm: $n, object: $o) isa norm_scopes_object;
+                  $o has object_class_label $lbl;
+                select $lbl;
+            '''
+            for row in tx.query(q_object).resolve().as_concept_rows():
+                object_labels.append(row.get("lbl").as_attribute().get_value())
+        except Exception:
+            pass
+        # Fallback to instrument scope when no generic object edge exists.
+        if not object_labels:
+            try:
+                q_instr = f'''
+                    match
+                      $n isa norm, has norm_id "{nid}";
+                      (norm: $n, instrument: $o) isa norm_scopes_instrument;
+                      $o has instrument_class_label $lbl;
+                    select $lbl;
+                '''
+                for row in tx.query(q_instr).resolve().as_concept_rows():
+                    object_labels.append(row.get("lbl").as_attribute().get_value())
+            except Exception:
+                pass
+        n["primary_action"] = sorted(action_labels)[0] if action_labels else None
+        n["primary_object"] = sorted(object_labels)[0] if object_labels else None
+        n["all_actions"] = sorted(action_labels)
+        n["all_objects"] = sorted(object_labels)
     return norms
+
+
+def _gt_primary(values: list | None) -> str | None:
+    """Deterministic primary from a YAML list — sorted-first like extracted."""
+    if not values:
+        return None
+    return sorted(values)[0]
+
+
+def _build_gt_tuple_index(gt_norms: dict[str, dict]) -> tuple[dict, list[tuple]]:
+    """Build a tuple → [gt_norms] index and return ordered collision list.
+
+    Tuple: (norm_kind, modality, primary_scoped_action, primary_scoped_object).
+    On collision (>1 GT norm with the same tuple) the index stores a list —
+    join logic disambiguates via norm_kind when possible and logs the rest.
+    """
+    index: dict[tuple, list[dict]] = defaultdict(list)
+    for nid, n in gt_norms.items():
+        key = (
+            n.get("norm_kind"),
+            n.get("modality"),
+            _gt_primary(n.get("scoped_actions")),
+            _gt_primary(n.get("scoped_objects")),
+        )
+        index[key].append(n)
+    collisions = [(k, v) for k, v in index.items() if len(v) > 1]
+    return dict(index), collisions
+
+
+def _match_gt(extracted_norm: dict, gt_index: dict) -> dict | None:
+    """Look up the GT norm matching an extracted norm by structural tuple.
+
+    Primary key is (norm_kind, modality, primary_action, primary_object).
+    On tuple collision (multiple GT norms share the tuple), prefer one
+    whose norm_kind exactly matches the extracted norm's norm_kind.
+    Returns None when no match.
+    """
+    key = (
+        extracted_norm.get("norm_kind"),
+        extracted_norm.get("modality"),
+        extracted_norm.get("primary_action"),
+        extracted_norm.get("primary_object"),
+    )
+    candidates = gt_index.get(key, [])
+    if not candidates:
+        # Fallback: drop primary_object and retry. Some extracted norms have
+        # no object edge; GT norms typically do. The relaxed tuple catches
+        # norms whose kind/modality/action triple uniquely identifies them.
+        relaxed = (key[0], key[1], key[2], None)
+        candidates = gt_index.get(relaxed, [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    # Collision: prefer exact norm_kind match
+    exact_kind = [c for c in candidates if c.get("norm_kind") == extracted_norm.get("norm_kind")]
+    if len(exact_kind) == 1:
+        return exact_kind[0]
+    logger.warning(
+        "tuple collision for extracted norm %s (%d GT candidates): matching to first",
+        extracted_norm.get("norm_id"), len(candidates),
+    )
+    return candidates[0]
 
 
 _claude_client: Anthropic | None = None
@@ -451,6 +590,16 @@ def _measure_generic(
                 enriched["condition_structure"] = None
         gt_norms[nid] = enriched
 
+    # Build tuple index for structural-join lookup. Extraction and ground-
+    # truth use disjoint norm_id schemes; tuple join matches on semantically
+    # stable (norm_kind, modality, primary_scoped_action, primary_scoped_object).
+    gt_index, gt_collisions = _build_gt_tuple_index(gt_norms)
+    if gt_collisions:
+        logger.info(
+            "GT tuple index built with %d collisions (logged during per-norm join)",
+            len(gt_collisions),
+        )
+
     driver = connect()
     try:
         tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
@@ -472,14 +621,25 @@ def _measure_generic(
     confusion = defaultdict(lambda: defaultdict(int))
     dim_counters = {d: {"reached": 0, "passed": 0} for d in ("D1", "D2", "D3", "D4", "D5", "D6")}
     rule_selection = {"correct": 0, "incorrect": 0}
+    matched_gt_norm_ids: set[str] = set()
 
     # Iterate extracted norms and classify each. Empty DB = empty loop.
     for ex in extracted:
-        gt_norm = gt_norms.get(ex["norm_id"])
+        gt_norm = _match_gt(ex, gt_index)
+        if gt_norm:
+            matched_gt_norm_ids.add(gt_norm.get("norm_id"))
         expected = gt_norm.get(field) if gt_norm else None
 
-        # Build input payload for the prompt (TBD: include source_text etc. from DB)
-        input_payload = {"norm_kind": ex["norm_kind"], "expected_hidden_for_grader": expected}
+        # Input payload: enough context for Claude to classify. Never reveal the
+        # expected/ground-truth value — that leak would bias rating.
+        input_payload = {
+            "norm_kind": ex["norm_kind"],
+            "modality": ex.get("modality"),
+            "scoped_action": ex.get("primary_action"),
+            "scoped_object": ex.get("primary_object"),
+            "source_section": ex.get("source_section"),
+            "source_text": ex.get("source_text"),
+        }
 
         # Post-Prompt-07: _call_claude_classify makes real SDK calls and
         # returns {"classification": None, ...} on parse / transient failure
@@ -535,14 +695,15 @@ def _measure_generic(
             if len(by_expected_predicted.get(p["expected"], set())) <= 1:
                 dim_counters["D6"]["passed"] += 1
 
-    # D1 completeness: rough proxy — fraction of ground-truth norms with a
-    # classification field set that have an extracted counterpart.
-    # D1 reads from the enriched gt_norms dict so condition_structure sees the
-    # topology derivation (including "unconditional" for norms without a condition).
+    # D1 completeness: fraction of ground-truth norms with a classification
+    # value set that have a matched extracted counterpart via structural-tuple
+    # join. matched_gt_norm_ids accumulates during the per-extracted iteration
+    # above — each successful _match_gt records the GT norm's id.
     gt_with_class = [n for n in gt_norms.values() if field in n and n.get(field) is not None]
     dim_counters["D1"]["reached"] = len(gt_with_class)
-    extracted_ids = {e["norm_id"] for e in extracted}
-    dim_counters["D1"]["passed"] = sum(1 for n in gt_with_class if n["norm_id"] in extracted_ids)
+    dim_counters["D1"]["passed"] = sum(
+        1 for n in gt_with_class if n.get("norm_id") in matched_gt_norm_ids
+    )
 
     per_dim_acc = {
         d: (c["passed"] / c["reached"]) if c["reached"] else None
