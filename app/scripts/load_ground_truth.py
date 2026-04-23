@@ -60,6 +60,7 @@ import yaml  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.services.predicate_id import construct_state_predicate_id  # noqa: E402
+from app.services.predicate_integrity import assert_state_predicate_ids_consistent  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s", datefmt="%H:%M:%S")
@@ -179,6 +180,12 @@ def build_db(driver, force: bool) -> None:
                  "expected_norm_kinds.tql", "gold_questions_seed.tql"):
         load_write_file(driver, TARGET_DB, DATA_DIR / seed)
         logger.info("  seeded: %s", seed)
+
+    # Post-seed integrity check: every state_predicate's stored id must match
+    # the construction rule in app/services/predicate_id.py. Fails loudly on drift.
+    logger.info("  verifying state_predicate_id composite-key integrity")
+    assert_state_predicate_ids_consistent(driver, TARGET_DB)
+    logger.info("  integrity check OK")
 
 
 # ─── Phase 2: per-deal party instances ────────────────────────────────────────

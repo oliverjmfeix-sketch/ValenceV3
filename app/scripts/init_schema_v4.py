@@ -50,6 +50,7 @@ if _main_env.exists():
 load_dotenv(REPO_ROOT / ".env", override=False)
 
 from app.config import settings  # noqa: E402
+from app.services.predicate_integrity import assert_state_predicate_ids_consistent  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
 
 
@@ -424,6 +425,13 @@ def main() -> int:
                 except Exception:  # noqa: BLE001
                     pass
             logger.info("  %s seeded: %d instances", name, n)
+
+    # ── integrity check: state_predicate_id composite-key contract ────────────
+    # Runs regardless of whether seeds were just loaded or already present —
+    # catches drift from prior runs that used a stale construction rule.
+    logger.info("Verifying state_predicate_id composite-key integrity")
+    assert_state_predicate_ids_consistent(driver, EXPECTED_DB)
+    logger.info("  integrity check OK")
 
     # ── post-load snapshot ────────────────────────────────────────────────────
     logger.info("Exporting post-init schema snapshot")
