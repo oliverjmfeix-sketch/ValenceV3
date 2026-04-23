@@ -50,7 +50,7 @@ if _main_env.exists():
 load_dotenv(REPO_ROOT / ".env", override=False)
 
 from app.config import settings  # noqa: E402
-from app.services.predicate_integrity import assert_state_predicate_ids_consistent  # noqa: E402
+from app.services.seed_loader import load_seeds  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
 
 
@@ -58,12 +58,6 @@ DATA_DIR = REPO_ROOT / "app" / "data"
 DOCS_DIR = REPO_ROOT / "docs"
 SCHEMA_V3 = DATA_DIR / "schema_unified.tql"
 SCHEMA_V4 = DATA_DIR / "schema_v4_deontic.tql"
-PRIMITIVES_SEED = DATA_DIR / "deontic_primitives_seed.tql"
-STATE_PREDICATES_SEED = DATA_DIR / "state_predicates_seed.tql"
-SEGMENT_TYPES_SEED = DATA_DIR / "segment_types_seed.tql"    # v3-owned but needed in v4 for norm_in_segment joins
-SEGMENT_EXPECTATIONS_SEED = DATA_DIR / "segment_norm_expectations.tql"
-EXPECTED_NORM_KINDS_SEED = DATA_DIR / "expected_norm_kinds.tql"
-GOLD_QUESTIONS_SEED = DATA_DIR / "gold_questions_seed.tql"
 SNAPSHOT_PRE = DOCS_DIR / "v4_schema_snapshot_pre_init.tql"
 SNAPSHOT_POST = DOCS_DIR / "v4_schema_snapshot_post_init.tql"
 
@@ -205,45 +199,6 @@ def load_schema_file(driver, db_name: str, filepath: Path) -> None:
         raise
 
 
-def primitives_already_seeded(driver, db_name: str) -> bool:
-    """Return True iff any concrete object_class or action_class instance exists.
-
-    The seed is idempotent — if even one singleton is already present we skip.
-    """
-    tx = driver.transaction(db_name, TransactionType.READ)
-    try:
-        probe = tx.query(
-            "match $e isa cash; select $e;"
-        ).resolve()
-        return len(list(probe.as_concept_rows())) > 0
-    finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:  # noqa: BLE001
-            pass
-
-
-def load_primitives_seed(driver, db_name: str, filepath: Path) -> None:
-    """Load the singleton primitives seed as one WRITE transaction."""
-    if not filepath.exists():
-        raise FileNotFoundError(f"Primitives seed missing: {filepath}")
-    logger.info("Loading primitives seed: %s", filepath.name)
-    content = filepath.read_text(encoding="utf-8")
-
-    tx = driver.transaction(db_name, TransactionType.WRITE)
-    t0 = time.perf_counter()
-    try:
-        tx.query(content).resolve()
-        tx.commit()
-        ms = (time.perf_counter() - t0) * 1000
-        logger.info("  primitives seed committed in %.0f ms", ms)
-    except Exception:
-        if tx.is_open():
-            tx.close()
-        raise
-
-
 def count_primitive_instances(driver, db_name: str) -> dict[str, int]:
     """Return per-type instance counts for the concrete action/object classes.
 
@@ -350,88 +305,26 @@ def main() -> int:
     else:
         logger.info("Skipping deontic function load (--no-load-functions)")
 
-    # ── seed primitive singletons (idempotent) ────────────────────────────────
+    # ── seed all 6 extraction-kind seeds via the shared loader ────────────────
+    # load_seeds() is idempotent (per-seed probe) and runs the post-seed
+    # state_predicate_id composite-key integrity check. SHARED_SEEDS +
+    # EXTRACTION_ONLY_SEEDS = 4 + 2 = 6 files.
     if args.seed_primitives:
-        if primitives_already_seeded(driver, EXPECTED_DB):
-            logger.info("Primitives already seeded — skipping")
-        else:
-            load_primitives_seed(driver, EXPECTED_DB, PRIMITIVES_SEED)
+        logger.info("Loading seeds (kind=extraction)")
+        seed_counts = load_seeds(driver, EXPECTED_DB, kind="extraction")
+        logger.info("Seed counts: %s", seed_counts)
 
+        # Additional per-singleton verification specific to the primitives seed.
         counts = count_primitive_instances(driver, EXPECTED_DB)
-        obj_counts = {k: v for k, v in counts.items() if k in CONCRETE_OBJECT_CLASSES}
-        act_counts = {k: v for k, v in counts.items() if k in CONCRETE_ACTION_CLASSES}
-        obj_total = sum(obj_counts.values())
-        act_total = sum(act_counts.values())
+        obj_total = sum(v for k, v in counts.items() if k in CONCRETE_OBJECT_CLASSES)
+        act_total = sum(v for k, v in counts.items() if k in CONCRETE_ACTION_CLASSES)
         logger.info("  object_class singletons: %d (expected %d)", obj_total, len(CONCRETE_OBJECT_CLASSES))
         logger.info("  action_class singletons: %d (expected %d)", act_total, len(CONCRETE_ACTION_CLASSES))
         bad = {k: v for k, v in counts.items() if v != 1}
         if bad:
             logger.warning("Primitive count drift (expected 1 each): %s", bad)
     else:
-        logger.info("Skipping primitive seeding (--no-seed-primitives)")
-
-    # ── seed harness data (idempotent-by-existence) ───────────────────────────
-    # state_predicates, segment_norm_expectations, expected_norm_kinds each
-    # load as a WRITE transaction. Skipped if the first instance already exists.
-    for seed_file, probe_query, name in [
-        (STATE_PREDICATES_SEED,
-         'match $e isa state_predicate; select $e;',
-         "state predicates"),
-        (SEGMENT_TYPES_SEED,
-         'match $e isa document_segment_type; select $e;',
-         "document segment types"),
-        (SEGMENT_EXPECTATIONS_SEED,
-         'match $e isa segment_norm_expectation; select $e;',
-         "segment norm expectations"),
-        (EXPECTED_NORM_KINDS_SEED,
-         'match $e isa expected_norm_kind; select $e;',
-         "expected norm kinds"),
-        (GOLD_QUESTIONS_SEED,
-         'match $e isa gold_question; select $e;',
-         "gold questions"),
-    ]:
-        tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
-        try:
-            existing = len(list(tx.query(probe_query).resolve().as_concept_rows()))
-        finally:
-            try:
-                if tx.is_open():
-                    tx.close()
-            except Exception:  # noqa: BLE001
-                pass
-        if existing > 0:
-            logger.info("%s already seeded (%d instances) — skipping", name, existing)
-        else:
-            if not seed_file.exists():
-                logger.warning("Seed file missing: %s — skipping", seed_file.name)
-                continue
-            logger.info("Loading seed: %s", seed_file.name)
-            tx = driver.transaction(EXPECTED_DB, TransactionType.WRITE)
-            try:
-                tx.query(seed_file.read_text(encoding="utf-8")).resolve()
-                tx.commit()
-            except Exception:
-                if tx.is_open():
-                    tx.close()
-                raise
-            # Count after load
-            tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
-            try:
-                n = len(list(tx.query(probe_query).resolve().as_concept_rows()))
-            finally:
-                try:
-                    if tx.is_open():
-                        tx.close()
-                except Exception:  # noqa: BLE001
-                    pass
-            logger.info("  %s seeded: %d instances", name, n)
-
-    # ── integrity check: state_predicate_id composite-key contract ────────────
-    # Runs regardless of whether seeds were just loaded or already present —
-    # catches drift from prior runs that used a stale construction rule.
-    logger.info("Verifying state_predicate_id composite-key integrity")
-    assert_state_predicate_ids_consistent(driver, EXPECTED_DB)
-    logger.info("  integrity check OK")
+        logger.info("Skipping seed loading (--no-seed-primitives)")
 
     # ── post-load snapshot ────────────────────────────────────────────────────
     logger.info("Exporting post-init schema snapshot")

@@ -63,7 +63,7 @@ import yaml  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.services.predicate_id import construct_state_predicate_id  # noqa: E402
-from app.services.predicate_integrity import assert_state_predicate_ids_consistent  # noqa: E402
+from app.services.seed_loader import load_seeds  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s  %(message)s", datefmt="%H:%M:%S")
@@ -123,18 +123,6 @@ def load_schema_file(driver, db_name: str, filepath: Path) -> None:
         if tx.is_open():
             tx.close()
         raise
-
-
-def load_write_file(driver, db_name: str, filepath: Path) -> int:
-    tx = driver.transaction(db_name, TransactionType.WRITE)
-    try:
-        tx.query(filepath.read_text(encoding="utf-8")).resolve()
-        tx.commit()
-    except Exception:
-        if tx.is_open():
-            tx.close()
-        raise
-    return 1
 
 
 def execute_write(driver, db_name: str, tql: str) -> None:
@@ -200,17 +188,15 @@ def build_db(driver, force: bool) -> None:
                "deontic_validation_functions.tql", "deontic_pattern_functions.tql"):
         load_schema_file(driver, TARGET_DB, DATA_DIR / fn)
 
-    for seed in ("deontic_primitives_seed.tql", "state_predicates_seed.tql",
-                 "segment_types_seed.tql", "segment_norm_expectations.tql",
-                 "expected_norm_kinds.tql", "gold_questions_seed.tql"):
-        load_write_file(driver, TARGET_DB, DATA_DIR / seed)
-        logger.info("  seeded: %s", seed)
-
-    # Post-seed integrity check: every state_predicate's stored id must match
-    # the construction rule in app/services/predicate_id.py. Fails loudly on drift.
-    logger.info("  verifying state_predicate_id composite-key integrity")
-    assert_state_predicate_ids_consistent(driver, TARGET_DB)
-    logger.info("  integrity check OK")
+    # Seed via the shared loader — kind="ground_truth" loads SHARED_SEEDS only
+    # (primitives, state_predicates, segment_types, gold_questions). The
+    # harness-only seeds (segment_norm_expectations, expected_norm_kinds) are
+    # intentionally excluded from this database; they are consumed against
+    # valence_v4, not against ground truth. load_seeds runs the post-seed
+    # state_predicate_id integrity check.
+    logger.info("loading seeds (kind=ground_truth)")
+    seed_counts = load_seeds(driver, TARGET_DB, kind="ground_truth")
+    logger.info("seed counts: %s", seed_counts)
 
 
 # ─── Phase 2: per-deal party instances ────────────────────────────────────────
