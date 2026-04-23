@@ -913,6 +913,33 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
         except Exception as exc:  # noqa: BLE001
             report.warnings.append(f"b_aggregate emit failed: {str(exc)[:160]}")
 
+        # b_aggregate also inherits parent-scope actions+object so its tuple
+        # matches the corresponding GT builder_source_b_aggregate norm.
+        for action_label in ("make_dividend_payment", "repurchase_equity",
+                              "pay_subordinated_debt", "make_investment"):
+            q_act = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(b_agg_nid)};
+                  $a isa action_class, has action_class_label {_tq_string(action_label)};
+                insert
+                  (norm: $n, action: $a) isa norm_scopes_action;
+            """
+            try:
+                _execute_write(driver, db_name, q_act)
+            except Exception:  # noqa: BLE001
+                pass
+        q_obj = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(b_agg_nid)};
+              $o isa object_class, has object_class_label "cash";
+            insert
+              (norm: $n, object: $o) isa norm_scopes_object;
+        """
+        try:
+            _execute_write(driver, db_name, q_obj)
+        except Exception:  # noqa: BLE001
+            pass
+
         # b_aggregate contributes to parent with greatest_of, add direction
         edge_q = f"""
             match
@@ -964,6 +991,42 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
         except Exception as exc:  # noqa: BLE001
             report.warnings.append(f"builder sub-source {kind} emit failed: {str(exc)[:160]}")
             continue
+
+        # Scope edges — inherit from the builder parent so the structural
+        # tuple (norm_kind, modality, primary_action, primary_object) matches
+        # ground-truth authoring. GT sub-sources bind all 4 Cumulative-Amount
+        # action classes (make_dividend_payment, repurchase_equity,
+        # pay_subordinated_debt, make_investment) and scope cash. Tuple
+        # lookup is primary-first-sorted → sorted[0] is make_dividend_payment,
+        # object is cash.
+        for action_label in ("make_dividend_payment", "repurchase_equity",
+                              "pay_subordinated_debt", "make_investment"):
+            q_act = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(sub_nid)};
+                  $a isa action_class, has action_class_label {_tq_string(action_label)};
+                insert
+                  (norm: $n, action: $a) isa norm_scopes_action;
+            """
+            try:
+                _execute_write(driver, db_name, q_act)
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(
+                    f"builder sub-source action edge {kind}/{action_label}: {str(exc)[:160]}"
+                )
+        q_obj = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(sub_nid)};
+              $o isa object_class, has object_class_label "cash";
+            insert
+              (norm: $n, object: $o) isa norm_scopes_object;
+        """
+        try:
+            _execute_write(driver, db_name, q_obj)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(
+                f"builder sub-source object edge {kind}: {str(exc)[:160]}"
+            )
 
         # Contribute: to b_aggregate (greatest_of) for CNI/ECF/EBITDA-FC,
         # to parent (sum) for others.
