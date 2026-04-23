@@ -1178,6 +1178,8 @@ attribute child_index,
  value integer;
 attribute aggregation_function,
  value string;
+attribute aggregation_direction,
+ value string;
 attribute threshold_value_double,
  value double;
 attribute threshold_value_string,
@@ -2592,6 +2594,7 @@ relation norm_extracted_from,
 relation norm_contributes_to_capacity,
   relates contributor,
   relates pool,
+  owns aggregation_direction,
   owns aggregation_function,
   owns child_index;
 relation defeater_has_condition,
@@ -2822,28 +2825,51 @@ fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_inst
         $cc == "computed_from_sources";
         $r isa norm_contributes_to_capacity,
             links (contributor: $contrib, pool: $pool),
-            has aggregation_function $agg;
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
         $agg == "greatest_of";
+        $dir == "add";
         let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $best = max($c);
     return first $best;
+fun add_contributors_sum($pool: norm, $ws: event_instance) -> double:
+    match
+        $r isa norm_contributes_to_capacity,
+            links (contributor: $contrib, pool: $pool),
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
+        $agg == "sum";
+        $dir == "add";
+        let $inf = norm_is_in_force($contrib, $ws);
+        $inf == true;
+        $contrib has cap_usd $c;
+    reduce $total = sum($c);
+    return first $total;
+fun subtract_contributors_sum($pool: norm, $ws: event_instance) -> double:
+    match
+        $r isa norm_contributes_to_capacity,
+            links (contributor: $contrib, pool: $pool),
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
+        $agg == "sum";
+        $dir == "subtract";
+        let $inf = norm_is_in_force($contrib, $ws);
+        $inf == true;
+        $contrib has cap_usd $c;
+    reduce $total = sum($c);
+    return first $total;
 fun computed_from_sources_capacity_sum($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
         $pool has capacity_composition $cc;
         $cc == "computed_from_sources";
-        $r isa norm_contributes_to_capacity,
-            links (contributor: $contrib, pool: $pool),
-            has aggregation_function $agg;
-        $agg == "sum";
-        let $inf = norm_is_in_force($contrib, $ws);
-        $inf == true;
-        $contrib has cap_usd $c;
-    reduce $total = sum($c);
-    return first $total;
+        let $add_total = add_contributors_sum($pool, $ws);
+        let $sub_total = subtract_contributors_sum($pool, $ws);
+        let $net = $add_total - $sub_total;
+    return first $net;
 fun reallocated_capacity_to($target_action_label: string, $subject_role: string, $ws: event_instance) -> double:
     match
         $n isa norm, has norm_id $sentinel;

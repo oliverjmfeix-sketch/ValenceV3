@@ -708,9 +708,7 @@ norms:
     - dc_rp_cumulative_amount_j_investment_returns
     - dc_rp_cumulative_amount_k_cumulative_deferred_revenues
     - dc_rp_cumulative_amount_l_other
-    # (m) is a netting subtraction — see capacity_source_reductions below
-  capacity_source_reductions:
-    - dc_rp_cumulative_amount_m_netting   # Option 2 per Prompt 05 judgment call
+    - dc_rp_cumulative_amount_m_netting   # subtract-direction contributor (aggregation_direction: subtract on the edge)
   source_section: "Definition of 'Cumulative Amount'"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; top-level Cumulative Amount is a sum of clauses (a) through (l), less clause (m) netting adjustments>"
@@ -1000,9 +998,9 @@ norms:
   condition: null
 
 - norm_id: dc_rp_cumulative_amount_m_netting
-  norm_kind: builder_source_netting_reduction
+  norm_kind: builder_source_netting
   modality: permission
-  capacity_composition: computed_from_sources
+  capacity_composition: additive       # individually additive; subtract-direction lives on its edge to parent
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: []          # no action scope — this is a capacity deduction, not an action grant
@@ -1011,14 +1009,15 @@ norms:
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (m)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; netting reduction — amounts already used from the Cumulative Amount are subtracted>"
-  # Option 2 per Prompt 05 judgment call: modelled with special role so
-  # operations layer subtracts after positive aggregation. Avoids schema
-  # change (no aggregation_direction/subtract flag on the relation).
-  question_role: capacity_source_reduction
+  source_text: "<operative-text verification required; netting reduction — amounts already used from the Cumulative Amount>"
+  # Graph-native subtract-direction edge to parent (Part 2 of pre-Prompt-07
+  # bundle). Projection emits norm_contributes_to_capacity with
+  # aggregation_function="sum", aggregation_direction="subtract". No
+  # operations-layer interpretation of a Python flag.
+  question_role: capacity_source
   serves_questions: [duck_creek_q1, duck_creek_rp_q1]
   contributes_to_norm_id: dc_rp_cumulative_amount
-  reduces_parent: true          # signal to operations layer
+  aggregation_direction: subtract
   condition: null
 
 # ═══════════════════════════════════════════════════════════════════════════════

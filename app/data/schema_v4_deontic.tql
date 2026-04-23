@@ -58,8 +58,9 @@ attribute proposed_amount_usd, value double;
 # condition/contribution metadata
 attribute child_index, value integer;
 
-# capacity contribution metadata — attribute on norm_contributes_to_capacity relation
+# capacity contribution metadata — attributes on norm_contributes_to_capacity relation
 attribute aggregation_function, value string;  # greatest_of|sum|min|max
+attribute aggregation_direction, value string;  # add|subtract — graph-native sign of contribution
 
 # state_predicate instance metadata — thresholds are per-instance, not per-label.
 # A predicate like "first_lien_net_leverage_at_or_below" may have different
@@ -263,7 +264,8 @@ relation norm_contributes_to_capacity,
     relates contributor,
     relates pool,
     owns child_index,
-    owns aggregation_function;
+    owns aggregation_function,
+    owns aggregation_direction;   # add|subtract on the edge, graph-native sign
 norm plays norm_contributes_to_capacity:contributor;
 norm plays norm_contributes_to_capacity:pool;
 

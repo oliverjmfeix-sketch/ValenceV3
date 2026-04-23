@@ -48,7 +48,10 @@ fun has_unlimited_conditional_capacity($action_label: string, $subject_role: str
     return check;
 
 # computed_from_sources_capacity_greatest_of — max across contributing source
-# norms. Pilot: implements greatest_of (builder-basket case). Sum sibling below.
+# norms. Pilot: implements greatest_of (builder-basket case). greatest_of
+# ignores aggregation_direction — subtract-direction contributors under a
+# greatest_of aggregation are nonsensical; the filter below requires
+# aggregation_direction == "add" to guard against malformed data.
 fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
@@ -57,30 +60,62 @@ fun computed_from_sources_capacity_greatest_of($norm_id: string, $ws: event_inst
         $cc == "computed_from_sources";
         $r isa norm_contributes_to_capacity,
             links (contributor: $contrib, pool: $pool),
-            has aggregation_function $agg;
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
         $agg == "greatest_of";
+        $dir == "add";
         let $inf = norm_is_in_force($contrib, $ws);
         $inf == true;
         $contrib has cap_usd $c;
     reduce $best = max($c);
     return first $best;
 
-# computed_from_sources_capacity_sum — sum across contributing source norms.
+# Helpers for sum-with-direction — TypeDB 3.x functions support only one
+# reduce per body, so the add and subtract sides live in separate functions
+# and a wrapper composes them.
+
+fun add_contributors_sum($pool: norm, $ws: event_instance) -> double:
+    match
+        $r isa norm_contributes_to_capacity,
+            links (contributor: $contrib, pool: $pool),
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
+        $agg == "sum";
+        $dir == "add";
+        let $inf = norm_is_in_force($contrib, $ws);
+        $inf == true;
+        $contrib has cap_usd $c;
+    reduce $total = sum($c);
+    return first $total;
+
+fun subtract_contributors_sum($pool: norm, $ws: event_instance) -> double:
+    match
+        $r isa norm_contributes_to_capacity,
+            links (contributor: $contrib, pool: $pool),
+            has aggregation_function $agg,
+            has aggregation_direction $dir;
+        $agg == "sum";
+        $dir == "subtract";
+        let $inf = norm_is_in_force($contrib, $ws);
+        $inf == true;
+        $contrib has cap_usd $c;
+    reduce $total = sum($c);
+    return first $total;
+
+# computed_from_sources_capacity_sum — net of additive inflows and
+# subtractive outflows, reading aggregation_direction on each edge.
+# Cumulative Amount clause (m) netting is modeled as a subtract-direction
+# contributor natively — no Python-side flag interpretation.
 fun computed_from_sources_capacity_sum($norm_id: string, $ws: event_instance) -> double:
     match
         $pool isa norm, has norm_id $nid;
         $nid == $norm_id;
         $pool has capacity_composition $cc;
         $cc == "computed_from_sources";
-        $r isa norm_contributes_to_capacity,
-            links (contributor: $contrib, pool: $pool),
-            has aggregation_function $agg;
-        $agg == "sum";
-        let $inf = norm_is_in_force($contrib, $ws);
-        $inf == true;
-        $contrib has cap_usd $c;
-    reduce $total = sum($c);
-    return first $total;
+        let $add_total = add_contributors_sum($pool, $ws);
+        let $sub_total = subtract_contributors_sum($pool, $ws);
+        let $net = $add_total - $sub_total;
+    return first $net;
 
 # reallocated_capacity_to — PILOT STUB returning 0. Parameter-use guards
 # reference all three args (TypeDB 3.x rejects unused arguments). Replace
