@@ -312,6 +312,16 @@ norm plays norm_provides_carryforward_to:carryforward_recipient;
 norm plays norm_provides_carryback_to:carryback_source;
 norm plays norm_provides_carryback_to:carryback_recipient;
 
+# Part 5 — typed segment membership. Projection (Prompt 07) emits one edge
+# per (norm, document_segment_type) pair. Harness joins over this relation
+# to count norms per segment, replacing the source_section prefix match.
+relation norm_in_segment,
+    relates norm,
+    relates segment;
+
+norm plays norm_in_segment:norm;
+document_segment_type plays norm_in_segment:segment;
+
 
 # ─── §4.8 Defeater and the defeats edge ─────────────────────────────────────────
 

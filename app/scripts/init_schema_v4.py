@@ -59,6 +59,7 @@ SCHEMA_V3 = DATA_DIR / "schema_unified.tql"
 SCHEMA_V4 = DATA_DIR / "schema_v4_deontic.tql"
 PRIMITIVES_SEED = DATA_DIR / "deontic_primitives_seed.tql"
 STATE_PREDICATES_SEED = DATA_DIR / "state_predicates_seed.tql"
+SEGMENT_TYPES_SEED = DATA_DIR / "segment_types_seed.tql"    # v3-owned but needed in v4 for norm_in_segment joins
 SEGMENT_EXPECTATIONS_SEED = DATA_DIR / "segment_norm_expectations.tql"
 EXPECTED_NORM_KINDS_SEED = DATA_DIR / "expected_norm_kinds.tql"
 SNAPSHOT_PRE = DOCS_DIR / "v4_schema_snapshot_pre_init.tql"
@@ -374,6 +375,9 @@ def main() -> int:
         (STATE_PREDICATES_SEED,
          'match $e isa state_predicate; select $e;',
          "state predicates"),
+        (SEGMENT_TYPES_SEED,
+         'match $e isa document_segment_type; select $e;',
+         "document segment types"),
         (SEGMENT_EXPECTATIONS_SEED,
          'match $e isa segment_norm_expectation; select $e;',
          "segment norm expectations"),

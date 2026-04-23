@@ -1882,7 +1882,8 @@ entity document_segment_type,
   owns mfn_universe_field,
   owns name,
   owns rp_universe_field,
-  owns segment_type_id @key;
+  owns segment_type_id @key,
+  plays norm_in_segment:segment;
 entity attribute_provenance,
   owns attributed_field_name,
   owns confidence,
@@ -2317,6 +2318,7 @@ entity norm,
   plays norm_has_condition:norm,
   plays norm_has_violation_consequent:norm,
   plays norm_held_by:norm,
+  plays norm_in_segment:norm,
   plays norm_provides_carryback_to:carryback_recipient,
   plays norm_provides_carryback_to:carryback_source,
   plays norm_provides_carryforward_to:carryforward_recipient,
@@ -2622,6 +2624,9 @@ relation norm_provides_carryback_to,
   relates carryback_recipient,
   relates carryback_source,
   owns carryback_years;
+relation norm_in_segment,
+  relates norm,
+  relates segment;
 relation defeater_has_condition,
   relates defeater,
   relates root;

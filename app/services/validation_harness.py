@@ -148,10 +148,15 @@ def validate_norm_structural(norm_id: str, tx) -> list[str]:
 def check_segment_norm_counts(deal_id: str, tx, covenant: str = "rp") -> dict:
     """
     Compare actual norm counts per segment to the seeded expected ranges
-    (app/data/segment_norm_expectations.tql). Actual counts are computed by
-    matching each norm's source_section prefix to seeded segment ids via
-    prefix rules; projection (Prompt 07) will introduce a typed
-    norm_in_segment relation that supersedes this prefix matching.
+    (app/data/segment_norm_expectations.tql). Post-Part-5: actual counts are
+    computed by joining over the typed `norm_in_segment` relation onto
+    `document_segment_type` instances, matched by segment_type_id. The earlier
+    source_section prefix matching (pilot-time Python bridge) is retired.
+
+    Empty-DB behaviour: projection hasn't populated norm_in_segment edges yet,
+    so the query returns zero norms per segment. Every seeded expectation with
+    expected_min > 0 reports status="below" — correct behaviour that accurately
+    reflects "no norms projected into segments yet."
     """
     # load expected ranges
     rows = _query_rows(
@@ -164,32 +169,18 @@ def check_segment_norm_counts(deal_id: str, tx, covenant: str = "rp") -> dict:
         _attr(r, "sid"): (_attr(r, "emin"), _attr(r, "emax")) for r in rows
     }
 
-    # Prefix rules: segment_type_id → source_section prefix(es) indicating the segment.
-    # Keep this table as the one pilot-time bridge to segments; Prompt 07 replaces.
-    segment_prefixes = {
-        "definitions": ("Definition of",),
-        "negative_cov_rp": ("6.06",),
-        "negative_cov_investments": ("6.03",),
-        "negative_cov_asset_sales": ("6.05",),
-        "negative_cov_rdp": ("6.09",),
-        "unrestricted_sub_mechanics": ("Definition of 'Unrestricted Subsidiary'",),
-        "pro_forma_mechanics": ("Pro Forma", "Pro-Forma"),
-    }
-
     result: dict[str, Any] = {}
     for sid, (emin, emax) in expectations.items():
-        prefixes = segment_prefixes.get(sid, ())
-        count = 0
-        if prefixes:
-            # count norms whose source_section starts with any of the prefixes
-            like_clauses = [f'$ss like "{p}.*"' for p in prefixes]
-            # TypeQL `like` is regex in 3.x; build an OR tree
-            or_block = "{ " + "; } or { ".join(like_clauses) + "; }"
-            rs = _query_rows(
-                tx,
-                f'match $n isa norm, has source_section $ss; {or_block}; select $n;',
-            )
-            count = len(rs)
+        # Typed-relation count: norms linked to the document_segment_type
+        # instance whose segment_type_id matches.
+        rs = _query_rows(
+            tx,
+            f'match '
+            f' $s isa document_segment_type, has segment_type_id "{sid}";'
+            f' $rel isa norm_in_segment, links (norm: $n, segment: $s);'
+            f' select $n;',
+        )
+        count = len(rs)
         if count < emin:
             status = "below"
         elif count > emax:
