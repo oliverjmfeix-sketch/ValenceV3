@@ -860,12 +860,44 @@ def _measure_generic(
     rule_sel_total = rule_selection["correct"] + rule_selection["incorrect"]
     rule_sel_acc = rule_selection["correct"] / rule_sel_total if rule_sel_total else 0.0
 
+    # Headline metric: accuracy-on-matched. Only counts instances that actually
+    # joined to a GT norm via structural tuple — these are the instances where
+    # the expected label is real and the prediction can meaningfully be graded.
+    # Aggregate accuracy (above) dilutes this with unmatched instances that
+    # have no GT counterpart, so every one of those counts against the score
+    # even though measurement is impossible. See Prompt 09 Fix 4.
+    matched_instances = [p for p in per_instance if p.get("expected") is not None]
+    matched_correct = sum(1 for p in matched_instances if p["predicted"] == p["expected"])
+    matched_count = len(matched_instances)
+    accuracy_on_matched = (matched_correct / matched_count) if matched_count else 0.0
+    unmatched_count = len(per_instance) - matched_count
+
     return {
         "field": field,
         "deal_id": deal_id,
         "prompt_version": prompt_version,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "instance_count": len(per_instance),
+        # Headline — what to lead with when judging extraction quality.
+        "headline_metric": {
+            "accuracy_on_matched": accuracy_on_matched,
+            "matched_count": matched_count,
+            "matched_correct": matched_correct,
+        },
+        # Context — aggregate including unmatched, kept for continuity with
+        # historical runs and because A3 coverage is orthogonal.
+        "context_metrics": {
+            "aggregate_accuracy": aggregate,
+            "total_extracted_norms": len(per_instance),
+            "unmatched_norms": unmatched_count,
+            "comment": (
+                "Unmatched norms have no GT counterpart via structural tuple. "
+                "They can't be scored, so the aggregate's denominator includes "
+                "them but can't credit them. Use headline_metric.accuracy_on_matched "
+                "as the primary signal; this aggregate as deal-shape context."
+            ),
+        },
+        # Back-compat alias (Prompt 08-era consumers read this key directly).
         "aggregate_accuracy": aggregate,
         "per_dimension_accuracy": per_dim_acc,
         "rule_selection_submatrix": {
@@ -912,23 +944,33 @@ def _save_result(result: dict, deal_id: str, field: str, prompt_version: str) ->
 
 
 def _print_summary(result: dict) -> None:
+    hl = result["headline_metric"]
+    ctx = result["context_metrics"]
     print()
-    print("=" * 70)
+    print("=" * 72)
     print(f"Classification measurement — field={result['field']}  deal={result['deal_id']}  prompt={result['prompt_version']}")
-    print("=" * 70)
-    print(f"  instances measured:    {result['instance_count']}")
-    print(f"  aggregate accuracy:    {result['aggregate_accuracy']:.3f}")
+    print("=" * 72)
+    print(
+        f"  HEADLINE  accuracy-on-matched: {hl['accuracy_on_matched']:.1%}  "
+        f"({hl['matched_correct']}/{hl['matched_count']} matched)"
+    )
+    print(
+        f"  context   aggregate:           {ctx['aggregate_accuracy']:.1%}  "
+        f"({ctx['total_extracted_norms']} extracted, {ctx['unmatched_norms']} unmatched)"
+    )
     print("  per-dimension accuracy (among instances that reached the dimension):")
     for d in ("D1", "D2", "D3", "D4", "D5", "D6"):
         acc = result["per_dimension_accuracy"][d]
         print(f"    {d}: {('%.3f' % acc) if acc is not None else '   n/a'}")
-    print(f"  rule-selection accuracy: {result['rule_selection_submatrix']['accuracy']:.3f}  "
-          f"(correct={result['rule_selection_submatrix']['correct']} / "
-          f"incorrect={result['rule_selection_submatrix']['incorrect']})")
+    print(
+        f"  rule-selection accuracy:       {result['rule_selection_submatrix']['accuracy']:.1%}  "
+        f"(correct={result['rule_selection_submatrix']['correct']} / "
+        f"incorrect={result['rule_selection_submatrix']['incorrect']})"
+    )
     print("  confusion matrix (expected -> {predicted: count}):")
     for exp, row in sorted(result["confusion_matrix"].items(), key=lambda kv: str(kv[0])):
         print(f"    {exp}: {dict(row)}")
-    print("=" * 70)
+    print("=" * 72)
 
 
 def main() -> int:
