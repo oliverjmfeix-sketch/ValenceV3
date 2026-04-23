@@ -43,7 +43,6 @@ norms:
   source_section: "6.06(a)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required for 6.06(a) quote>"
-  question_role: primary
   serves_questions: []
   condition: null
 
@@ -62,8 +61,9 @@ norms:
   source_section: "6.06(b)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: primary
-  serves_questions: [duck_creek_rp_q6]
+  serves_questions:
+    - question_id: duck_creek_rp_q6
+      role: primary
   condition: null
 
 # Carryforward: prior-year-unused capacity of 6.06(b) base carries forward one year.
@@ -84,8 +84,9 @@ norms:
   source_section: "6.06(b)(i)(x) carryforward proviso"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: primary
-  serves_questions: [duck_creek_rp_q6]
+  serves_questions:
+    - question_id: duck_creek_rp_q6
+      role: primary
   provides_carryforward_to: dc_rp_6_06_b_mgmt_equity_base
   carryforward_years: 1
   condition:
@@ -109,8 +110,9 @@ norms:
   source_section: "6.06(b)(i)(y) carryback proviso"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: primary
-  serves_questions: [duck_creek_rp_q6]
+  serves_questions:
+    - question_id: duck_creek_rp_q6
+      role: primary
   provides_carryback_to: dc_rp_6_06_b_mgmt_equity_base
   carryback_years: 1
   condition:
@@ -131,7 +133,6 @@ norms:
   source_section: "6.06(c)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required for 6.06(c) tax distribution permission>"
-  question_role: primary
   serves_questions: []
   condition: null
 
@@ -151,8 +152,15 @@ norms:
   source_section: "6.06(f)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.06(f) uses Cumulative Amount>"
-  question_role: primary
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1, duck_creek_rp_q2, duck_creek_rp_q3]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: primary
+    - question_id: duck_creek_rp_q1
+      role: primary
+    - question_id: duck_creek_rp_q2
+      role: primary
+    - question_id: duck_creek_rp_q3
+      role: primary
   condition: null
 
 - norm_id: dc_rp_6_06_j_general_rp_basket
@@ -169,8 +177,17 @@ norms:
   source_section: "6.06(j)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; $130M / 100% EBITDA general RP basket reallocable>"
-  question_role: primary
-  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q5, duck_creek_rp_q12]
+  serves_questions:
+    - question_id: duck_creek_q3
+      role: primary
+    - question_id: duck_creek_q5
+      role: primary
+    - question_id: duck_creek_rp_q4
+      role: primary
+    - question_id: duck_creek_rp_q5
+      role: primary
+    - question_id: duck_creek_rp_q12
+      role: primary
   condition: null
 
 - norm_id: dc_rp_6_06_k_parent_overhead
@@ -186,8 +203,9 @@ norms:
   source_section: "6.06(k)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.06(k) parent company overhead expenses>"
-  question_role: primary
-  serves_questions: [duck_creek_rp_q11]
+  serves_questions:
+    - question_id: duck_creek_rp_q11
+      role: primary
   # NOTE: Xtract report flags this as a concern — scope not limited to
   # Borrower-attributable expenses. Flag for v4 classification harness.
   condition: null
@@ -205,8 +223,11 @@ norms:
   source_section: "6.06(o)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.06(o) Ratio RP basket — unlimited when First Lien Leverage Ratio ≤ 5.75x OR no-worse pro forma>"
-  question_role: primary
-  serves_questions: [duck_creek_q6, duck_creek_rp_q7]
+  serves_questions:
+    - question_id: duck_creek_q6
+      role: primary
+    - question_id: duck_creek_rp_q7
+      role: primary
   condition:
     type: OR
     topology: or_of_atomics
@@ -232,8 +253,11 @@ norms:
   source_section: "6.06(p)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.06(p) permits dividend of Unrestricted Subsidiary equity or assets — unconditional once designation is legitimate>"
-  question_role: primary
-  serves_questions: [duck_creek_q2, duck_creek_rp_q9]
+  serves_questions:
+    - question_id: duck_creek_q2
+      role: primary
+    - question_id: duck_creek_rp_q9
+      role: primary
   condition: null
 
 - norm_id: dc_rp_6_06_q_post_ipo_basket
@@ -253,8 +277,9 @@ norms:
   source_section: "6.06(q)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: primary
-  serves_questions: [duck_creek_rp_q10]
+  serves_questions:
+    - question_id: duck_creek_rp_q10
+      role: primary
   condition:
     type: atomic
     topology: atomic
@@ -278,8 +303,9 @@ norms:
   source_section: "6.06(q)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q10]
+  serves_questions:
+    - question_id: duck_creek_rp_q10
+      role: capacity_source
   contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
   aggregation_direction: add
   condition: null
@@ -298,8 +324,9 @@ norms:
   source_section: "6.06(q)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q10]
+  serves_questions:
+    - question_id: duck_creek_rp_q10
+      role: capacity_source
   contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
   aggregation_direction: add
   condition: null
@@ -570,8 +597,15 @@ norms:
   source_section: "6.09(a)(I)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.09(a)(I) general RDP basket $130M/100% EBITDA reallocable>"
-  question_role: reallocation_source
-  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q12]
+  serves_questions:
+    - question_id: duck_creek_q3
+      role: reallocation_source
+    - question_id: duck_creek_q5
+      role: reallocation_source
+    - question_id: duck_creek_rp_q4
+      role: reallocation_source
+    - question_id: duck_creek_rp_q12
+      role: reallocation_source
   # Reallocates into 6.06(j) via norm_contributes_to_capacity edge
   reallocates_to: dc_rp_6_06_j_general_rp_basket
   condition: null
@@ -599,8 +633,11 @@ norms:
   source_section: "6.09(a)(A)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: reallocation_source
-  serves_questions: [duck_creek_q3, duck_creek_rp_q4]
+  serves_questions:
+    - question_id: duck_creek_q3
+      role: reallocation_source
+    - question_id: duck_creek_rp_q4
+      role: reallocation_source
   reallocates_to: dc_rp_6_06_j_general_rp_basket
   condition: null
 
@@ -736,8 +773,15 @@ norms:
   source_section: "6.03(y)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.03(y) general investment basket $130M/100% EBITDA reallocable>"
-  question_role: reallocation_source
-  serves_questions: [duck_creek_q3, duck_creek_q5, duck_creek_rp_q4, duck_creek_rp_q12]
+  serves_questions:
+    - question_id: duck_creek_q3
+      role: reallocation_source
+    - question_id: duck_creek_q5
+      role: reallocation_source
+    - question_id: duck_creek_rp_q4
+      role: reallocation_source
+    - question_id: duck_creek_rp_q12
+      role: reallocation_source
   reallocates_to: dc_rp_6_06_j_general_rp_basket
   condition: null
 
@@ -764,8 +808,11 @@ norms:
   source_section: "Definition of 'Unrestricted Subsidiary' (agreement page ~83)"
   source_page: <page_unknown>       # approximately p.83 per audit, human verification required
   source_text: "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if, immediately after giving effect to such designation, such Unrestricted Subsidiary would own or have an exclusive license (from Holdings or its Restricted Subsidiaries) at the time of such designation to any Material Intellectual Property."
-  question_role: upstream_precondition
-  serves_questions: [duck_creek_q2, duck_creek_rp_q9]
+  serves_questions:
+    - question_id: duck_creek_q2
+      role: upstream_precondition
+    - question_id: duck_creek_rp_q9
+      role: upstream_precondition
   condition:
     type: atomic
     topology: atomic
@@ -803,8 +850,13 @@ norms:
   source_section: "Definition of 'Cumulative Amount'"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; top-level Cumulative Amount is a sum of clauses (a) through (l), less clause (m) netting adjustments>"
-  question_role: primary
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1, duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: primary
+    - question_id: duck_creek_rp_q1
+      role: primary
+    - question_id: duck_creek_rp_q2
+      role: primary
   condition: null
 
 - norm_id: dc_rp_cumulative_amount_a_starter
@@ -821,8 +873,15 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (a)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; clause (a): greater of $130M and 100% EBITDA as starter amount>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_q5, duck_creek_rp_q1, duck_creek_rp_q12]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_q5
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q12
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -844,8 +903,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; clause (b) is the greatest of three sub-tests (b)(x), (b)(y), (b)(z)>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -864,8 +926,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)(x)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
   aggregation_direction: add
   condition: null
@@ -889,8 +954,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)(y)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
   aggregation_direction: add
   condition: null
@@ -918,8 +986,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)(z)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
   aggregation_direction: add
   condition: null
@@ -938,8 +1009,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)(z) EBITDA component"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
   aggregation_direction: add
   condition: null
@@ -958,8 +1032,11 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (b)(z) 140% Fixed Charges component"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
   aggregation_direction: subtract    # 140% of Fixed Charges is SUBTRACTED from EBITDA
   condition: null
@@ -977,8 +1054,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (c)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; Declined ECF Sweep Proceeds (ECF prepayments declined by lenders)>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -995,8 +1073,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (d)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; Declined Asset Sale Proceeds>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1013,8 +1092,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (e)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; proceeds from sale/leaseback transactions>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1031,8 +1111,15 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (f) / Definition of 'Retained Asset Sale Proceeds'"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; Retained Asset Sale Proceeds — non-swept portion of Asset Sale Net Cash Proceeds surviving §2.10(c) tiers, exemptions, and de minimis filters>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_q4, duck_creek_q5, duck_creek_rp_q2, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: capacity_source
+    - question_id: duck_creek_q5
+      role: capacity_source
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
+    - question_id: duck_creek_rp_q8
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   # Feeds via structural pathway: asset sale → sweep tiers and exemptions → retention → this source norm
   condition: null
@@ -1050,8 +1137,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (g)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; joint venture dividends and returns>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1068,8 +1156,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (h)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; FMV of assets of an Unrestricted Subsidiary redesignated as Restricted or transferred to Borrower or a Restricted Subsidiary>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1086,8 +1175,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (i)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; proceeds from sales of receivables, royalties, or licenses>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1104,8 +1194,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (j)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; returns on ALL investments including those refilling the basket used>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1123,8 +1214,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (k)"
   source_page: <page_unknown>
   source_text: <source_text_verification_required>
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   aggregation_direction: add
   condition: null
@@ -1142,8 +1234,9 @@ norms:
   source_section: "Definition of 'Cumulative Amount', clause (l)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; catch-all additional builder source per agreement's clause (l)>"
-  question_role: capacity_source
-  serves_questions: [duck_creek_rp_q2]
+  serves_questions:
+    - question_id: duck_creek_rp_q2
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   condition: null
 
@@ -1164,8 +1257,11 @@ norms:
   # bundle). Projection emits norm_contributes_to_capacity with
   # aggregation_function="sum", aggregation_direction="subtract". No
   # operations-layer interpretation of a Python flag.
-  question_role: capacity_source
-  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  serves_questions:
+    - question_id: duck_creek_q1
+      role: capacity_source
+    - question_id: duck_creek_rp_q1
+      role: capacity_source
   contributes_to_norm_id: dc_rp_cumulative_amount
   aggregation_direction: subtract
   condition: null
@@ -1187,8 +1283,11 @@ norms:
   source_section: "6.05(z)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; 6.05(z) permits Asset Sale when First Lien Leverage Ratio ≤ greater of 6.00x and pre-transaction ratio (no-worse)>"
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: OR
     topology: or_of_atomics
@@ -1218,8 +1317,11 @@ norms:
   source_section: "2.10(c)(iv)"
   source_page: 106                   # confirmed from extracted Section 2.10 text
   source_text: "no such prepayment shall be required under this clause (c) with respect to any Net Cash Proceeds of any Asset Sale if (A) such Asset Sale is a disposition of all or substantially all of a product line or line of business identified by the Borrowers to the Administrative Agent from time to time, and (B) the First Lien Leverage Ratio computed on a Pro Forma Basis... is less than or equal to the greater of (x) 6.25 to 1.00 and (y) the First Lien Leverage Ratio for the most recently ended Test Period (determined without giving effect to the Subject Transactions on a Pro Forma Basis) as of the Applicable Date of Determination."
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: OR
     topology: or_of_and_of_atomics    # Strategy-A-flattened form of depth-3 tree
@@ -1253,8 +1355,11 @@ norms:
   source_section: "2.10(c)(i)"
   source_page: 105                   # confirmed from extracted Section 2.10 text
   source_text: "no such prepayment shall be required under this clause (c)... to the extent either (or both) (x) the Prepayable Net Cash Proceeds of such Asset Sale do not exceed the greater of (1) $20,000,000 and (2) 15% of Consolidated EBITDA for the applicable Test Period (the 'Individual Asset Sale Threshold') and/or (y) the aggregate Prepayable Net Cash Proceeds for all such Asset Sales that exceed the Individual Asset Sale Threshold in such fiscal year do not exceed the Annual Asset Sale Threshold"
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: OR
     topology: or_of_atomics
@@ -1286,8 +1391,11 @@ norms:
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (a)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; clause (a) of Applicable Net Cash Proceeds Percentage — 100% sweep when First Lien Leverage Ratio exceeds 5.75x>"
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: atomic
     topology: atomic
@@ -1309,8 +1417,11 @@ norms:
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (b)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; clause (b) — 50% sweep when First Lien Leverage Ratio is in (5.50x, 5.75x] band>"
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: AND
     topology: and_of_atomics
@@ -1338,8 +1449,11 @@ norms:
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (c)"
   source_page: <page_unknown>
   source_text: "<operative-text verification required; clause (c) — 0% sweep (full retention) when First Lien Leverage Ratio ≤ 5.50x>"
-  question_role: primary
-  serves_questions: [duck_creek_q4, duck_creek_rp_q8]
+  serves_questions:
+    - question_id: duck_creek_q4
+      role: primary
+    - question_id: duck_creek_rp_q8
+      role: primary
   condition:
     type: atomic
     topology: atomic

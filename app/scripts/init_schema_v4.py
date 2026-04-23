@@ -62,6 +62,7 @@ STATE_PREDICATES_SEED = DATA_DIR / "state_predicates_seed.tql"
 SEGMENT_TYPES_SEED = DATA_DIR / "segment_types_seed.tql"    # v3-owned but needed in v4 for norm_in_segment joins
 SEGMENT_EXPECTATIONS_SEED = DATA_DIR / "segment_norm_expectations.tql"
 EXPECTED_NORM_KINDS_SEED = DATA_DIR / "expected_norm_kinds.tql"
+GOLD_QUESTIONS_SEED = DATA_DIR / "gold_questions_seed.tql"
 SNAPSHOT_PRE = DOCS_DIR / "v4_schema_snapshot_pre_init.tql"
 SNAPSHOT_POST = DOCS_DIR / "v4_schema_snapshot_post_init.tql"
 
@@ -384,6 +385,9 @@ def main() -> int:
         (EXPECTED_NORM_KINDS_SEED,
          'match $e isa expected_norm_kind; select $e;',
          "expected norm kinds"),
+        (GOLD_QUESTIONS_SEED,
+         'match $e isa gold_question; select $e;',
+         "gold questions"),
     ]:
         tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
         try:

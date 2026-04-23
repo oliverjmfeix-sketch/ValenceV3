@@ -1,0 +1,125 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — gold_question instances (Duck Creek pilot)
+#
+# Seeds the six lawyer-standard questions (lawyer_dc_rp.json) and the twelve
+# RP-side Xtract questions (xtract_dc_rp_mfn.json Q1-Q12). MFN questions
+# (duck_creek_mfn_q1-q10) are RP-pilot-out-of-scope and not seeded here —
+# bring them in when MFN enters v4 scope.
+#
+# Question namespaces don't overlap: lawyer uses `duck_creek_q<N>` and Xtract
+# uses `duck_creek_rp_q<N>`. Both map to the same Duck Creek deal_id.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ── Lawyer set (6 questions, lawyer_dc_rp.json) ───────────────────────────────
+
+$q_q1 isa gold_question,
+    has question_id "duck_creek_q1",
+    has question_text "What test is the build-up basket or available amount basket based on and when does the basket start growing?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_q2 isa gold_question,
+    has question_id "duck_creek_q2",
+    has question_text "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_q3 isa gold_question,
+    has question_id "duck_creek_q3",
+    has question_text "Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_q4 isa gold_question,
+    has question_id "duck_creek_q4",
+    has question_text "Can any asset sale proceeds be used to make dividends?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_q5 isa gold_question,
+    has question_id "duck_creek_q5",
+    has question_text "Determine the total amount of quantifiable dividend capacity.",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_q6 isa gold_question,
+    has question_id "duck_creek_q6",
+    has question_text "If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+# ── Xtract set RP-side (Q1-Q12, xtract_dc_rp_mfn.json) ────────────────────────
+
+$q_rp_q1 isa gold_question,
+    has question_id "duck_creek_rp_q1",
+    has question_text "What are the three alternative tests for the build-up basket and what is the starter amount?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q2 isa gold_question,
+    has question_id "duck_creek_rp_q2",
+    has question_text "What additional sources feed into the build-up basket beyond the three tests and starter amount?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q3 isa gold_question,
+    has question_id "duck_creek_rp_q3",
+    has question_text "Are there any conditions or blockers to usage of the build-up basket for restricted payments?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q4 isa gold_question,
+    has question_id "duck_creek_rp_q4",
+    has question_text "Which baskets can be reallocated for restricted payments?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q5 isa gold_question,
+    has question_id "duck_creek_rp_q5",
+    has question_text "What is the size of the general RP basket?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q6 isa gold_question,
+    has question_id "duck_creek_rp_q6",
+    has question_text "What are the limits on management/employee equity repurchases for restricted payments?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q7 isa gold_question,
+    has question_id "duck_creek_rp_q7",
+    has question_text "What ratio test governs the unlimited ratio restricted payments basket?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q8 isa gold_question,
+    has question_id "duck_creek_rp_q8",
+    has question_text "Can asset sale proceeds be used for restricted payments?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q9 isa gold_question,
+    has question_id "duck_creek_rp_q9",
+    has question_text "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q10 isa gold_question,
+    has question_id "duck_creek_rp_q10",
+    has question_text "What restricted payments are permitted after an IPO?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q11 isa gold_question,
+    has question_id "duck_creek_rp_q11",
+    has question_text "Is there a limitation on the RP basket for payment of parent company expenses?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";
+
+$q_rp_q12 isa gold_question,
+    has question_id "duck_creek_rp_q12",
+    has question_text "What is the total Day One restricted payments capacity?",
+    has covenant_type "rp",
+    has deal_id "6e76ed06";

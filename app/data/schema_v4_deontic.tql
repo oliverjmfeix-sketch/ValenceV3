@@ -108,6 +108,10 @@ attribute carryback_years, value integer;
 # entity only. Norms without a condition entity (unconditional) derive the
 # "unconditional" value via absence of the relation, not via an attribute.
 attribute condition_topology, value string;
+
+# Part 6 — serves_role on norm_serves_question (primary | upstream_precondition
+# | reallocation_source | capacity_source)
+attribute serves_role, value string;
 # Values: atomic | or_of_atomics | and_of_atomics | or_of_and_of_atomics |
 #         and_of_or_of_atomics | and_of_atomic_and_or_of_atomics
 
@@ -321,6 +325,23 @@ relation norm_in_segment,
 
 norm plays norm_in_segment:norm;
 document_segment_type plays norm_in_segment:segment;
+
+# Part 6 — gold_question as first-class entity; norm_serves_question as
+# typed relation carrying the role. Replaces question_role + serves_questions
+# attributes on norm (which couldn't represent multi-question multi-role).
+entity gold_question,
+    owns question_id @key,
+    owns question_text,
+    owns covenant_type,
+    owns deal_id;
+
+relation norm_serves_question,
+    relates norm,
+    relates question,
+    owns serves_role;
+
+norm plays norm_serves_question:norm;
+gold_question plays norm_serves_question:question;
 
 
 # ─── §4.8 Defeater and the defeats edge ─────────────────────────────────────────

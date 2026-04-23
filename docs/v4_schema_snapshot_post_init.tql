@@ -1216,6 +1216,8 @@ attribute carryback_years,
  value integer;
 attribute condition_topology,
  value string;
+attribute serves_role,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2325,12 +2327,19 @@ entity norm,
   plays norm_provides_carryforward_to:carryforward_source,
   plays norm_scopes_action:norm,
   plays norm_scopes_instrument:norm,
-  plays norm_scopes_object:norm;
+  plays norm_scopes_object:norm,
+  plays norm_serves_question:norm;
 entity violation_consequent,
   owns source_page,
   owns source_section,
   owns source_text,
   plays norm_has_violation_consequent:consequent;
+entity gold_question,
+  owns covenant_type,
+  owns deal_id,
+  owns question_id @key,
+  owns question_text,
+  plays norm_serves_question:question;
 entity defeater,
   owns defeater_type,
   owns source_page,
@@ -2627,6 +2636,10 @@ relation norm_provides_carryback_to,
 relation norm_in_segment,
   relates norm,
   relates segment;
+relation norm_serves_question,
+  relates norm,
+  relates question,
+  owns serves_role;
 relation defeater_has_condition,
   relates defeater,
   relates root;
