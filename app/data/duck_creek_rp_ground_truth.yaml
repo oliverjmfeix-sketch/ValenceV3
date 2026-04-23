@@ -377,7 +377,7 @@ norms:
 - norm_id: dc_rp_6_06_g_concurrent_dividend
   norm_kind: concurrent_receipt_dividend_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
@@ -393,7 +393,7 @@ norms:
 - norm_id: dc_rp_6_06_h_purchase_price_adjustment
   norm_kind: purchase_price_adjustment_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
@@ -425,7 +425,7 @@ norms:
 - norm_id: dc_rp_6_06_l_permitted_reorganization
   norm_kind: permitted_reorganization_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [make_dividend_payment, repurchase_equity, make_intercompany_payment]
@@ -470,7 +470,7 @@ norms:
 - norm_id: dc_rp_6_06_n_transactions_equity_payment
   norm_kind: transactions_equity_payment_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment, repurchase_equity]
@@ -502,7 +502,7 @@ norms:
 - norm_id: dc_rp_6_06_s_ahydo_catchup_rp
   norm_kind: ahydo_catchup_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
@@ -518,7 +518,7 @@ norms:
 - norm_id: dc_rp_6_06_t_transfer_pricing
   norm_kind: transfer_pricing_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_intercompany_payment]
@@ -534,7 +534,7 @@ norms:
 - norm_id: dc_rp_6_06_u_receivables_fees
   norm_kind: receivables_fee_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
@@ -550,7 +550,7 @@ norms:
 - norm_id: dc_rp_6_06_v_fractional_shares
   norm_kind: fractional_share_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [repurchase_equity]
@@ -644,7 +644,7 @@ norms:
 - norm_id: dc_rp_6_09_a_B_permitted_refinancing
   norm_kind: permitted_refinancing_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [pay_subordinated_debt]
@@ -660,7 +660,7 @@ norms:
 - norm_id: dc_rp_6_09_a_C_like_for_like_refinancing
   norm_kind: like_for_like_refinancing_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [pay_subordinated_debt]
@@ -676,7 +676,7 @@ norms:
 - norm_id: dc_rp_6_09_a_D_intragroup_payments
   norm_kind: intragroup_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party, restricted_sub]
   scoped_actions: [pay_subordinated_debt, make_intercompany_payment]
@@ -694,7 +694,7 @@ norms:
 - norm_id: dc_rp_6_09_a_E_scheduled_payments
   norm_kind: scheduled_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [pay_subordinated_debt]
@@ -726,7 +726,7 @@ norms:
 - norm_id: dc_rp_6_09_a_G_conversion_qualified_capital_stock
   norm_kind: conversion_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [pay_subordinated_debt]
@@ -742,7 +742,7 @@ norms:
 - norm_id: dc_rp_6_09_a_H_ahydo_catchup
   norm_kind: ahydo_catchup_rdp_permission
   modality: permission
-  capacity_composition: n_a
+  capacity_composition: categorical
   action_scope: specific
   subject_role: [borrower, loan_party]
   scoped_actions: [pay_subordinated_debt]
