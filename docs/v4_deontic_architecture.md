@@ -358,7 +358,8 @@ A shared Python helper `app/services/predicate_id.construct_state_predicate_id(.
 ```tql
 entity condition,
     owns condition_id @key,
-    owns condition_operator;
+    owns condition_operator,
+    owns condition_topology;        # populated on root conditions only
 
 relation condition_references_predicate,
     relates condition,
@@ -373,6 +374,16 @@ relation condition_has_child,
 condition plays condition_has_child:parent;
 condition plays condition_has_child:child;
 ```
+
+**Condition tree topology — per-node contract.** Every condition node in a tree is its own `condition` entity. The following contract governs what each node carries:
+
+- `condition_id` (required, `@key`): deterministic id from `norm_id` + tree path. Root: `{norm_id}__c0`; depth-1 children: `__c0_0`, `__c0_1`, …; depth-2 grandchildren: `__c0_0_0`, `__c0_0_1`, … Helper: `construct_condition_id(norm_id, path)` in `app/scripts/load_ground_truth.py` (inlined for pilot; promoted to `app/services/condition_id.py` if a second consumer appears).
+- `condition_operator` (required): one of `atomic`, `or`, `and`, `not`, `for_all`, `exists`. Set on every node regardless of depth.
+- `condition_topology` (optional): a root-level summary tag (e.g., `atomic`, `or_of_atomics`, `and_of_atomics`, `or_of_and_of_atomics`). Populated on **root conditions only** — internal nodes carry operator but no topology. The harness's `condition_topology` classification measurement reads root-only, so applying topology to interior nodes would produce false positives.
+- Child linkage: every compound node's children are linked via `condition_has_child` relations carrying `child_index` starting at 0 in YAML-authored order. Sibling ordering is structurally preserved.
+- Atomic linkage: every atomic leaf carries exactly one `condition_references_predicate` edge to the `state_predicate` instance identified by `(label, threshold_value_double, operator_comparison, reference_predicate_label)` resolved via `construct_state_predicate_id(...)`.
+
+The ground-truth loader (`app/scripts/load_ground_truth.py`) and the projection engine (Prompt 07) share this contract — both walk the condition tree depth-first, emit one entity per node, set `condition_topology` only on the root, and build `condition_has_child` / `condition_references_predicate` edges per the rules above.
 
 **Operator support in TypeDB 3.x.** `condition_holds` supports `atomic`, `or`, and `and` natively. `and` uses a count-based implementation (total child count vs count of children whose atomic predicate holds) verified against two fixtures during a pre-Prompt-05 probe — it avoids recursion through negation, which TypeDB 3.x (error `FUN9`) refuses. `and` is currently restricted to depth-2 (AND of atomic children); deeper nested AND-of-OR-of-atomics is handled by flattening at projection time into either (a) a disjunction of conjunctions or (b) a conjunction of disjunctions as appropriate. `not`, `for_all`, and `exists` are not supported in the pilot. `not` is handled architecturally by defining state predicates in positive form (e.g., `no_event_of_default_exists` rather than `NOT event_of_default_exists`), which matches the predicate list in §4.5. `for_all` and `exists` are not needed for RP pilot scope.
 

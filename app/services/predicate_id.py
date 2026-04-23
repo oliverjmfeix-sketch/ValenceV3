@@ -8,7 +8,10 @@ instance's structural tuple:
     "{label}|{threshold_value_double}|{operator_comparison}|{reference_predicate_label}"
 
 Where any field is null, render as empty string. Numeric fields render with
-Python's default string representation of a float (e.g., 5.75 → "5.75").
+Python's default string representation of a float (e.g., 5.75 → "5.75",
+20_000_000 → "20000000.0"). Integer inputs are coerced to float first so
+that callers passing YAML-parsed ints (which would otherwise render without
+the trailing ".0") produce the same id as callers passing floats directly.
 
 This function is the SINGLE source of truth for the concatenation. All four
 consumers import from here:
@@ -46,7 +49,7 @@ def construct_state_predicate_id(
     """
     parts = [
         label,
-        "" if threshold_value_double is None else str(threshold_value_double),
+        "" if threshold_value_double is None else str(float(threshold_value_double)),
         operator_comparison or "",
         reference_predicate_label or "",
     ]

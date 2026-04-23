@@ -18,23 +18,26 @@ Scope (pilot): loads
     - schema_unified.tql + schema_v4_deontic.tql
     - all seeds (primitives, state_predicates, segment_types, segment_expectations,
       expected_norm_kinds, gold_questions)
+    - post-seed integrity check (predicate_id composite-key contract)
     - per-deal party instances (one per party_role the ground truth uses)
     - norm entities with scalar attributes
-    - norm_scopes_action / norm_scopes_object (first of each list)
-    - norm_binds_subject (to per-deal party instances, one per role)
-    - condition entities with condition_topology on the root (for norms with
-      a condition block in YAML). Full tree structure NOT built in pilot —
-      the root entity suffices for classification measurement D1.
+    - norm_scopes_action edges — one per entry in scoped_actions (all, not first)
+    - norm_scopes_instrument / norm_scopes_object edges — one per entry in
+      scoped_objects, dispatching on whether the object_class_label names an
+      instrument_class subtype
+    - norm_binds_subject edges — one per entry in subject_role (all, not first)
+    - condition entities — full tree recursion: root + every compound child +
+      every atomic leaf each becomes its own condition entity. condition_topology
+      populated on root only; operator on every node
+    - condition_has_child relations with child_index preserving sibling order
     - norm_has_condition relation
-    - condition_references_predicate for atomic-root conditions (resolved via
+    - condition_references_predicate edges on every atomic leaf (resolved via
       predicate_id composite lookup)
     - norm_serves_question edges per serves_questions list
     - norm_contributes_to_capacity edges per contributes_to_norm_id
     - norm_provides_carryforward_to / _carryback_to per YAML field
 
 Deferred (populated only when Prompt 07 projection lands):
-    - Full nested condition trees (children, atomic leaves beyond root)
-    - Multi-action / multi-object scope edges (only first of each used)
     - Defeater / violation_consequent structures
     - norm_in_segment edges
 """
@@ -78,6 +81,28 @@ def _tq_string(s: str) -> str:
 
 def _first(lst):
     return lst[0] if lst else None
+
+
+def load_instrument_labels(driver, db_name: str) -> set[str]:
+    """Query the schema for concrete subtypes of instrument_class.
+
+    Used at scope-edge creation time to dispatch between
+    `norm_scopes_instrument` (for instrument objects) and
+    `norm_scopes_object` (for non-instrument objects). SSoT: the set
+    is sourced from the live schema, not a hardcoded list in Python.
+    """
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        r = tx.query("match $t sub instrument_class; select $t;").resolve()
+        labels = {row.get("t").get_label() for row in r.as_concept_rows()}
+        labels.discard("instrument_class")   # drop the abstract parent
+        return labels
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
 
 
 def connect():
@@ -263,11 +288,18 @@ def insert_norm(driver, norm: dict) -> None:
     execute_write(driver, TARGET_DB, "\n".join(q))
 
 
-def bind_norm_scope(driver, norm: dict) -> None:
+def bind_norm_scope(driver, norm: dict, instrument_labels: set[str]) -> None:
+    """Emit one edge per entry in subject_role, scoped_actions, scoped_objects.
+
+    - subject_role → norm_binds_subject (one edge per role)
+    - scoped_actions → norm_scopes_action (one edge per action label)
+    - scoped_objects → norm_scopes_instrument when label ∈ instrument_labels,
+                       else norm_scopes_object (one edge per object label)
+    """
     nid = norm["norm_id"]
-    # norm_binds_subject — use first subject_role
-    sr = _first(norm.get("subject_role") or [])
-    if sr:
+
+    # norm_binds_subject — iterate all subject_roles
+    for sr in (norm.get("subject_role") or []):
         q = f"""
 match
     $n isa norm, has norm_id {_tq_string(nid)};
@@ -278,11 +310,10 @@ insert
         try:
             execute_write(driver, TARGET_DB, q)
         except Exception as e:
-            logger.debug("bind_subject skipped for %s: %s", nid, str(e)[:120])
+            logger.debug("bind_subject skipped for %s (%s): %s", nid, sr, str(e)[:120])
 
-    # norm_scopes_action — first scoped_actions entry
-    sa = _first(norm.get("scoped_actions") or [])
-    if sa:
+    # norm_scopes_action — iterate all scoped_actions
+    for sa in (norm.get("scoped_actions") or []):
         q = f"""
 match
     $n isa norm, has norm_id {_tq_string(nid)};
@@ -290,79 +321,150 @@ match
 insert
     (norm: $n, action: $ac) isa norm_scopes_action;
 """
-        execute_write(driver, TARGET_DB, q)
+        try:
+            execute_write(driver, TARGET_DB, q)
+        except Exception as e:
+            logger.warning("norm_scopes_action skipped for %s (%s): %s", nid, sa, str(e)[:120])
 
-    # norm_scopes_object — first scoped_objects entry
-    so = _first(norm.get("scoped_objects") or [])
-    if so:
+    # scoped_objects — dispatch on whether the label names an instrument subtype
+    for so in (norm.get("scoped_objects") or []):
+        if so in instrument_labels:
+            relation_type = "norm_scopes_instrument"
+            role_b = "instrument"
+            match_type = "instrument_class"
+            match_attr = "instrument_class_label"
+        else:
+            relation_type = "norm_scopes_object"
+            role_b = "object"
+            match_type = "object_class"
+            match_attr = "object_class_label"
         q = f"""
 match
     $n isa norm, has norm_id {_tq_string(nid)};
-    $oc isa object_class, has object_class_label {_tq_string(so)};
+    $oc isa {match_type}, has {match_attr} {_tq_string(so)};
 insert
-    (norm: $n, object: $oc) isa norm_scopes_object;
+    (norm: $n, {role_b}: $oc) isa {relation_type};
 """
-        execute_write(driver, TARGET_DB, q)
+        try:
+            execute_write(driver, TARGET_DB, q)
+        except Exception as e:
+            logger.warning("%s skipped for %s (%s): %s", relation_type, nid, so, str(e)[:120])
 
 
 # ─── Phase 4: conditions ──────────────────────────────────────────────────────
 
 
-def insert_root_condition(driver, norm: dict) -> None:
-    """Create a condition entity with condition_topology and link to norm.
+_OPERATOR_MAP = {"atomic": "atomic", "OR": "or", "AND": "and", "NOT": "not"}
 
-    Pilot: only the root condition entity is created; nested children are
-    deferred. For atomic conditions, resolve the predicate via composite id
-    and link via condition_references_predicate.
+
+def construct_condition_id(norm_id: str, path: str) -> str:
+    """Deterministic id for a condition node from norm_id + tree path.
+
+    Root is always path="c0"; children suffix depth+index. Example:
+    norm `dc_rp_6_06_o_ratio_basket` → root `dc_rp_6_06_o_ratio_basket__c0`,
+    first child `__c0_0`, second `__c0_1`, grandchild `__c0_0_0`, etc.
+
+    Deterministic ids aid debugging and make reloads idempotent (though
+    the loader drops + recreates the DB via --force, so idempotency
+    isn't strictly required).
     """
-    cond = norm.get("condition")
-    if not cond or not isinstance(cond, dict):
-        return
-    topology = cond.get("topology")
-    operator_map = {"atomic": "atomic", "OR": "or", "AND": "and", "NOT": "not"}
-    op = operator_map.get(cond.get("type"), cond.get("type", "atomic"))
-    nid = norm["norm_id"]
-    cid = f"{nid}__cond_root"
+    return f"{norm_id}__{path}"
 
-    owns = [f'has condition_id {_tq_string(cid)}', f'has condition_operator {_tq_string(op)}']
-    if topology:
-        owns.append(f'has condition_topology {_tq_string(topology)}')
 
-    q = f"""
+def _insert_condition_node(driver, norm_id: str, cond: dict, path: str, is_root: bool) -> int:
+    """Recursively create a condition entity for this node and all descendants.
+
+    - Creates the condition entity with condition_id + condition_operator.
+    - On root only, sets condition_topology.
+    - For atomic nodes, resolves the state_predicate via composite id and
+      creates a condition_references_predicate edge.
+    - For compound nodes, recurses into each child, then creates a
+      condition_has_child relation with child_index preserving YAML order.
+
+    Returns the total number of condition entities created (self + descendants).
+    """
+    op = _OPERATOR_MAP.get(cond.get("type"), cond.get("type", "atomic"))
+    cid = construct_condition_id(norm_id, path)
+
+    owns = [
+        f'has condition_id {_tq_string(cid)}',
+        f'has condition_operator {_tq_string(op)}',
+    ]
+    if is_root and cond.get("topology"):
+        owns.append(f'has condition_topology {_tq_string(cond["topology"])}')
+
+    q_node = f"""
 insert
     $c isa condition, { ", ".join(owns) };
 """
-    execute_write(driver, TARGET_DB, q)
+    execute_write(driver, TARGET_DB, q_node)
+    count = 1
 
-    # Link condition to norm
-    q_link = f"""
-match
-    $n isa norm, has norm_id {_tq_string(nid)};
-    $c isa condition, has condition_id {_tq_string(cid)};
-insert
-    (norm: $n, root: $c) isa norm_has_condition;
-"""
-    execute_write(driver, TARGET_DB, q_link)
-
-    # For atomic root, link to the predicate instance
     if op == "atomic":
         pred_label = cond.get("predicate")
-        thr = cond.get("threshold_value_double")
-        op_cmp = cond.get("operator_comparison")
-        ref = cond.get("reference_predicate_label")
-        pred_id = construct_state_predicate_id(pred_label, thr, op_cmp, ref)
-        q_pred = f"""
+        if pred_label:
+            thr = cond.get("threshold_value_double")
+            op_cmp = cond.get("operator_comparison")
+            ref = cond.get("reference_predicate_label")
+            pred_id = construct_state_predicate_id(pred_label, thr, op_cmp, ref)
+            q_pred = f"""
 match
     $c isa condition, has condition_id {_tq_string(cid)};
     $p isa state_predicate, has state_predicate_id {_tq_string(pred_id)};
 insert
     (condition: $c, predicate: $p) isa condition_references_predicate;
 """
-        try:
-            execute_write(driver, TARGET_DB, q_pred)
-        except Exception as e:
-            logger.warning("condition_references_predicate skipped for %s (pred_id=%r): %s",
-                           nid, pred_id, str(e)[:120])
+            try:
+                execute_write(driver, TARGET_DB, q_pred)
+            except Exception as e:
+                logger.warning("condition_references_predicate skipped for %s at %s (pred_id=%r): %s",
+                               norm_id, path, pred_id, str(e)[:160])
+        return count
+
+    # Compound: recurse into ordered children and link parent → child
+    for idx, child in enumerate(cond.get("children") or []):
+        child_path = f"{path}_{idx}"
+        count += _insert_condition_node(driver, norm_id, child, child_path, is_root=False)
+        child_cid = construct_condition_id(norm_id, child_path)
+        q_link = f"""
+match
+    $parent isa condition, has condition_id {_tq_string(cid)};
+    $child isa condition, has condition_id {_tq_string(child_cid)};
+insert
+    (parent: $parent, child: $child) isa condition_has_child,
+        has child_index {idx};
+"""
+        execute_write(driver, TARGET_DB, q_link)
+    return count
+
+
+def insert_condition_tree(driver, norm: dict) -> int:
+    """Build the full condition tree for a norm and link it via norm_has_condition.
+
+    Walks the YAML condition tree recursively, emitting one condition entity
+    per node, condition_has_child edges with child_index, and
+    condition_references_predicate edges on every atomic leaf.
+
+    Returns the number of condition entities created for this norm (0 if the
+    norm has no condition block).
+    """
+    cond = norm.get("condition")
+    if not cond or not isinstance(cond, dict):
+        return 0
+
+    nid = norm["norm_id"]
+    count = _insert_condition_node(driver, nid, cond, path="c0", is_root=True)
+
+    root_cid = construct_condition_id(nid, "c0")
+    q_link = f"""
+match
+    $n isa norm, has norm_id {_tq_string(nid)};
+    $c isa condition, has condition_id {_tq_string(root_cid)};
+insert
+    (norm: $n, root: $c) isa norm_has_condition;
+"""
+    execute_write(driver, TARGET_DB, q_link)
+    return count
 
 
 # ─── Phase 5: other relations ─────────────────────────────────────────────────
@@ -489,19 +591,22 @@ def main() -> int:
                 logger.error("  insert failed for %s: %s", n.get("norm_id"), str(e)[:160])
         logger.info("  %d/%d norms inserted", inserted, len(norms))
 
-        # Phase 3b: scope relations
-        logger.info("binding subjects / scopes")
+        # Phase 3b: scope relations — iterate all list entries (not just first)
+        instrument_labels = load_instrument_labels(driver, TARGET_DB)
+        logger.info("binding subjects / scopes (instrument subtypes: %d)", len(instrument_labels))
         for n in norms:
-            bind_norm_scope(driver, n)
+            bind_norm_scope(driver, n, instrument_labels)
 
-        # Phase 4: conditions
-        logger.info("inserting root conditions")
-        cond_count = 0
+        # Phase 4: conditions — full tree recursion
+        logger.info("inserting condition trees")
+        cond_entity_total = 0
+        cond_tree_count = 0
         for n in norms:
             if n.get("condition"):
-                insert_root_condition(driver, n)
-                cond_count += 1
-        logger.info("  %d conditions inserted", cond_count)
+                cond_entity_total += insert_condition_tree(driver, n)
+                cond_tree_count += 1
+        logger.info("  %d condition trees inserted (%d total condition entities)",
+                    cond_tree_count, cond_entity_total)
 
         # Phase 5: other relations
         logger.info("linking serves_questions")
@@ -516,9 +621,13 @@ def main() -> int:
 
         # Verify counts
         logger.info("=== verification ===")
-        for isa in ("norm", "condition", "norm_serves_question", "norm_contributes_to_capacity",
-                    "norm_provides_carryforward_to", "norm_provides_carryback_to", "gold_question",
-                    "state_predicate", "condition_references_predicate"):
+        for isa in ("norm", "condition", "norm_has_condition", "condition_has_child",
+                    "condition_references_predicate",
+                    "norm_binds_subject", "norm_scopes_action", "norm_scopes_object",
+                    "norm_scopes_instrument",
+                    "norm_serves_question", "norm_contributes_to_capacity",
+                    "norm_provides_carryforward_to", "norm_provides_carryback_to",
+                    "gold_question", "state_predicate"):
             try:
                 n = count_of(driver, TARGET_DB, isa)
                 logger.info("  %-35s: %d", isa, n)
