@@ -381,30 +381,76 @@ def round_trip_check(deal_id: str, ground_truth_path: Path, tx, driver=None) -> 
 def check_rule_selection_accuracy(deal_id: str, ground_truth_path: Path, tx) -> dict:
     """
     Per-entity-type classification accuracy per DeonticBench Table 4 framing.
-    For each v3 extracted entity that projects to a norm, verify the entity
-    TYPE matches ground-truth. Measures rule-selection errors separately from
-    coverage (A3) and from field-level mismatches (A4).
+    For each projected norm, check whether its norm_kind matches what the
+    deontic_mapping says to emit for its source v3 entity type. Measures
+    rule-selection errors separately from coverage (A3) and from field-level
+    mismatches (A4).
 
-    Pilot: v3 extracted entities for the deal aren't yet bridged to norms via
-    a typed norm_projected_from relation; projection (Prompt 07) introduces
-    that bridge. Until then, this returns empty — plumbing only.
+    Uses the norm_extracted_from:fact edge (emitted by Prompt 07's projection)
+    to recover the source v3 entity type for each projected norm, plus the
+    deontic_mapping seed to look up the expected norm_kind for that entity
+    type. Projection is correct when actual norm_kind matches expected.
+
+    Empty when no norm_extracted_from edges exist → harness reports
+    "n/a (projection not run)" as before.
     """
-    gt = load_ground_truth(ground_truth_path)
-    gt_norms = gt.get("norms", [])
+    # 1. Load deontic_mapping entries: source_entity_type → expected target_norm_kind.
+    mapping_rows = list(_query_rows(tx, '''
+        match
+          $m isa deontic_mapping,
+            has source_entity_type $sty,
+            has target_norm_kind $tnk;
+        select $sty, $tnk;
+    '''))
+    expected_by_entity_type: dict[str, str] = {
+        _attr(r, "sty"): _attr(r, "tnk") for r in mapping_rows
+    }
 
-    # Expected v3 entity type per norm, inferred from norm_kind.
-    # Populated when projection lands.
-    expected_by_extracted_id: dict[str, str] = {}
-
-    # actual v3 entities linked to projected norms
-    # (requires provision_has_extracted_entity bridge + norm_extracted_from)
-    # For pilot, no projection has run → no bridges exist → empty result.
+    # 2. Fetch extracted norms + the v3 entity they derive from via
+    #    norm_extracted_from. Polymorphic fact role: the concrete v3 entity
+    #    type's label identifies the source_entity_type.
     per_entity_type: dict[str, dict] = {}
     failures: list[dict] = []
     correct_total = 0
     total = 0
-    # (future: fetch the actual v3 entity types via norm_extracted_from and
-    #  compare to expected; increment per_entity_type counters)
+
+    proj_rows = list(_query_rows(tx, '''
+        match
+          $n isa norm, has norm_id $nid, has norm_kind $nk;
+          (norm: $n, fact: $f) isa norm_extracted_from;
+          $f isa $ftype;
+        select $nid, $nk, $ftype;
+    '''))
+    for row in proj_rows:
+        nid = _attr(row, "nid")
+        actual_kind = _attr(row, "nk")
+        ftype_concept = row.get("ftype")
+        if ftype_concept is None:
+            continue
+        # Each fact matches its concrete type AND all abstract ancestors
+        # (provision_has_extracted_entity, rp_basket, etc.). Skip the abstract
+        # rows — the concrete type is the one present in expected_by_entity_type.
+        try:
+            ftype_label = ftype_concept.get_label()
+        except Exception:
+            continue
+        expected_kind = expected_by_entity_type.get(ftype_label)
+        if expected_kind is None:
+            continue  # not a leaf v3 entity type the mapping covers
+        total += 1
+        bucket = per_entity_type.setdefault(ftype_label, {"correct": 0, "total": 0})
+        bucket["total"] += 1
+        if actual_kind == expected_kind:
+            bucket["correct"] += 1
+            correct_total += 1
+        else:
+            failures.append({
+                "norm_id": nid,
+                "source_entity_type": ftype_label,
+                "expected_kind": expected_kind,
+                "actual_kind": actual_kind,
+            })
+
     aggregate = float(correct_total) / total if total else 0.0
     return {
         "per_entity_type": per_entity_type,
