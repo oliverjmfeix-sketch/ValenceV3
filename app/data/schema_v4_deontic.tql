@@ -104,6 +104,13 @@ attribute floor_value, value double;
 attribute carryforward_years, value integer;
 attribute carryback_years, value integer;
 
+# Part 4 — graph-native topology classification. Lives on the ROOT condition
+# entity only. Norms without a condition entity (unconditional) derive the
+# "unconditional" value via absence of the relation, not via an attribute.
+attribute condition_topology, value string;
+# Values: atomic | or_of_atomics | and_of_atomics | or_of_and_of_atomics |
+#         and_of_or_of_atomics | and_of_atomic_and_or_of_atomics
+
 
 # ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
 
@@ -184,7 +191,8 @@ entity state_predicate,
 
 entity condition,
     owns condition_id @key,
-    owns condition_operator;
+    owns condition_operator,
+    owns condition_topology;        # populated on root conditions only; internal nodes have operator but no topology
 
 relation condition_references_predicate,
     relates condition,

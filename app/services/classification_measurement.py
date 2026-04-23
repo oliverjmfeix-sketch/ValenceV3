@@ -346,7 +346,24 @@ def _measure_generic(
 ) -> dict:
     """Generic measurement loop, parameterised by field."""
     gt = load_ground_truth(ground_truth_path)
-    gt_norms = {n["norm_id"]: n for n in gt.get("norms", [])}
+    gt_norms_raw = {n["norm_id"]: n for n in gt.get("norms", [])}
+
+    # For condition_structure, derive the expected value from the graph-native
+    # topology attribute in YAML. Norms without a `condition` block classify as
+    # "unconditional" per Part 4 semantics (absence-of-relation → unconditional).
+    # This replaces the YAML tree-walk that D1 previously couldn't measure.
+    gt_norms: dict[str, dict] = {}
+    for nid, n in gt_norms_raw.items():
+        enriched = dict(n)
+        if field == "condition_structure":
+            cond = n.get("condition")
+            if cond is None:
+                enriched["condition_structure"] = "unconditional"
+            elif isinstance(cond, dict) and "topology" in cond:
+                enriched["condition_structure"] = cond["topology"]
+            else:
+                enriched["condition_structure"] = None
+        gt_norms[nid] = enriched
 
     driver = connect()
     try:
@@ -428,7 +445,9 @@ def _measure_generic(
 
     # D1 completeness: rough proxy — fraction of ground-truth norms with a
     # classification field set that have an extracted counterpart.
-    gt_with_class = [n for n in gt.get("norms", []) if field in n and n.get(field) is not None]
+    # D1 reads from the enriched gt_norms dict so condition_structure sees the
+    # topology derivation (including "unconditional" for norms without a condition).
+    gt_with_class = [n for n in gt_norms.values() if field in n and n.get(field) is not None]
     dim_counters["D1"]["reached"] = len(gt_with_class)
     extracted_ids = {e["norm_id"] for e in extracted}
     dim_counters["D1"]["passed"] = sum(1 for n in gt_with_class if n["norm_id"] in extracted_ids)

@@ -90,6 +90,7 @@ norms:
   carryforward_years: 1
   condition:
     type: atomic
+    topology: atomic
     predicate: prior_year_capacity_was_unused
 
 # Carryback: subsequent-year-unused capacity of 6.06(b) base carries back one year.
@@ -114,6 +115,7 @@ norms:
   carryback_years: 1
   condition:
     type: atomic
+    topology: atomic
     predicate: base_capacity_will_be_unused_in_subsequent_year
 
 - norm_id: dc_rp_6_06_c_tax_distributions
@@ -207,6 +209,7 @@ norms:
   serves_questions: [duck_creek_q6, duck_creek_rp_q7]
   condition:
     type: OR
+    topology: or_of_atomics
     children:
       - type: atomic
         predicate: first_lien_net_leverage_at_or_below
@@ -254,6 +257,7 @@ norms:
   serves_questions: [duck_creek_rp_q10]
   condition:
     type: atomic
+    topology: atomic
     predicate: qualified_ipo_has_occurred
 
 # Part 3 decomposition: formulaic 6.06(q) cap "7% of IPO proceeds + 7% of market cap"
@@ -764,6 +768,7 @@ norms:
   serves_questions: [duck_creek_q2, duck_creek_rp_q9]
   condition:
     type: atomic
+    topology: atomic
     predicate: unsub_would_own_or_license_material_ip_at_designation
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1186,6 +1191,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: OR
+    topology: or_of_atomics
     children:
       - type: atomic
         predicate: first_lien_net_leverage_at_or_below
@@ -1216,6 +1222,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: OR
+    topology: or_of_and_of_atomics    # Strategy-A-flattened form of depth-3 tree
     children:
       - type: AND
         children:
@@ -1250,6 +1257,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: OR
+    topology: or_of_atomics
     children:
       - type: atomic
         predicate: individual_proceeds_at_or_below
@@ -1282,6 +1290,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: atomic
+    topology: atomic
     predicate: first_lien_net_leverage_above
     threshold_value_double: 5.75
     operator_comparison: greater_than
@@ -1304,6 +1313,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: AND
+    topology: and_of_atomics
     children:
       - type: atomic
         predicate: first_lien_net_leverage_above
@@ -1332,6 +1342,7 @@ norms:
   serves_questions: [duck_creek_q4, duck_creek_rp_q8]
   condition:
     type: atomic
+    topology: atomic
     predicate: first_lien_net_leverage_at_or_below
     threshold_value_double: 5.50
     operator_comparison: at_or_below

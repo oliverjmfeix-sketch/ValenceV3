@@ -1214,6 +1214,8 @@ attribute carryforward_years,
  value integer;
 attribute carryback_years,
  value integer;
+attribute condition_topology,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2285,6 +2287,7 @@ entity state_predicate,
 entity condition,
   owns condition_id @key,
   owns condition_operator,
+  owns condition_topology,
   plays condition_has_child:child,
   plays condition_has_child:parent,
   plays condition_references_predicate:condition,
