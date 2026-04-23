@@ -1,140 +1,638 @@
-################################################################################
-# PROMPT 07 PART 1 — SURGICAL EXTRACTION ADDITIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Per-subtype extraction questions for projection fields
 #
-# Four per-basket extraction data points needed to drive deontic projection
-# into v4 norms. Architecture doc §8.2. Schema attributes defined in
-# schema_v4_deontic.tql §4.11; ownership added to rp_basket + jcrew_blocker.
+# Prompt 07 Part 1 originally authored 4 abstract-type questions targeting
+# rp_basket. Smoke test revealed v3 extraction doesn't reach questions without
+# a category_has_question link, and v3 per-basket storage expects concrete
+# subtypes (not the abstract parent). This file replaces those 4 abstract
+# questions with 9 concrete subtypes × 4 fields = 36 per-subtype questions,
+# each wired via category_has_question + question_annotates_attribute,
+# matching the existing v3 pattern exactly.
 #
-# The extraction_prompt values include the closed taxonomies with brief
-# per-option descriptions per foundational rule 4.2 (closed taxonomies with
-# explicit per-option definitions).
-################################################################################
+# Target attributes on each basket subtype (defined in schema_v4_deontic.tql
+# §4.11; inherited from rp_basket):
+#   - capacity_composition         (string)
+#   - capacity_aggregation_function (string)
+#   - object_class_multiselect     (string, comma-separated)
+#   - partial_applicability        (boolean)
+#
+# Question ID convention: rp_v4_{subtype_letter}_{field_code}
+#   Subtype letters: F=builder, G=ratio, N=general_rp, C=mgmt_equity,
+#                    D=tax_dist, H=holdco_oh, E=equity_award,
+#                    P=unsub_dist, I=gen_invest
+#   Field codes:     cc=capacity_composition, ca=capacity_aggregation_function,
+#                    oc=object_class_multiselect, pa=partial_applicability
+#
+# Categories required (9 of v3's 14 RP categories): C, D, E, F, G, H, I, N, P.
+# valence_v4 does not load v3's full categories.tql, so we inline definitions
+# for just these 9. Values mirror app/data/categories.tql verbatim.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── 1. Category definitions (9 RP categories needed by the links below) ──────
 
 insert
 
-# PP7-1: capacity_aggregation_function — per-basket enum
-$rp_cap_agg isa ontology_question,
-    has question_id "rp_capacity_aggregation_function",
-    has question_number 900,
-    has question_text "How does this basket's capacity aggregate with other contributing baskets?",
-    has description "Closed taxonomy. Drives aggregation_function on the norm_contributes_to_capacity edge at projection time.",
-    has answer_type "enum",
-    has ui_display_type "select",
-    has is_required false,
-    has display_order 900,
-    has covenant_type "RP",
-    has extraction_prompt "Classify how THIS basket's capacity aggregates with other contributing baskets.
+$cat_c isa ontology_category,
+    has category_id "C",
+    has name "Management Equity Basket",
+    has display_order 3;
 
-Closed taxonomy (pick exactly one):
+$cat_d isa ontology_category,
+    has category_id "D",
+    has name "Tax Distribution Basket",
+    has display_order 4;
 
-- greatest_of: multiple sources each provide capacity but only the MAXIMUM counts. Characteristic of the builder basket (Cumulative Amount): the greatest of CNI, ECF, EBITDA-FC.
-- sum: sources ADD TOGETHER to form the pool. Characteristic of reallocation: general RP basket + reallocated RDP + reallocated investment capacity.
-- max: the basket is the max of two or more numeric sources in a different semantic than greatest_of — rare; use greatest_of by default.
-- min: the basket is the minimum of two or more numeric tests.
-- n_a: the basket does not aggregate with others; its capacity stands alone. Most additive baskets (general RP, management equity, tax distribution) are n_a here because their aggregation happens at the OUTER capacity-composition layer, not at contributor-edge level.
+$cat_e isa ontology_category,
+    has category_id "E",
+    has name "Equity Awards",
+    has display_order 5;
 
-When in doubt: pick n_a unless the text explicitly specifies greatest-of / sum arithmetic with other specific baskets.",
-    has target_entity_type "rp_basket",
-    has storage_value_type "string";
+$cat_f isa ontology_category,
+    has category_id "F",
+    has name "Builder Basket / Cumulative Amount",
+    has display_order 6;
 
-(question: $rp_cap_agg) isa question_targets_field,
-    has target_field_name "capacity_aggregation_function",
-    has target_entity_type "rp_basket";
+$cat_g isa ontology_category,
+    has category_id "G",
+    has name "Ratio-Based Dividend Basket",
+    has display_order 7;
 
-# PP7-2: object_class_multiselect — per-basket multiselect (comma-separated string)
-$rp_obj_class isa ontology_question,
-    has question_id "rp_object_class_multiselect",
-    has question_number 901,
-    has question_text "Which object classes does this basket permit distributing? Select all that apply.",
-    has description "Closed multiselect; comma-separated. Projection emits one norm_scopes_object or norm_scopes_instrument edge per listed label.",
-    has answer_type "multiselect",
-    has ui_display_type "multiselect",
+$cat_h isa ontology_category,
+    has category_id "H",
+    has name "Holding Company Overhead",
+    has display_order 8;
+
+$cat_i isa ontology_category,
+    has category_id "I",
+    has name "Basket Reallocation",
+    has display_order 9;
+
+$cat_n isa ontology_category,
+    has category_id "N",
+    has name "Dividend Capacity Calculation",
+    has display_order 14;
+
+$cat_p isa ontology_category,
+    has category_id "P",
+    has name "Unrestricted Subsidiary Distribution Basket",
+    has display_order 16;
+
+
+# ─── 2. The 36 per-subtype questions (9 subtypes × 4 fields) ──────────────────
+#
+# answer_type "string" for enum + multiselect per v3 scalar-routing convention
+# (multiselect expressed as CSV in the prompt). partial_applicability is boolean.
+# extraction_prompt values embed the closed taxonomy with per-option gloss
+# (Rule 4.2).
+
+insert
+
+# ── Builder basket (rp_v4_F_*) ──────────────────────────────────────────────────
+$q_F_cc isa ontology_question,
+    has question_id "rp_v4_F_cc",
+    has question_number 9001,
+    has question_text "How does the builder basket's capacity compose with other RP baskets?",
+    has description "Per-subtype capacity_composition for projection.",
+    has answer_type "string",
     has is_required false,
     has display_order 901,
     has covenant_type "RP",
-    has extraction_prompt "List every object_class label the basket permits distributing. Closed option set (return a comma-separated list of labels):
+    has extraction_prompt "Classify how the BUILDER BASKET's (Cumulative Amount) capacity composes with other RP baskets. Pick exactly one from: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. The builder basket is a SUM of typed source entities (CNI, ECF, EBITDA-FC, starter, retained asset sale proceeds, etc.) — almost always `computed_from_sources`.";
 
-- cash: currency distributions (dividends paid in cash, cash prepayments of sub debt, etc.)
-- equity_interest: generic/broadest equity scope — use when the basket text says 'Equity Interests' without qualifier
-- holdco_equity: equity of Holdings or a parent company specifically
-- restricted_sub_equity: equity of a Restricted Subsidiary specifically
-- unrestricted_sub_equity: equity of an Unrestricted Subsidiary specifically — note: distinct from unrestricted_subsidiary_equity_or_assets
-- subordinated_debt_instrument: sub debt principal/interest payment (Restricted Debt Payments)
-- material_intellectual_property: material IP transfers (J.Crew blocker scope)
-- business_division: operating divisions or product lines (asset-sale-adjacent RP uses)
-- unrestricted_subsidiary_equity_or_assets: broader 'equity OR assets of an Unrestricted Sub' scope — use for §6.06(p)-style baskets
-
-DISAMBIGUATION:
-- equity_interest is the ABSTRACT parent. If the basket text mentions equity of a specific entity type (holdco, restricted sub, unrestricted sub), pick the narrower label. If unqualified, pick equity_interest.
-- unrestricted_sub_equity vs unrestricted_subsidiary_equity_or_assets: the former is only equity; the latter is equity OR the unsub's assets (broader).
-- Return labels separated by commas (no spaces): 'cash,equity_interest'",
-    has target_entity_type "rp_basket",
-    has storage_value_type "string";
-
-(question: $rp_obj_class) isa question_targets_field,
-    has target_field_name "object_class_multiselect",
-    has target_entity_type "rp_basket";
-
-# PP7-3: partial_applicability — per-basket boolean
-$rp_partial_app isa ontology_question,
-    has question_id "rp_partial_applicability",
-    has question_number 902,
-    has question_text "Is this basket conditioned on any predicate beyond dollar caps (e.g., ratio tests, no-EoD gates, definitional tests)?",
-    has description "Drives whether projection emits a norm_has_condition edge. Dollar caps alone do NOT count as partial applicability — only predicates evaluated against world state (ratio, EoD, pro-forma, procedural tests).",
-    has answer_type "boolean",
-    has ui_display_type "checkbox",
+$q_F_ca isa ontology_question,
+    has question_id "rp_v4_F_ca",
+    has question_number 9002,
+    has question_text "How does the builder basket's capacity aggregate with contributing source entities?",
+    has description "Per-subtype capacity_aggregation_function for projection.",
+    has answer_type "string",
     has is_required false,
     has display_order 902,
     has covenant_type "RP",
-    has extraction_prompt "Return true iff this basket's permission is gated on ANY predicate beyond raw dollar caps.
+    has extraction_prompt "Classify how the BUILDER BASKET aggregates contributing sources. Pick exactly one: greatest_of | sum | max | min | n_a. The Cumulative Amount typically uses `greatest_of` across the three 'greatest of' tests (CNI, ECF, EBITDA-FC) or `sum` if all sources add independently.";
 
-Predicates that count as partial applicability:
-- Leverage-ratio tests (First Lien Net Leverage ≤ X; Senior Secured; Total Leverage)
-- Pro-forma no-worse tests
-- No-Event-of-Default preconditions
-- Interest-coverage ratio tests
-- Pro-forma-compliance-with-financial-covenants gates
-- Definitional predicates (e.g., 'is a product-line sale', 'is a Qualified IPO has occurred')
-- Officer-certificate or board-approval procedural gates
-
-Dollar or EBITDA-percent caps ALONE (e.g., 'up to $130M or 100% of EBITDA') do NOT make a basket partially applicable. Those are capacity limits, not condition predicates.
-
-Default: false (unconditional usage).",
-    has target_entity_type "rp_basket",
-    has storage_value_type "boolean";
-
-(question: $rp_partial_app) isa question_targets_field,
-    has target_field_name "partial_applicability",
-    has target_entity_type "rp_basket";
-
-# PP7-4: capacity_composition — per-basket enum (existing attribute, tightened prompt)
-$rp_cap_comp isa ontology_question,
-    has question_id "rp_capacity_composition",
-    has question_number 903,
-    has question_text "How does this basket's capacity compose with other baskets in the RP covenant?",
-    has description "Closed taxonomy. Drives capacity_composition attribute on the projected norm. Architecture doc §4.1 is the authority for per-option meaning.",
-    has answer_type "enum",
-    has ui_display_type "select",
+$q_F_oc isa ontology_question,
+    has question_id "rp_v4_F_oc",
+    has question_number 9003,
+    has question_text "Which object classes does the builder basket permit distributing?",
+    has description "Per-subtype object_class_multiselect (comma-separated).",
+    has answer_type "string",
     has is_required false,
     has display_order 903,
     has covenant_type "RP",
-    has extraction_prompt "Classify how THIS basket's capacity composes with other baskets. Closed taxonomy (per v4 architecture §4.1):
+    has extraction_prompt "Comma-separated list of object_class labels from: cash, equity_interest, holdco_equity, restricted_sub_equity, unrestricted_sub_equity, subordinated_debt_instrument, material_intellectual_property, business_division, unrestricted_subsidiary_equity_or_assets. For BUILDER BASKET / Cumulative Amount (used under §6.06(f)) typical: `cash,equity_interest`. Return labels separated by commas with no spaces.";
 
-- additive: separate caps that SUM with other additive baskets' capacity. Most general-purpose baskets (general RP basket, management equity, tax distribution) are additive.
-- fungible: capacity is usable across multiple action classes via reallocation. Typical of reallocable general baskets that can flow to investments, RDP, or dividends.
-- shared_pool: multiple baskets draw from a single NUMERICAL POOL via explicit shares_capacity_pool language (rare; only when the agreement says 'the baskets under 6.06(X) and 6.06(Y) together may not exceed $100M').
-- categorical: per-category caps that do NOT sum with other categorical baskets. Tax distributions, holdco overhead are often categorical — they have their own dedicated cap, not combinable with other action classes.
-- computed_from_sources: capacity is a SUM of typed source entities (the builder basket pattern — Cumulative Amount).
-- unlimited_on_condition: capacity is UNCAPPED when a predicate condition holds (ratio baskets — unlimited when ratio ≤ 5.75x, else $0).
-- n_a: no capacity applies (prohibitions, definitional entities, procedural entities).
+$q_F_pa isa ontology_question,
+    has question_id "rp_v4_F_pa",
+    has question_number 9004,
+    has question_text "Is the builder basket's usage conditioned on any predicate beyond dollar caps?",
+    has description "Per-subtype partial_applicability boolean.",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 904,
+    has covenant_type "RP",
+    has extraction_prompt "true iff the basket's permission is gated on any predicate beyond raw dollar caps — e.g., no-EoD, ratio test, pro-forma-compliance, officer-cert. Dollar/EBITDA caps alone do NOT count. Builder basket (Cumulative Amount) usage is typically unconditional (false).";
 
-DISAMBIGUATION:
-- additive vs categorical: additive baskets SUM with other additive baskets (e.g., two additive baskets of $50M each give $100M). Categorical baskets do NOT sum with each other (a $50M tax-distribution basket and a $50M holdco-overhead basket give $50M per category, not $100M combined).
-- computed_from_sources vs additive: computed_from_sources applies when the BASKET ITSELF is a sum of SOURCE entities (builder). Additive applies when the basket is a standalone cap that sums with OTHER baskets.
-- unlimited_on_condition vs unconditional-with-dollar-cap: unlimited_on_condition is UNCAPPED when the condition holds. A basket with a $130M cap plus a ratio gate is additive-with-condition (use additive + partial_applicability=true), NOT unlimited_on_condition.",
-    has target_entity_type "rp_basket",
-    has storage_value_type "string";
+# ── Ratio basket (rp_v4_G_*) ────────────────────────────────────────────────────
+$q_G_cc isa ontology_question,
+    has question_id "rp_v4_G_cc",
+    has question_number 9005,
+    has question_text "How does the ratio RP basket's capacity compose with other baskets?",
+    has description "Per-subtype capacity_composition.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 905,
+    has covenant_type "RP",
+    has extraction_prompt "Classify ratio RP basket. Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Ratio baskets are typically `unlimited_on_condition` (uncapped when ratio ≤ threshold).";
 
-(question: $rp_cap_comp) isa question_targets_field,
-    has target_field_name "capacity_composition",
-    has target_entity_type "rp_basket";
+$q_G_ca isa ontology_question,
+    has question_id "rp_v4_G_ca",
+    has question_number 9006,
+    has question_text "How does the ratio basket aggregate with other contributors?",
+    has description "Per-subtype capacity_aggregation_function.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 906,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Ratio baskets generally have no contributor aggregation — `n_a`.";
+
+$q_G_oc isa ontology_question,
+    has question_id "rp_v4_G_oc",
+    has question_number 9007,
+    has question_text "Which object classes does the ratio RP basket permit?",
+    has description "Per-subtype object_class_multiselect.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 907,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated labels from: cash, equity_interest, holdco_equity, restricted_sub_equity, unrestricted_sub_equity, subordinated_debt_instrument, material_intellectual_property, business_division, unrestricted_subsidiary_equity_or_assets. Typical 6.06(o): `cash,equity_interest,business_division`.";
+
+$q_G_pa isa ontology_question,
+    has question_id "rp_v4_G_pa",
+    has question_number 9008,
+    has question_text "Is the ratio RP basket conditioned on any predicate beyond dollar caps?",
+    has description "Per-subtype partial_applicability.",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 908,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a ratio test (leverage ≤ X) and/or pro-forma-no-worse. Ratio baskets by definition are partially applicable — typically true.";
+
+# ── General RP basket (rp_v4_N_*) ──────────────────────────────────────────────
+$q_N_cc isa ontology_question,
+    has question_id "rp_v4_N_cc",
+    has question_number 9009,
+    has question_text "How does the general RP basket's capacity compose with other baskets?",
+    has description "Per-subtype capacity_composition.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 909,
+    has covenant_type "RP",
+    has extraction_prompt "Classify general RP basket (§6.06(j) style, $X or Y% EBITDA). Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `additive` or `fungible` (reallocable).";
+
+$q_N_ca isa ontology_question,
+    has question_id "rp_v4_N_ca",
+    has question_number 9010,
+    has question_text "How does the general RP basket aggregate with contributors?",
+    has description "Per-subtype capacity_aggregation_function.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 910,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. General RP baskets are typically `n_a` — their dollar cap stands alone; reallocation is modeled elsewhere.";
+
+$q_N_oc isa ontology_question,
+    has question_id "rp_v4_N_oc",
+    has question_number 9011,
+    has question_text "Which object classes does the general RP basket permit?",
+    has description "Per-subtype object_class_multiselect.",
+    has answer_type "string",
+    has is_required false,
+    has display_order 911,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated labels from: cash, equity_interest, holdco_equity, restricted_sub_equity, unrestricted_sub_equity, subordinated_debt_instrument, material_intellectual_property, business_division, unrestricted_subsidiary_equity_or_assets. Typical §6.06(j): `cash,equity_interest`.";
+
+$q_N_pa isa ontology_question,
+    has question_id "rp_v4_N_pa",
+    has question_number 9012,
+    has question_text "Is the general RP basket conditioned on any predicate beyond dollar caps?",
+    has description "Per-subtype partial_applicability.",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 912,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on no-EoD, ratio, or procedural predicate. General RP baskets are often unconditional (false) OR gated only on no-EoD.";
+
+# ── Management equity basket (rp_v4_C_*) ───────────────────────────────────────
+$q_C_cc isa ontology_question,
+    has question_id "rp_v4_C_cc",
+    has question_number 9013,
+    has question_text "Capacity composition of the management equity basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 913,
+    has covenant_type "RP",
+    has extraction_prompt "Classify management equity basket. Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `additive` (annual cap that sums with other additive baskets).";
+
+$q_C_ca isa ontology_question,
+    has question_id "rp_v4_C_ca",
+    has question_number 9014,
+    has question_text "Capacity aggregation function for the management equity basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 914,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Usually `n_a` — standalone cap.";
+
+$q_C_oc isa ontology_question,
+    has question_id "rp_v4_C_oc",
+    has question_number 9015,
+    has question_text "Object classes the management equity basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 915,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated from: cash, equity_interest, holdco_equity, restricted_sub_equity, unrestricted_sub_equity, subordinated_debt_instrument, material_intellectual_property, business_division, unrestricted_subsidiary_equity_or_assets. Typical: `equity_interest,holdco_equity`.";
+
+$q_C_pa isa ontology_question,
+    has question_id "rp_v4_C_pa",
+    has question_number 9016,
+    has question_text "Is management equity basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 916,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on any predicate (termination event, disability, death, etc.). Many management equity baskets have 'trigger event' predicates — often true.";
+
+# ── Tax distribution basket (rp_v4_D_*) ────────────────────────────────────────
+$q_D_cc isa ontology_question,
+    has question_id "rp_v4_D_cc",
+    has question_number 9017,
+    has question_text "Capacity composition of the tax distribution basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 917,
+    has covenant_type "RP",
+    has extraction_prompt "Classify tax distribution basket. Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `categorical` — standalone per-category cap, not combinable with other action classes.";
+
+$q_D_ca isa ontology_question,
+    has question_id "rp_v4_D_ca",
+    has question_number 9018,
+    has question_text "Capacity aggregation function for the tax distribution basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 918,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Typically `n_a`.";
+
+$q_D_oc isa ontology_question,
+    has question_id "rp_v4_D_oc",
+    has question_number 9019,
+    has question_text "Object classes the tax distribution basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 919,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated; tax distributions are cash: `cash`.";
+
+$q_D_pa isa ontology_question,
+    has question_id "rp_v4_D_pa",
+    has question_number 9020,
+    has question_text "Is tax distribution basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 920,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a predicate (officer-cert, pro-forma-compliance, etc.). Usually false.";
+
+# ── Holdco overhead basket (rp_v4_H_*) ─────────────────────────────────────────
+$q_H_cc isa ontology_question,
+    has question_id "rp_v4_H_cc",
+    has question_number 9021,
+    has question_text "Capacity composition of the holdco overhead basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 921,
+    has covenant_type "RP",
+    has extraction_prompt "Classify holdco overhead basket (§6.06(k) parent-company-expenses style). Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `categorical`.";
+
+$q_H_ca isa ontology_question,
+    has question_id "rp_v4_H_ca",
+    has question_number 9022,
+    has question_text "Capacity aggregation function for the holdco overhead basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 922,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Typically `n_a`.";
+
+$q_H_oc isa ontology_question,
+    has question_id "rp_v4_H_oc",
+    has question_number 9023,
+    has question_text "Object classes the holdco overhead basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 923,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated; typical: `cash`.";
+
+$q_H_pa isa ontology_question,
+    has question_id "rp_v4_H_pa",
+    has question_number 9024,
+    has question_text "Is holdco overhead basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 924,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a predicate. Usually false — overhead baskets are standalone.";
+
+# ── Equity award basket (rp_v4_E_*) ────────────────────────────────────────────
+$q_E_cc isa ontology_question,
+    has question_id "rp_v4_E_cc",
+    has question_number 9025,
+    has question_text "Capacity composition of the equity award basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 925,
+    has covenant_type "RP",
+    has extraction_prompt "Classify equity award basket. Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `additive` or `categorical`.";
+
+$q_E_ca isa ontology_question,
+    has question_id "rp_v4_E_ca",
+    has question_number 9026,
+    has question_text "Capacity aggregation function for the equity award basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 926,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Typically `n_a`.";
+
+$q_E_oc isa ontology_question,
+    has question_id "rp_v4_E_oc",
+    has question_number 9027,
+    has question_text "Object classes the equity award basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 927,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated; equity award repurchases: `equity_interest`.";
+
+$q_E_pa isa ontology_question,
+    has question_id "rp_v4_E_pa",
+    has question_number 9028,
+    has question_text "Is equity award basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 928,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a predicate (termination event, etc.).";
+
+# ── Unsub distribution basket (rp_v4_P_*) ──────────────────────────────────────
+$q_P_cc isa ontology_question,
+    has question_id "rp_v4_P_cc",
+    has question_number 9029,
+    has question_text "Capacity composition of the unrestricted-sub distribution basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 929,
+    has covenant_type "RP",
+    has extraction_prompt "Classify §6.06(p)-style unsub-equity-or-asset distribution basket. Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Often `n_a` (unconditional permission without numeric cap).";
+
+$q_P_ca isa ontology_question,
+    has question_id "rp_v4_P_ca",
+    has question_number 9030,
+    has question_text "Capacity aggregation function for the unsub distribution basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 930,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Typically `n_a`.";
+
+$q_P_oc isa ontology_question,
+    has question_id "rp_v4_P_oc",
+    has question_number 9031,
+    has question_text "Object classes the unsub distribution basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 931,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated; §6.06(p) permits unsub equity OR assets: `unrestricted_subsidiary_equity_or_assets`.";
+
+$q_P_pa isa ontology_question,
+    has question_id "rp_v4_P_pa",
+    has question_number 9032,
+    has question_text "Is unsub distribution basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 932,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a predicate. §6.06(p) is typically unconditional at point of use (false) — the upstream J.Crew blocker is modeled separately on designate_unrestricted_subsidiary.";
+
+# ── General investment basket (rp_v4_I_*) ──────────────────────────────────────
+$q_I_cc isa ontology_question,
+    has question_id "rp_v4_I_cc",
+    has question_number 9033,
+    has question_text "Capacity composition of the general investment basket reallocable to RP?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 933,
+    has covenant_type "RP",
+    has extraction_prompt "Classify §6.03(y)-style general investment basket (reallocates to RP). Pick one: additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a. Typically `fungible` or `additive`.";
+
+$q_I_ca isa ontology_question,
+    has question_id "rp_v4_I_ca",
+    has question_number 9034,
+    has question_text "Capacity aggregation function for the general investment basket?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 934,
+    has covenant_type "RP",
+    has extraction_prompt "Pick one: greatest_of | sum | max | min | n_a. Typically `n_a`.";
+
+$q_I_oc isa ontology_question,
+    has question_id "rp_v4_I_oc",
+    has question_number 9035,
+    has question_text "Object classes the general investment basket permits?",
+    has answer_type "string",
+    has is_required false,
+    has display_order 935,
+    has covenant_type "RP",
+    has extraction_prompt "Comma-separated. §6.03(y) investment action: `cash,equity_interest`.";
+
+$q_I_pa isa ontology_question,
+    has question_id "rp_v4_I_pa",
+    has question_number 9036,
+    has question_text "Is general investment basket conditioned beyond dollar caps?",
+    has answer_type "boolean",
+    has is_required false,
+    has display_order 936,
+    has covenant_type "RP",
+    has extraction_prompt "true iff gated on a predicate. Often unconditional (false).";
+
+
+# ─── 3. Category links: 36 category_has_question relations ────────────────────
+
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_v4_F_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_v4_F_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_v4_F_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "F"; $q isa ontology_question, has question_id "rp_v4_F_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_v4_G_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_v4_G_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_v4_G_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "G"; $q isa ontology_question, has question_id "rp_v4_G_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_v4_N_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_v4_N_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_v4_N_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "N"; $q isa ontology_question, has question_id "rp_v4_N_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_v4_C_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_v4_C_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_v4_C_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "C"; $q isa ontology_question, has question_id "rp_v4_C_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_v4_D_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_v4_D_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_v4_D_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "D"; $q isa ontology_question, has question_id "rp_v4_D_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_v4_H_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_v4_H_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_v4_H_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "H"; $q isa ontology_question, has question_id "rp_v4_H_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_v4_E_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_v4_E_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_v4_E_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "E"; $q isa ontology_question, has question_id "rp_v4_E_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_v4_P_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_v4_P_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_v4_P_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "P"; $q isa ontology_question, has question_id "rp_v4_P_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_v4_I_cc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_v4_I_ca";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_v4_I_oc";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "I"; $q isa ontology_question, has question_id "rp_v4_I_pa";
+insert (category: $cat, question: $q) isa category_has_question;
+
+
+# ─── 4. Annotation routing: 36 question_annotates_attribute relations ─────────
+
+match $q isa ontology_question, has question_id "rp_v4_F_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "builder_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_F_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "builder_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_F_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "builder_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_F_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "builder_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_G_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "ratio_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_G_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "ratio_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_G_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "ratio_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_G_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "ratio_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_N_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_rp_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_N_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_rp_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_N_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_rp_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_N_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_rp_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_C_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_C_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_C_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_C_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "management_equity_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_D_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_D_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_D_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_D_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "tax_distribution_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_H_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "holdco_overhead_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_H_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "holdco_overhead_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_H_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "holdco_overhead_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_H_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "holdco_overhead_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_E_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "equity_award_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_E_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "equity_award_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_E_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "equity_award_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_E_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "equity_award_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_P_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "unsub_distribution_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_P_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "unsub_distribution_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_P_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "unsub_distribution_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_P_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "unsub_distribution_basket", has target_attribute_name "partial_applicability";
+
+match $q isa ontology_question, has question_id "rp_v4_I_cc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_investment_basket", has target_attribute_name "capacity_composition";
+match $q isa ontology_question, has question_id "rp_v4_I_ca";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_investment_basket", has target_attribute_name "capacity_aggregation_function";
+match $q isa ontology_question, has question_id "rp_v4_I_oc";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_investment_basket", has target_attribute_name "object_class_multiselect";
+match $q isa ontology_question, has question_id "rp_v4_I_pa";
+insert (question: $q) isa question_annotates_attribute, has target_entity_type "general_investment_basket", has target_attribute_name "partial_applicability";
