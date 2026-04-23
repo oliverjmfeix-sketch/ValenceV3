@@ -1,0 +1,35 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Prompt 08 Fix 4 — Kind-name alignment patch
+#
+# Two deontic_mapping target_norm_kind values drifted from the ground-truth
+# YAML / expected_norm_kinds seed conventions. Fix via in-place update
+# (delete old attribute ownership, insert new) so already-seeded valence_v4
+# aligns without a full rebuild.
+#
+#   management_equity_permission  →  management_equity_basket_permission
+#   tax_distribution_permission   →  tax_distribution_basket_permission
+#
+# Both GT YAML and expected_norm_kinds.tql use the _basket_ form (verified
+# via audit). Fresh builds get the corrected form directly from
+# rp_deontic_mappings.tql (updated in this same commit).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match
+  $m isa deontic_mapping, has mapping_id "map_management_equity_basket",
+    has target_norm_kind $old;
+  $old == "management_equity_permission";
+delete has $old of $m;
+
+match
+  $m isa deontic_mapping, has mapping_id "map_management_equity_basket";
+insert $m has target_norm_kind "management_equity_basket_permission";
+
+match
+  $m isa deontic_mapping, has mapping_id "map_tax_distribution_basket",
+    has target_norm_kind $old;
+  $old == "tax_distribution_permission";
+delete has $old of $m;
+
+match
+  $m isa deontic_mapping, has mapping_id "map_tax_distribution_basket";
+insert $m has target_norm_kind "tax_distribution_basket_permission";

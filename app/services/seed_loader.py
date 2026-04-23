@@ -135,6 +135,16 @@ EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
         probe_type="document_segment_type",
         probe_query='match $s isa document_segment_type, has segment_type_id "negative_cov_rp", has segment_prefix_pattern $p; select $s;',
     ),
+    # Kind-name alignment patch — renames two legacy mapping target_norm_kind
+    # values to match GT YAML / expected_norm_kinds seed. Fresh builds get
+    # the corrected form directly from rp_deontic_mappings.tql (updated in
+    # the same commit); this patch file only fires when loaded against a
+    # previously-seeded valence_v4 with the legacy values.
+    SeedFile(
+        "rp_mapping_kind_fixes.tql",
+        probe_type="deontic_mapping",
+        probe_query='match $m isa deontic_mapping, has mapping_id "map_management_equity_basket", has target_norm_kind "management_equity_basket_permission"; select $m;',
+    ),
 ]
 
 
