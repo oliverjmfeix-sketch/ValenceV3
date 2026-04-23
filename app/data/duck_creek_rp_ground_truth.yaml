@@ -47,7 +47,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_b_mgmt_equity_repurchase
+- norm_id: dc_rp_6_06_b_mgmt_equity_base
   norm_kind: management_equity_basket_permission
   modality: permission
   capacity_composition: additive
@@ -57,23 +57,64 @@ norms:
   scoped_objects: [equity_interest, holdco_equity]
   cap_usd: 20_000_000
   cap_grower_pct: 15.0
+  cap_grower_reference: "consolidated_ebitda_ltm"
   cap_uses_greater_of: true
-  # Carryforward/carryback mechanics — judgment call per Prompt 05 report.
-  # Option chosen: single base norm + cap_adjustments annotation; operations
-  # layer (Prompt 10) interprets the annotation to compute year-adjusted caps.
-  cap_adjustments:
-    carryforward_usd: 20_000_000
-    carryforward_grower_pct: 15.0
-    carryforward_uses_greater_of: true
-    carryback_usd: 20_000_000
-    carryback_grower_pct: 15.0
-    carryback_uses_greater_of: true
   source_section: "6.06(b)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; base $20M/15% EBITDA with symmetric carryforward/carryback per Xtract Q6 gold>"
+  source_text: <source_text_verification_required>
   question_role: primary
   serves_questions: [duck_creek_rp_q6]
   condition: null
+
+# Carryforward: prior-year-unused capacity of 6.06(b) base carries forward one year.
+# Graph-native via norm_provides_carryforward_to relation; condition gates on the
+# prior-year-capacity-was-unused predicate.
+- norm_id: dc_rp_6_06_b_mgmt_equity_carryforward
+  norm_kind: management_equity_carryforward
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [repurchase_equity]
+  scoped_objects: [equity_interest, holdco_equity]
+  cap_usd: 20_000_000
+  cap_grower_pct: 15.0
+  cap_grower_reference: "consolidated_ebitda_ltm"
+  cap_uses_greater_of: true
+  source_section: "6.06(b)(i)(x) carryforward proviso"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: primary
+  serves_questions: [duck_creek_rp_q6]
+  provides_carryforward_to: dc_rp_6_06_b_mgmt_equity_base
+  carryforward_years: 1
+  condition:
+    type: atomic
+    predicate: prior_year_capacity_was_unused
+
+# Carryback: subsequent-year-unused capacity of 6.06(b) base carries back one year.
+- norm_id: dc_rp_6_06_b_mgmt_equity_carryback
+  norm_kind: management_equity_carryback
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower, loan_party]
+  scoped_actions: [repurchase_equity]
+  scoped_objects: [equity_interest, holdco_equity]
+  cap_usd: 20_000_000
+  cap_grower_pct: 15.0
+  cap_grower_reference: "consolidated_ebitda_ltm"
+  cap_uses_greater_of: true
+  source_section: "6.06(b)(i)(y) carryback proviso"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: primary
+  serves_questions: [duck_creek_rp_q6]
+  provides_carryback_to: dc_rp_6_06_b_mgmt_equity_base
+  carryback_years: 1
+  condition:
+    type: atomic
+    predicate: base_capacity_will_be_unused_in_subsequent_year
 
 - norm_id: dc_rp_6_06_c_tax_distributions
   norm_kind: tax_distribution_basket_permission
@@ -195,24 +236,69 @@ norms:
 - norm_id: dc_rp_6_06_q_post_ipo_basket
   norm_kind: post_ipo_basket_permission
   modality: permission
-  capacity_composition: categorical
+  capacity_composition: computed_from_sources    # parent aggregates the two formulaic summands (Part 3)
+  capacity_aggregation_function: sum
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
   scoped_objects: [cash]
-  cap_usd: null                                  # 7% of IPO proceeds + 7% market cap — formulaic
+  cap_usd: null                                  # aggregated from two source components below
   cap_grower_pct: null
-  # Formulaic cap expressed in attribute because schema has no
-  # formulaic-cap primitive. Operations layer computes at runtime.
-  cap_formula: "per_annum_sum(0.07 * ipo_proceeds_usd, 0.07 * market_cap_usd)"
+  source_norm_ids:
+    - dc_rp_6_06_q_post_ipo_ipo_proceeds_component
+    - dc_rp_6_06_q_post_ipo_market_cap_component
   source_section: "6.06(q)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.06(q) post-IPO dividend basket>"
+  source_text: <source_text_verification_required>
   question_role: primary
   serves_questions: [duck_creek_rp_q10]
   condition:
     type: atomic
     predicate: qualified_ipo_has_occurred
+
+# Part 3 decomposition: formulaic 6.06(q) cap "7% of IPO proceeds + 7% of market cap"
+# is structurally a sum of two grower-style components. Each component is its own
+# norm with cap_grower_pct + cap_grower_reference; the sum lives on the parent
+# via norm_contributes_to_capacity edges. No cap_formula string.
+- norm_id: dc_rp_6_06_q_post_ipo_ipo_proceeds_component
+  norm_kind: post_ipo_basket_ipo_proceeds_component
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: 7.0
+  cap_grower_reference: "ipo_proceeds_usd"
+  source_section: "6.06(q)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q10]
+  contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
+  aggregation_direction: add
+  condition: null
+
+- norm_id: dc_rp_6_06_q_post_ipo_market_cap_component
+  norm_kind: post_ipo_basket_market_cap_component
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment]
+  scoped_objects: [cash]
+  cap_usd: null
+  cap_grower_pct: 7.0
+  cap_grower_reference: "holdings_market_cap_usd"
+  source_section: "6.06(q)"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: capacity_source
+  serves_questions: [duck_creek_rp_q10]
+  contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
+  aggregation_direction: add
+  condition: null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # § 6.06 missing subclauses — (d), (e), (g), (h), (i), (l), (m), (n),
@@ -761,58 +847,116 @@ norms:
 - norm_id: dc_rp_cumulative_amount_b_x_cni
   norm_kind: builder_source_cni
   modality: permission
-  capacity_composition: computed_from_sources
+  capacity_composition: additive
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
   scoped_objects: [cash, equity_interest]
   cap_usd: null
-  cap_grower_pct: 50.0              # 50% of cumulative Consolidated Net Income
-  cap_formula: "0.50 * cumulative_cni(since=closing_fiscal_quarter_start, floor_per_quarter=0)"
+  cap_grower_pct: 50.0
+  cap_grower_reference: "cumulative_consolidated_net_income_from_closing"
+  floor_value: 0          # "shall not be less than zero for any fiscal quarter" — attribute-modeled floor
   source_section: "Definition of 'Cumulative Amount', clause (b)(x)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; 50% of cumulative Consolidated Net Income with per-fiscal-quarter floor of $0>"
+  source_text: <source_text_verification_required>
   question_role: capacity_source
   serves_questions: [duck_creek_q1, duck_creek_rp_q1]
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  aggregation_direction: add
   condition: null
 
 - norm_id: dc_rp_cumulative_amount_b_y_ecf
   norm_kind: builder_source_ecf
   modality: permission
-  capacity_composition: computed_from_sources
+  capacity_composition: additive
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  cap_formula: "available_retained_ecf_amount(since=first_full_fy_after_closing, floor_per_fy=0)"
+  # Available Retained ECF Amount is defined structurally (ECF not required to
+  # prepay Term Loans / other debt), not as a growth-percentage. Floor modeled
+  # as attribute per Part 3 judgment call.
+  floor_value: 0           # "floor per fiscal year $0"
+  cap_grower_reference: "available_retained_ecf_amount_from_first_full_fy_after_closing"
+  cap_grower_pct: 100.0    # structural pass-through — entire defined amount
   source_section: "Definition of 'Cumulative Amount', clause (b)(y)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; Available Retained ECF Amount — Excess Cash Flow not required to be applied to prepay Term Loans or other debt, floor per fiscal year $0>"
+  source_text: <source_text_verification_required>
   question_role: capacity_source
   serves_questions: [duck_creek_q1, duck_creek_rp_q1]
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  aggregation_direction: add
   condition: null
 
+# EBITDA - 140% FC: Part 3 decomposition into two source norms under a
+# parent that aggregates with "sum" and the Fixed Charges component using
+# aggregation_direction: subtract. The parent dc_rp_cumulative_amount_b_z_ebitda_fc
+# keeps its slot in b_aggregate's greatest_of comparison; internally it's a
+# net-of-two-components itself.
 - norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
   norm_kind: builder_source_ebitda_fc
   modality: permission
   capacity_composition: computed_from_sources
+  capacity_aggregation_function: sum
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  cap_formula: "cumulative_ebitda(since=closing_fiscal_quarter_start) - 1.40 * cumulative_fixed_charges(since=closing_fiscal_quarter_start)  # floor_per_quarter=0"
+  floor_value: 0
+  source_norm_ids:
+    - dc_rp_cumulative_amount_b_z_ebitda_component
+    - dc_rp_cumulative_amount_b_z_fixed_charges_component
   source_section: "Definition of 'Cumulative Amount', clause (b)(z)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, floor per fiscal quarter $0>"
+  source_text: <source_text_verification_required>
   question_role: capacity_source
   serves_questions: [duck_creek_q1, duck_creek_rp_q1]
   contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  aggregation_direction: add
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_z_ebitda_component
+  norm_kind: builder_source_ebitda_component
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: 100.0
+  cap_grower_reference: "cumulative_ebitda_from_closing_fiscal_quarter_start"
+  source_section: "Definition of 'Cumulative Amount', clause (b)(z) EBITDA component"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+  aggregation_direction: add
+  condition: null
+
+- norm_id: dc_rp_cumulative_amount_b_z_fixed_charges_component
+  norm_kind: builder_source_fixed_charges_component
+  modality: permission
+  capacity_composition: additive
+  action_scope: specific
+  subject_role: [borrower]
+  scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
+  scoped_objects: [cash, equity_interest]
+  cap_usd: null
+  cap_grower_pct: 140.0
+  cap_grower_reference: "cumulative_fixed_charges_from_closing_fiscal_quarter_start"
+  source_section: "Definition of 'Cumulative Amount', clause (b)(z) 140% Fixed Charges component"
+  source_page: <page_unknown>
+  source_text: <source_text_verification_required>
+  question_role: capacity_source
+  serves_questions: [duck_creek_q1, duck_creek_rp_q1]
+  contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+  aggregation_direction: subtract    # 140% of Fixed Charges is SUBTRACTED from EBITDA
   condition: null
 
 - norm_id: dc_rp_cumulative_amount_c_declined_ecf
@@ -963,20 +1107,21 @@ norms:
 - norm_id: dc_rp_cumulative_amount_k_cumulative_deferred_revenues
   norm_kind: builder_source_deferred_revenues
   modality: permission
-  capacity_composition: computed_from_sources
+  capacity_composition: additive
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment, repurchase_equity, pay_subordinated_debt, make_investment]
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: 50.0
-  cap_formula: "0.50 * cumulative_deferred_revenues"
+  cap_grower_reference: "cumulative_deferred_revenues_from_closing"
   source_section: "Definition of 'Cumulative Amount', clause (k)"
   source_page: <page_unknown>
-  source_text: "<operative-text verification required; 50% of cumulative deferred revenues>"
+  source_text: <source_text_verification_required>
   question_role: capacity_source
   serves_questions: [duck_creek_rp_q2]
   contributes_to_norm_id: dc_rp_cumulative_amount
+  aggregation_direction: add
   condition: null
 
 - norm_id: dc_rp_cumulative_amount_l_other

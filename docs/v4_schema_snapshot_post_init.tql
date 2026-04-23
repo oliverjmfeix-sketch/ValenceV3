@@ -1206,6 +1206,14 @@ attribute typicality,
  value string;
 attribute norm_kind,
  value string;
+attribute cap_grower_reference,
+ value string;
+attribute floor_value,
+ value double;
+attribute carryforward_years,
+ value integer;
+attribute carryback_years,
+ value integer;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2285,11 +2293,13 @@ entity condition,
 entity norm,
   owns action_scope,
   owns cap_grower_pct,
+  owns cap_grower_reference,
   owns cap_usd,
   owns cap_uses_greater_of,
   owns capacity_composition,
   owns computed_from_sources,
   owns confidence,
+  owns floor_value,
   owns modality,
   owns norm_id @key,
   owns norm_kind,
@@ -2304,6 +2314,10 @@ entity norm,
   plays norm_has_condition:norm,
   plays norm_has_violation_consequent:norm,
   plays norm_held_by:norm,
+  plays norm_provides_carryback_to:carryback_recipient,
+  plays norm_provides_carryback_to:carryback_source,
+  plays norm_provides_carryforward_to:carryforward_recipient,
+  plays norm_provides_carryforward_to:carryforward_source,
   plays norm_scopes_action:norm,
   plays norm_scopes_instrument:norm,
   plays norm_scopes_object:norm;
@@ -2597,6 +2611,14 @@ relation norm_contributes_to_capacity,
   owns aggregation_direction,
   owns aggregation_function,
   owns child_index;
+relation norm_provides_carryforward_to,
+  relates carryforward_recipient,
+  relates carryforward_source,
+  owns carryforward_years;
+relation norm_provides_carryback_to,
+  relates carryback_recipient,
+  relates carryback_source,
+  owns carryback_years;
 relation defeater_has_condition,
   relates defeater,
   relates root;

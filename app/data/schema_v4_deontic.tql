@@ -91,6 +91,19 @@ attribute expected_max, value integer;
 attribute typicality, value string;        # always|usually|sometimes
 attribute norm_kind, value string;         # categorical tag (e.g., "general_rp_basket_permission")
 
+# Part 3 additions — norm-side cap_grower_reference (what the grower_pct multiplies)
+# and floor_value (cap floor, e.g., CNI source "shall not be less than zero").
+# Judgment call: floor-as-attribute (not floor-as-derived-predicate) — one attribute
+# on the norm, read by capacity functions at evaluation time. Flag captured in
+# the commit message: predicate modeling is more extensible but attribute is
+# simpler and the floor concept doesn't recur outside builder sources today.
+attribute cap_grower_reference, value string;   # named financial figure the grower_pct multiplies (norm-side, distinct from threshold_grower_reference on state_predicate)
+attribute floor_value, value double;
+
+# Part 3 carryforward/carryback — years attributes on the new relations.
+attribute carryforward_years, value integer;
+attribute carryback_years, value integer;
+
 
 # ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
 
@@ -197,8 +210,10 @@ entity norm,
     owns action_scope,
     owns cap_usd,
     owns cap_grower_pct,
+    owns cap_grower_reference,          # what the grower_pct multiplies (e.g., "consolidated_ebitda_ltm")
     owns cap_uses_greater_of,
     owns computed_from_sources,
+    owns floor_value,                   # optional minimum; e.g., CNI source floor at 0
     owns source_text,
     owns source_section,
     owns source_page,
@@ -268,6 +283,26 @@ relation norm_contributes_to_capacity,
     owns aggregation_direction;   # add|subtract on the edge, graph-native sign
 norm plays norm_contributes_to_capacity:contributor;
 norm plays norm_contributes_to_capacity:pool;
+
+# Carryforward / carryback — graph-native modeling of the 6.06(b) management
+# equity basket's prior-year-unused → current-year-available and subsequent-
+# year-unused → current-year-available flows. Each relation bridges a
+# "source" norm (a side norm representing the carryforward or carryback
+# permission) and a "recipient" norm (the base annual permission).
+relation norm_provides_carryforward_to,
+    relates carryforward_source,
+    relates carryforward_recipient,
+    owns carryforward_years;
+
+relation norm_provides_carryback_to,
+    relates carryback_source,
+    relates carryback_recipient,
+    owns carryback_years;
+
+norm plays norm_provides_carryforward_to:carryforward_source;
+norm plays norm_provides_carryforward_to:carryforward_recipient;
+norm plays norm_provides_carryback_to:carryback_source;
+norm plays norm_provides_carryback_to:carryback_recipient;
 
 
 # ─── §4.8 Defeater and the defeats edge ─────────────────────────────────────────
