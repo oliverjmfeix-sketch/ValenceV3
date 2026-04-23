@@ -1,0 +1,852 @@
+"""
+Valence v4 — Projection Engine (Prompt 07 Part 3).
+
+Reads v3 extracted entities from valence_v4, applies declarative
+deontic_mapping rules, emits v4 norms with full relational structure
+(scopes, conditions, provenance).
+
+Architecture contract: §8.3 of docs/v4_deontic_architecture.md.
+
+Graph-native by design. Mapping lookup, scope edge emission, condition
+tree construction — all driven from graph state. Two entity-type-specific
+concessions (flagged at module level):
+
+  1. Builder basket sub-source emission (sub-sources live as flattened
+     `has_cni_source` / `has_ecf_source` / etc. booleans on the parent
+     builder_basket entity; projection must expand each active flag into
+     a sub-source norm contributing to the parent via
+     norm_contributes_to_capacity).
+  2. J.Crew blocker exception emission (blocker_exception entities
+     attached via blocker_has_exception; projection emits a defeater +
+     defeats edge per exception).
+
+Both concessions are documented inline where the code diverges from the
+mapping-driven path. Alternative — generalize mapping schema with
+sub-emission specs — is more work than the pilot warrants; flag for
+post-pilot review when a third entity type needs the pattern.
+
+CLI:
+    py -3.12 -m app.services.deontic_projection --deal <deal_id> --dry-run
+    py -3.12 -m app.services.deontic_projection --deal <deal_id>
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Iterator
+
+from typedb.driver import TransactionType
+
+logger = logging.getLogger(__name__)
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(REPO_ROOT))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Data records (extracted from graph rows)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class MappingRecord:
+    mapping_id: str
+    source_entity_type: str
+    target_norm_kind: str
+    target_modality: str
+    default_subject_role: str                  # comma-separated
+    default_action_scope_kind: str
+    condition_builder_spec_ref: str            # "none" | spec name
+    action_labels: list[str] = field(default_factory=list)
+    object_labels: list[str] = field(default_factory=list)
+
+
+@dataclass
+class SpecRecord:
+    condition_builder_name: str
+    condition_topology_emitted: str
+    condition_operator_root: str
+    description: str
+    # Ordered list of (predicate_label_or_concept, slot, child_index). For
+    # canonical predicates the projection uses the concept directly; for
+    # per-threshold ratio predicates the spec records the LABEL only and
+    # projection resolves instance via construct_state_predicate_id.
+    predicate_bindings: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class V3Entity:
+    """Record for a v3 extracted entity (basket or blocker) for a deal."""
+    entity_type: str                           # concrete subtype (builder_basket, etc.)
+    basket_id: str | None                      # for baskets
+    attrs: dict                                # all owned attributes as python values
+
+
+@dataclass
+class ProjectionReport:
+    deal_id: str
+    dry_run: bool
+    entities_scanned: int = 0
+    entities_projected: int = 0
+    norms_created: int = 0
+    conditions_created: int = 0
+    scope_edges_created: int = 0               # action + object + subject
+    condition_refs_created: int = 0
+    extracted_from_edges_created: int = 0
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    mapping_gaps: set[str] = field(default_factory=set)        # v3 types with no mapping
+    predicate_lookup_failures: list[str] = field(default_factory=list)
+
+    def summary(self) -> str:
+        lines = [
+            f"ProjectionReport(deal_id={self.deal_id}, dry_run={self.dry_run})",
+            f"  entities scanned: {self.entities_scanned}",
+            f"  entities projected: {self.entities_projected}",
+            f"  norms created: {self.norms_created}",
+            f"  conditions created: {self.conditions_created}",
+            f"  scope edges (action+object+subject): {self.scope_edges_created}",
+            f"  condition_references_predicate edges: {self.condition_refs_created}",
+            f"  norm_extracted_from edges: {self.extracted_from_edges_created}",
+        ]
+        if self.mapping_gaps:
+            lines.append(f"  mapping gaps (v3 types without deontic_mapping): {sorted(self.mapping_gaps)}")
+        if self.predicate_lookup_failures:
+            lines.append(f"  predicate lookup failures: {len(self.predicate_lookup_failures)}")
+            for f in self.predicate_lookup_failures[:5]:
+                lines.append(f"    {f}")
+        if self.warnings:
+            lines.append(f"  warnings: {len(self.warnings)}")
+            for w in self.warnings[:5]:
+                lines.append(f"    {w}")
+        if self.errors:
+            lines.append(f"  errors: {len(self.errors)}")
+            for e in self.errors[:5]:
+                lines.append(f"    {e}")
+        return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TQL helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _tq_string(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _attr_or_none(row, key: str):
+    concept = row.get(key)
+    if concept is None:
+        return None
+    return concept.as_attribute().get_value()
+
+
+def _execute_write(driver, db_name: str, tql: str) -> None:
+    tx = driver.transaction(db_name, TransactionType.WRITE)
+    try:
+        tx.query(tql).resolve()
+        tx.commit()
+    except Exception:
+        if tx.is_open():
+            tx.close()
+        raise
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Graph reads: mappings, specs, v3 entities
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def load_mappings(driver, db_name: str) -> dict[str, MappingRecord]:
+    """Read every deontic_mapping + its action/object edges into MappingRecord."""
+    mappings: dict[str, MappingRecord] = {}
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        result = tx.query("""
+            match
+              $m isa deontic_mapping,
+                has mapping_id $mid,
+                has source_entity_type $sty,
+                has target_norm_kind $tnk,
+                has target_modality $mod,
+                has default_subject_role $dsr,
+                has default_action_scope_kind $dsk,
+                has condition_builder_spec_ref $cbs;
+            select $mid, $sty, $tnk, $mod, $dsr, $dsk, $cbs;
+        """).resolve()
+        for row in result.as_concept_rows():
+            mid = row.get("mid").as_attribute().get_value()
+            mappings[row.get("sty").as_attribute().get_value()] = MappingRecord(
+                mapping_id=mid,
+                source_entity_type=row.get("sty").as_attribute().get_value(),
+                target_norm_kind=row.get("tnk").as_attribute().get_value(),
+                target_modality=row.get("mod").as_attribute().get_value(),
+                default_subject_role=row.get("dsr").as_attribute().get_value(),
+                default_action_scope_kind=row.get("dsk").as_attribute().get_value(),
+                condition_builder_spec_ref=row.get("cbs").as_attribute().get_value(),
+            )
+
+        # action labels per mapping
+        result = tx.query("""
+            match
+              $m isa deontic_mapping, has source_entity_type $sty;
+              (mapping: $m, action: $a) isa mapping_targets_action;
+              $a has action_class_label $lbl;
+            select $sty, $lbl;
+        """).resolve()
+        for row in result.as_concept_rows():
+            sty = row.get("sty").as_attribute().get_value()
+            lbl = row.get("lbl").as_attribute().get_value()
+            if sty in mappings:
+                mappings[sty].action_labels.append(lbl)
+
+        # object labels per mapping
+        result = tx.query("""
+            match
+              $m isa deontic_mapping, has source_entity_type $sty;
+              (mapping: $m, object: $o) isa mapping_targets_object;
+              $o has object_class_label $lbl;
+            select $sty, $lbl;
+        """).resolve()
+        for row in result.as_concept_rows():
+            sty = row.get("sty").as_attribute().get_value()
+            lbl = row.get("lbl").as_attribute().get_value()
+            if sty in mappings:
+                mappings[sty].object_labels.append(lbl)
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+    return mappings
+
+
+def load_specs(driver, db_name: str) -> dict[str, SpecRecord]:
+    """Read every condition_builder_spec + its predicate bindings."""
+    specs: dict[str, SpecRecord] = {}
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        result = tx.query("""
+            match
+              $s isa condition_builder_spec,
+                has condition_builder_name $name,
+                has condition_topology_emitted $topo,
+                has condition_operator_root $op,
+                has description $desc;
+            select $name, $topo, $op, $desc;
+        """).resolve()
+        for row in result.as_concept_rows():
+            name = row.get("name").as_attribute().get_value()
+            specs[name] = SpecRecord(
+                condition_builder_name=name,
+                condition_topology_emitted=row.get("topo").as_attribute().get_value(),
+                condition_operator_root=row.get("op").as_attribute().get_value(),
+                description=row.get("desc").as_attribute().get_value(),
+            )
+
+        result = tx.query("""
+            match
+              $s isa condition_builder_spec, has condition_builder_name $name;
+              (builder_spec: $s, predicate: $p) isa builder_spec_uses_predicate,
+                has predicate_slot $slot,
+                has child_index $idx;
+              $p has state_predicate_id $pid, has state_predicate_label $plabel;
+            select $name, $slot, $idx, $pid, $plabel;
+        """).resolve()
+        for row in result.as_concept_rows():
+            name = row.get("name").as_attribute().get_value()
+            if name in specs:
+                specs[name].predicate_bindings.append({
+                    "predicate_id": row.get("pid").as_attribute().get_value(),
+                    "predicate_label": row.get("plabel").as_attribute().get_value(),
+                    "slot": row.get("slot").as_attribute().get_value(),
+                    "child_index": row.get("idx").as_attribute().get_value(),
+                })
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+    return specs
+
+
+# Concrete v3 types projection walks (polymorphic fetch under these).
+# Mirrors the `plays norm_extracted_from:fact` list in schema §4.10.
+_V3_BASKET_TYPES = [
+    "builder_basket", "ratio_basket", "general_rp_basket",
+    "management_equity_basket", "tax_distribution_basket",
+    "holdco_overhead_basket", "equity_award_basket",
+    "unsub_distribution_basket", "general_investment_basket",
+    "refinancing_rdp_basket", "general_rdp_basket", "ratio_rdp_basket",
+    "builder_rdp_basket", "equity_funded_rdp_basket",
+]
+_V3_NON_BASKET_TYPES = ["jcrew_blocker"]
+
+
+def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Entity]:
+    """Polymorphic fetch of all RP-relevant v3 extracted entities for a deal.
+
+    Baskets link to deal via provision_has_basket → rp_provision →
+    deal_has_provision. jcrew_blocker links via provision_has_extracted_entity
+    family (provision_has_blocker in current schema).
+    """
+    entities: list[V3Entity] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        # Scope basket fetches to deal via basket_id prefix rather than a
+        # three-hop match. TypeDB 3.x type inference rejects the joined form
+        # for role-aliased abstract relations (INF11). v3 basket_id format
+        # always starts with the deal_id (see v3 extraction, e.g.
+        # "6e76ed06_builder_basket"). Filter at the attribute level.
+        basket_prefix = f"{deal_id}_"
+        for v3_type in _V3_BASKET_TYPES:
+            q = f"""
+                match
+                  $b isa! {v3_type}, has basket_id $bid;
+                  $bid contains {_tq_string(basket_prefix)};
+                select $b, $bid;
+            """
+            try:
+                result = tx.query(q).resolve()
+                for row in result.as_concept_rows():
+                    bid = row.get("bid").as_attribute().get_value()
+                    entities.append(V3Entity(
+                        entity_type=v3_type,
+                        basket_id=bid,
+                        attrs=_fetch_entity_attrs(tx, None, bid),
+                    ))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("v3 basket fetch failed for %s: %s", v3_type, str(exc)[:160])
+
+        # J.Crew blocker — currently scoped by provision_of_deal linkage if any.
+        # Pilot: fetch all jcrew_blocker instances; filter by deal_id via
+        # related rp_provision once extraction lands. No blockers exist in
+        # valence_v4 before extraction so an over-broad fetch returns zero.
+        for v3_type in _V3_NON_BASKET_TYPES:
+            q = f"match $e isa! {v3_type}; select $e;"
+            try:
+                result = tx.query(q).resolve()
+                for row in result.as_concept_rows():
+                    entities.append(V3Entity(
+                        entity_type=v3_type,
+                        basket_id=None,
+                        attrs={},  # blocker attrs fetched on demand in Part 5
+                    ))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("v3 non-basket fetch failed for %s: %s", v3_type, str(exc)[:160])
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+    return entities
+
+
+def _fetch_entity_attrs(tx, concept, identifier: str | None) -> dict:
+    """Read all owned attributes of an entity concept into a python dict.
+
+    Uses a per-attribute scan rather than the $b.* wildcard fetch (which
+    requires the fetch syntax variant). For the pilot this is adequate; if
+    attribute counts grow large the wildcard form is a one-line swap.
+    """
+    # A more targeted query: iterate the per-entity attribute ownership.
+    # For simplicity, we select every pattern-bound attribute of the concept
+    # via dynamic introspection. Using a parametric match.
+    attrs: dict = {}
+    # Identify the concept via its id or via a pattern-bound identifier attr.
+    if identifier is None:
+        return attrs
+    q = f"""
+        match
+          $e isa $type, has basket_id {_tq_string(identifier)};
+          $e has $attr;
+          $attr isa $atype;
+        select $attr, $atype;
+    """
+    try:
+        result = tx.query(q).resolve()
+        for row in result.as_concept_rows():
+            attr = row.get("attr").as_attribute()
+            atype = row.get("atype").get_label()
+            val = attr.get_value()
+            # Multi-valued attributes: just keep the first for the pilot
+            if atype not in attrs:
+                attrs[atype] = val
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("attr fetch degraded for %s: %s", identifier, str(exc)[:120])
+    return attrs
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Projection: per-entity norm emission
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _make_norm_id(entity: V3Entity, mapping: MappingRecord) -> str:
+    """Deterministic norm_id scheme: {basket_id}:norm:{modality}:0"""
+    anchor = entity.basket_id or f"{entity.entity_type}_instance"
+    return f"{anchor}:norm:{mapping.target_modality}:0"
+
+
+def _make_condition_id(norm_id: str, path: str) -> str:
+    return f"{norm_id}__{path}"
+
+
+def _object_is_instrument(label: str, instrument_labels: set[str]) -> bool:
+    return label in instrument_labels
+
+
+def _split_multiselect(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [x.strip() for x in raw.split(",") if x.strip()]
+
+
+def _resolve_predicate_id_for_ratio(label: str, threshold: float | None,
+                                     op: str | None = "at_or_below") -> str:
+    """Build state_predicate_id for a per-threshold ratio predicate via the
+    canonical construction rule. Matches construct_state_predicate_id output."""
+    from app.services.predicate_id import construct_state_predicate_id
+    return construct_state_predicate_id(
+        label=label,
+        threshold_value_double=threshold,
+        operator_comparison=op,
+        reference_predicate_label=None,
+    )
+
+
+def project_entity(driver, db_name: str, entity: V3Entity,
+                   mapping: MappingRecord, specs: dict[str, SpecRecord],
+                   instrument_labels: set[str],
+                   report: ProjectionReport, dry_run: bool) -> None:
+    """Apply a mapping to one v3 entity, emitting norm + scope + condition edges.
+
+    Mapping-driven core (steps 1-9 of §8.3 contract). Builder sub-source and
+    jcrew_blocker defeater emission (steps 10-11) live in separate functions
+    noted below.
+    """
+    nid = _make_norm_id(entity, mapping)
+    attrs = entity.attrs
+
+    cap_usd = attrs.get("cap_usd") or attrs.get("basket_amount_usd") or attrs.get("annual_cap_usd")
+    cap_grower = attrs.get("cap_grower_pct") or attrs.get("basket_grower_pct") or attrs.get("annual_cap_pct_ebitda")
+    cap_uses_greater_of = attrs.get("cap_uses_greater_of")
+    capacity_comp = attrs.get("capacity_composition") or "additive"       # reasonable default
+    cap_agg = attrs.get("capacity_aggregation_function") or "n_a"
+    source_section = attrs.get("section_reference") or ""
+    source_page = attrs.get("source_page")
+    source_text = attrs.get("source_text") or ""
+    confidence = attrs.get("confidence")
+
+    owns = [
+        f'has norm_id {_tq_string(nid)}',
+        f'has norm_kind {_tq_string(mapping.target_norm_kind)}',
+        f'has modality {_tq_string(mapping.target_modality)}',
+        f'has capacity_composition {_tq_string(capacity_comp)}',
+        f'has action_scope {_tq_string(mapping.default_action_scope_kind)}',
+    ]
+    if cap_usd is not None:
+        owns.append(f"has cap_usd {float(cap_usd)}")
+    if cap_grower is not None:
+        owns.append(f"has cap_grower_pct {float(cap_grower)}")
+    if cap_uses_greater_of is not None:
+        owns.append(f'has cap_uses_greater_of {"true" if cap_uses_greater_of else "false"}')
+    if source_section:
+        owns.append(f'has source_section {_tq_string(str(source_section))}')
+    if isinstance(source_page, int):
+        owns.append(f"has source_page {source_page}")
+    if source_text:
+        owns.append(f'has source_text {_tq_string(str(source_text))}')
+    if isinstance(confidence, (int, float)):
+        owns.append(f"has confidence {float(confidence)}")
+
+    norm_q = f"insert $n isa norm, {', '.join(owns)};"
+
+    if dry_run:
+        report.norms_created += 1
+    else:
+        try:
+            _execute_write(driver, db_name, norm_q)
+            report.norms_created += 1
+        except Exception as exc:  # noqa: BLE001
+            report.errors.append(f"norm insert failed for {nid}: {str(exc)[:200]}")
+            return
+
+    # Subject bindings
+    for role in mapping.default_subject_role.split(","):
+        role = role.strip()
+        if not role:
+            continue
+        q = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(nid)};
+              $p isa party, has party_role {_tq_string(role)};
+            insert
+              (norm: $n, subject: $p) isa norm_binds_subject;
+        """
+        if dry_run:
+            report.scope_edges_created += 1
+        else:
+            try:
+                _execute_write(driver, db_name, q)
+                report.scope_edges_created += 1
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"subject bind skipped for {nid}/{role}: {str(exc)[:160]}")
+
+    # Action scopes
+    for alabel in mapping.action_labels:
+        q = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(nid)};
+              $a isa action_class, has action_class_label {_tq_string(alabel)};
+            insert
+              (norm: $n, action: $a) isa norm_scopes_action;
+        """
+        if dry_run:
+            report.scope_edges_created += 1
+        else:
+            try:
+                _execute_write(driver, db_name, q)
+                report.scope_edges_created += 1
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"action scope skipped for {nid}/{alabel}: {str(exc)[:160]}")
+
+    # Object scopes — mapping defaults UNION extracted object_class_multiselect
+    extracted_objects = _split_multiselect(attrs.get("object_class_multiselect"))
+    object_labels = set(mapping.object_labels) | set(extracted_objects)
+    for olabel in object_labels:
+        if _object_is_instrument(olabel, instrument_labels):
+            q = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(nid)};
+                  $oc isa instrument_class, has instrument_class_label {_tq_string(olabel)};
+                insert
+                  (norm: $n, instrument: $oc) isa norm_scopes_instrument;
+            """
+        else:
+            q = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(nid)};
+                  $oc isa object_class, has object_class_label {_tq_string(olabel)};
+                insert
+                  (norm: $n, object: $oc) isa norm_scopes_object;
+            """
+        if dry_run:
+            report.scope_edges_created += 1
+        else:
+            try:
+                _execute_write(driver, db_name, q)
+                report.scope_edges_created += 1
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"object scope skipped for {nid}/{olabel}: {str(exc)[:160]}")
+
+    # Condition tree emission — only if spec != "none" AND partial_applicability
+    spec_name = mapping.condition_builder_spec_ref
+    partial_app = attrs.get("partial_applicability", False)
+    if spec_name and spec_name != "none" and partial_app:
+        spec = specs.get(spec_name)
+        if spec is None:
+            report.warnings.append(f"condition_builder_spec '{spec_name}' not found for {nid}")
+        else:
+            _emit_condition_tree(driver, db_name, nid, spec, entity, report, dry_run)
+
+    # Provenance: norm_extracted_from:fact
+    if entity.basket_id:
+        q = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(nid)};
+              $fact isa! {entity.entity_type}, has basket_id {_tq_string(entity.basket_id)};
+            insert
+              (norm: $n, fact: $fact) isa norm_extracted_from;
+        """
+        if dry_run:
+            report.extracted_from_edges_created += 1
+        else:
+            try:
+                _execute_write(driver, db_name, q)
+                report.extracted_from_edges_created += 1
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"norm_extracted_from skipped for {nid}: {str(exc)[:160]}")
+
+
+def _emit_condition_tree(driver, db_name: str, norm_id: str, spec: SpecRecord,
+                          entity: V3Entity, report: ProjectionReport,
+                          dry_run: bool) -> None:
+    """Emit condition entities + edges per spec's topology.
+
+    Topologies supported:
+      - atomic: single condition node with condition_references_predicate
+      - or_of_atomics / and_of_atomics: root + N atomic children
+
+    The or_of_and_of_atomics topology (Strategy A flattened) is emitted by
+    an entity-specific branch that splits the spec's atomic leaves into two
+    AND conjunctions sharing one member. Only used for §2.10(c)(iv)-style
+    product-line exemptions in the pilot.
+    """
+    topology = spec.condition_topology_emitted
+    operator = spec.condition_operator_root
+    root_cid = _make_condition_id(norm_id, "c0")
+
+    # Root
+    owns = [
+        f'has condition_id {_tq_string(root_cid)}',
+        f'has condition_operator {_tq_string(operator)}',
+        f'has condition_topology {_tq_string(topology)}',
+    ]
+    root_q = f"insert $c isa condition, {', '.join(owns)};"
+    if dry_run:
+        report.conditions_created += 1
+    else:
+        try:
+            _execute_write(driver, db_name, root_q)
+            report.conditions_created += 1
+        except Exception as exc:  # noqa: BLE001
+            report.errors.append(f"condition root insert failed for {norm_id}: {str(exc)[:200]}")
+            return
+
+    # Link norm to root
+    link_q = f"""
+        match
+          $n isa norm, has norm_id {_tq_string(norm_id)};
+          $c isa condition, has condition_id {_tq_string(root_cid)};
+        insert
+          (norm: $n, root: $c) isa norm_has_condition;
+    """
+    if not dry_run:
+        try:
+            _execute_write(driver, db_name, link_q)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"norm_has_condition skipped for {norm_id}: {str(exc)[:160]}")
+
+    # Per-topology atomic leaf emission
+    if topology == "atomic":
+        # The single atomic IS the root — attach its predicate reference.
+        if not spec.predicate_bindings:
+            report.warnings.append(f"atomic spec {spec.condition_builder_name} has no predicate binding")
+            return
+        binding = spec.predicate_bindings[0]
+        _attach_predicate(driver, db_name, root_cid, binding["predicate_id"],
+                          entity, report, dry_run)
+        return
+
+    if topology in ("or_of_atomics", "and_of_atomics"):
+        _emit_flat_compound(driver, db_name, root_cid, spec, entity, report, dry_run)
+        return
+
+    if topology == "or_of_and_of_atomics":
+        _emit_strategy_a_flattened(driver, db_name, root_cid, spec, entity, report, dry_run)
+        return
+
+    report.warnings.append(
+        f"unrecognized topology {topology!r} for norm {norm_id}; no children emitted"
+    )
+
+
+def _emit_flat_compound(driver, db_name, root_cid, spec, entity, report, dry_run):
+    """Root is OR or AND; children are atomic leaves (one per predicate binding
+    plus one resolved-at-projection per-basket ratio threshold leaf if the
+    spec is ratio_with_no_worse)."""
+    # Primary leaf — for ratio_with_no_worse, resolve threshold from entity.
+    # Build the list of (predicate_id_or_None, label) to emit as atomic children.
+    leaves: list[dict] = []
+
+    # Primary per-threshold leaf for ratio_with_no_worse
+    if spec.condition_builder_name == "ratio_with_no_worse":
+        threshold = (entity.attrs.get("ratio_threshold")
+                     or entity.attrs.get("asset_proceeds_ratio_threshold"))
+        label = "first_lien_net_leverage_at_or_below"
+        if threshold is not None:
+            pid = _resolve_predicate_id_for_ratio(label, float(threshold), "at_or_below")
+            leaves.append({"predicate_id": pid, "child_index": 0})
+        else:
+            report.warnings.append(
+                f"ratio_with_no_worse: no threshold extracted for {root_cid}; primary leaf skipped"
+            )
+
+    # Attach any seeded bindings (e.g., secondary pro_forma_no_worse)
+    for b in sorted(spec.predicate_bindings, key=lambda b: b["child_index"]):
+        leaves.append({"predicate_id": b["predicate_id"], "child_index": b["child_index"]})
+
+    for leaf in leaves:
+        idx = leaf["child_index"]
+        child_cid = f"{root_cid}_{idx}"
+        child_q = f"""
+            insert
+              $c isa condition,
+                has condition_id {_tq_string(child_cid)},
+                has condition_operator "atomic";
+        """
+        if dry_run:
+            report.conditions_created += 1
+        else:
+            try:
+                _execute_write(driver, db_name, child_q)
+                report.conditions_created += 1
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"condition child insert skipped for {child_cid}: {str(exc)[:160]}")
+                continue
+
+        # Parent-child link
+        link_q = f"""
+            match
+              $parent isa condition, has condition_id {_tq_string(root_cid)};
+              $child isa condition, has condition_id {_tq_string(child_cid)};
+            insert
+              (parent: $parent, child: $child) isa condition_has_child,
+                has child_index {idx};
+        """
+        if not dry_run:
+            try:
+                _execute_write(driver, db_name, link_q)
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(f"condition_has_child skipped for {child_cid}: {str(exc)[:160]}")
+
+        # Predicate reference
+        _attach_predicate(driver, db_name, child_cid, leaf["predicate_id"],
+                          entity, report, dry_run)
+
+
+def _emit_strategy_a_flattened(driver, db_name, root_cid, spec, entity, report, dry_run):
+    """or_of_and_of_atomics: two AND branches, each a conjunction of the spec's
+    primary (shared) atomic with one of the ratio/no-worse disjuncts. Pilot
+    stub — not exercised for Duck Creek RP scope beyond §2.10(c)(iv), which
+    is an asset-sale covenant (out of current scope)."""
+    report.warnings.append(
+        f"or_of_and_of_atomics emission for {root_cid} deferred — stub in pilot; "
+        f"spec {spec.condition_builder_name} requires two AND branches with "
+        f"threshold resolved per-entity"
+    )
+
+
+def _attach_predicate(driver, db_name, cid: str, pid: str,
+                      entity: V3Entity, report: ProjectionReport, dry_run: bool) -> None:
+    """Emit condition_references_predicate for an atomic condition node."""
+    q = f"""
+        match
+          $c isa condition, has condition_id {_tq_string(cid)};
+          $p isa state_predicate, has state_predicate_id {_tq_string(pid)};
+        insert
+          (condition: $c, predicate: $p) isa condition_references_predicate;
+    """
+    if dry_run:
+        report.condition_refs_created += 1
+        return
+    try:
+        _execute_write(driver, db_name, q)
+        report.condition_refs_created += 1
+    except Exception as exc:  # noqa: BLE001
+        # If the predicate_id doesn't exist in the DB, this will fail. Track it.
+        report.predicate_lookup_failures.append(
+            f"  cid={cid} pid={pid}: {str(exc)[:200]}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Orchestration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def project_deal(driver, db_name: str, deal_id: str, dry_run: bool = False) -> ProjectionReport:
+    """Project all v3 extracted entities for a deal into v4 norms.
+
+    Steps:
+      1. Load mappings + specs + instrument_label set from graph
+      2. Polymorphic fetch v3 entities for deal
+      3. Per entity: look up mapping, apply projection
+      4. Report structural completeness + predicate lookup failures
+
+    Returns the ProjectionReport summary regardless of dry_run.
+    """
+    report = ProjectionReport(deal_id=deal_id, dry_run=dry_run)
+    logger.info("Loading mappings + specs from %s", db_name)
+    mappings = load_mappings(driver, db_name)
+    specs = load_specs(driver, db_name)
+    logger.info("  mappings=%d specs=%d", len(mappings), len(specs))
+
+    # Instrument labels for scope dispatch
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        r = tx.query("match $t sub instrument_class; select $t;").resolve()
+        instrument_labels = {row.get("t").get_label() for row in r.as_concept_rows()}
+        instrument_labels.discard("instrument_class")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    logger.info("Fetching v3 entities for deal %s", deal_id)
+    entities = load_v3_entities_for_deal(driver, db_name, deal_id)
+    report.entities_scanned = len(entities)
+    logger.info("  %d v3 entities", len(entities))
+
+    if not entities:
+        report.warnings.append(
+            f"no v3 entities found for deal {deal_id!r} — has RP extraction run against {db_name}?"
+        )
+        return report
+
+    for entity in entities:
+        mapping = mappings.get(entity.entity_type)
+        if mapping is None:
+            report.mapping_gaps.add(entity.entity_type)
+            continue
+        report.entities_projected += 1
+        project_entity(driver, db_name, entity, mapping, specs, instrument_labels,
+                       report, dry_run)
+
+    return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLI
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _connect():
+    from dotenv import load_dotenv
+    main_env = Path("C:/Users/olive/ValenceV3/.env")
+    if main_env.exists():
+        load_dotenv(main_env, override=False)
+    load_dotenv(REPO_ROOT / ".env", override=False)
+    from app.config import settings
+    from typedb.driver import TypeDB, Credentials, DriverOptions
+    return TypeDB.driver(
+        settings.normalized_typedb_address,
+        Credentials(settings.typedb_username, settings.typedb_password),
+        DriverOptions(),
+    ), settings.typedb_database
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Project v3 extracted entities into v4 norms.")
+    parser.add_argument("--deal", required=True, help="deal_id in valence_v4")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="read + construct in memory; no writes")
+    parser.add_argument("--database", default=None,
+                        help="override target database (default: settings.typedb_database)")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-7s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    driver, default_db = _connect()
+    db_name = args.database or default_db
+    try:
+        report = project_deal(driver, db_name, args.deal, dry_run=args.dry_run)
+        print(report.summary())
+        return 0 if not report.errors else 1
+    finally:
+        try:
+            driver.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+if __name__ == "__main__":
+    sys.exit(main())
