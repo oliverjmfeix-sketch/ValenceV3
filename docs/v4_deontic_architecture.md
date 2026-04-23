@@ -131,7 +131,8 @@ attribute party_role, value string;            # borrower|loan_party|restricted_
 attribute action_class_label, value string;
 attribute object_class_label, value string;
 attribute instrument_class_label, value string;
-attribute state_predicate_label, value string;
+attribute state_predicate_label, value string;    # no longer @key — composite uniqueness via state_predicate_id below
+attribute state_predicate_id, value string;       # composite: "{label}|{threshold}|{op}|{ref}" — fallback key after probe found block-syntax composite @key/@unique unsupported in TypeDB 3.x
 
 # norm scalars
 attribute cap_usd, value double;
@@ -256,7 +257,8 @@ The six object-class labels listed in the requirements (`cash`, `equity_interest
 
 ```tql
 entity state_predicate,
-    owns state_predicate_label @key,
+    owns state_predicate_id @key,           # composite: "{label}|{threshold}|{op}|{ref}"
+    owns state_predicate_label,             # NOT @key — multi-instance-per-label admitted
     owns threshold_value_double,
     owns threshold_value_string,
     owns threshold_value_double_secondary,
@@ -269,6 +271,8 @@ entity state_predicate,
     owns source_section,
     owns source_page;
 ```
+
+**Composite uniqueness.** TypeDB 3.x does not support block-syntax composite `@key`/`@unique` across multiple attributes, and `double`-valued attrs are not keyable. The `state_predicate_id` composite attribute (a concatenation of `label|threshold|operator|reference`) carries `@key` as the fallback; lookup queries match on the structural attributes `(label, threshold_value_double, operator_comparison, reference_predicate_label)` rather than the composite id directly, but the id guarantees physical uniqueness. Duck Creek's `first_lien_net_leverage_at_or_below` now appears as four distinct instances (thresholds 5.50, 5.75, 6.00, 6.25); `first_lien_net_leverage_above` appears as two (5.50, 5.75 sweep-tier triggers).
 
 Concrete predicate labels are enumerated in seed, not as entity subtypes — each predicate's evaluation lives in a `predicate_holds` branch keyed on its label. The **predicate catalog** below lists every label the v4 pilot recognises together with a semantic gloss (what "true" means) and a brief downstream note where non-obvious. Polarity matters at three layers: condition evaluation, defeater activation, and renderer phrasing. When adding a new predicate, always author its gloss alongside the label.
 

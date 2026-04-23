@@ -39,6 +39,7 @@ attribute action_class_label, value string;
 attribute object_class_label, value string;
 attribute instrument_class_label, value string;
 attribute state_predicate_label, value string;
+attribute state_predicate_id, value string;    # composite identifier; multi-instance-per-label support
 
 # norm scalars
 attribute cap_usd, value double;
@@ -150,7 +151,8 @@ entity business_division sub object_class;
 # ─── §4.5 State predicate ───────────────────────────────────────────────────────
 
 entity state_predicate,
-    owns state_predicate_label @key,
+    owns state_predicate_id @key,           # composite identifier: "{label}|{threshold}|{op}|{ref}"
+    owns state_predicate_label,             # no longer @key — multiple instances per label admitted
     owns threshold_value_double,
     owns threshold_value_string,
     owns threshold_value_double_secondary,

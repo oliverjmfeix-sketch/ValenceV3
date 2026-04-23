@@ -1154,6 +1154,8 @@ attribute instrument_class_label,
  value string;
 attribute state_predicate_label,
  value string;
+attribute state_predicate_id,
+ value string;
 attribute cap_usd,
  value double;
 attribute cap_grower_pct,
@@ -2261,7 +2263,8 @@ entity state_predicate,
   owns source_page,
   owns source_section,
   owns source_text,
-  owns state_predicate_label @key,
+  owns state_predicate_id @key,
+  owns state_predicate_label,
   owns threshold_grower_pct,
   owns threshold_grower_reference,
   owns threshold_is_greater_of,

@@ -1,115 +1,191 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# Valence v4 — State predicate singletons (pilot)
+# Valence v4 — State predicate instances (per-threshold, multi-instance-per-label)
 #
-# One canonical state_predicate instance per label from the §4.5 catalog.
-# state_predicate_label is @key, so only one instance per label is admissible
-# under the current schema. Per-deal threshold polymorphism (e.g., Duck Creek
-# uses first_lien_net_leverage_at_or_below at 5.50, 5.75, 6.00, AND 6.25)
-# cannot be represented under the @key constraint; projection (Prompt 07) will
-# need schema relaxation (drop @key or introduce state_predicate_id @key) to
-# create per-threshold instances. Flagged in the report.
+# Post-Prompt-06 restructure: state_predicate_label is no longer @key. Uniqueness
+# is carried by state_predicate_id (derived composite: "{label}|{threshold}|{op}|{ref}").
 #
-# For harness plumbing, this seed suffices: the harness queries labels and
-# evaluates predicates against event_instance attrs; the one-instance-per-label
-# constraint doesn't block plumbing.
+# TypeDB 3.x does not support block-syntax composite @key/@unique across multiple
+# attributes, and double-valued attrs can't carry @key. Composite-id concatenation
+# is the fallback (per the probe report). Match queries on (label, threshold, op,
+# ref) remain the natural lookup pattern; the composite id is just an internal
+# uniqueness token.
 #
-# Thresholds below are seeded only where Duck Creek uses a single canonical
-# value for the predicate (compound-threshold predicates each have one Duck
-# Creek usage). Ratio predicates with multiple usages have no threshold seeded.
+# Duck Creek usages informing multiplicity:
+#   first_lien_net_leverage_at_or_below × 4 thresholds (5.50, 5.75, 6.00, 6.25)
+#   first_lien_net_leverage_above × 2 thresholds (5.50, 5.75) — sweep tier bands
+#   others × 1 each
 # ═══════════════════════════════════════════════════════════════════════════════
 
 insert
 
-# ── Boolean state predicates (no threshold) ───────────────────────────────────
+# ── Boolean state predicates (no threshold) — one instance each ──────────────
+
 $sp_noeod isa state_predicate,
+    has state_predicate_id "no_event_of_default_exists||",
     has state_predicate_label "no_event_of_default_exists",
     has source_text "universal EoD precondition — evaluation is PILOT STUB per predicate_holds",
     has source_section "N/A - universal",
     has source_page 0;
 
-$sp_pfnw isa state_predicate,
-    has state_predicate_label "pro_forma_no_worse",
-    has reference_predicate_label "first_lien_net_leverage",
-    has source_text "reference-based predicate; evaluates to true when pro forma value of reference predicate is no worse than pre-transaction",
-    has source_section "N/A - abstract",
-    has source_page 0;
-
 $sp_pfcomp isa state_predicate,
+    has state_predicate_id "pro_forma_compliance_financial_covenants||",
     has state_predicate_label "pro_forma_compliance_financial_covenants",
     has source_text "compliance with maintenance financial covenants on pro forma basis — stub in predicate_holds",
     has source_section "N/A - abstract",
     has source_page 0;
 
 $sp_board isa state_predicate,
+    has state_predicate_id "board_approval_obtained||",
     has state_predicate_label "board_approval_obtained",
     has source_text "board of directors approval — stub in predicate_holds",
     has source_section "N/A - procedural",
     has source_page 0;
 
 $sp_officer isa state_predicate,
+    has state_predicate_id "officer_certificate_delivered||",
     has state_predicate_label "officer_certificate_delivered",
-    has source_text "officer's certificate delivered to Administrative Agent — stub in predicate_holds",
+    has source_text "officer's certificate delivered — stub",
     has source_section "N/A - procedural",
     has source_page 0;
 
 $sp_ipo isa state_predicate,
+    has state_predicate_id "qualified_ipo_has_occurred||",
     has state_predicate_label "qualified_ipo_has_occurred",
-    has source_text "Qualified IPO has occurred per agreement's definitional section — stub in predicate_holds",
+    has source_text "Qualified IPO has occurred per agreement's definitional section",
     has source_section "Definition of 'Qualified IPO'",
     has source_page 0;
 
 $sp_rasp isa state_predicate,
+    has state_predicate_id "retained_asset_sale_proceeds||",
     has state_predicate_label "retained_asset_sale_proceeds",
     has source_text "positive balance of Retained Asset Sale Proceeds — capacity-state, not atomic condition leaf",
     has source_section "Definition of 'Retained Asset Sale Proceeds'",
     has source_page 0;
 
 $sp_jcrew isa state_predicate,
+    has state_predicate_id "unsub_would_own_or_license_material_ip_at_designation||",
     has state_predicate_label "unsub_would_own_or_license_material_ip_at_designation",
-    has source_text "Unrestricted Subsidiary would own or hold exclusive license to Material IP at designation — stub in predicate_holds; J.Crew blocker prohibition fires when true",
+    has source_text "Unrestricted Subsidiary would own or hold exclusive license to Material IP at designation — J.Crew blocker prohibition fires when true",
     has source_section "Definition of 'Unrestricted Subsidiary'",
     has source_page 0;
 
 $sp_prodline isa state_predicate,
+    has state_predicate_id "is_product_line_or_line_of_business_sale||",
     has state_predicate_label "is_product_line_or_line_of_business_sale",
-    has source_text "proposed Asset Sale is of all or substantially all of a product line or line of business — stub in predicate_holds",
+    has source_text "proposed Asset Sale is of all or substantially all of a product line or line of business",
     has source_section "2.10(c)(iv)",
     has source_page 106;
 
-# ── Ratio predicates (no threshold seeded — per-threshold instances await
-#    schema relaxation; predicate_holds reads threshold from the instance) ────
-$sp_fl_below isa state_predicate,
+# Part 3 carryforward/carryback predicates (boolean, no threshold)
+$sp_carryfwd_prior isa state_predicate,
+    has state_predicate_id "prior_year_capacity_was_unused||",
+    has state_predicate_label "prior_year_capacity_was_unused",
+    has source_text "prior fiscal year's management-equity-basket capacity was not fully consumed — enables carryforward to current year",
+    has source_section "6.06(b)(i)(x) carryforward proviso",
+    has source_page 0;
+
+$sp_carryback_subseq isa state_predicate,
+    has state_predicate_id "base_capacity_will_be_unused_in_subsequent_year||",
+    has state_predicate_label "base_capacity_will_be_unused_in_subsequent_year",
+    has source_text "subsequent fiscal year's management-equity-basket base will not be fully consumed — enables carryback from that year",
+    has source_section "6.06(b)(i)(y) carryback proviso",
+    has source_page 0;
+
+# ── Reference-based predicate: pro_forma_no_worse ─────────────────────────────
+$sp_pfnw isa state_predicate,
+    has state_predicate_id "pro_forma_no_worse||first_lien_net_leverage",
+    has state_predicate_label "pro_forma_no_worse",
+    has reference_predicate_label "first_lien_net_leverage",
+    has source_text "pro forma value of reference_predicate_label is no worse than pre-transaction",
+    has source_section "N/A - abstract",
+    has source_page 0;
+
+# ── Ratio predicates — per-threshold instances ────────────────────────────────
+
+# first_lien_net_leverage_at_or_below × 4 thresholds
+$sp_fl_at_550 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_at_or_below|5.50|at_or_below|",
     has state_predicate_label "first_lien_net_leverage_at_or_below",
-    has source_text "First Lien Leverage Ratio at or below threshold on Pro Forma Basis",
-    has source_section "N/A - abstract ratio predicate",
+    has threshold_value_double 5.50,
+    has operator_comparison "at_or_below",
+    has source_text "First Lien Leverage Ratio at or below 5.50x on Pro Forma Basis",
+    has source_section "Definition of 'Applicable Net Cash Proceeds Percentage', clause (c)",
     has source_page 0;
 
-$sp_fl_above isa state_predicate,
+$sp_fl_at_575 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_at_or_below|5.75|at_or_below|",
+    has state_predicate_label "first_lien_net_leverage_at_or_below",
+    has threshold_value_double 5.75,
+    has operator_comparison "at_or_below",
+    has source_text "First Lien Leverage Ratio at or below 5.75x on Pro Forma Basis",
+    has source_section "6.06(o) / sweep tier 50% upper bound",
+    has source_page 0;
+
+$sp_fl_at_600 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_at_or_below|6.00|at_or_below|",
+    has state_predicate_label "first_lien_net_leverage_at_or_below",
+    has threshold_value_double 6.00,
+    has operator_comparison "at_or_below",
+    has source_text "First Lien Leverage Ratio at or below 6.00x on Pro Forma Basis",
+    has source_section "6.05(z)",
+    has source_page 0;
+
+$sp_fl_at_625 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_at_or_below|6.25|at_or_below|",
+    has state_predicate_label "first_lien_net_leverage_at_or_below",
+    has threshold_value_double 6.25,
+    has operator_comparison "at_or_below",
+    has source_text "First Lien Leverage Ratio at or below 6.25x on Pro Forma Basis (product-line sweep exemption)",
+    has source_section "2.10(c)(iv)",
+    has source_page 106;
+
+# first_lien_net_leverage_above × 2 thresholds (sweep tier triggers)
+$sp_fl_ab_550 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_above|5.50|greater_than|",
     has state_predicate_label "first_lien_net_leverage_above",
-    has source_text "First Lien Leverage Ratio strictly above threshold on Pro Forma Basis",
-    has source_section "N/A - abstract ratio predicate",
+    has threshold_value_double 5.50,
+    has operator_comparison "greater_than",
+    has source_text "First Lien Leverage Ratio strictly greater than 5.50x (sweep tier 50% lower bound)",
+    has source_section "Definition of 'Applicable Net Cash Proceeds Percentage', clause (b)",
     has source_page 0;
 
+$sp_fl_ab_575 isa state_predicate,
+    has state_predicate_id "first_lien_net_leverage_above|5.75|greater_than|",
+    has state_predicate_label "first_lien_net_leverage_above",
+    has threshold_value_double 5.75,
+    has operator_comparison "greater_than",
+    has source_text "First Lien Leverage Ratio strictly greater than 5.75x (sweep tier 100% trigger)",
+    has source_section "Definition of 'Applicable Net Cash Proceeds Percentage', clause (a)",
+    has source_page 0;
+
+# senior_secured_leverage_at_or_below / total_leverage_at_or_below / incurrence_test_satisfied
+# — no Duck Creek usage yet; one stub instance each, threshold unset
 $sp_ss_below isa state_predicate,
+    has state_predicate_id "senior_secured_leverage_at_or_below||at_or_below|",
     has state_predicate_label "senior_secured_leverage_at_or_below",
-    has source_text "Senior Secured Leverage Ratio at or below threshold on Pro Forma Basis",
+    has operator_comparison "at_or_below",
+    has source_text "Senior Secured Leverage Ratio at or below threshold — stub; per-threshold instances created when needed",
     has source_section "N/A - abstract ratio predicate",
     has source_page 0;
 
 $sp_tl_below isa state_predicate,
+    has state_predicate_id "total_leverage_at_or_below||at_or_below|",
     has state_predicate_label "total_leverage_at_or_below",
-    has source_text "Total Leverage Ratio at or below threshold on Pro Forma Basis",
+    has operator_comparison "at_or_below",
+    has source_text "Total Leverage Ratio at or below threshold — stub; per-threshold instances created when needed",
     has source_section "N/A - abstract ratio predicate",
     has source_page 0;
 
 $sp_incurrence isa state_predicate,
+    has state_predicate_id "incurrence_test_satisfied|||",
     has state_predicate_label "incurrence_test_satisfied",
-    has source_text "incurrence test identified by reference_predicate_label satisfied at threshold",
+    has source_text "incurrence test identified by reference_predicate_label satisfied at threshold — stub",
     has source_section "N/A - abstract",
     has source_page 0;
 
-# ── Compound-threshold predicates (Duck Creek canonical values) ───────────────
+# ── Compound-threshold predicates (one instance per Duck Creek usage) ─────────
 $sp_indproc isa state_predicate,
+    has state_predicate_id "individual_proceeds_at_or_below|20000000.0|at_or_below|",
     has state_predicate_label "individual_proceeds_at_or_below",
     has threshold_value_double 20000000.0,
     has threshold_is_greater_of true,
@@ -121,6 +197,7 @@ $sp_indproc isa state_predicate,
     has source_page 105;
 
 $sp_annagg isa state_predicate,
+    has state_predicate_id "annual_aggregate_at_or_below|40000000.0|at_or_below|",
     has state_predicate_label "annual_aggregate_at_or_below",
     has threshold_value_double 40000000.0,
     has threshold_is_greater_of true,
