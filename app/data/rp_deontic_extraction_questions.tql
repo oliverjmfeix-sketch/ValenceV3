@@ -29,57 +29,9 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ─── 1. Category definitions (9 RP categories needed by the links below) ──────
-
-insert
-
-$cat_c isa ontology_category,
-    has category_id "C",
-    has name "Management Equity Basket",
-    has display_order 3;
-
-$cat_d isa ontology_category,
-    has category_id "D",
-    has name "Tax Distribution Basket",
-    has display_order 4;
-
-$cat_e isa ontology_category,
-    has category_id "E",
-    has name "Equity Awards",
-    has display_order 5;
-
-$cat_f isa ontology_category,
-    has category_id "F",
-    has name "Builder Basket / Cumulative Amount",
-    has display_order 6;
-
-$cat_g isa ontology_category,
-    has category_id "G",
-    has name "Ratio-Based Dividend Basket",
-    has display_order 7;
-
-$cat_h isa ontology_category,
-    has category_id "H",
-    has name "Holding Company Overhead",
-    has display_order 8;
-
-$cat_i isa ontology_category,
-    has category_id "I",
-    has name "Basket Reallocation",
-    has display_order 9;
-
-$cat_n isa ontology_category,
-    has category_id "N",
-    has name "Dividend Capacity Calculation",
-    has display_order 14;
-
-$cat_p isa ontology_category,
-    has category_id "P",
-    has name "Unrestricted Subsidiary Distribution Basket",
-    has display_order 16;
-
-
-# ─── 2. The 36 per-subtype questions (9 subtypes × 4 fields) ──────────────────
+# ─── 1. The 36 per-subtype questions (9 subtypes × 4 fields) ──────────────────
+# Categories (C, D, E, F, G, H, I, N, P) come from v3's categories.tql +
+# questions.tql, loaded earlier in EXTRACTION_ONLY_SEEDS ordering.
 #
 # answer_type "string" for enum + multiselect per v3 scalar-routing convention
 # (multiselect expressed as CSV in the prompt). partial_applicability is boolean.

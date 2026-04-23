@@ -41,9 +41,18 @@ class SeedFile(NamedTuple):
     filename   — basename under app/data/
     probe_type — entity type name to probe for idempotency (skip load when
                  at least one instance exists in the target database)
+    probe_query — (optional) custom idempotency probe. When set, used
+                 instead of the generic `match $e isa {probe_type}` count.
+                 The query must SELECT at least one variable and return
+                 rows iff this specific seed has already loaded. Useful
+                 when multiple seed files share a probe_type (e.g., both
+                 questions.tql and rp_deontic_extraction_questions.tql
+                 populate ontology_question — the generic count would
+                 see >0 after the first loads and skip the second).
     """
     filename: str
     probe_type: str
+    probe_query: str | None = None
 
 
 # Seeds loaded into both database kinds.
@@ -54,18 +63,62 @@ SHARED_SEEDS: list[SeedFile] = [
     SeedFile("gold_questions_seed.tql", "gold_question"),
 ]
 
-# Seeds loaded only into the extraction database. These encode harness-side
-# validation baselines consumed against valence_v4, not against the
-# ground-truth graph. rp_deontic_mappings + rp_condition_builders are
-# projection-time infrastructure: the projection engine reads mappings to
-# transform v3 extracted entities into v4 norms. Ground-truth DB is authored
-# directly in YAML and does not need these mappings.
+# Seeds loaded only into the extraction database.
+#
+# Order matters: v3 RP ontology first (categories, questions, annotations —
+# drive extraction prompt assembly + per-basket attribute routing), then
+# v4-specific projection infrastructure (mappings, specs, extraction questions).
+#
+# Per-seed probe_query disambiguates files that share a probe_type
+# (ontology_question in particular — multiple seeds populate it).
 EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
+    # ── v3 RP ontology needed for basket creation + attribute routing ─────────
+    # concepts.tql intentionally skipped: its 1200-line single-insert block
+    # triggers TypeDB 3.x INF11 type-inference edge cases. The 36 rp_v4_*
+    # questions are scalar (string/boolean) and do not require concept
+    # instances. Multiselect answers for v3 questions may degrade without
+    # concepts, but extraction of per-basket attributes (the Part 5 goal)
+    # does not depend on them.
+    SeedFile(
+        "questions.tql",
+        probe_type="ontology_question",
+        probe_query='match $q isa ontology_question, has question_id "rp_a1"; select $q;',
+    ),
+    SeedFile(
+        "categories.tql",
+        probe_type="ontology_category",
+        probe_query='match $c isa ontology_category, has category_id "L"; select $c;',
+    ),
+    SeedFile(
+        "seed_new_questions.tql",
+        probe_type="ontology_question",
+        probe_query='match $q isa ontology_question, has question_id "rp_g8"; select $q;',
+    ),
+    SeedFile(
+        "seed_entity_list_questions.tql",
+        probe_type="ontology_question",
+        probe_query='match $q isa ontology_question, has question_id "rp_el_sweep_tiers"; select $q;',
+    ),
+    SeedFile(
+        "seed_capacity_classifications.tql",
+        probe_type="capacity_classification",
+        probe_query='match $c isa capacity_classification; select $c;',
+    ),
+    SeedFile(
+        "question_annotations.tql",
+        probe_type="question_annotates_attribute",
+        probe_query='match $r (question: $q) isa question_annotates_attribute, has target_entity_type "builder_basket"; select $r;',
+    ),
+    # ── v4-specific harness + projection infrastructure ───────────────────────
     SeedFile("segment_norm_expectations.tql", "segment_norm_expectation"),
     SeedFile("expected_norm_kinds.tql", "expected_norm_kind"),
     SeedFile("rp_deontic_mappings.tql", "deontic_mapping"),
     SeedFile("rp_condition_builders.tql", "condition_builder_spec"),
-    SeedFile("rp_deontic_extraction_questions.tql", "ontology_question"),
+    SeedFile(
+        "rp_deontic_extraction_questions.tql",
+        probe_type="ontology_question",
+        probe_query='match $q isa ontology_question, has question_id "rp_v4_F_cc"; select $q;',
+    ),
 ]
 
 
@@ -77,11 +130,20 @@ def seed_files_for(kind: DatabaseKind) -> list[SeedFile]:
     return seeds
 
 
-def _count_instances(driver, database_name: str, isa: str) -> int:
+def _count_instances(driver, database_name: str, isa: str, probe_query: str | None = None) -> int:
+    """Count rows matching either the generic type probe (`match $e isa {isa}`)
+    or a custom probe_query (when supplied). Custom queries let a seed file
+    probe a specific entity/relation unique to itself when the generic type
+    is shared with an earlier-loading file."""
     tx = driver.transaction(database_name, TransactionType.READ)
     try:
-        result = tx.query(f"match $e isa {isa}; select $e;").resolve()
+        query = probe_query if probe_query else f"match $e isa {isa}; select $e;"
+        result = tx.query(query).resolve()
         return len(list(result.as_concept_rows()))
+    except Exception:
+        # A probe_query referencing a type not yet in the schema fails with
+        # "type not found" — treat that as "not present" (count=0).
+        return 0
     finally:
         try:
             if tx.is_open():
@@ -223,10 +285,10 @@ def load_seeds(
         if not seed_path.exists():
             raise FileNotFoundError(f"seed file missing: {seed_path}")
 
-        existing = _count_instances(driver, database_name, seed.probe_type)
+        existing = _count_instances(driver, database_name, seed.probe_type, seed.probe_query)
         if existing > 0:
-            logger.info("  %s already seeded (%d %s instances) — skipping",
-                        seed.filename, existing, seed.probe_type)
+            logger.info("  %s already seeded (%d matches) — skipping",
+                        seed.filename, existing)
             counts[seed.filename] = existing
             continue
 
@@ -234,7 +296,7 @@ def load_seeds(
         ins_ok, mi_ok, total = _load_write_file(driver, database_name, seed_path)
         ms = (time.perf_counter() - t0) * 1000
 
-        loaded = _count_instances(driver, database_name, seed.probe_type)
+        loaded = _count_instances(driver, database_name, seed.probe_type, seed.probe_query)
         counts[seed.filename] = loaded
         logger.info(
             "  %s loaded in %.0f ms (%d %s instances; %d/%d statements: %d pure + %d match-insert)",
