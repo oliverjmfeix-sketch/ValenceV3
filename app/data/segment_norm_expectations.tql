@@ -1,0 +1,54 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Segment norm-count expectations (RP pilot)
+#
+# Used by validation_harness.check_segment_norm_counts to flag under- or
+# over-extraction. Ranges calibrated against the 57-norm Duck Creek ground
+# truth (commit 7890eac). Per-deal overrides may be needed if a specific
+# agreement's structure differs materially — out of pilot scope.
+#
+# Segment labels are canonical segment_type_id values from segment_types_seed.tql.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$exp_def isa segment_norm_expectation,
+    has segment_type_id "definitions",
+    has covenant_type "rp",
+    has expected_min 0,
+    has expected_max 5;
+
+$exp_rp isa segment_norm_expectation,
+    has segment_type_id "negative_cov_rp",
+    has covenant_type "rp",
+    has expected_min 20,
+    has expected_max 30;
+
+$exp_inv isa segment_norm_expectation,
+    has segment_type_id "negative_cov_investments",
+    has covenant_type "rp",
+    has expected_min 0,
+    has expected_max 3;
+
+$exp_as isa segment_norm_expectation,
+    has segment_type_id "negative_cov_asset_sales",
+    has covenant_type "rp",
+    has expected_min 1,
+    has expected_max 3;
+
+$exp_rdp isa segment_norm_expectation,
+    has segment_type_id "negative_cov_rdp",
+    has covenant_type "rp",
+    has expected_min 1,
+    has expected_max 10;
+
+$exp_unsub isa segment_norm_expectation,
+    has segment_type_id "unrestricted_sub_mechanics",
+    has covenant_type "rp",
+    has expected_min 1,
+    has expected_max 2;
+
+$exp_pf isa segment_norm_expectation,
+    has segment_type_id "pro_forma_mechanics",
+    has covenant_type "rp",
+    has expected_min 0,
+    has expected_max 1;

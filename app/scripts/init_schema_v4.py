@@ -58,6 +58,9 @@ DOCS_DIR = REPO_ROOT / "docs"
 SCHEMA_V3 = DATA_DIR / "schema_unified.tql"
 SCHEMA_V4 = DATA_DIR / "schema_v4_deontic.tql"
 PRIMITIVES_SEED = DATA_DIR / "deontic_primitives_seed.tql"
+STATE_PREDICATES_SEED = DATA_DIR / "state_predicates_seed.tql"
+SEGMENT_EXPECTATIONS_SEED = DATA_DIR / "segment_norm_expectations.tql"
+EXPECTED_NORM_KINDS_SEED = DATA_DIR / "expected_norm_kinds.tql"
 SNAPSHOT_PRE = DOCS_DIR / "v4_schema_snapshot_pre_init.tql"
 SNAPSHOT_POST = DOCS_DIR / "v4_schema_snapshot_post_init.tql"
 
@@ -363,6 +366,56 @@ def main() -> int:
             logger.warning("Primitive count drift (expected 1 each): %s", bad)
     else:
         logger.info("Skipping primitive seeding (--no-seed-primitives)")
+
+    # ── seed harness data (idempotent-by-existence) ───────────────────────────
+    # state_predicates, segment_norm_expectations, expected_norm_kinds each
+    # load as a WRITE transaction. Skipped if the first instance already exists.
+    for seed_file, probe_query, name in [
+        (STATE_PREDICATES_SEED,
+         'match $e isa state_predicate; select $e;',
+         "state predicates"),
+        (SEGMENT_EXPECTATIONS_SEED,
+         'match $e isa segment_norm_expectation; select $e;',
+         "segment norm expectations"),
+        (EXPECTED_NORM_KINDS_SEED,
+         'match $e isa expected_norm_kind; select $e;',
+         "expected norm kinds"),
+    ]:
+        tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
+        try:
+            existing = len(list(tx.query(probe_query).resolve().as_concept_rows()))
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:  # noqa: BLE001
+                pass
+        if existing > 0:
+            logger.info("%s already seeded (%d instances) — skipping", name, existing)
+        else:
+            if not seed_file.exists():
+                logger.warning("Seed file missing: %s — skipping", seed_file.name)
+                continue
+            logger.info("Loading seed: %s", seed_file.name)
+            tx = driver.transaction(EXPECTED_DB, TransactionType.WRITE)
+            try:
+                tx.query(seed_file.read_text(encoding="utf-8")).resolve()
+                tx.commit()
+            except Exception:
+                if tx.is_open():
+                    tx.close()
+                raise
+            # Count after load
+            tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
+            try:
+                n = len(list(tx.query(probe_query).resolve().as_concept_rows()))
+            finally:
+                try:
+                    if tx.is_open():
+                        tx.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            logger.info("  %s seeded: %d instances", name, n)
 
     # ── post-load snapshot ────────────────────────────────────────────────────
     logger.info("Exporting post-init schema snapshot")

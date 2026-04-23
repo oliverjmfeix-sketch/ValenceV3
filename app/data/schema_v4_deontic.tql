@@ -82,6 +82,13 @@ attribute threshold_grower_reference, value string;         # e.g., "consolidate
 # Event-instance financial state — referenced by compound-threshold predicates.
 attribute consolidated_ebitda_ltm, value double;
 
+# Harness attributes (Prompt 06) — expected-count ranges, typicality classes,
+# and the norm_kind categorical tag that ground truth + coverage checks use.
+attribute expected_min, value integer;
+attribute expected_max, value integer;
+attribute typicality, value string;        # always|usually|sometimes
+attribute norm_kind, value string;         # categorical tag (e.g., "general_rp_basket_permission")
+
 
 # ─── §4.2 Party hierarchy ───────────────────────────────────────────────────────
 
@@ -181,6 +188,7 @@ condition plays condition_has_child:child;
 
 entity norm,
     owns norm_id @key,
+    owns norm_kind,                     # categorical tag for coverage / classification harnesses
     owns modality,
     owns capacity_composition,
     owns action_scope,
@@ -351,3 +359,19 @@ materiality_definition plays norm_extracted_from:fact;
 intercompany_dividend_permission plays norm_extracted_from:fact;
 lien_release_mechanics plays norm_extracted_from:fact;
 amendment_threshold plays norm_extracted_from:fact;
+
+
+# ─── Harness entities (Prompt 06) ──────────────────────────────────────────────
+# Seeded per-covenant expected counts (used by check_segment_norm_counts) and
+# expected norm-kind typicality (used by covenant_missing_expected_norm_kinds).
+
+entity segment_norm_expectation,
+    owns segment_type_id,
+    owns covenant_type,
+    owns expected_min,
+    owns expected_max;
+
+entity expected_norm_kind,
+    owns covenant_type,
+    owns norm_kind,
+    owns typicality;

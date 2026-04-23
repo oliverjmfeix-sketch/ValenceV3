@@ -1,0 +1,88 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — Expected norm-kind typicality (RP pilot)
+#
+# Used by validation_harness.check_norm_kind_coverage to flag missing norm
+# kinds. Typicality values:
+#   always    — if missing, extraction is broken
+#   usually   — typically present in sponsor-side RP
+#   sometimes — deal-specific, absence is not a failure
+#
+# The specific set reflects Duck Creek's structure; for other deals, typicality
+# may shift (e.g., a commercial-loan RP may not have a jcrew_blocker_prohibition
+# at all).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ── always-expected kinds ─────────────────────────────────────────────────────
+$ek_grp isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "general_rp_basket_permission",
+    has typicality "always";
+
+$ek_tax isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "tax_distribution_basket_permission",
+    has typicality "always";
+
+$ek_intra isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "intercompany_permission",
+    has typicality "always";
+
+$ek_cum isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "builder_basket_aggregate",
+    has typicality "always";
+
+$ek_builder_usage isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "builder_usage_permission",
+    has typicality "always";
+
+# ── usually-expected kinds ────────────────────────────────────────────────────
+$ek_ratio isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "ratio_basket_permission",
+    has typicality "usually";
+
+$ek_mgmt isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "management_equity_basket_permission",
+    has typicality "usually";
+
+$ek_jcrew isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "jcrew_blocker_prohibition",
+    has typicality "usually";
+
+$ek_holdco isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "holdco_overhead_basket_permission",
+    has typicality "usually";
+
+$ek_rdp isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "general_rdp_basket_permission",
+    has typicality "usually";
+
+$ek_inv isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "general_investment_basket_permission",
+    has typicality "usually";
+
+# ── sometimes-expected kinds (deal-specific) ──────────────────────────────────
+$ek_unsub isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "unsub_distribution_basket_permission",
+    has typicality "sometimes";
+
+$ek_postipo isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "post_ipo_basket_permission",
+    has typicality "sometimes";
+
+$ek_as_unlimited isa expected_norm_kind,
+    has covenant_type "rp",
+    has norm_kind "unlimited_asset_sale_basket_permission",
+    has typicality "sometimes";

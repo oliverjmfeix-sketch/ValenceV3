@@ -34,3 +34,6 @@ uploads/
 # Eval results (keep directory, ignore contents)
 app/data/eval_results/*
 !app/data/eval_results/.gitkeep
+
+# Classification measurement results — regenerable from the harness run
+app/data/classification_measurements/

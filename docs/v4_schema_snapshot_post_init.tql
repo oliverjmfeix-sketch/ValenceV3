@@ -1194,6 +1194,14 @@ attribute threshold_grower_reference,
  value string;
 attribute consolidated_ebitda_ltm,
  value double;
+attribute expected_min,
+ value integer;
+attribute expected_max,
+ value integer;
+attribute typicality,
+ value string;
+attribute norm_kind,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2279,6 +2287,7 @@ entity norm,
   owns confidence,
   owns modality,
   owns norm_id @key,
+  owns norm_kind,
   owns source_page,
   owns source_section,
   owns source_text,
@@ -2317,6 +2326,15 @@ entity event_instance,
   owns ratio_snapshot_total_leverage,
   plays event_targets_instrument:event,
   plays event_targets_party:event;
+entity segment_norm_expectation,
+  owns covenant_type,
+  owns expected_max,
+  owns expected_min,
+  owns segment_type_id;
+entity expected_norm_kind,
+  owns covenant_type,
+  owns norm_kind,
+  owns typicality;
 relation provision_has_exclusion,
   sub provision_has_extracted_entity,
   relates exclusion as extracted,
