@@ -1246,6 +1246,10 @@ attribute condition_builder_spec_ref,
  value string;
 attribute segment_prefix_pattern,
  value string;
+attribute defeater_id,
+ value string;
+attribute defeater_name,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2381,6 +2385,8 @@ entity gold_question,
   owns question_text,
   plays norm_serves_question:question;
 entity defeater,
+  owns defeater_id @key,
+  owns defeater_name,
   owns defeater_type,
   owns source_page,
   owns source_section,

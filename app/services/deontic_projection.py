@@ -616,6 +616,12 @@ def project_entity(driver, db_name: str, entity: V3Entity,
         _project_builder_sub_sources(
             driver, db_name, nid, entity, mapping, report,
         )
+
+    # J.Crew blocker defeater emission (Fix 6) — per-entity-type concession.
+    # Each blocker_exception attached to the jcrew_blocker becomes a defeater
+    # entity with a defeats edge to this prohibition norm.
+    if entity.entity_type == "jcrew_blocker" and not dry_run:
+        _project_jcrew_defeaters(driver, db_name, nid, entity, report)
     elif entity.entity_type == "builder_basket" and dry_run:
         # Count sub-sources for the dry-run report
         source_flags = {
@@ -980,6 +986,112 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
                 f"builder sub-source contribution edge failed for {kind}: {str(exc)[:160]}"
             )
         idx += 1
+
+
+def _project_jcrew_defeaters(driver, db_name: str, prohibition_nid: str,
+                               entity: V3Entity, report: ProjectionReport) -> None:
+    """Emit one defeater per v3 blocker_exception linked to the jcrew_blocker.
+
+    Each blocker_exception's concrete subtype names the defeater_type
+    (ordinary_course_exception, nonexclusive_license_exception, etc.).
+    The defeater's defeats edge terminates at the J.Crew prohibition norm
+    so later reasoning can ask "what exceptions would block this
+    prohibition from firing?"
+
+    Note: the current blocker_exception subtypes map directly to
+    defeater_type labels. If future extraction adds new exception
+    subtypes, they'll flow through automatically via this generic query.
+    """
+    # Fetch distinct exceptions — query on the abstract blocker_exception
+    # parent rather than each subtype. `isa! blocker_exception` would fail
+    # since blocker_exception is itself abstract; use `isa` and dedupe by
+    # exception_id.
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = f"""
+            match
+              $b isa jcrew_blocker;
+              (blocker: $b, exception: $e) isa blocker_has_exception;
+              $e has exception_id $eid;
+              try {{ $e has exception_name $ename; }};
+              try {{ $e has source_text $stext; }};
+              try {{ $e has source_page $spage; }};
+              try {{ $e has section_reference $sref; }};
+            select $e, $eid, $ename, $stext, $spage, $sref;
+        """
+        rows = list(tx.query(q).resolve().as_concept_rows())
+    except Exception as exc:  # noqa: BLE001
+        report.warnings.append(f"jcrew defeater fetch failed: {str(exc)[:200]}")
+        return
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Dedupe by exception_id (the polymorphic match returns each instance
+    # once per matching isa type — abstract + concrete = 2 rows).
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for r in rows:
+        eid = r.get("eid").as_attribute().get_value()
+        if eid in seen:
+            continue
+        seen.add(eid)
+        concept = r.get("e")
+        concrete_type = concept.get_type().get_label() if hasattr(concept, "get_type") else None
+        name_c = r.get("ename")
+        text_c = r.get("stext")
+        page_c = r.get("spage")
+        sref_c = r.get("sref")
+        unique.append({
+            "eid": eid,
+            "concrete_type": concrete_type,
+            "name": name_c.as_attribute().get_value() if name_c else None,
+            "text": text_c.as_attribute().get_value() if text_c else None,
+            "page": page_c.as_attribute().get_value() if page_c else None,
+            "sref": sref_c.as_attribute().get_value() if sref_c else None,
+        })
+
+    # For each exception, emit a defeater + defeats edge
+    for exc_data in unique:
+        # defeater_id = {exception_id} — already deal-prefixed, so
+        # clear_v4_projection_for_deal picks it up via `contains deal_id`.
+        defeater_id = f"{exc_data['eid']}_defeater"
+        defeater_type = exc_data["concrete_type"] or "exception"
+        owns = [
+            f'has defeater_id {_tq_string(defeater_id)}',
+            f'has defeater_type {_tq_string(defeater_type)}',
+        ]
+        if exc_data["name"]:
+            owns.append(f'has defeater_name {_tq_string(exc_data["name"])}')
+        if exc_data["text"]:
+            owns.append(f'has source_text {_tq_string(str(exc_data["text"]))}')
+        if exc_data["sref"]:
+            owns.append(f'has source_section {_tq_string(str(exc_data["sref"]))}')
+        if isinstance(exc_data["page"], int):
+            owns.append(f"has source_page {exc_data['page']}")
+
+        q_def = f"insert $d isa defeater, {', '.join(owns)};"
+        try:
+            _execute_write(driver, db_name, q_def)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"defeater insert failed for {defeater_id}: {str(exc)[:160]}")
+            continue
+
+        # defeats edge
+        q_def_edge = f"""
+            match
+              $d isa defeater, has defeater_id {_tq_string(defeater_id)};
+              $n isa norm, has norm_id {_tq_string(prohibition_nid)};
+            insert
+              (defeater: $d, defeated: $n) isa defeats;
+        """
+        try:
+            _execute_write(driver, db_name, q_def_edge)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"defeats edge insert failed for {defeater_id}: {str(exc)[:160]}")
 
 
 def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:

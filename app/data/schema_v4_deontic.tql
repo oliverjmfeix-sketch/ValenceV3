@@ -346,8 +346,13 @@ gold_question plays norm_serves_question:question;
 
 # ─── §4.8 Defeater and the defeats edge ─────────────────────────────────────────
 
+attribute defeater_id, value string;
+attribute defeater_name, value string;
+
 entity defeater,
+    owns defeater_id @key,
     owns defeater_type,
+    owns defeater_name,
     owns source_text,
     owns source_section,
     owns source_page;
