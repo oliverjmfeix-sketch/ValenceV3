@@ -56,10 +56,16 @@ SHARED_SEEDS: list[SeedFile] = [
 
 # Seeds loaded only into the extraction database. These encode harness-side
 # validation baselines consumed against valence_v4, not against the
-# ground-truth graph.
+# ground-truth graph. rp_deontic_mappings + rp_condition_builders are
+# projection-time infrastructure: the projection engine reads mappings to
+# transform v3 extracted entities into v4 norms. Ground-truth DB is authored
+# directly in YAML and does not need these mappings.
 EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
     SeedFile("segment_norm_expectations.tql", "segment_norm_expectation"),
     SeedFile("expected_norm_kinds.tql", "expected_norm_kind"),
+    SeedFile("rp_deontic_mappings.tql", "deontic_mapping"),
+    SeedFile("rp_condition_builders.tql", "condition_builder_spec"),
+    SeedFile("rp_deontic_extraction_questions.tql", "ontology_question"),
 ]
 
 
@@ -84,15 +90,111 @@ def _count_instances(driver, database_name: str, isa: str) -> int:
             pass
 
 
-def _load_write_file(driver, database_name: str, filepath: Path) -> None:
-    tx = driver.transaction(database_name, TransactionType.WRITE)
-    try:
-        tx.query(filepath.read_text(encoding="utf-8")).resolve()
-        tx.commit()
-    except Exception:
-        if tx.is_open():
-            tx.close()
-        raise
+def _split_statements(content: str) -> tuple[list[str], list[str]]:
+    """Split a TQL file into (pure_insert_statements, match_insert_statements).
+
+    Mirrors app/scripts/init_schema.py:_load_mixed_tql_file parsing logic.
+    TypeDB 3.x WRITE transactions must receive one match-insert per query;
+    bundling multiple match-inserts into a single tx.query call silently
+    executes only the first block. Splitting lets the loader run each
+    statement in its own query.
+    """
+    insert_statements: list[str] = []
+    match_insert_statements: list[str] = []
+    current_lines: list[str] = []
+    current_type: str | None = None  # "insert" | "match"
+    has_insert_clause = False
+
+    def flush() -> None:
+        nonlocal current_lines, current_type, has_insert_clause
+        if current_lines and current_type:
+            stmt = "\n".join(current_lines)
+            if current_type == "insert":
+                insert_statements.append(stmt)
+            else:
+                match_insert_statements.append(stmt)
+        current_lines = []
+        current_type = None
+        has_insert_clause = False
+
+    for line in content.split("\n"):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if stripped == "match" or stripped.startswith("match "):
+            flush()
+            current_type = "match"
+            current_lines = [stripped]
+        elif stripped == "insert" or stripped.startswith("insert "):
+            if current_type == "match" and not has_insert_clause:
+                current_lines.append(stripped)
+                has_insert_clause = True
+            else:
+                flush()
+                current_type = "insert"
+                current_lines = [stripped]
+        else:
+            if current_lines:
+                current_lines.append(stripped)
+
+    flush()
+    return insert_statements, match_insert_statements
+
+
+def _load_write_file(driver, database_name: str, filepath: Path) -> tuple[int, int, int]:
+    """Load a TQL file by splitting into individual statements.
+
+    Executes pure-insert statements first (entities before relations that
+    reference them via match), then match-insert statements. Each statement
+    runs in its own WRITE transaction. Returns (inserts_ok, match_inserts_ok,
+    failures) — failures raised only if the caller asks (we log but continue
+    so one bad statement doesn't silently skip the rest of a file).
+    """
+    content = filepath.read_text(encoding="utf-8")
+    inserts, match_inserts = _split_statements(content)
+
+    ins_ok = 0
+    mi_ok = 0
+    failures: list[tuple[str, str, str]] = []
+
+    for stmt in inserts:
+        tx = driver.transaction(database_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            ins_ok += 1
+        except Exception as exc:  # noqa: BLE001
+            if tx.is_open():
+                tx.close()
+            msg = str(exc).lower()
+            if any(k in msg for k in ("already", "duplicate", "unique")):
+                continue
+            failures.append(("insert", stmt[:80], str(exc)[:160]))
+
+    for stmt in match_inserts:
+        tx = driver.transaction(database_name, TransactionType.WRITE)
+        try:
+            tx.query(stmt).resolve()
+            tx.commit()
+            mi_ok += 1
+        except Exception as exc:  # noqa: BLE001
+            if tx.is_open():
+                tx.close()
+            msg = str(exc).lower()
+            if any(k in msg for k in ("already", "duplicate", "unique")):
+                continue
+            failures.append(("match-insert", stmt[:80], str(exc)[:160]))
+
+    if failures:
+        for kind, snippet, err in failures[:5]:
+            logger.warning("%s failure: %s ... error: %s", kind, snippet, err)
+        raise RuntimeError(
+            f"Failed to load {len(failures)} statements from {filepath.name}; "
+            f"first errors logged above"
+        )
+
+    return ins_ok, mi_ok, len(inserts) + len(match_inserts)
 
 
 def load_seeds(
@@ -129,13 +231,16 @@ def load_seeds(
             continue
 
         t0 = time.perf_counter()
-        _load_write_file(driver, database_name, seed_path)
+        ins_ok, mi_ok, total = _load_write_file(driver, database_name, seed_path)
         ms = (time.perf_counter() - t0) * 1000
 
         loaded = _count_instances(driver, database_name, seed.probe_type)
         counts[seed.filename] = loaded
-        logger.info("  %s loaded in %.0f ms (%d %s instances)",
-                    seed.filename, ms, loaded, seed.probe_type)
+        logger.info(
+            "  %s loaded in %.0f ms (%d %s instances; %d/%d statements: %d pure + %d match-insert)",
+            seed.filename, ms, loaded, seed.probe_type,
+            ins_ok + mi_ok, total, ins_ok, mi_ok,
+        )
 
     if not skip_integrity_check:
         logger.info("  verifying state_predicate_id composite-key integrity")

@@ -1,0 +1,339 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — RP Deontic Mappings (Prompt 07 Part 2)
+#
+# One deontic_mapping row per v3 RP-relevant entity type. Each row declares:
+#   - source_entity_type          : v3 entity type name (drives polymorphic lookup)
+#   - target_norm_kind            : v4 norm_kind string
+#   - target_modality             : permission | prohibition | obligation | power | ...
+#   - default_subject_role        : comma-separated party_role list
+#   - default_action_scope_kind   : specific | general | reallocable
+#   - condition_builder_spec_ref  : condition_builder_name or "none"
+#
+# Paired `mapping_targets_action` / `mapping_targets_object` relations connect
+# each mapping to the primitive singletons (§4.3 / §4.4). Defaults live on the
+# mapping; the basket's extracted object_class_multiselect overrides / extends
+# these at projection time.
+#
+# Architecture §8.3 is the authoritative description of the projection-time
+# contract.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+# ─── Builder basket (Cumulative Amount usage — § 6.06(f)) ──────────────────────
+$m_builder isa deontic_mapping,
+    has mapping_id "map_builder_basket",
+    has source_entity_type "builder_basket",
+    has target_norm_kind "builder_usage_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "general",
+    has condition_builder_spec_ref "none";
+
+# ─── General RP basket (§ 6.06(j)) ─────────────────────────────────────────────
+$m_general_rp isa deontic_mapping,
+    has mapping_id "map_general_rp_basket",
+    has source_entity_type "general_rp_basket",
+    has target_norm_kind "general_rp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "reallocable",
+    has condition_builder_spec_ref "none";
+
+# ─── Ratio basket (§ 6.06(o)) ──────────────────────────────────────────────────
+$m_ratio isa deontic_mapping,
+    has mapping_id "map_ratio_basket",
+    has source_entity_type "ratio_basket",
+    has target_norm_kind "ratio_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "ratio_with_no_worse";
+
+# ─── Management equity basket (§ 6.06(b)) ──────────────────────────────────────
+$m_mgmt_equity isa deontic_mapping,
+    has mapping_id "map_management_equity_basket",
+    has source_entity_type "management_equity_basket",
+    has target_norm_kind "management_equity_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── Tax distribution basket (§ 6.06(c)) ───────────────────────────────────────
+$m_tax_dist isa deontic_mapping,
+    has mapping_id "map_tax_distribution_basket",
+    has source_entity_type "tax_distribution_basket",
+    has target_norm_kind "tax_distribution_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── Holdco overhead basket (§ 6.06(k)) ────────────────────────────────────────
+$m_holdco_overhead isa deontic_mapping,
+    has mapping_id "map_holdco_overhead_basket",
+    has source_entity_type "holdco_overhead_basket",
+    has target_norm_kind "holdco_overhead_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── Equity award basket (§ 6.06(e), various) ──────────────────────────────────
+$m_equity_award isa deontic_mapping,
+    has mapping_id "map_equity_award_basket",
+    has source_entity_type "equity_award_basket",
+    has target_norm_kind "equity_award_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── Unsub distribution basket (§ 6.06(p)) ─────────────────────────────────────
+$m_unsub_dist isa deontic_mapping,
+    has mapping_id "map_unsub_distribution_basket",
+    has source_entity_type "unsub_distribution_basket",
+    has target_norm_kind "unsub_distribution_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── General investment basket reallocating to RP (§ 6.03(y)) ──────────────────
+$m_general_inv isa deontic_mapping,
+    has mapping_id "map_general_investment_basket",
+    has source_entity_type "general_investment_basket",
+    has target_norm_kind "general_investment_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "reallocable",
+    has condition_builder_spec_ref "none";
+
+# ─── RDP basket family (§ 6.09(a) and sub-baskets) ─────────────────────────────
+$m_general_rdp isa deontic_mapping,
+    has mapping_id "map_general_rdp_basket",
+    has source_entity_type "general_rdp_basket",
+    has target_norm_kind "general_rdp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "reallocable",
+    has condition_builder_spec_ref "none";
+
+$m_ratio_rdp isa deontic_mapping,
+    has mapping_id "map_ratio_rdp_basket",
+    has source_entity_type "ratio_rdp_basket",
+    has target_norm_kind "ratio_rdp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "ratio_with_no_worse";
+
+$m_builder_rdp isa deontic_mapping,
+    has mapping_id "map_builder_rdp_basket",
+    has source_entity_type "builder_rdp_basket",
+    has target_norm_kind "builder_rdp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "general",
+    has condition_builder_spec_ref "none";
+
+$m_refinancing_rdp isa deontic_mapping,
+    has mapping_id "map_refinancing_rdp_basket",
+    has source_entity_type "refinancing_rdp_basket",
+    has target_norm_kind "refinancing_rdp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+$m_equity_funded_rdp isa deontic_mapping,
+    has mapping_id "map_equity_funded_rdp_basket",
+    has source_entity_type "equity_funded_rdp_basket",
+    has target_norm_kind "equity_funded_rdp_basket_permission",
+    has target_modality "permission",
+    has default_subject_role "borrower,loan_party",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "none";
+
+# ─── J.Crew blocker (prohibition on unrestricted-sub designation) ──────────────
+# Flipped to modality=prohibition per Prompt 06 correction: the blocker FIRES
+# when unsub_would_own_or_license_material_ip_at_designation is true.
+$m_jcrew isa deontic_mapping,
+    has mapping_id "map_jcrew_blocker",
+    has source_entity_type "jcrew_blocker",
+    has target_norm_kind "jcrew_blocker_prohibition",
+    has target_modality "prohibition",
+    has default_subject_role "borrower,loan_party,restricted_sub",
+    has default_action_scope_kind "specific",
+    has condition_builder_spec_ref "unsub_material_ip_trigger";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Primitive-singleton scope edges — one mapping_targets_action / _object per
+# mapping. Defaults; the basket's extracted object_class_multiselect layers
+# additional scopes at projection time.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Builder basket — general RP action; cash + equity scope
+match
+    $m isa deontic_mapping, has mapping_id "map_builder_basket";
+    $a_div isa! make_dividend_payment;
+    $a_rep isa! repurchase_equity;
+    $a_sub isa! pay_subordinated_debt;
+    $a_inv isa! make_investment;
+    $oc_cash isa! cash;
+    $oc_eq isa! equity_interest;
+insert
+    (mapping: $m, action: $a_div) isa mapping_targets_action;
+    (mapping: $m, action: $a_rep) isa mapping_targets_action;
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, action: $a_inv) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+
+# General RP basket — dividend + repurchase; cash + equity
+match
+    $m isa deontic_mapping, has mapping_id "map_general_rp_basket";
+    $a_div isa! make_dividend_payment;
+    $a_rep isa! repurchase_equity;
+    $oc_cash isa! cash;
+    $oc_eq isa! equity_interest;
+insert
+    (mapping: $m, action: $a_div) isa mapping_targets_action;
+    (mapping: $m, action: $a_rep) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+
+# Ratio basket — dividend + repurchase + optional business_division sale
+match
+    $m isa deontic_mapping, has mapping_id "map_ratio_basket";
+    $a_div isa! make_dividend_payment;
+    $a_rep isa! repurchase_equity;
+    $oc_cash isa! cash;
+    $oc_eq isa! equity_interest;
+    $oc_bd isa! business_division;
+insert
+    (mapping: $m, action: $a_div) isa mapping_targets_action;
+    (mapping: $m, action: $a_rep) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+    (mapping: $m, object: $oc_bd) isa mapping_targets_object;
+
+# Management equity basket — repurchase equity
+match
+    $m isa deontic_mapping, has mapping_id "map_management_equity_basket";
+    $a_rep isa! repurchase_equity;
+    $oc_eq isa! equity_interest;
+    $oc_hc isa! holdco_equity;
+insert
+    (mapping: $m, action: $a_rep) isa mapping_targets_action;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+    (mapping: $m, object: $oc_hc) isa mapping_targets_object;
+
+# Tax distribution basket — tax distributions in cash
+match
+    $m isa deontic_mapping, has mapping_id "map_tax_distribution_basket";
+    $a_tax isa! make_tax_distribution;
+    $oc_cash isa! cash;
+insert
+    (mapping: $m, action: $a_tax) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+
+# Holdco overhead basket — holdco overhead in cash
+match
+    $m isa deontic_mapping, has mapping_id "map_holdco_overhead_basket";
+    $a_ovh isa! pay_holdco_overhead;
+    $oc_cash isa! cash;
+insert
+    (mapping: $m, action: $a_ovh) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+
+# Equity award basket — repurchase of equity
+match
+    $m isa deontic_mapping, has mapping_id "map_equity_award_basket";
+    $a_rep isa! repurchase_equity;
+    $oc_eq isa! equity_interest;
+insert
+    (mapping: $m, action: $a_rep) isa mapping_targets_action;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+
+# Unsub distribution basket — dividend of unsub equity or assets
+match
+    $m isa deontic_mapping, has mapping_id "map_unsub_distribution_basket";
+    $a_div isa! make_dividend_payment;
+    $oc_usea isa! unrestricted_subsidiary_equity_or_assets;
+insert
+    (mapping: $m, action: $a_div) isa mapping_targets_action;
+    (mapping: $m, object: $oc_usea) isa mapping_targets_object;
+
+# General investment basket — investment action
+match
+    $m isa deontic_mapping, has mapping_id "map_general_investment_basket";
+    $a_inv isa! make_investment;
+    $oc_cash isa! cash;
+    $oc_eq isa! equity_interest;
+insert
+    (mapping: $m, action: $a_inv) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_eq) isa mapping_targets_object;
+
+# RDP baskets — pay subordinated debt
+match
+    $m isa deontic_mapping, has mapping_id "map_general_rdp_basket";
+    $a_sub isa! pay_subordinated_debt;
+    $oc_cash isa! cash;
+    $oc_subd isa! subordinated_debt_instrument;
+insert
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_subd) isa mapping_targets_object;
+
+match
+    $m isa deontic_mapping, has mapping_id "map_ratio_rdp_basket";
+    $a_sub isa! pay_subordinated_debt;
+    $oc_cash isa! cash;
+    $oc_subd isa! subordinated_debt_instrument;
+insert
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_subd) isa mapping_targets_object;
+
+match
+    $m isa deontic_mapping, has mapping_id "map_builder_rdp_basket";
+    $a_sub isa! pay_subordinated_debt;
+    $oc_cash isa! cash;
+    $oc_subd isa! subordinated_debt_instrument;
+insert
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_subd) isa mapping_targets_object;
+
+match
+    $m isa deontic_mapping, has mapping_id "map_refinancing_rdp_basket";
+    $a_sub isa! pay_subordinated_debt;
+    $oc_cash isa! cash;
+    $oc_subd isa! subordinated_debt_instrument;
+insert
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_subd) isa mapping_targets_object;
+
+match
+    $m isa deontic_mapping, has mapping_id "map_equity_funded_rdp_basket";
+    $a_sub isa! pay_subordinated_debt;
+    $oc_cash isa! cash;
+    $oc_subd isa! subordinated_debt_instrument;
+insert
+    (mapping: $m, action: $a_sub) isa mapping_targets_action;
+    (mapping: $m, object: $oc_cash) isa mapping_targets_object;
+    (mapping: $m, object: $oc_subd) isa mapping_targets_object;
+
+# J.Crew blocker — prohibition on unsub designation scoped to material IP
+match
+    $m isa deontic_mapping, has mapping_id "map_jcrew_blocker";
+    $a_des isa! designate_unrestricted_subsidiary;
+    $oc_mip isa! material_intellectual_property;
+insert
+    (mapping: $m, action: $a_des) isa mapping_targets_action;
+    (mapping: $m, object: $oc_mip) isa mapping_targets_object;

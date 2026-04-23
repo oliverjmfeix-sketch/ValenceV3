@@ -1218,6 +1218,32 @@ attribute condition_topology,
  value string;
 attribute serves_role,
  value string;
+attribute capacity_aggregation_function,
+ value string;
+attribute object_class_multiselect,
+ value string;
+attribute partial_applicability,
+ value boolean;
+attribute condition_builder_name,
+ value string;
+attribute condition_topology_emitted,
+ value string;
+attribute condition_operator_root,
+ value string;
+attribute predicate_slot,
+ value string;
+attribute source_entity_type,
+ value string;
+attribute target_norm_kind,
+ value string;
+attribute target_modality,
+ value string;
+attribute default_subject_role,
+ value string;
+attribute default_action_scope_kind,
+ value string;
+attribute condition_builder_spec_ref,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -1310,10 +1336,14 @@ entity rp_provision,
   plays provision_has_unsub:provision;
 entity rp_basket @abstract,
   owns basket_id @key,
+  owns capacity_aggregation_function,
   owns capacity_category,
+  owns capacity_composition,
   owns confidence,
   owns default_condition,
   owns display_name,
+  owns object_class_multiselect,
+  owns partial_applicability,
   owns requires_ratio_test,
   owns section_reference,
   owns source_page,
@@ -1476,6 +1506,8 @@ entity jcrew_blocker,
   owns binds_loan_parties,
   owns binds_restricted_subs,
   owns blocker_id @key,
+  owns capacity_aggregation_function,
+  owns capacity_composition,
   owns confidence,
   owns covers_abandonment,
   owns covers_assignment,
@@ -1501,6 +1533,8 @@ entity jcrew_blocker,
   owns covers_trademarks,
   owns covers_transfer,
   owns is_sacred_right,
+  owns object_class_multiselect,
+  owns partial_applicability,
   owns section_reference,
   owns source_page,
   owns source_text,
@@ -2225,6 +2259,7 @@ entity required_lenders_party,
   sub party;
 entity action_class @abstract,
   owns action_class_label @key,
+  plays mapping_targets_action:action,
   plays norm_scopes_action:action;
 entity make_restricted_payment @abstract,
   sub action_class;
@@ -2248,6 +2283,7 @@ entity transfer_material_intellectual_property,
   sub action_class;
 entity object_class @abstract,
   owns object_class_label @key,
+  plays mapping_targets_object:object,
   plays norm_scopes_object:object;
 entity instrument_class @abstract,
   sub object_class,
@@ -2286,6 +2322,7 @@ entity state_predicate,
   owns threshold_value_double,
   owns threshold_value_double_secondary,
   owns threshold_value_string,
+  plays builder_spec_uses_predicate:predicate,
   plays condition_references_predicate:predicate;
 entity condition,
   owns condition_id @key,
@@ -2368,6 +2405,22 @@ entity expected_norm_kind,
   owns covenant_type,
   owns norm_kind,
   owns typicality;
+entity deontic_mapping,
+  owns condition_builder_spec_ref,
+  owns default_action_scope_kind,
+  owns default_subject_role,
+  owns mapping_id @key,
+  owns source_entity_type,
+  owns target_modality,
+  owns target_norm_kind,
+  plays mapping_targets_action:mapping,
+  plays mapping_targets_object:mapping;
+entity condition_builder_spec,
+  owns condition_builder_name @key,
+  owns condition_operator_root,
+  owns condition_topology_emitted,
+  owns description,
+  plays builder_spec_uses_predicate:builder_spec;
 relation provision_has_exclusion,
   sub provision_has_extracted_entity,
   relates exclusion as extracted,
@@ -2652,6 +2705,17 @@ relation event_targets_party,
 relation event_targets_instrument,
   relates event,
   relates instrument;
+relation mapping_targets_action,
+  relates action,
+  relates mapping;
+relation mapping_targets_object,
+  relates mapping,
+  relates object;
+relation builder_spec_uses_predicate,
+  relates builder_spec,
+  relates predicate,
+  owns child_index,
+  owns predicate_slot;
 fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;

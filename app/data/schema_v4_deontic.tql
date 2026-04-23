@@ -453,3 +453,112 @@ entity expected_norm_kind,
     owns covenant_type,
     owns norm_kind,
     owns typicality;
+
+
+# ─── §4.11 Surgical v3 extraction additions (Prompt 07 Part 1) ──────────────────
+#
+# Per architecture doc §8.2, four data points must be captured per RP basket
+# (and per jcrew_blocker) at v3 extraction time to enable downstream projection
+# into v4 norms without Python-side domain logic:
+#
+#   1. capacity_aggregation_function — how a basket's capacity composes with
+#      other contributing baskets (drives aggregation_function on the
+#      norm_contributes_to_capacity edge at projection time).
+#      Closed taxonomy: greatest_of | sum | max | min | n_a
+#
+#   2. object_class_multiselect — comma-separated list of object_class labels
+#      naming what the basket permits distributing. Each listed label must
+#      match a concrete object_class subtype (§4.4) — projection splits the
+#      string and emits one norm_scopes_object / norm_scopes_instrument edge
+#      per entry.
+#
+#   3. partial_applicability — boolean. True when the basket's permission is
+#      conditioned on any predicates beyond dollar caps (e.g., ratio tests,
+#      no-EoD gates, definitional predicates). Drives whether projection
+#      looks up a condition_builder_spec and emits a norm_has_condition edge.
+#
+#   4. capacity_composition — the existing string attribute (defined in §4.1)
+#      is now owned by rp_basket and jcrew_blocker so extraction can populate
+#      it directly per-entity. Closed typology per §4.1:
+#      additive | fungible | shared_pool | categorical | computed_from_sources
+#      | unlimited_on_condition | n_a
+
+attribute capacity_aggregation_function, value string;
+attribute object_class_multiselect, value string;
+attribute partial_applicability, value boolean;
+
+rp_basket owns capacity_aggregation_function;
+rp_basket owns object_class_multiselect;
+rp_basket owns partial_applicability;
+rp_basket owns capacity_composition;
+
+jcrew_blocker owns capacity_aggregation_function;
+jcrew_blocker owns object_class_multiselect;
+jcrew_blocker owns partial_applicability;
+jcrew_blocker owns capacity_composition;
+
+
+# ─── §4.12 Projection infrastructure (Prompt 07 Part 2) ─────────────────────────
+#
+# deontic_mapping rows declare per-v3-entity-type transformations. Projection
+# reads the mapping and applies it mechanically — no per-entity-type branches
+# in projection code. condition_builder_spec entities name reusable condition
+# tree shapes (topology + participating predicates); the projection engine
+# resolves abstract predicate labels to concrete state_predicate instances
+# (with per-basket threshold) at projection time.
+#
+# mapping_targets_action / mapping_targets_object connect a deontic_mapping
+# to the primitive singletons (§4.3 action_class, §4.4 object_class). The
+# mapping declares defaults; the basket's extracted object_class_multiselect
+# overrides / extends them per-instance.
+
+# Identifiers
+attribute mapping_id, value string;
+attribute condition_builder_name, value string;
+attribute condition_topology_emitted, value string;
+attribute condition_operator_root, value string;
+attribute predicate_slot, value string;      # primary | secondary | reference
+# description — already declared in schema_unified.tql; reused below
+
+# Mapping attributes
+attribute source_entity_type, value string;
+attribute target_norm_kind, value string;
+attribute target_modality, value string;
+attribute default_subject_role, value string;       # comma-separated role list
+attribute default_action_scope_kind, value string;  # specific | general | reallocable
+attribute condition_builder_spec_ref, value string; # condition_builder_name or "none"
+
+entity deontic_mapping,
+    owns mapping_id @key,
+    owns source_entity_type,
+    owns target_norm_kind,
+    owns target_modality,
+    owns default_subject_role,
+    owns default_action_scope_kind,
+    owns condition_builder_spec_ref;
+
+entity condition_builder_spec,
+    owns condition_builder_name @key,
+    owns condition_topology_emitted,
+    owns condition_operator_root,
+    owns description;
+
+relation mapping_targets_action,
+    relates mapping,
+    relates action;
+deontic_mapping plays mapping_targets_action:mapping;
+action_class plays mapping_targets_action:action;
+
+relation mapping_targets_object,
+    relates mapping,
+    relates object;
+deontic_mapping plays mapping_targets_object:mapping;
+object_class plays mapping_targets_object:object;
+
+relation builder_spec_uses_predicate,
+    relates builder_spec,
+    relates predicate,
+    owns predicate_slot,
+    owns child_index;
+condition_builder_spec plays builder_spec_uses_predicate:builder_spec;
+state_predicate plays builder_spec_uses_predicate:predicate;

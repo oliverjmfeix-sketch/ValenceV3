@@ -1,0 +1,110 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Valence v4 — RP Condition Builder Specs (Prompt 07 Part 2)
+#
+# Named reusable condition-tree shapes referenced by deontic_mapping rows via
+# condition_builder_spec_ref. Each spec declares:
+#   - condition_builder_name @key     : referenced from deontic_mapping
+#   - condition_topology_emitted      : unconditional | atomic | or_of_atomics | ...
+#   - condition_operator_root         : n_a | atomic | or | and | not
+#   - description                      : human-readable semantics
+#
+# builder_spec_uses_predicate relations below each spec list the state_predicate
+# participants by predicate_slot (primary / secondary / reference) and child_index
+# (sibling ordering within the constructed tree).
+#
+# IMPORTANT — threshold resolution at projection time. A spec like
+# ratio_with_no_worse references `first_lien_net_leverage_at_or_below` by LABEL
+# only. The specific state_predicate INSTANCE (per-threshold) is resolved at
+# projection time using the basket's extracted `ratio_threshold` field via
+# construct_state_predicate_id(label, threshold, op, ref). Seeds here therefore
+# connect spec → state_predicate only for boolean or reference-based predicates
+# that have a single canonical instance (e.g., pro_forma_no_worse||first_lien_net_leverage).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$b_none isa condition_builder_spec,
+    has condition_builder_name "none",
+    has condition_topology_emitted "unconditional",
+    has condition_operator_root "n_a",
+    has description "Emits no condition. Basket is unconditional (any dollar/EBITDA cap is capacity, not a world-state predicate).";
+
+$b_ratio_no_worse isa condition_builder_spec,
+    has condition_builder_name "ratio_with_no_worse",
+    has condition_topology_emitted "or_of_atomics",
+    has condition_operator_root "or",
+    has description "Depth-2 OR of two atomic leaves: (ratio ≤ threshold) OR (pro_forma_no_worse). Primary atomic references first_lien_net_leverage_at_or_below at the basket's extracted threshold (resolved at projection time). Secondary atomic references pro_forma_no_worse with reference_predicate_label=first_lien_net_leverage.";
+
+$b_product_line_exemption isa condition_builder_spec,
+    has condition_builder_name "product_line_exemption_flattened",
+    has condition_topology_emitted "or_of_and_of_atomics",
+    has condition_operator_root "or",
+    has description "Strategy A flattened form of depth-3 tree: (is_product_line_sale AND ratio ≤ threshold) OR (is_product_line_sale AND pro_forma_no_worse). Used for §2.10(c)(iv) sweep exemption. Threshold resolved per-basket at projection.";
+
+$b_unsub_material_ip isa condition_builder_spec,
+    has condition_builder_name "unsub_material_ip_trigger",
+    has condition_topology_emitted "atomic",
+    has condition_operator_root "atomic",
+    has description "Atomic predicate: unsub_would_own_or_license_material_ip_at_designation. The J.Crew blocker prohibition fires when this predicate is TRUE at the moment of Unrestricted Subsidiary designation.";
+
+$b_no_eod isa condition_builder_spec,
+    has condition_builder_name "no_eod_required",
+    has condition_topology_emitted "atomic",
+    has condition_operator_root "atomic",
+    has description "Atomic predicate: no_event_of_default_exists. For baskets whose permission is gated only on the absence of an Event of Default.";
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Spec → predicate bindings. Reference-based and boolean predicates connect
+# directly. Per-threshold ratio predicates connect via label only; projection
+# resolves the specific instance using the basket's extracted threshold.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ratio_with_no_worse:
+#   primary (child_index 0): first_lien_net_leverage_at_or_below — LABEL ONLY
+#                            (threshold resolved at projection time)
+#   secondary (child_index 1): pro_forma_no_worse|||first_lien_net_leverage
+# We materialize only the secondary binding here — primary is looked up by
+# label at projection time because the threshold varies per basket.
+match
+    $spec isa condition_builder_spec, has condition_builder_name "ratio_with_no_worse";
+    $pred_sec isa state_predicate, has state_predicate_id "pro_forma_no_worse|||first_lien_net_leverage";
+insert
+    (builder_spec: $spec, predicate: $pred_sec) isa builder_spec_uses_predicate,
+        has predicate_slot "secondary",
+        has child_index 1;
+
+# product_line_exemption_flattened:
+#   Two AND branches, each a conjunction of (is_product_line_sale, ratio-or-no-worse).
+#   The is_product_line_sale leaf and pro_forma_no_worse leaves are canonical
+#   (single-instance) and materialized here. ratio-threshold leaves are resolved
+#   at projection time per basket.
+match
+    $spec isa condition_builder_spec, has condition_builder_name "product_line_exemption_flattened";
+    $pred_prod isa state_predicate, has state_predicate_id "is_product_line_or_line_of_business_sale|||";
+    $pred_nw isa state_predicate, has state_predicate_id "pro_forma_no_worse|||first_lien_net_leverage";
+insert
+    (builder_spec: $spec, predicate: $pred_prod) isa builder_spec_uses_predicate,
+        has predicate_slot "primary",
+        has child_index 0;
+    (builder_spec: $spec, predicate: $pred_nw) isa builder_spec_uses_predicate,
+        has predicate_slot "secondary",
+        has child_index 1;
+
+# unsub_material_ip_trigger: single atomic leaf, canonical instance
+match
+    $spec isa condition_builder_spec, has condition_builder_name "unsub_material_ip_trigger";
+    $pred isa state_predicate, has state_predicate_id "unsub_would_own_or_license_material_ip_at_designation|||";
+insert
+    (builder_spec: $spec, predicate: $pred) isa builder_spec_uses_predicate,
+        has predicate_slot "primary",
+        has child_index 0;
+
+# no_eod_required: single atomic leaf, canonical instance
+match
+    $spec isa condition_builder_spec, has condition_builder_name "no_eod_required";
+    $pred isa state_predicate, has state_predicate_id "no_event_of_default_exists|||";
+insert
+    (builder_spec: $spec, predicate: $pred) isa builder_spec_uses_predicate,
+        has predicate_slot "primary",
+        has child_index 0;

@@ -545,7 +545,47 @@ basket_reallocates_to plays norm_extracted_from:fact;
 
 **Extensibility note.** This list grows when new covenants are added to v4. Each new extractable entity type in v3 (e.g., MFN entities, DI entities when those covenants move to deontic modeling) must add a `plays norm_extracted_from:fact` declaration here, and a corresponding `deontic_mapping` row in the projection seed. The list is maintained by hand; no auto-generation — explicitness is the point (Rule 1.1, SSoT).
 
-### 4.11 What is intentionally NOT in the deontic schema
+### 4.11 Surgical v3 extraction additions
+
+Prompt 07 added four data points to v3 extraction output that enable projection to run mechanically without per-entity-type Python branches. Attribute definitions + ownership live in `schema_v4_deontic.tql` §4.11; the ontology questions that populate them live in `rp_deontic_extraction_questions.tql`.
+
+| Attribute | Owner | Value | Drives at projection |
+|---|---|---|---|
+| `capacity_aggregation_function` | `rp_basket`, `jcrew_blocker` | `greatest_of` \| `sum` \| `max` \| `min` \| `n_a` | `aggregation_function` attribute on `norm_contributes_to_capacity` edges |
+| `object_class_multiselect` | `rp_basket`, `jcrew_blocker` | comma-separated `object_class_label` list | Number + type of `norm_scopes_object` / `norm_scopes_instrument` edges emitted per norm |
+| `partial_applicability` | `rp_basket`, `jcrew_blocker` | boolean | Whether projection looks up `condition_builder_spec` and emits a `norm_has_condition` edge |
+| `capacity_composition` | `rp_basket`, `jcrew_blocker` | §4.1 closed typology | `capacity_composition` attribute on the projected norm |
+
+Dollar / EBITDA caps alone are NOT partial applicability (they are capacity, not condition). The extraction prompt includes per-option definitions and disambiguation rules per Rule 4.2.
+
+### 4.12 Projection infrastructure (declarative mappings)
+
+The projection engine (Prompt 07 Part 3, `app/services/deontic_projection.py`) reads `deontic_mapping` rows from TypeDB and applies them mechanically. One mapping row per v3 entity type declares:
+
+- `source_entity_type` — v3 type name (`builder_basket`, `ratio_basket`, …)
+- `target_norm_kind`, `target_modality` — v4 norm fields
+- `default_subject_role` — comma-separated `party_role` list (extracted baskets may override per-instance later)
+- `default_action_scope_kind` — `specific` / `general` / `reallocable`
+- `condition_builder_spec_ref` — the `condition_builder_name` to invoke for this mapping, or `"none"` for unconditional
+
+Paired `mapping_targets_action` / `mapping_targets_object` relations connect each mapping to primitive singletons from §4.3 / §4.4. Defaults; the basket's extracted `object_class_multiselect` additionally populates `norm_scopes_object` / `norm_scopes_instrument` edges per-instance at projection time.
+
+**Condition builder specs** name reusable condition-tree shapes (§4.6 `condition_topology` values). A spec declares `condition_operator_root` and references participating state_predicates via `builder_spec_uses_predicate(predicate_slot, child_index)`. For per-threshold ratio predicates (e.g., `first_lien_net_leverage_at_or_below` at threshold 5.75, 6.00, 6.25 across different baskets), the spec references the predicate by **label only** — the projection engine resolves to the specific `state_predicate` instance using the basket's extracted ratio_threshold via `construct_state_predicate_id(label, threshold, op, ref)`. Boolean and reference-based predicates (single canonical instance) are materialized directly in the spec→predicate seed.
+
+**Projection-time contract:**
+
+1. Read v3 entities for deal → polymorphic fetch under `rp_basket` + `jcrew_blocker`
+2. For each v3 entity, look up its `deontic_mapping` via `source_entity_type`
+3. Construct norm: modality / norm_kind / scope from mapping; cap_usd / cap_grower_pct / source_text / source_section / source_page from entity attributes; capacity_composition from extracted field
+4. Emit `norm_scopes_action` edges per `mapping_targets_action`
+5. Emit `norm_scopes_object` / `norm_scopes_instrument` edges per `mapping_targets_object` + basket's extracted `object_class_multiselect`
+6. Emit `norm_binds_subject` edges per `default_subject_role`
+7. If `condition_builder_spec_ref != "none"` AND basket's `partial_applicability == true`: look up spec, construct condition tree, emit `norm_has_condition` + `condition_has_child` + `condition_references_predicate` edges
+8. Emit `norm_extracted_from:fact` edge linking norm to the v3 entity
+
+No per-entity-type branches in projection code. Adding a new extractable v3 entity type is one `plays norm_extracted_from:fact` line in schema §4.10 plus one `deontic_mapping` row in the projection seed. See §8 for the end-to-end REFACTOR path.
+
+### 4.13 What is intentionally NOT in the deontic schema
 
 - No `synthesis_guidance` attribute. The category-level guidance strings on `ontology_category` remain for v3 compatibility but are ignored by v4 (Rule 2.1).
 - No flattened boolean attributes of the form `requires_no_eod` or `requires_ratio_below_X` on norms (Rule 2.4). All such content is in the `condition` tree.

@@ -1457,3 +1457,8 @@ insert (question: $q) isa question_targets_concept, has target_concept_type "rat
 
 match $q isa ontology_question, has question_id "rp_n5";
 insert (question: $q) isa question_targets_concept, has target_concept_type "no_default_basket";
+
+# Prompt 07 Part 1 surgical extraction questions live in
+# app/data/rp_deontic_extraction_questions.tql — they are a focused subset
+# loaded directly into valence_v4 via the seed_loader (not through this
+# file, which still uses v3's mixed-file loader for the full ontology).

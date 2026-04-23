@@ -1,0 +1,140 @@
+################################################################################
+# PROMPT 07 PART 1 — SURGICAL EXTRACTION ADDITIONS
+#
+# Four per-basket extraction data points needed to drive deontic projection
+# into v4 norms. Architecture doc §8.2. Schema attributes defined in
+# schema_v4_deontic.tql §4.11; ownership added to rp_basket + jcrew_blocker.
+#
+# The extraction_prompt values include the closed taxonomies with brief
+# per-option descriptions per foundational rule 4.2 (closed taxonomies with
+# explicit per-option definitions).
+################################################################################
+
+insert
+
+# PP7-1: capacity_aggregation_function — per-basket enum
+$rp_cap_agg isa ontology_question,
+    has question_id "rp_capacity_aggregation_function",
+    has question_number 900,
+    has question_text "How does this basket's capacity aggregate with other contributing baskets?",
+    has description "Closed taxonomy. Drives aggregation_function on the norm_contributes_to_capacity edge at projection time.",
+    has answer_type "enum",
+    has ui_display_type "select",
+    has is_required false,
+    has display_order 900,
+    has covenant_type "RP",
+    has extraction_prompt "Classify how THIS basket's capacity aggregates with other contributing baskets.
+
+Closed taxonomy (pick exactly one):
+
+- greatest_of: multiple sources each provide capacity but only the MAXIMUM counts. Characteristic of the builder basket (Cumulative Amount): the greatest of CNI, ECF, EBITDA-FC.
+- sum: sources ADD TOGETHER to form the pool. Characteristic of reallocation: general RP basket + reallocated RDP + reallocated investment capacity.
+- max: the basket is the max of two or more numeric sources in a different semantic than greatest_of — rare; use greatest_of by default.
+- min: the basket is the minimum of two or more numeric tests.
+- n_a: the basket does not aggregate with others; its capacity stands alone. Most additive baskets (general RP, management equity, tax distribution) are n_a here because their aggregation happens at the OUTER capacity-composition layer, not at contributor-edge level.
+
+When in doubt: pick n_a unless the text explicitly specifies greatest-of / sum arithmetic with other specific baskets.",
+    has target_entity_type "rp_basket",
+    has storage_value_type "string";
+
+(question: $rp_cap_agg) isa question_targets_field,
+    has target_field_name "capacity_aggregation_function",
+    has target_entity_type "rp_basket";
+
+# PP7-2: object_class_multiselect — per-basket multiselect (comma-separated string)
+$rp_obj_class isa ontology_question,
+    has question_id "rp_object_class_multiselect",
+    has question_number 901,
+    has question_text "Which object classes does this basket permit distributing? Select all that apply.",
+    has description "Closed multiselect; comma-separated. Projection emits one norm_scopes_object or norm_scopes_instrument edge per listed label.",
+    has answer_type "multiselect",
+    has ui_display_type "multiselect",
+    has is_required false,
+    has display_order 901,
+    has covenant_type "RP",
+    has extraction_prompt "List every object_class label the basket permits distributing. Closed option set (return a comma-separated list of labels):
+
+- cash: currency distributions (dividends paid in cash, cash prepayments of sub debt, etc.)
+- equity_interest: generic/broadest equity scope — use when the basket text says 'Equity Interests' without qualifier
+- holdco_equity: equity of Holdings or a parent company specifically
+- restricted_sub_equity: equity of a Restricted Subsidiary specifically
+- unrestricted_sub_equity: equity of an Unrestricted Subsidiary specifically — note: distinct from unrestricted_subsidiary_equity_or_assets
+- subordinated_debt_instrument: sub debt principal/interest payment (Restricted Debt Payments)
+- material_intellectual_property: material IP transfers (J.Crew blocker scope)
+- business_division: operating divisions or product lines (asset-sale-adjacent RP uses)
+- unrestricted_subsidiary_equity_or_assets: broader 'equity OR assets of an Unrestricted Sub' scope — use for §6.06(p)-style baskets
+
+DISAMBIGUATION:
+- equity_interest is the ABSTRACT parent. If the basket text mentions equity of a specific entity type (holdco, restricted sub, unrestricted sub), pick the narrower label. If unqualified, pick equity_interest.
+- unrestricted_sub_equity vs unrestricted_subsidiary_equity_or_assets: the former is only equity; the latter is equity OR the unsub's assets (broader).
+- Return labels separated by commas (no spaces): 'cash,equity_interest'",
+    has target_entity_type "rp_basket",
+    has storage_value_type "string";
+
+(question: $rp_obj_class) isa question_targets_field,
+    has target_field_name "object_class_multiselect",
+    has target_entity_type "rp_basket";
+
+# PP7-3: partial_applicability — per-basket boolean
+$rp_partial_app isa ontology_question,
+    has question_id "rp_partial_applicability",
+    has question_number 902,
+    has question_text "Is this basket conditioned on any predicate beyond dollar caps (e.g., ratio tests, no-EoD gates, definitional tests)?",
+    has description "Drives whether projection emits a norm_has_condition edge. Dollar caps alone do NOT count as partial applicability — only predicates evaluated against world state (ratio, EoD, pro-forma, procedural tests).",
+    has answer_type "boolean",
+    has ui_display_type "checkbox",
+    has is_required false,
+    has display_order 902,
+    has covenant_type "RP",
+    has extraction_prompt "Return true iff this basket's permission is gated on ANY predicate beyond raw dollar caps.
+
+Predicates that count as partial applicability:
+- Leverage-ratio tests (First Lien Net Leverage ≤ X; Senior Secured; Total Leverage)
+- Pro-forma no-worse tests
+- No-Event-of-Default preconditions
+- Interest-coverage ratio tests
+- Pro-forma-compliance-with-financial-covenants gates
+- Definitional predicates (e.g., 'is a product-line sale', 'is a Qualified IPO has occurred')
+- Officer-certificate or board-approval procedural gates
+
+Dollar or EBITDA-percent caps ALONE (e.g., 'up to $130M or 100% of EBITDA') do NOT make a basket partially applicable. Those are capacity limits, not condition predicates.
+
+Default: false (unconditional usage).",
+    has target_entity_type "rp_basket",
+    has storage_value_type "boolean";
+
+(question: $rp_partial_app) isa question_targets_field,
+    has target_field_name "partial_applicability",
+    has target_entity_type "rp_basket";
+
+# PP7-4: capacity_composition — per-basket enum (existing attribute, tightened prompt)
+$rp_cap_comp isa ontology_question,
+    has question_id "rp_capacity_composition",
+    has question_number 903,
+    has question_text "How does this basket's capacity compose with other baskets in the RP covenant?",
+    has description "Closed taxonomy. Drives capacity_composition attribute on the projected norm. Architecture doc §4.1 is the authority for per-option meaning.",
+    has answer_type "enum",
+    has ui_display_type "select",
+    has is_required false,
+    has display_order 903,
+    has covenant_type "RP",
+    has extraction_prompt "Classify how THIS basket's capacity composes with other baskets. Closed taxonomy (per v4 architecture §4.1):
+
+- additive: separate caps that SUM with other additive baskets' capacity. Most general-purpose baskets (general RP basket, management equity, tax distribution) are additive.
+- fungible: capacity is usable across multiple action classes via reallocation. Typical of reallocable general baskets that can flow to investments, RDP, or dividends.
+- shared_pool: multiple baskets draw from a single NUMERICAL POOL via explicit shares_capacity_pool language (rare; only when the agreement says 'the baskets under 6.06(X) and 6.06(Y) together may not exceed $100M').
+- categorical: per-category caps that do NOT sum with other categorical baskets. Tax distributions, holdco overhead are often categorical — they have their own dedicated cap, not combinable with other action classes.
+- computed_from_sources: capacity is a SUM of typed source entities (the builder basket pattern — Cumulative Amount).
+- unlimited_on_condition: capacity is UNCAPPED when a predicate condition holds (ratio baskets — unlimited when ratio ≤ 5.75x, else $0).
+- n_a: no capacity applies (prohibitions, definitional entities, procedural entities).
+
+DISAMBIGUATION:
+- additive vs categorical: additive baskets SUM with other additive baskets (e.g., two additive baskets of $50M each give $100M). Categorical baskets do NOT sum with each other (a $50M tax-distribution basket and a $50M holdco-overhead basket give $50M per category, not $100M combined).
+- computed_from_sources vs additive: computed_from_sources applies when the BASKET ITSELF is a sum of SOURCE entities (builder). Additive applies when the basket is a standalone cap that sums with OTHER baskets.
+- unlimited_on_condition vs unconditional-with-dollar-cap: unlimited_on_condition is UNCAPPED when the condition holds. A basket with a $130M cap plus a ratio gate is additive-with-condition (use additive + partial_applicability=true), NOT unlimited_on_condition.",
+    has target_entity_type "rp_basket",
+    has storage_value_type "string";
+
+(question: $rp_cap_comp) isa question_targets_field,
+    has target_field_name "capacity_composition",
+    has target_entity_type "rp_basket";
