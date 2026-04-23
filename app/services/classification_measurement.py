@@ -200,10 +200,155 @@ Output format (JSON only):
 """
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# V2 prompts (Prompt 09 Fix 1) — vocabulary-aligned to ground-truth enum values
+# and pinned with explicit "return literally one of …" instructions.
+#
+# V1 of capacity_composition and action_scope scored 87.5% on matched
+# instances; V2 carries minor reinforcement but keeps the same enum set.
+#
+# V1 of condition_structure scored 0% because it used a different vocabulary
+# (none/disjunction_of_atomics/conjunction_of_atomics) than the ground truth
+# YAML (unconditional/or_of_atomics/and_of_atomics/or_of_and_of_atomics).
+# V2 rewrites the taxonomy section to use the GT vocabulary literally, adds
+# an explicit translation table for Claude-preferred aliases, and drops the
+# two-axis structure (only the topology axis is compared against GT).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CAPACITY_COMPOSITION_PROMPT_V2 = """You are classifying a covenant basket or permission norm into exactly one capacity-composition category.
+
+Return literally one of these seven values — nothing else:
+  additive | fungible | shared_pool | categorical | computed_from_sources | unlimited_on_condition | n_a
+
+Do NOT return any other string. Do NOT return "none", "N/A", "unknown", or variants.
+
+Input fields you will receive:
+- norm_kind (e.g., "general_rp_basket_permission")
+- source_section (e.g., "6.06(j)")
+- source_text (operative agreement text, verbatim)
+- cap_usd, cap_grower_pct (if present)
+- aggregation_function (if the norm aggregates other norms)
+
+Value definitions:
+
+1. additive — Scalar dollar (and/or EBITDA%) cap that SUMS with other additive baskets. Typical general RP basket of "greater of $130M and 100% EBITDA."
+
+2. fungible — Capacity usable across multiple action classes via reallocation. Using it for one action reduces the other. Typical reallocable general basket.
+
+3. shared_pool — Multiple norms draw from an explicit shared numerical pool (via shares_capacity_pool). Using $10M of one depletes the same $10M from the others.
+
+4. categorical — Capacity reserved for one specific purpose (tax distributions, management equity, holdco overhead). Does NOT sum with general-purpose baskets.
+
+5. computed_from_sources — Capacity is itself a computed aggregate of multiple source norms. Builder basket (Cumulative Amount) is the canonical example.
+
+6. unlimited_on_condition — Uncapped when a predicate (e.g., ratio test) holds; zero when it fails. Ratio RP basket at 5.75x.
+
+7. n_a — No capacity concept. Prohibitions always. Some scope-limited permissions (e.g., unsub-equity dividend in 6.06(p)).
+
+Adjacent-class disambiguation:
+- additive vs categorical: does the cap SUM with general RP? additive. Reserved for one purpose, does NOT combine? categorical.
+- additive vs fungible: additive sums but stays in its action class. fungible reallocates across action classes.
+- computed_from_sources vs additive: is the basket itself a derived aggregate (has source_norm_ids)? computed_from_sources. Leaf with a scalar cap? additive.
+- unlimited_on_condition vs additive with large cap: unlimited_on_condition is literally unbounded when the test holds. A $1B cap is still additive.
+- n_a vs categorical: n_a has no capacity concept. categorical has capacity but dedicated to one purpose.
+
+Output format (JSON only):
+{
+  "classification": "<one of the seven values above>",
+  "confidence": <float 0.0-1.0>,
+  "reasoning": "<one sentence citing what in source_text you keyed on>"
+}
+"""
+
+ACTION_SCOPE_PROMPT_V2 = """You are classifying a norm's action_scope into exactly one of three values.
+
+Return literally one of:
+  specific | general | reallocable
+
+Do NOT return any other string.
+
+Value definitions:
+- specific: the norm applies to a narrow, named action or set of closely-related actions (e.g., tax distributions only, management equity buyouts only, post-IPO dividends only).
+- general: the norm applies broadly across multiple RP-like action classes without discrimination (e.g., a ratio basket available for dividends OR repurchases OR RDPs).
+- reallocable: the norm's capacity can be redirected from its primary action class into other RP actions via an explicit reallocation mechanism (e.g., a general RP basket that can reallocate to prepay subordinated debt).
+
+Disambiguation:
+- specific vs general: does the basket name a specific action class (tax, management equity, etc.)? specific. Does it cover any RP action without restriction? general.
+- general vs reallocable: a general basket is available for multiple action classes by its own terms. A reallocable basket is primarily one action class but can be redirected to others via a cross-reference clause.
+
+Output format (JSON only):
+{
+  "classification": "<specific|general|reallocable>",
+  "confidence": <float 0.0-1.0>,
+  "reasoning": "<one sentence citing source_text>"
+}
+"""
+
+CONDITION_STRUCTURE_PROMPT_V2 = """You are classifying the TOPOLOGY of a norm's condition tree. Use ONLY the closed vocabulary below.
+
+Return literally one of these five values — nothing else:
+  unconditional | atomic | or_of_atomics | and_of_atomics | or_of_and_of_atomics
+
+Do NOT return: "none", "n/a", "N/A", "disjunction_of_atomics", "conjunction_of_atomics", "mixed", "complex", "unknown", or any variant. If you would say "none" because the norm has no condition, the correct answer is literally `unconditional`.
+
+Translation table for common misstatements:
+  "none"                         → unconditional
+  "n/a"                          → unconditional
+  "disjunction_of_atomics"       → or_of_atomics
+  "conjunction_of_atomics"       → and_of_atomics
+  "mixed_depth_2"                → or_of_and_of_atomics (if OR-top) OR and_of_atomics (rewrite via Strategy A)
+  "depth_3_or_deeper"            → or_of_and_of_atomics (after Strategy A flattening)
+
+Value definitions:
+
+1. unconditional — The norm has NO world-state predicate gate. A scalar dollar cap is NOT a condition; it's capacity. A norm whose permission is granted whenever the basket has room (no EoD, no ratio test, no pro-forma test) is `unconditional`.
+
+2. atomic — A single predicate leaf gates the norm. Examples:
+   - J.Crew blocker fires when `unsub_would_own_or_license_material_ip_at_designation` is true (atomic prohibition trigger).
+   - Sweep tier 100% when `first_lien_net_leverage_above(5.75)` (atomic sweep trigger).
+   - A basket gated only on "no Event of Default exists" (atomic precondition).
+
+3. or_of_atomics — A disjunction of two or more atomic predicates.
+   - 6.06(o) ratio basket: "leverage ≤ 5.75x OR pro forma no-worse on first-lien."
+   - 6.05(z) general unlimited asset sale: "leverage ≤ 6.00x OR pro forma no-worse."
+   - 2.10(c)(i) de minimis: "individual proceeds ≤ threshold OR annual aggregate ≤ threshold."
+
+4. and_of_atomics — A conjunction of two or more atomic predicates.
+   - Sweep tier 50%: "leverage > 5.50x AND leverage ≤ 5.75x" (range gate as AND).
+
+5. or_of_and_of_atomics — Strategy A flattened form of a depth-3 tree. An OR whose children are each an AND of atomics (or an AND whose children are each an atomic).
+   - 2.10(c)(iv) product-line sweep exemption: "(product-line-sale AND leverage ≤ 6.25x) OR (product-line-sale AND pro-forma-no-worse)" — each OR branch is an AND of the product-line atomic with one ratio atomic.
+
+Input fields you will receive:
+- norm_kind
+- source_section
+- source_text (verbatim condition language; may be empty/null if the norm is unconditional)
+- modality
+
+Examples resolved:
+- 6.06(p) unsub equity dividend (unconditional permission) → `unconditional`
+- 6.06(o) "permitted if ratio ≤ 5.75x OR no-worse" → `or_of_atomics`
+- 6.06(j) general RP basket ($130M / 100% EBITDA, no predicate) → `unconditional`
+- Sweep tier 50% "leverage > 5.50 AND ≤ 5.75" → `and_of_atomics`
+- J.Crew blocker triggered by Material-IP-at-designation atomic → `atomic`
+- 2.10(c)(iv) product-line exemption (Strategy A form) → `or_of_and_of_atomics`
+
+Output format (JSON only):
+{
+  "classification": "<unconditional|atomic|or_of_atomics|and_of_atomics|or_of_and_of_atomics>",
+  "confidence": <float 0.0-1.0>,
+  "reasoning": "<one sentence citing source_text>"
+}
+"""
+
+
 PROMPT_VERSIONS = {
     ("capacity_composition", "v1"): CAPACITY_COMPOSITION_PROMPT_V1,
     ("action_scope", "v1"): ACTION_SCOPE_PROMPT_V1,
     ("condition_structure", "v1"): CONDITION_STRUCTURE_PROMPT_V1,
+    ("capacity_composition", "v2"): CAPACITY_COMPOSITION_PROMPT_V2,
+    ("action_scope", "v2"): ACTION_SCOPE_PROMPT_V2,
+    ("condition_structure", "v2"): CONDITION_STRUCTURE_PROMPT_V2,
 }
 
 
@@ -794,7 +939,14 @@ def main() -> int:
         required=True,
         choices=["capacity_composition", "action_scope", "condition_structure", "all"],
     )
-    p.add_argument("--prompt-version", default="v1")
+    p.add_argument(
+        "--prompt-version",
+        default="v2",
+        choices=["v1", "v2"],
+        help="v1 = original prompts (preserved for comparison). v2 = vocabulary-aligned prompts "
+             "(Prompt 09 Fix 1; default). V2 pins closed-enum outputs and adds translation tables "
+             "for common aliases so condition_structure doesn't return 'none' when 'unconditional' is expected.",
+    )
     p.add_argument(
         "--ground-truth",
         default=str(DEFAULT_GROUND_TRUTH),
