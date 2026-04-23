@@ -334,6 +334,25 @@ This contract is binding for all layers:
 
 The round-trip check at Prompt 08 compares extracted predicate labels to ground-truth labels. Label format drift between layers will cause spurious round-trip failures. Flag any code path producing suffixed labels as a bug.
 
+#### 4.5.1.1 state_predicate_id construction rule
+
+Every `state_predicate` instance has a `state_predicate_id` attribute that serves as its `@key`. The id is constructed deterministically from the instance's structural tuple via pipe-delimited concatenation:
+
+```
+state_predicate_id = "{label}|{threshold_value_double}|{operator_comparison}|{reference_predicate_label}"
+```
+
+Where any field is null, render as empty string. Numeric fields render with Python `str()` of the float (e.g., `5.75` → `"5.75"`, `5.50` → `"5.5"`, `6.00` → `"6.0"`). Four fields always, three pipe separators always — a boolean predicate with no threshold/operator/reference renders as `"label|||"`.
+
+This rule MUST be shared across:
+
+- `app/data/state_predicates_seed.tql` — authoring today; future generators compute via the helper
+- `app/scripts/load_ground_truth.py` — resolves atomic condition leaves' tuples to state_predicate instances
+- Any projection code that creates state_predicate instances (Prompt 07)
+- Any query code that looks up state_predicates by tuple
+
+A shared Python helper `app/services/predicate_id.construct_state_predicate_id(...)` implements the construction function; all four consumers import from it. Divergence in id construction will cause silent lookup failures — the `condition_references_predicate` relation will have no edges for mismatched ids.
+
 ### 4.6 Condition entity and recursive tree relation
 
 ```tql

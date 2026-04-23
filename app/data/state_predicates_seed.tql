@@ -21,56 +21,56 @@ insert
 # ── Boolean state predicates (no threshold) — one instance each ──────────────
 
 $sp_noeod isa state_predicate,
-    has state_predicate_id "no_event_of_default_exists||",
+    has state_predicate_id "no_event_of_default_exists|||",
     has state_predicate_label "no_event_of_default_exists",
     has source_text "universal EoD precondition — evaluation is PILOT STUB per predicate_holds",
     has source_section "N/A - universal",
     has source_page 0;
 
 $sp_pfcomp isa state_predicate,
-    has state_predicate_id "pro_forma_compliance_financial_covenants||",
+    has state_predicate_id "pro_forma_compliance_financial_covenants|||",
     has state_predicate_label "pro_forma_compliance_financial_covenants",
     has source_text "compliance with maintenance financial covenants on pro forma basis — stub in predicate_holds",
     has source_section "N/A - abstract",
     has source_page 0;
 
 $sp_board isa state_predicate,
-    has state_predicate_id "board_approval_obtained||",
+    has state_predicate_id "board_approval_obtained|||",
     has state_predicate_label "board_approval_obtained",
     has source_text "board of directors approval — stub in predicate_holds",
     has source_section "N/A - procedural",
     has source_page 0;
 
 $sp_officer isa state_predicate,
-    has state_predicate_id "officer_certificate_delivered||",
+    has state_predicate_id "officer_certificate_delivered|||",
     has state_predicate_label "officer_certificate_delivered",
     has source_text "officer's certificate delivered — stub",
     has source_section "N/A - procedural",
     has source_page 0;
 
 $sp_ipo isa state_predicate,
-    has state_predicate_id "qualified_ipo_has_occurred||",
+    has state_predicate_id "qualified_ipo_has_occurred|||",
     has state_predicate_label "qualified_ipo_has_occurred",
     has source_text "Qualified IPO has occurred per agreement's definitional section",
     has source_section "Definition of 'Qualified IPO'",
     has source_page 0;
 
 $sp_rasp isa state_predicate,
-    has state_predicate_id "retained_asset_sale_proceeds||",
+    has state_predicate_id "retained_asset_sale_proceeds|||",
     has state_predicate_label "retained_asset_sale_proceeds",
     has source_text "positive balance of Retained Asset Sale Proceeds — capacity-state, not atomic condition leaf",
     has source_section "Definition of 'Retained Asset Sale Proceeds'",
     has source_page 0;
 
 $sp_jcrew isa state_predicate,
-    has state_predicate_id "unsub_would_own_or_license_material_ip_at_designation||",
+    has state_predicate_id "unsub_would_own_or_license_material_ip_at_designation|||",
     has state_predicate_label "unsub_would_own_or_license_material_ip_at_designation",
     has source_text "Unrestricted Subsidiary would own or hold exclusive license to Material IP at designation — J.Crew blocker prohibition fires when true",
     has source_section "Definition of 'Unrestricted Subsidiary'",
     has source_page 0;
 
 $sp_prodline isa state_predicate,
-    has state_predicate_id "is_product_line_or_line_of_business_sale||",
+    has state_predicate_id "is_product_line_or_line_of_business_sale|||",
     has state_predicate_label "is_product_line_or_line_of_business_sale",
     has source_text "proposed Asset Sale is of all or substantially all of a product line or line of business",
     has source_section "2.10(c)(iv)",
@@ -78,14 +78,14 @@ $sp_prodline isa state_predicate,
 
 # Part 3 carryforward/carryback predicates (boolean, no threshold)
 $sp_carryfwd_prior isa state_predicate,
-    has state_predicate_id "prior_year_capacity_was_unused||",
+    has state_predicate_id "prior_year_capacity_was_unused|||",
     has state_predicate_label "prior_year_capacity_was_unused",
     has source_text "prior fiscal year's management-equity-basket capacity was not fully consumed — enables carryforward to current year",
     has source_section "6.06(b)(i)(x) carryforward proviso",
     has source_page 0;
 
 $sp_carryback_subseq isa state_predicate,
-    has state_predicate_id "base_capacity_will_be_unused_in_subsequent_year||",
+    has state_predicate_id "base_capacity_will_be_unused_in_subsequent_year|||",
     has state_predicate_label "base_capacity_will_be_unused_in_subsequent_year",
     has source_text "subsequent fiscal year's management-equity-basket base will not be fully consumed — enables carryback from that year",
     has source_section "6.06(b)(i)(y) carryback proviso",
@@ -93,7 +93,7 @@ $sp_carryback_subseq isa state_predicate,
 
 # ── Reference-based predicate: pro_forma_no_worse ─────────────────────────────
 $sp_pfnw isa state_predicate,
-    has state_predicate_id "pro_forma_no_worse||first_lien_net_leverage",
+    has state_predicate_id "pro_forma_no_worse|||first_lien_net_leverage",
     has state_predicate_label "pro_forma_no_worse",
     has reference_predicate_label "first_lien_net_leverage",
     has source_text "pro forma value of reference_predicate_label is no worse than pre-transaction",
@@ -104,7 +104,7 @@ $sp_pfnw isa state_predicate,
 
 # first_lien_net_leverage_at_or_below × 4 thresholds
 $sp_fl_at_550 isa state_predicate,
-    has state_predicate_id "first_lien_net_leverage_at_or_below|5.50|at_or_below|",
+    has state_predicate_id "first_lien_net_leverage_at_or_below|5.5|at_or_below|",
     has state_predicate_label "first_lien_net_leverage_at_or_below",
     has threshold_value_double 5.50,
     has operator_comparison "at_or_below",
@@ -122,7 +122,7 @@ $sp_fl_at_575 isa state_predicate,
     has source_page 0;
 
 $sp_fl_at_600 isa state_predicate,
-    has state_predicate_id "first_lien_net_leverage_at_or_below|6.00|at_or_below|",
+    has state_predicate_id "first_lien_net_leverage_at_or_below|6.0|at_or_below|",
     has state_predicate_label "first_lien_net_leverage_at_or_below",
     has threshold_value_double 6.00,
     has operator_comparison "at_or_below",
@@ -141,7 +141,7 @@ $sp_fl_at_625 isa state_predicate,
 
 # first_lien_net_leverage_above × 2 thresholds (sweep tier triggers)
 $sp_fl_ab_550 isa state_predicate,
-    has state_predicate_id "first_lien_net_leverage_above|5.50|greater_than|",
+    has state_predicate_id "first_lien_net_leverage_above|5.5|greater_than|",
     has state_predicate_label "first_lien_net_leverage_above",
     has threshold_value_double 5.50,
     has operator_comparison "greater_than",

@@ -40,6 +40,7 @@ logger = logging.getLogger("validation_harness")
 DATA_DIR = REPO_ROOT / "app" / "data"
 DEFAULT_GROUND_TRUTH = DATA_DIR / "duck_creek_rp_ground_truth.yaml"
 EXPECTED_DB = "valence_v4"
+GROUND_TRUTH_DB = "valence_v4_ground_truth"
 
 
 # ─── Connection + ground-truth loader ─────────────────────────────────────────
@@ -56,6 +57,60 @@ def connect():
 def load_ground_truth(path: Path = DEFAULT_GROUND_TRUTH) -> dict:
     with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+def load_ground_truth_from_graph(driver) -> dict:
+    """Query valence_v4_ground_truth for norm scalars + primary scope.
+
+    Returns a shape compatible with load_ground_truth (YAML): a dict with a
+    "norms" key containing a list of norm dicts. Each norm dict has
+    norm_id, norm_kind, modality, capacity_composition, action_scope,
+    scoped_actions (first only), scoped_objects (first only). Other fields
+    used by the harness are pulled as needed via follow-up queries.
+
+    This replaces YAML parsing when both extraction and ground truth live
+    in TypeDB. Graph is source of truth.
+    """
+    if not driver.databases.contains(GROUND_TRUTH_DB):
+        logger.warning("%s does not exist — falling back to YAML", GROUND_TRUTH_DB)
+        return load_ground_truth()
+    tx = driver.transaction(GROUND_TRUTH_DB, TransactionType.READ)
+    norms: list[dict] = []
+    try:
+        # Pull norm scalars
+        rows = list(tx.query(
+            "match $n isa norm, has norm_id $nid, has norm_kind $nk, has modality $m;"
+            " select $nid, $nk, $m;"
+        ).resolve().as_concept_rows())
+        for r in rows:
+            nid = _attr(r, "nid")
+            nk = _attr(r, "nk")
+            m = _attr(r, "m")
+            # primary action / object
+            a_rows = list(tx.query(
+                f'match $n isa norm, has norm_id "{nid}";'
+                f' (norm: $n, action: $ac) isa norm_scopes_action;'
+                f' $ac has action_class_label $al; select $al;'
+            ).resolve().as_concept_rows())
+            o_rows = list(tx.query(
+                f'match $n isa norm, has norm_id "{nid}";'
+                f' (norm: $n, object: $ob) isa norm_scopes_object;'
+                f' $ob has object_class_label $ol; select $ol;'
+            ).resolve().as_concept_rows())
+            norms.append({
+                "norm_id": nid,
+                "norm_kind": nk,
+                "modality": m,
+                "scoped_actions": [_attr(r, "al") for r in a_rows],
+                "scoped_objects": [_attr(r, "ol") for r in o_rows],
+            })
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return {"norms": norms}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -237,13 +292,22 @@ def _primary_tuple(n: dict) -> tuple:
     )
 
 
-def round_trip_check(deal_id: str, ground_truth_path: Path, tx) -> dict:
+def round_trip_check(deal_id: str, ground_truth_path: Path, tx, driver=None) -> dict:
     """
     Diff ground truth against extracted norms on
     (norm_kind, modality, primary_scoped_action, primary_scoped_object) tuples.
-    Norms with question_role=null are included — definitional norms count.
+
+    Ground truth is preferentially loaded from the dedicated graph database
+    (`valence_v4_ground_truth`) via load_ground_truth_from_graph(driver). If
+    that database is absent OR the driver isn't provided, falls back to the
+    YAML path. Fallback is noted but not silenced.
     """
-    gt = load_ground_truth(ground_truth_path)
+    if driver is not None and driver.databases.contains(GROUND_TRUTH_DB):
+        gt = load_ground_truth_from_graph(driver)
+        gt_source = "graph"
+    else:
+        gt = load_ground_truth(ground_truth_path)
+        gt_source = "yaml"
     gt_norms = gt.get("norms", [])
     gt_tuples: dict[tuple, dict] = {_primary_tuple(n): n for n in gt_norms}
 
@@ -307,6 +371,7 @@ def round_trip_check(deal_id: str, ground_truth_path: Path, tx) -> dict:
         "missing": missing_kinds,
         "spurious": spurious_kinds,
         "mismatched": mismatched,
+        "gt_source": gt_source,
     }
 
 
@@ -387,8 +452,8 @@ def run_all_completeness_checks(
             coverage = check_norm_kind_coverage(covenant, deal_id, tx)
             coverage_verdict = "pass" if not coverage["missing_always"] else "fail"
 
-            # A4
-            rtrip = round_trip_check(deal_id, ground_truth_path, tx)
+            # A4 — passes driver so round_trip_check can prefer graph-sourced ground truth
+            rtrip = round_trip_check(deal_id, ground_truth_path, tx, driver=driver)
             rtrip_verdict = (
                 "pass" if not rtrip["missing"] and not rtrip["spurious"] and not rtrip["mismatched"]
                 else "fail"
@@ -421,6 +486,7 @@ def run_all_completeness_checks(
                 },
                 "A4_round_trip": {
                     "verdict": rtrip_verdict,
+                    "gt_source": rtrip.get("gt_source", "unknown"),
                     "missing": rtrip["missing"],
                     "spurious": rtrip["spurious"],
                     "mismatched": rtrip["mismatched"],
