@@ -609,6 +609,28 @@ def project_entity(driver, db_name: str, entity: V3Entity,
                     f"norm_in_segment skipped for {nid}: {str(exc)[:160]}"
                 )
 
+    # Builder basket sub-source emission (Fix 5) — per-entity-type concession
+    # documented in the module docstring. Only fires when the entity is a
+    # builder_basket with has_*_source flags populated.
+    if entity.entity_type == "builder_basket" and not dry_run:
+        _project_builder_sub_sources(
+            driver, db_name, nid, entity, mapping, report,
+        )
+    elif entity.entity_type == "builder_basket" and dry_run:
+        # Count sub-sources for the dry-run report
+        source_flags = {
+            "starter":             entity.attrs.get("has_starter_amount_source"),
+            "cni":                 entity.attrs.get("has_cni_source"),
+            "ecf":                 entity.attrs.get("has_ecf_source"),
+            "ebitda_fc":           entity.attrs.get("has_ebitda_fc_source"),
+            "equity_proceeds":    entity.attrs.get("has_equity_proceeds_source"),
+            "asset_proceeds":     entity.attrs.get("has_asset_proceeds_source"),
+            "investment_returns": entity.attrs.get("has_investment_returns_source"),
+            "debt_conversion":    entity.attrs.get("has_debt_conversion_source"),
+        }
+        active = [k for k, v in source_flags.items() if v]
+        report.norms_created += len(active)  # dry-run report includes planned sub-source norms
+
     # Provenance: norm_extracted_from:fact
     if entity.basket_id:
         q = f"""
@@ -803,6 +825,162 @@ def _attach_predicate(driver, db_name, cid: str, pid: str,
 # ═══════════════════════════════════════════════════════════════════════════════
 # Orchestration
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Per-entity-type concessions (documented complicity — see module docstring)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# builder_basket sub-source specs. Each entry describes one projected sub-
+# source norm: the v3 flag it triggers on, the norm_kind it emits (matching
+# ground-truth builder_source_* conventions), and the cap/grower attributes
+# to pull from the parent builder_basket's extracted attrs.
+#
+# Aggregation: three of these (cni, ecf, ebitda_fc) feed the "greatest_of"
+# inner aggregate via a builder_source_b_aggregate intermediate; the remaining
+# sources contribute to the parent directly via sum. Builder projects as:
+#
+#   Cumulative Amount (parent, greatest_of)
+#     ├── starter_source (sum of the inner group)
+#     └── b_aggregate (greatest_of)
+#         ├── cni_source
+#         ├── ecf_source
+#         └── ebitda_fc_source
+#     └── equity_proceeds_source (sum)
+#     └── asset_proceeds_source  (sum)
+#     └── investment_returns_source (sum)
+#     └── debt_conversion_source (sum)
+_BUILDER_SUB_SOURCES = [
+    # (flag_attr, norm_kind, cap_usd_attr, cap_grower_attr, cap_grower_ref, aggregates_into)
+    ("has_starter_amount_source", "builder_source_starter",
+        "starter_dollar_amount", "starter_ebitda_pct", "consolidated_ebitda_ltm", "parent"),
+    ("has_cni_source", "builder_source_cni",
+        None, "cni_percentage", "consolidated_net_income", "b_aggregate"),
+    ("has_ecf_source", "builder_source_ecf",
+        None, None, "excess_cash_flow", "b_aggregate"),
+    ("has_ebitda_fc_source", "builder_source_ebitda_fc",
+        None, "ebitda_fc_multiplier", "consolidated_ebitda_ltm", "b_aggregate"),
+    ("has_equity_proceeds_source", "builder_source_other",
+        None, "equity_proceeds_pct", "equity_proceeds_usd", "parent"),
+    ("has_asset_proceeds_source", "builder_source_retained_asset_sale",
+        None, None, None, "parent"),
+    ("has_investment_returns_source", "builder_source_investment_returns",
+        None, None, None, "parent"),
+    ("has_debt_conversion_source", "builder_source_other",
+        None, None, None, "parent"),
+]
+
+
+def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
+                                  entity: V3Entity, mapping: MappingRecord,
+                                  report: ProjectionReport) -> None:
+    """Emit one sub-source norm per active has_*_source flag on the extracted
+    builder_basket, plus a b_aggregate intermediate norm grouping the three
+    "greatest of" ratio tests (CNI, ECF, EBITDA-FC).
+
+    Each sub-source contributes_to either the parent builder norm (sum) or
+    the b_aggregate (greatest_of). The b_aggregate contributes to the parent
+    via greatest_of, reproducing the ground-truth topology of the Cumulative
+    Amount.
+    """
+    attrs = entity.attrs
+    basket_id = entity.basket_id or f"{entity.deal_id}_builder"
+
+    # 1. Emit b_aggregate intermediate — only when any of the 3 inner sources
+    #    is active. Kind: builder_source_b_aggregate, composition
+    #    computed_from_sources, aggregation greatest_of.
+    inner_flags = ("has_cni_source", "has_ecf_source", "has_ebitda_fc_source")
+    needs_b_aggregate = any(attrs.get(f) for f in inner_flags)
+    b_agg_nid = f"{basket_id}__b_aggregate:norm:permission:0"
+    if needs_b_aggregate:
+        agg_q = f"""
+            insert $n isa norm,
+              has norm_id {_tq_string(b_agg_nid)},
+              has norm_kind "builder_source_b_aggregate",
+              has modality "permission",
+              has capacity_composition "computed_from_sources",
+              has action_scope "general";
+        """
+        try:
+            _execute_write(driver, db_name, agg_q)
+            report.norms_created += 1
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"b_aggregate emit failed: {str(exc)[:160]}")
+
+        # b_aggregate contributes to parent with greatest_of, add direction
+        edge_q = f"""
+            match
+              $p isa norm, has norm_id {_tq_string(parent_nid)};
+              $c isa norm, has norm_id {_tq_string(b_agg_nid)};
+            insert
+              (contributor: $c, pool: $p) isa norm_contributes_to_capacity,
+                has aggregation_function "greatest_of",
+                has aggregation_direction "add",
+                has child_index 0;
+        """
+        try:
+            _execute_write(driver, db_name, edge_q)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"b_aggregate edge failed: {str(exc)[:160]}")
+
+    # 2. Emit per-source norms + contribution edges
+    idx = 1
+    for flag, kind, cap_usd_attr, cap_grower_attr, grower_ref, aggregates_into in _BUILDER_SUB_SOURCES:
+        if not attrs.get(flag):
+            continue
+
+        sub_nid = f"{basket_id}__{flag.replace('has_', '').replace('_source', '')}:norm:permission:0"
+        cap_usd = attrs.get(cap_usd_attr) if cap_usd_attr else None
+        cap_grower = attrs.get(cap_grower_attr) if cap_grower_attr else None
+        # cap_grower_pct is stored as percentage (0–100), but v3 extraction
+        # stores some as fractions (e.g., 0.5 for 50%, 1.4 for 140%). Scale up.
+        if cap_grower is not None and cap_grower <= 5.0:
+            cap_grower = cap_grower * 100.0
+
+        owns = [
+            f'has norm_id {_tq_string(sub_nid)}',
+            f'has norm_kind {_tq_string(kind)}',
+            'has modality "permission"',
+            'has capacity_composition "additive"',
+            'has action_scope "general"',
+        ]
+        if cap_usd is not None:
+            owns.append(f"has cap_usd {float(cap_usd)}")
+        if cap_grower is not None:
+            owns.append(f"has cap_grower_pct {float(cap_grower)}")
+        if grower_ref:
+            owns.append(f'has cap_grower_reference {_tq_string(grower_ref)}')
+
+        norm_q = f"insert $n isa norm, {', '.join(owns)};"
+        try:
+            _execute_write(driver, db_name, norm_q)
+            report.norms_created += 1
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"builder sub-source {kind} emit failed: {str(exc)[:160]}")
+            continue
+
+        # Contribute: to b_aggregate (greatest_of) for CNI/ECF/EBITDA-FC,
+        # to parent (sum) for others.
+        target_nid = b_agg_nid if aggregates_into == "b_aggregate" else parent_nid
+        agg_fn = "greatest_of" if aggregates_into == "b_aggregate" else "sum"
+        edge_q = f"""
+            match
+              $p isa norm, has norm_id {_tq_string(target_nid)};
+              $c isa norm, has norm_id {_tq_string(sub_nid)};
+            insert
+              (contributor: $c, pool: $p) isa norm_contributes_to_capacity,
+                has aggregation_function {_tq_string(agg_fn)},
+                has aggregation_direction "add",
+                has child_index {idx};
+        """
+        try:
+            _execute_write(driver, db_name, edge_q)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(
+                f"builder sub-source contribution edge failed for {kind}: {str(exc)[:160]}"
+            )
+        idx += 1
+
 
 def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
     """Remove existing v4 projection output for a deal before re-projecting.
