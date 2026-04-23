@@ -259,13 +259,92 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Load the six deontic_*_functions.tql files (default: true)",
     )
+    p.add_argument(
+        "--preserve-extraction",
+        action="store_true",
+        help="Explicitly permit running against a valence_v4 that contains extracted v3 "
+             "entities (rp_basket instances, etc.). Without this or --schema-only, the "
+             "script aborts if extraction data is present to avoid destructive re-runs "
+             "that would erase a $15 extraction artifact.",
+    )
+    p.add_argument(
+        "--schema-only",
+        action="store_true",
+        help="Update schema + seeds only. Skips deontic function loading (functions "
+             "can't be redefined in TypeDB 3.x — FUN5 error). Safe to re-run against "
+             "a database with extraction data.",
+    )
     return p.parse_args()
+
+
+def _extraction_entity_count(driver, db_name: str) -> int:
+    """Return count of v3 extracted entity instances.
+
+    Uses rp_basket as the primary sentinel — it's a polymorphic parent over
+    9 concrete subtypes. A non-zero count means the $12.95 Part 5 extraction
+    (or a subsequent re-extraction) is present and must not be destroyed
+    without explicit opt-in.
+    """
+    if not driver.databases.contains(db_name):
+        return 0
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        result = tx.query("match $b isa rp_basket; select $b;").resolve()
+        return len(list(result.as_concept_rows()))
+    except Exception:
+        return 0
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def guard_extraction_data(driver, db_name: str, args: argparse.Namespace) -> None:
+    """Refuse to proceed if extraction data is present and no explicit
+    opt-in flag has been passed. Prevents accidental destruction of an
+    expensive extraction artifact by a routine schema-update re-run.
+    """
+    count = _extraction_entity_count(driver, db_name)
+    if count == 0:
+        return
+
+    if args.preserve_extraction or args.schema_only:
+        logger.info(
+            "Extraction data detected in %s (%d rp_basket instances) — "
+            "proceeding with %s mode; schema/seed additions applied in-place.",
+            db_name, count,
+            "--schema-only" if args.schema_only else "--preserve-extraction",
+        )
+        return
+
+    logger.error("=" * 72)
+    logger.error("REFUSING TO PROCEED — extraction data present in %r", db_name)
+    logger.error("  Found %d rp_basket instances.", count)
+    logger.error("  init_schema_v4 would re-load function files (which fails with")
+    logger.error("  FUN5 duplicate-function errors) and potentially disturb the")
+    logger.error("  extraction artifact. Pass one of:")
+    logger.error("")
+    logger.error("    --schema-only          Update schema/seeds only; skip functions.")
+    logger.error("                           Safe for normal re-runs after extraction.")
+    logger.error("")
+    logger.error("    --preserve-extraction  Proceed with full init, including function")
+    logger.error("                           re-load (will fail on FUN5 unless the")
+    logger.error("                           database was rebuilt — use with care).")
+    logger.error("=" * 72)
+    raise SystemExit(4)
 
 
 def main() -> int:
     args = parse_args()
     preflight()
     driver = connect()
+
+    # ── extraction-data safeguard ─────────────────────────────────────────────
+    # Abort if rp_basket instances are present and the caller hasn't explicitly
+    # opted into either --schema-only (safe re-run) or --preserve-extraction.
+    guard_extraction_data(driver, EXPECTED_DB, args)
 
     # ── pre-load snapshot (one-shot: preserve the original "before v4 existed"
     #    snapshot; later re-runs keep it frozen) ────────────────────────────────
@@ -298,12 +377,17 @@ def main() -> int:
     load_schema_file(driver, EXPECTED_DB, SCHEMA_V4)
 
     # ── load deontic functions (SCHEMA transaction per file, in dep order) ────
-    if args.load_functions:
+    # --schema-only implies skipping function re-load (they can't be redefined
+    # in TypeDB 3.x; already-loaded functions trigger FUN5).
+    if args.load_functions and not args.schema_only:
         logger.info("Loading %d deontic function files", len(FUNCTION_FILES))
         for fn_file in FUNCTION_FILES:
             load_schema_file(driver, EXPECTED_DB, fn_file)
     else:
-        logger.info("Skipping deontic function load (--no-load-functions)")
+        logger.info(
+            "Skipping deontic function load (%s)",
+            "--schema-only" if args.schema_only else "--no-load-functions",
+        )
 
     # ── seed all 6 extraction-kind seeds via the shared loader ────────────────
     # load_seeds() is idempotent (per-seed probe) and runs the post-seed
