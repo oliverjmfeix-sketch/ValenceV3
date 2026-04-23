@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Segment prefix patterns — maps extracted norm's source_section to
+# document_segment_type via string-prefix match at projection time.
+#
+# Each segment may declare multiple patterns (e.g., negative_cov_rp matches
+# "6.06(a)" through "6.06(z)" and hypothetical UK-style variants). Projection
+# iterates segment types, picks the first with a matching prefix, emits
+# norm_in_segment.
+#
+# Patterns are case-sensitive prefixes. Duck Creek RP's source_section strings
+# were audited against v3 extraction output:
+#   "6.06(o)" / "6.06(j)" / "6.06(p)" / ... → negative_cov_rp
+#   "6.05(z)" / "6.05(...)"                → negative_cov_asset_sales
+#   "6.03(y)"                              → negative_cov_investments
+#   "6.09(a)(B)" / "6.09(a)(I)"            → negative_cov_rdp
+#   "Definition of Cumulative Amount" ...  → definitions
+#   "Unrestricted Subsidiary" ...          → unrestricted_sub_mechanics
+#   "Pro Forma Basis"                      → pro_forma_mechanics
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match $s isa document_segment_type, has segment_type_id "negative_cov_rp";
+insert $s has segment_prefix_pattern "6.06";
+
+match $s isa document_segment_type, has segment_type_id "negative_cov_asset_sales";
+insert $s has segment_prefix_pattern "6.05";
+
+match $s isa document_segment_type, has segment_type_id "negative_cov_investments";
+insert $s has segment_prefix_pattern "6.03";
+
+match $s isa document_segment_type, has segment_type_id "negative_cov_rdp";
+insert $s has segment_prefix_pattern "6.09";
+
+match $s isa document_segment_type, has segment_type_id "definitions";
+insert $s has segment_prefix_pattern "Definition";
+
+match $s isa document_segment_type, has segment_type_id "unrestricted_sub_mechanics";
+insert $s has segment_prefix_pattern "Unrestricted Subsidiary";
+
+match $s isa document_segment_type, has segment_type_id "pro_forma_mechanics";
+insert $s has segment_prefix_pattern "Pro Forma";
+
+match $s isa document_segment_type, has segment_type_id "pro_forma_mechanics";
+insert $s has segment_prefix_pattern "2.10";

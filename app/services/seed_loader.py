@@ -127,6 +127,14 @@ EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
         probe_type="party",
         probe_query='match $p isa party, has party_id "6e76ed06__borrower"; select $p;',
     ),
+    # Segment prefix patterns — map norm.source_section → document_segment_type
+    # at projection time. Loaded after segment_types_seed, annotates existing
+    # segment instances via match-insert.
+    SeedFile(
+        "rp_segment_prefix_patterns.tql",
+        probe_type="document_segment_type",
+        probe_query='match $s isa document_segment_type, has segment_type_id "negative_cov_rp", has segment_prefix_pattern $p; select $s;',
+    ),
 ]
 
 

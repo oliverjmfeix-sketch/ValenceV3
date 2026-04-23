@@ -569,6 +569,46 @@ def project_entity(driver, db_name: str, entity: V3Entity,
         else:
             _emit_condition_tree(driver, db_name, nid, spec, entity, report, dry_run)
 
+    # Segment membership: norm_in_segment edge. Emit when the extracted norm's
+    # source_section starts with any seeded segment_prefix_pattern. Source
+    # attribute priority: norm.source_section (already owned on the projected
+    # norm) → entity.attrs["section_reference"] or "source_section".
+    section_ref = (
+        attrs.get("section_reference")
+        or attrs.get("source_section")
+        or source_section
+    )
+    if section_ref:
+        q_seg = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(nid)};
+              $s isa document_segment_type, has segment_type_id $sid,
+                has segment_prefix_pattern $prefix;
+              {_tq_string(str(section_ref))} like $prefix;
+            insert
+              (norm: $n, segment: $s) isa norm_in_segment;
+        """
+        # TypeDB 3.x `like` is regex; prefix-containment via `contains`
+        # reversed (pattern is the constant, attr is the variable) is easier.
+        q_seg = f"""
+            match
+              $n isa norm, has norm_id {_tq_string(nid)};
+              $s isa document_segment_type,
+                has segment_prefix_pattern $prefix;
+              {_tq_string(str(section_ref))} contains $prefix;
+            insert
+              (norm: $n, segment: $s) isa norm_in_segment;
+        """
+        if dry_run:
+            pass
+        else:
+            try:
+                _execute_write(driver, db_name, q_seg)
+            except Exception as exc:  # noqa: BLE001
+                report.warnings.append(
+                    f"norm_in_segment skipped for {nid}: {str(exc)[:160]}"
+                )
+
     # Provenance: norm_extracted_from:fact
     if entity.basket_id:
         q = f"""
@@ -781,46 +821,47 @@ def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
     # include it as a prefix. We match via `contains deal_id` on norm_id, which
     # catches both scheme variants.
     nid_pattern = deal_id
-    tx = driver.transaction(db_name, TransactionType.WRITE)
-    try:
-        # Delete conditions first (safe even if no norm_has_condition edge —
-        # condition_id strings carry norm_id prefix per construct_condition_id).
-        tx.query(f'''
+
+    # Run each delete in its own transaction so a failure on one (e.g., a
+    # type that doesn't exist in this schema yet) doesn't abort the others.
+    clear_queries = [
+        ("conditions", f'''
             match
               $c isa condition, has condition_id $cid;
               $cid contains "{nid_pattern}";
             delete $c;
-        ''').resolve()
-        # Delete norms (their norm_binds_subject / norm_scopes_* / norm_has_condition
-        # / norm_extracted_from edges drop automatically when the norm is removed).
-        tx.query(f'''
+        '''),
+        ("norms", f'''
             match
               $n isa norm, has norm_id $nid;
               $nid contains "{nid_pattern}";
             delete $n;
-        ''').resolve()
-        # Defeaters are emitted per-deal in Fix 6. Clear any existing ones
-        # associated with this deal via defeats edges to cleared norms — the
-        # defeats relation drops with norms, but the defeater entity lingers.
-        # Delete defeaters whose source references the deal (we store
-        # defeater_id starting with the deal_id prefix).
-        tx.query(f'''
+        '''),
+        # Defeaters emitted in Fix 6 carry defeater_id starting with the
+        # deal prefix. If the defeater_id attribute isn't defined yet
+        # (pre-Fix-6 schemas) this query fails with INF2 and is skipped.
+        ("defeaters", f'''
             match
-              $d isa defeater;
-              try {{ $d has defeater_id $did; $did contains "{nid_pattern}"; }};
+              $d isa defeater, has defeater_id $did;
+              $did contains "{nid_pattern}";
             delete $d;
-        ''').resolve()
-        tx.commit()
-    except Exception as exc:  # noqa: BLE001
-        if tx.is_open():
-            tx.close()
-        logger.warning("clear step partially failed: %s", str(exc)[:200])
-    finally:
+        '''),
+    ]
+    for label, q in clear_queries:
+        tx = driver.transaction(db_name, TransactionType.WRITE)
         try:
+            tx.query(q).resolve()
+            tx.commit()
+        except Exception as exc:  # noqa: BLE001
             if tx.is_open():
                 tx.close()
-        except Exception:
-            pass
+            msg = str(exc)
+            # Schema-absent errors are expected when a downstream Fix hasn't
+            # landed yet; swallow without losing the rest of the clear.
+            if "INF2" in msg or "not found" in msg:
+                logger.debug("clear/%s skipped (type not in schema): %s", label, msg[:120])
+            else:
+                logger.warning("clear/%s failed: %s", label, msg[:200])
 
     # Post-clear inventory (for reporting)
     tx = driver.transaction(db_name, TransactionType.READ)

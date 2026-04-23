@@ -562,3 +562,16 @@ relation builder_spec_uses_predicate,
     owns child_index;
 condition_builder_spec plays builder_spec_uses_predicate:builder_spec;
 state_predicate plays builder_spec_uses_predicate:predicate;
+
+
+# ─── §4.13 Segment prefix patterns (Prompt 08 Fix 3) ────────────────────────────
+#
+# Graph-native source_section → segment_type_id mapping. Each RP-relevant
+# document_segment_type carries one or more segment_prefix_pattern strings;
+# projection emits a norm_in_segment edge when the extracted norm's
+# source_section starts with any of the patterns. Keeps segment-dispatch
+# logic out of Python and in the seed data (Rule 1.1 / complicity principle).
+
+attribute segment_prefix_pattern, value string;
+
+document_segment_type owns segment_prefix_pattern @card(0..8);

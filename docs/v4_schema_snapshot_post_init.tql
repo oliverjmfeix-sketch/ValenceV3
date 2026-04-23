@@ -1244,6 +1244,8 @@ attribute default_action_scope_kind,
  value string;
 attribute condition_builder_spec_ref,
  value string;
+attribute segment_prefix_pattern,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -1918,6 +1920,7 @@ entity document_segment_type,
   owns mfn_universe_field,
   owns name,
   owns rp_universe_field,
+  owns segment_prefix_pattern @card(0..8),
   owns segment_type_id @key,
   plays norm_in_segment:segment;
 entity attribute_provenance,
