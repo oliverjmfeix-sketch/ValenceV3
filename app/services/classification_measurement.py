@@ -39,7 +39,11 @@ if _main_env.exists():
     load_dotenv(_main_env, override=False)
 load_dotenv(REPO_ROOT / ".env", override=False)
 
+import re  # noqa: E402
+import time  # noqa: E402
+
 import yaml  # noqa: E402
+from anthropic import Anthropic  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
@@ -242,20 +246,102 @@ def _list_extracted_norms(tx) -> list[dict]:
     return norms
 
 
-def _call_claude_classify(prompt: str, input_payload: dict) -> dict:
+_claude_client: Anthropic | None = None
+
+
+def _get_claude_client() -> Anthropic:
+    global _claude_client
+    if _claude_client is None:
+        api_key = settings.anthropic_api_key
+        if not api_key:
+            raise RuntimeError(
+                "settings.anthropic_api_key not set — classification SDK call requires "
+                "ANTHROPIC_API_KEY in .env"
+            )
+        _claude_client = Anthropic(api_key=api_key)
+    return _claude_client
+
+
+_JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
+
+
+def _extract_json(text: str) -> dict | None:
+    """Find the first JSON object in Claude's response text. Returns None on
+    parse failure — caller treats that as a D2 (syntactic validity) miss."""
+    if not text:
+        return None
+    match = _JSON_BLOCK_RE.search(text)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def _call_claude_classify(prompt: str, input_payload: dict,
+                          model: str | None = None, max_retries: int = 3) -> dict:
+    """Send a classification prompt to Claude and return the parsed JSON response.
+
+    Contract (shared with _score_instance):
+      - Response JSON must carry a 'classification' or 'topology' key
+        naming the chosen option from the closed taxonomy
+      - 'confidence' optional (0.0-1.0)
+      - 'reasoning' optional (short string)
+
+    Transient failures (rate-limit, timeout, server-error) retry up to
+    max_retries with exponential backoff. Parse failures return a
+    {"classification": None} sentinel so _score_instance can record a D2 miss
+    rather than raising and skipping the instance entirely.
+
+    Temperature 0 for determinism. Small max_tokens — classification outputs
+    are tight JSON, not prose.
     """
-    Placeholder: in Prompt 08 onwards this calls Anthropic SDK with the
-    prompt + JSON input_payload and parses the JSON response. For Prompt 06
-    plumbing test, no baskets exist in an empty DB so this is not invoked.
-    """
-    # Intentionally unimplemented for pilot plumbing. When the Prompt 08 run
-    # happens, wire an Anthropic client here, format input_payload as the
-    # user message, parse the returned JSON.
-    raise NotImplementedError(
-        "Claude classification call not yet wired — Prompt 08 hooks this up. "
-        "Empty-DB plumbing runs don't reach this code path because "
-        "_list_extracted_norms returns an empty list."
+    client = _get_claude_client()
+    model_name = model or settings.claude_model
+
+    user_message = (
+        f"{prompt}\n\n"
+        f"Input:\n```json\n{json.dumps(input_payload, indent=2)}\n```\n\n"
+        "Respond with ONLY a JSON object containing 'classification' (or 'topology' "
+        "for condition_structure), 'confidence' (0-1), and brief 'reasoning'. "
+        "No prose outside the JSON."
     )
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            response = client.messages.create(
+                model=model_name,
+                max_tokens=500,
+                temperature=0,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            text = response.content[0].text if response.content else ""
+            parsed = _extract_json(text)
+            if parsed is None:
+                logger.warning("classification response did not parse as JSON: %r",
+                               text[:200])
+                return {"classification": None, "confidence": 0.0,
+                        "reasoning": "JSON parse failure"}
+            return parsed
+        except Exception as exc:  # noqa: BLE001 — SDK exceptions + network errors
+            last_error = exc
+            msg = str(exc).lower()
+            transient = any(k in msg for k in ("rate", "timeout", "429", "503", "502"))
+            if attempt + 1 >= max_retries or not transient:
+                break
+            backoff = 2 ** attempt
+            logger.warning("classification call failed (attempt %d/%d): %s — retrying in %ds",
+                           attempt + 1, max_retries, str(exc)[:120], backoff)
+            time.sleep(backoff)
+
+    # Exhausted retries. Return a sentinel rather than raising; harness will
+    # score the instance as D2 failure and aggregate can proceed.
+    logger.error("classification call failed after %d attempts: %s",
+                 max_retries, str(last_error)[:200])
+    return {"classification": None, "confidence": 0.0,
+            "reasoning": f"SDK failure after {max_retries} attempts: {str(last_error)[:160]}"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -395,10 +481,16 @@ def _measure_generic(
         # Build input payload for the prompt (TBD: include source_text etc. from DB)
         input_payload = {"norm_kind": ex["norm_kind"], "expected_hidden_for_grader": expected}
 
+        # Post-Prompt-07: _call_claude_classify makes real SDK calls and
+        # returns {"classification": None, ...} on parse / transient failure
+        # rather than raising. Old NotImplementedError path retained only as
+        # safety net if credentials are missing.
         try:
-            prompt_output = _call_claude_classify(PROMPT_VERSIONS[(field, prompt_version)], input_payload)
-        except NotImplementedError:
-            # Empty-DB plumbing path: no classification calls made
+            prompt_output = _call_claude_classify(
+                PROMPT_VERSIONS[(field, prompt_version)], input_payload
+            )
+        except (NotImplementedError, RuntimeError) as exc:
+            logger.error("classification SDK path unavailable: %s", exc)
             prompt_output = None
 
         result = _score_instance(field, ex["norm_kind"], prompt_output, expected, enum_values)
