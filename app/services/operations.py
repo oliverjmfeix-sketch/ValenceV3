@@ -445,12 +445,19 @@ def _describe_condition(tx, condition_id: str) -> dict | None:
 
 
 def _list_contribution_edges(tx, norm_id: str, as_role: str) -> list[dict]:
-    """List norm_contributes_to_capacity edges. as_role ∈ {contributor, pool}."""
+    """List norm_contributes_to_capacity edges. as_role ∈ {contributor, pool}.
+
+    Uses the `links` form (typedb_patterns.md #14) to permit edge-attribute
+    access on $rel in the same query. The tuple form
+    `$rel ({role}: $var) isa reltype` combined with `$rel has attr` trips
+    REP1 "Object vs ThingType."
+    """
     other_role = "pool" if as_role == "contributor" else "contributor"
     q = f'''
         match
           $n isa norm, has norm_id "{_escape(norm_id)}";
-          $rel ({as_role}: $n, {other_role}: $other) isa norm_contributes_to_capacity;
+          $rel isa norm_contributes_to_capacity,
+            links ({as_role}: $n, {other_role}: $other);
           $other has norm_id $oid;
           try {{ $rel has aggregation_function $af; }};
           try {{ $rel has aggregation_direction $ad; }};

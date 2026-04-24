@@ -1,0 +1,21 @@
+V4 EVAL SUMMARY: Duck Creek
+============================================================
+Deal ID:        6e76ed06
+Gold standard:  lawyer_dc_rp (6 questions)
+Covenant:       RP
+Timestamp:      2026-04-24T15:20:42.132422
+Total time:     64.1s
+Parser model:   claude-sonnet-4-6
+
+Per-question status:
+  [OK] duck_creek_q1: What test is the build-up basket or available amount bask... (12.15s, op=describe_norm, class=operation_call)
+  [OK] duck_creek_q2: Is the Borrower permitted to dividend the equity it owns ... (14.67s, op=None, class=clarification_needed)
+  [OK] duck_creek_q3: Are there any investment, prepayment of other debt or oth... (7.07s, op=trace_pathways, class=operation_call)
+  [OK] duck_creek_q4: Can any asset sale proceeds be used to make dividends? (9.5s, op=trace_pathways, class=operation_call)
+  [OK] duck_creek_q5: Determine the total amount of quantifiable dividend capac... (12.82s, op=None, class=clarification_needed)
+  [OK] duck_creek_q6: If the Borrower owns an asset/business division that has ... (6.94s, op=evaluate_feasibility, class=operation_call)
+
+Artifacts:
+  full_json_path: C:\Users\olive\ValenceV3\.claude\worktrees\sweet-raman-b5be00\app\data\v4_eval_results\v4_eval_6e76ed06_20260424_152042_full.json
+  verbatim_path: C:\Users\olive\ValenceV3\.claude\worktrees\sweet-raman-b5be00\app\data\v4_eval_results\v4_eval_6e76ed06_20260424_152042_verbatim.txt
+  summary_path: C:\Users\olive\ValenceV3\.claude\worktrees\sweet-raman-b5be00\app\data\v4_eval_results\v4_eval_6e76ed06_20260424_152042_summary.txt

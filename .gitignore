@@ -40,3 +40,4 @@ app/data/classification_measurements/
 
 # Intent parser audit log — per-invocation JSONL with raw Claude text
 app/data/intent_parser_log/
+app/data/v4_eval_results/

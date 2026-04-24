@@ -1,0 +1,213 @@
+V4 EVAL VERBATIM: Duck Creek
+============================================================
+Deal ID:        6e76ed06
+Gold standard:  lawyer_dc_rp (6 questions)
+Timestamp:      2026-04-24T15:20:42.132422
+
+────────────────────────────────────────────────────────────
+Q1 [duck_creek_q1]: What test is the build-up basket or available amount basket based on and when does the basket start growing?
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+The Cumulative Amount is based on the greatest of three tests: (1) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter), (2) Excess Cash Flow not required to be applied to prepay Term Loans or any other debt (such amount cannot be less than $0 for any fiscal year), (3) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges. All tests start growing from the first day of the fiscal quarter in which the Closing Date occurs.
+
+VALENCE ANSWER:
+Builder Basket Aggregate — permission under §Definition of 'Cumulative Amount' (p.26)
+
+Subject: borrower, loan_party
+Scoped actions: make_dividend_payment, make_investment, pay_subordinated_debt, repurchase_equity
+Scoped objects: cash, equity_interest
+Action scope: general
+
+Capacity: Composed of 13 contributing source(s); aggregated at the parent.
+Conditions: Unconditional
+
+Source text: "On any date of determination (the "Reference Date"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of "Cumulative Amount" for component detail."
+
+Contributing sources (13):
+  - dc_rp_cumulative_amount_a_starter (add via sum)
+  - dc_rp_cumulative_amount_b_aggregate (add via greatest_of)
+  - dc_rp_cumulative_amount_c_declined_ecf (add via sum)
+  - dc_rp_cumulative_amount_d_declined_asset_sale (add via sum)
+  - dc_rp_cumulative_amount_e_sale_leaseback (add via sum)
+  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (add via sum)
+  - dc_rp_cumulative_amount_g_joint_venture_returns (add via sum)
+  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (add via sum)
+  - dc_rp_cumulative_amount_i_receivables_royalty_license (add via sum)
+  - dc_rp_cumulative_amount_j_investment_returns (add via sum)
+  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (add via sum)
+  - dc_rp_cumulative_amount_l_other (add via sum)
+  - dc_rp_cumulative_amount_m_netting (subtract via sum)
+
+Parser interpretation: The lawyer is asking about the structural definition and conditions of the build-up / available amount basket (i.e., the Cumulative Amount), specifically what test governs it and when it begins accruing — a structural description question about a specific named norm.
+Parser operation: describe_norm
+
+────────────────────────────────────────────────────────────
+Q2 [duck_creek_q2]: Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+Yes, under 6.06(p) the Borrower can dividend shares of Equity Interest or any assets of an Unrestricted Subsidiary.
+
+VALENCE ANSWER:
+Clarification needed.
+
+Parser interpretation: The lawyer asks whether the Borrower can pay a dividend consisting of equity interests in Unrestricted Subsidiaries — this could be a structural question about which RP baskets scope to make_dividend_payment (and whether any permit in-kind/equity distributions), or an evaluated feasibility question given a specific financial state.
+Question for you: Are you looking for a structural overview of which RP baskets permit dividend payments (including any that allow in-kind distributions of Unrestricted Subsidiary equity), or do you have a specific financial state (leverage, EBITDA, proposed amount) and want to know whether a particular basket is currently available for this transaction?
+
+Possible interpretations:
+  1. Structural question: which RP norms scope to make_dividend_payment and could permit a distribution of Unrestricted Subsidiary equity interests
+     -> would call `trace_pathways`. Output: A list of all RP baskets that scope to make_dividend_payment, with their conditions, capacity sources, and defeaters — allowing the lawyer to identify which (if any) cover in-kind equity distributions.
+  2. Feasibility evaluation: given a described transaction (dividend of Unrestricted Subsidiary equity) and a supplied financial state, determine whether a specific basket permits it
+     -> would call `evaluate_feasibility`. Output: A boolean feasibility result with a condition-by-condition trace showing whether the basket's requirements are met and whether any defeaters fire.
+  3. Filter question: identify norms that specifically scope to distributions of Unrestricted Subsidiary equity as the object of the RP action
+     -> would call `filter_norms`. Output: A filtered catalog of RP norms whose object scope includes equity interests in Unrestricted Subsidiaries, with their modality and conditions.
+
+Please re-ask specifying which interpretation applies.
+
+Parser interpretation: The lawyer asks whether the Borrower can pay a dividend consisting of equity interests in Unrestricted Subsidiaries — this could be a structural question about which RP baskets scope to make_dividend_payment (and whether any permit in-kind/equity distributions), or an evaluated feasibility question given a specific financial state.
+Classification: clarification_needed
+
+────────────────────────────────────────────────────────────
+Q3 [duck_creek_q3]: Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+Yes, under 6.06(j) amount available for Restricted Debt Payment under 6.09(a) and amounts available for Investments under 6.03(y) can be reallocated to the making of Dividends. 6.09(a) includes the greater of $130,000,000 and 100% of Consolidated EBITDA. 6.09(a) also includes other more tailored baskets available for Restricted Debt Payments which may or may not be available for reallocation, including intercompany debt payments and payments in connection with a reorganization or IPO.
+
+VALENCE ANSWER:
+Pathways scoping action class `make_dividend_payment`:
+
+Permissions (35):
+  - dc_rp_6_06_e_cash_equity_funded (cash_equity_funded_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_f_cumulative_amount_usage (builder_usage_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_g_concurrent_dividend (concurrent_receipt_dividend_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_h_purchase_price_adjustment (purchase_price_adjustment_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_j_general_rp_basket (general_rp_basket_permission, cap $130,000,000, unconditional)
+  - dc_rp_6_06_l_permitted_reorganization (permitted_reorganization_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_m_parent_investment_funding (parent_investment_funding_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_n_transactions_equity_payment (transactions_equity_payment_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_o_ratio_rp_basket (ratio_basket_permission, no dollar cap, either (First Lien Net Leverage Ratio at or below 5.75x) or (pro forma First Lien Net Leverage Ratio is no worse than pre-transaction))
+  - dc_rp_6_06_p_unsub_equity_distribution (unsub_distribution_basket_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_q_post_ipo_basket (post_ipo_basket_permission, no dollar cap, a Qualified IPO has occurred)
+  - dc_rp_6_06_q_post_ipo_ipo_proceeds_component (post_ipo_basket_ipo_proceeds_component, grower-only, unconditional)
+  - dc_rp_6_06_q_post_ipo_market_cap_component (post_ipo_basket_market_cap_component, grower-only, unconditional)
+  - dc_rp_6_06_r_non_collateral_distribution (non_collateral_distribution_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_s_ahydo_catchup_rp (ahydo_catchup_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_u_receivables_fees (receivables_fee_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_w_asset_disposition_dividend (asset_disposition_dividend_permission, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount (builder_basket_aggregate, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_a_starter (builder_source_starter, cap $130,000,000, unconditional)
+  - dc_rp_cumulative_amount_b_aggregate (builder_source_b_aggregate, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_b_x_cni (builder_source_cni, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_y_ecf (builder_source_ecf, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_z_ebitda_component (builder_source_ebitda_component, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_z_ebitda_fc (builder_source_ebitda_fc, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_b_z_fixed_charges_component (builder_source_fixed_charges_component, grower-only, unconditional)
+  - dc_rp_cumulative_amount_c_declined_ecf (builder_source_declined_ecf, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_d_declined_asset_sale (builder_source_declined_asset_sale, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_e_sale_leaseback (builder_source_sale_leaseback, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (builder_source_retained_asset_sale, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_g_joint_venture_returns (builder_source_joint_venture_returns, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (builder_source_unsub_redesignation_fmv, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_i_receivables_royalty_license (builder_source_receivables_royalty_license, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_j_investment_returns (builder_source_investment_returns, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (builder_source_deferred_revenues, grower-only, unconditional)
+  - dc_rp_cumulative_amount_l_other (builder_source_other, no dollar cap, unconditional)
+
+Parser interpretation: The lawyer is asking which RP baskets scope to the action classes make_investment, pay_subordinated_debt, or make_dividend_payment — specifically looking for baskets whose capacity can be reallocated to make restricted payments or dividends. This is a structural pathway question anchored on the make_dividend_payment action class, with interest in cross-action reallocation.
+Parser operation: trace_pathways
+
+────────────────────────────────────────────────────────────
+Q4 [duck_creek_q4]: Can any asset sale proceeds be used to make dividends?
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+Yes, Retained Asset Sale Proceeds build the Cumulative Amount which consists of proceeds from: Net Cash Proceeds from asset sales not subject to prepayment on account of Section 2.10(c)(iv), permitting proceeds from any Asset Sale using the unlimited basket 6.05(z) if such Asset Sale is a sale of a product line and the pro forma First Lien Net Leverage Ratio is 6.25x or less or if such test is no worse pro forma. Also includes asset sale proceeds not swept when First Lien Net Leverage Ratio is 5.75x or less (50% of proceeds) or 5.50x or less (100% of proceeds). Also includes Net Cash Proceeds from non-collateral assets, ordinary course asset sales, asset sales from non-ratio baskets, casualty events, and proceeds from collateral assets below de minimis thresholds of $20M/15% EBITDA individual and $40M/30% EBITDA annual.
+
+VALENCE ANSWER:
+Pathways scoping action class `make_dividend_payment`:
+
+Permissions (35):
+  - dc_rp_6_06_e_cash_equity_funded (cash_equity_funded_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_f_cumulative_amount_usage (builder_usage_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_g_concurrent_dividend (concurrent_receipt_dividend_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_h_purchase_price_adjustment (purchase_price_adjustment_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_j_general_rp_basket (general_rp_basket_permission, cap $130,000,000, unconditional)
+  - dc_rp_6_06_l_permitted_reorganization (permitted_reorganization_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_m_parent_investment_funding (parent_investment_funding_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_n_transactions_equity_payment (transactions_equity_payment_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_o_ratio_rp_basket (ratio_basket_permission, no dollar cap, either (First Lien Net Leverage Ratio at or below 5.75x) or (pro forma First Lien Net Leverage Ratio is no worse than pre-transaction))
+  - dc_rp_6_06_p_unsub_equity_distribution (unsub_distribution_basket_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_q_post_ipo_basket (post_ipo_basket_permission, no dollar cap, a Qualified IPO has occurred)
+  - dc_rp_6_06_q_post_ipo_ipo_proceeds_component (post_ipo_basket_ipo_proceeds_component, grower-only, unconditional)
+  - dc_rp_6_06_q_post_ipo_market_cap_component (post_ipo_basket_market_cap_component, grower-only, unconditional)
+  - dc_rp_6_06_r_non_collateral_distribution (non_collateral_distribution_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_s_ahydo_catchup_rp (ahydo_catchup_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_u_receivables_fees (receivables_fee_permission, no dollar cap, unconditional)
+  - dc_rp_6_06_w_asset_disposition_dividend (asset_disposition_dividend_permission, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount (builder_basket_aggregate, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_a_starter (builder_source_starter, cap $130,000,000, unconditional)
+  - dc_rp_cumulative_amount_b_aggregate (builder_source_b_aggregate, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_b_x_cni (builder_source_cni, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_y_ecf (builder_source_ecf, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_z_ebitda_component (builder_source_ebitda_component, grower-only, unconditional)
+  - dc_rp_cumulative_amount_b_z_ebitda_fc (builder_source_ebitda_fc, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_b_z_fixed_charges_component (builder_source_fixed_charges_component, grower-only, unconditional)
+  - dc_rp_cumulative_amount_c_declined_ecf (builder_source_declined_ecf, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_d_declined_asset_sale (builder_source_declined_asset_sale, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_e_sale_leaseback (builder_source_sale_leaseback, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (builder_source_retained_asset_sale, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_g_joint_venture_returns (builder_source_joint_venture_returns, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (builder_source_unsub_redesignation_fmv, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_i_receivables_royalty_license (builder_source_receivables_royalty_license, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_j_investment_returns (builder_source_investment_returns, no dollar cap, unconditional)
+  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (builder_source_deferred_revenues, grower-only, unconditional)
+  - dc_rp_cumulative_amount_l_other (builder_source_other, no dollar cap, unconditional)
+
+Parser interpretation: The lawyer is asking whether asset-sale proceeds can feed RP capacity for dividend payments — specifically whether the builder basket / Cumulative Amount includes a retained-asset-sale-proceeds contribution that scopes to make_dividend_payment. This is an RP-scope question about asset-sale proceeds as a capacity source, not a question about the Section 6.05 Asset Sales covenant.
+Parser operation: trace_pathways
+
+────────────────────────────────────────────────────────────
+Q5 [duck_creek_q5]: Determine the total amount of quantifiable dividend capacity.
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. RP starter: $130m/100% EBITDA. General RP basket: $130m/100% EBITDA. General prepayment of debt basket: $130m/100% EBITDA. General investment basket: $130m/100% EBITDA.
+
+VALENCE ANSWER:
+Clarification needed.
+
+Parser interpretation: The lawyer wants to know the total quantifiable dividend capacity, but it is unclear whether they want a structural enumeration of all RP baskets that scope to make_dividend_payment (with their cap structures), or a resolved dollar figure requiring specific financial inputs (EBITDA, leverage, Cumulative Amount balance, etc.).
+Question for you: Are you looking for (a) a structural map of all RP baskets that permit dividends and their cap/grower formulas, or (b) a resolved dollar capacity figure — in which case please supply current EBITDA, leverage ratio, and any other relevant financial state so Valence can compute the amounts?
+
+Possible interpretations:
+  1. Structural enumeration of all norms that scope to make_dividend_payment, showing their capacity structures, caps, growers, and conditions — without resolving to a dollar figure.
+     -> would call `trace_pathways`. Output: A list of all RP baskets (e.g., 6.06(j), 6.06(o), Cumulative Amount, etc.) that permit dividend payments, with their contributor chains, cap formulas, and conditions displayed structurally.
+  2. Resolved dollar capacity across all dividend-permitting baskets given a supplied financial state (EBITDA, leverage, Cumulative Amount balance, etc.).
+     -> would call `evaluate_capacity`. Output: A dollar total of available dividend capacity aggregated across all applicable baskets, with a per-basket breakdown and computation trace.
+  3. A filtered catalog of all permission norms that scope to make_dividend_payment, showing their modality, cap type, and section references — a quick inventory without full pathway tracing.
+     -> would call `filter_norms`. Output: A table of RP permission norms scoped to dividends, listing norm_id, source_section, cap_usd or cap_grower_pct, and any key conditions.
+
+Please re-ask specifying which interpretation applies.
+
+Parser interpretation: The lawyer wants to know the total quantifiable dividend capacity, but it is unclear whether they want a structural enumeration of all RP baskets that scope to make_dividend_payment (with their cap structures), or a resolved dollar figure requiring specific financial inputs (EBITDA, leverage, Cumulative Amount balance, etc.).
+Classification: clarification_needed
+
+────────────────────────────────────────────────────────────
+Q6 [duck_creek_q6]: If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?
+────────────────────────────────────────────────────────────
+
+GOLD ANSWER:
+Yes, because the Ratio RP basket 6.06(o) permits such transaction as long as the First Lien Net Leverage Ratio, even if above 5.75x, is no worse.
+
+VALENCE ANSWER:
+Feasibility of `dc_rp_6_06_o_ratio_rp_basket` (permission): INCONCLUSIVE
+Reason: condition evaluation inconclusive (missing supplied values)
+
+Note: Valence computed this from your supplied values. Verify against the borrower's actual financial state.
+
+Parser interpretation: The lawyer is asking whether the Borrower can make a dividend distribution of an asset/business division (a non-cash dividend in the form of property/equity) to shareholders given a First Lien Net Leverage Ratio of 6.0x and negative EBITDA of the divested business. This is an RP feasibility question — specifically whether any RP basket permits a dividend (make_dividend_payment scoping to a non-cash asset distribution) under these financial conditions.
+Parser operation: evaluate_feasibility
+World state source: parser_extracted
+

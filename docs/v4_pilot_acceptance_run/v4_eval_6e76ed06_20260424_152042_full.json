@@ -1,0 +1,1893 @@
+{
+  "timestamp": "2026-04-24T15:20:42.132422",
+  "eval_set": {
+    "id": "lawyer_dc_rp",
+    "name": "Lawyer Q&A \u2014 Duck Creek RP (v4 pilot acceptance)",
+    "questions_count": 6,
+    "covenant": "RP",
+    "deal": "Duck Creek",
+    "resolve_deal_id": "6e76ed06",
+    "gold_file": "app/data/gold_standard/lawyer_dc_rp.json"
+  },
+  "deal_id": "6e76ed06",
+  "total_seconds": 64.08646519994363,
+  "parser_model": "claude-sonnet-4-6",
+  "questions": [
+    {
+      "question_id": "duck_creek_q1",
+      "question": "What test is the build-up basket or available amount basket based on and when does the basket start growing?",
+      "gold_answer": "The Cumulative Amount is based on the greatest of three tests: (1) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter), (2) Excess Cash Flow not required to be applied to prepay Term Loans or any other debt (such amount cannot be less than $0 for any fiscal year), (3) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges. All tests start growing from the first day of the fiscal quarter in which the Closing Date occurs.",
+      "valence_answer": "Builder Basket Aggregate \u2014 permission under \u00a7Definition of 'Cumulative Amount' (p.26)\n\nSubject: borrower, loan_party\nScoped actions: make_dividend_payment, make_investment, pay_subordinated_debt, repurchase_equity\nScoped objects: cash, equity_interest\nAction scope: general\n\nCapacity: Composed of 13 contributing source(s); aggregated at the parent.\nConditions: Unconditional\n\nSource text: \"On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for component detail.\"\n\nContributing sources (13):\n  - dc_rp_cumulative_amount_a_starter (add via sum)\n  - dc_rp_cumulative_amount_b_aggregate (add via greatest_of)\n  - dc_rp_cumulative_amount_c_declined_ecf (add via sum)\n  - dc_rp_cumulative_amount_d_declined_asset_sale (add via sum)\n  - dc_rp_cumulative_amount_e_sale_leaseback (add via sum)\n  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (add via sum)\n  - dc_rp_cumulative_amount_g_joint_venture_returns (add via sum)\n  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (add via sum)\n  - dc_rp_cumulative_amount_i_receivables_royalty_license (add via sum)\n  - dc_rp_cumulative_amount_j_investment_returns (add via sum)\n  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (add via sum)\n  - dc_rp_cumulative_amount_l_other (add via sum)\n  - dc_rp_cumulative_amount_m_netting (subtract via sum)\n",
+      "parser_intent_classification": "operation_call",
+      "parser_parsed_as": "The lawyer is asking about the structural definition and conditions of the build-up / available amount basket (i.e., the Cumulative Amount), specifically what test governs it and when it begins accruing \u2014 a structural description question about a specific named norm.",
+      "parser_operation": "describe_norm",
+      "parser_parameters": {
+        "norm_id": "dc_rp_cumulative_amount"
+      },
+      "parser_confidence": 0.85,
+      "raw_parser_response_hash": "89b3bec7b88f",
+      "parser_latency_ms": 11105,
+      "world_state_used": null,
+      "execution_error": null,
+      "elapsed_seconds": 12.15,
+      "full_parser_response": {
+        "intent_classification": "operation_call",
+        "parsed_as": "The lawyer is asking about the structural definition and conditions of the build-up / available amount basket (i.e., the Cumulative Amount), specifically what test governs it and when it begins accruing \u2014 a structural description question about a specific named norm.",
+        "operation": "describe_norm",
+        "parameters": {
+          "norm_id": "dc_rp_cumulative_amount"
+        },
+        "intent_confidence": 0.85,
+        "question": "What test is the build-up basket or available amount basket based on and when does the basket start growing?",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "89b3bec7b88f",
+        "parser_latency_ms": 11105,
+        "deal_id": "6e76ed06",
+        "operation_response": {
+          "operation": "describe_norm",
+          "deal_id": "6e76ed06",
+          "parameters": {
+            "norm_id": "dc_rp_cumulative_amount",
+            "db": "valence_v4_ground_truth"
+          },
+          "result": {
+            "norm_id": "dc_rp_cumulative_amount",
+            "norm_kind": "builder_basket_aggregate",
+            "modality": "permission",
+            "capacity_composition": "computed_from_sources",
+            "action_scope": "general",
+            "cap_usd": null,
+            "cap_grower_pct": null,
+            "cap_grower_reference": null,
+            "floor_value": null,
+            "source_section": "Definition of 'Cumulative Amount'",
+            "source_text": "On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for component detail.",
+            "source_page": 26,
+            "confidence": null,
+            "subject_roles": [
+              "borrower",
+              "loan_party"
+            ],
+            "scoped_actions": [
+              "make_dividend_payment",
+              "make_investment",
+              "pay_subordinated_debt",
+              "repurchase_equity"
+            ],
+            "scoped_objects": [
+              "cash",
+              "equity_interest"
+            ],
+            "condition": null,
+            "contributes_to": [],
+            "contributors": [
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_a_starter",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                "aggregation_function": "greatest_of",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_c_declined_ecf",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_d_declined_asset_sale",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_e_sale_leaseback",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_f_retained_asset_sale_proceeds",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_g_joint_venture_returns",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_h_unsub_redesignation_fmv",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_i_receivables_royalty_license",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_j_investment_returns",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_k_cumulative_deferred_revenues",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_l_other",
+                "aggregation_function": "sum",
+                "aggregation_direction": "add",
+                "child_index": null
+              },
+              {
+                "contributor_norm_id": "dc_rp_cumulative_amount_m_netting",
+                "aggregation_function": "sum",
+                "aggregation_direction": "subtract",
+                "child_index": null
+              }
+            ],
+            "defeaters": [],
+            "serves_questions": []
+          },
+          "computation_trace": []
+        },
+        "human_readable_interpretation": "Routed to describe_norm on 'dc_rp_cumulative_amount', returning its full structural description (modality, capacity composition, condition tree, subject/action/object scopes, contributors, defeaters)."
+      }
+    },
+    {
+      "question_id": "duck_creek_q2",
+      "question": "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+      "gold_answer": "Yes, under 6.06(p) the Borrower can dividend shares of Equity Interest or any assets of an Unrestricted Subsidiary.",
+      "valence_answer": "Clarification needed.\n\nParser interpretation: The lawyer asks whether the Borrower can pay a dividend consisting of equity interests in Unrestricted Subsidiaries \u2014 this could be a structural question about which RP baskets scope to make_dividend_payment (and whether any permit in-kind/equity distributions), or an evaluated feasibility question given a specific financial state.\nQuestion for you: Are you looking for a structural overview of which RP baskets permit dividend payments (including any that allow in-kind distributions of Unrestricted Subsidiary equity), or do you have a specific financial state (leverage, EBITDA, proposed amount) and want to know whether a particular basket is currently available for this transaction?\n\nPossible interpretations:\n  1. Structural question: which RP norms scope to make_dividend_payment and could permit a distribution of Unrestricted Subsidiary equity interests\n     -> would call `trace_pathways`. Output: A list of all RP baskets that scope to make_dividend_payment, with their conditions, capacity sources, and defeaters \u2014 allowing the lawyer to identify which (if any) cover in-kind equity distributions.\n  2. Feasibility evaluation: given a described transaction (dividend of Unrestricted Subsidiary equity) and a supplied financial state, determine whether a specific basket permits it\n     -> would call `evaluate_feasibility`. Output: A boolean feasibility result with a condition-by-condition trace showing whether the basket's requirements are met and whether any defeaters fire.\n  3. Filter question: identify norms that specifically scope to distributions of Unrestricted Subsidiary equity as the object of the RP action\n     -> would call `filter_norms`. Output: A filtered catalog of RP norms whose object scope includes equity interests in Unrestricted Subsidiaries, with their modality and conditions.\n\nPlease re-ask specifying which interpretation applies.\n",
+      "parser_intent_classification": "clarification_needed",
+      "parser_parsed_as": "The lawyer asks whether the Borrower can pay a dividend consisting of equity interests in Unrestricted Subsidiaries \u2014 this could be a structural question about which RP baskets scope to make_dividend_payment (and whether any permit in-kind/equity distributions), or an evaluated feasibility question given a specific financial state.",
+      "parser_operation": null,
+      "parser_parameters": null,
+      "parser_confidence": 0.55,
+      "raw_parser_response_hash": "faa2e1407bbd",
+      "parser_latency_ms": 14658,
+      "world_state_used": null,
+      "execution_error": null,
+      "elapsed_seconds": 14.67,
+      "full_parser_response": {
+        "intent_classification": "clarification_needed",
+        "parsed_as": "The lawyer asks whether the Borrower can pay a dividend consisting of equity interests in Unrestricted Subsidiaries \u2014 this could be a structural question about which RP baskets scope to make_dividend_payment (and whether any permit in-kind/equity distributions), or an evaluated feasibility question given a specific financial state.",
+        "clarification_request": "Are you looking for a structural overview of which RP baskets permit dividend payments (including any that allow in-kind distributions of Unrestricted Subsidiary equity), or do you have a specific financial state (leverage, EBITDA, proposed amount) and want to know whether a particular basket is currently available for this transaction?",
+        "possible_interpretations": [
+          {
+            "interpretation": "Structural question: which RP norms scope to make_dividend_payment and could permit a distribution of Unrestricted Subsidiary equity interests",
+            "implied_operation": "trace_pathways",
+            "implied_parameters": {
+              "anchor_type": "action_class",
+              "anchor_value": "make_dividend_payment",
+              "include_annotations": true
+            },
+            "example_output_shape": "A list of all RP baskets that scope to make_dividend_payment, with their conditions, capacity sources, and defeaters \u2014 allowing the lawyer to identify which (if any) cover in-kind equity distributions."
+          },
+          {
+            "interpretation": "Feasibility evaluation: given a described transaction (dividend of Unrestricted Subsidiary equity) and a supplied financial state, determine whether a specific basket permits it",
+            "implied_operation": "evaluate_feasibility",
+            "implied_parameters": {
+              "norm_id": "<specific basket to be identified>",
+              "supplied_world_state": "<leverage, EBITDA, and other predicates needed>"
+            },
+            "example_output_shape": "A boolean feasibility result with a condition-by-condition trace showing whether the basket's requirements are met and whether any defeaters fire."
+          },
+          {
+            "interpretation": "Filter question: identify norms that specifically scope to distributions of Unrestricted Subsidiary equity as the object of the RP action",
+            "implied_operation": "filter_norms",
+            "implied_parameters": {
+              "scopes_action": "make_dividend_payment",
+              "scopes_object": "unrestricted_subsidiary_equity"
+            },
+            "example_output_shape": "A filtered catalog of RP norms whose object scope includes equity interests in Unrestricted Subsidiaries, with their modality and conditions."
+          }
+        ],
+        "intent_confidence": 0.55,
+        "question": "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "faa2e1407bbd",
+        "parser_latency_ms": 14658,
+        "deal_id": "6e76ed06"
+      }
+    },
+    {
+      "question_id": "duck_creek_q3",
+      "question": "Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?",
+      "gold_answer": "Yes, under 6.06(j) amount available for Restricted Debt Payment under 6.09(a) and amounts available for Investments under 6.03(y) can be reallocated to the making of Dividends. 6.09(a) includes the greater of $130,000,000 and 100% of Consolidated EBITDA. 6.09(a) also includes other more tailored baskets available for Restricted Debt Payments which may or may not be available for reallocation, including intercompany debt payments and payments in connection with a reorganization or IPO.",
+      "valence_answer": "Pathways scoping action class `make_dividend_payment`:\n\nPermissions (35):\n  - dc_rp_6_06_e_cash_equity_funded (cash_equity_funded_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_f_cumulative_amount_usage (builder_usage_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_g_concurrent_dividend (concurrent_receipt_dividend_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_h_purchase_price_adjustment (purchase_price_adjustment_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_j_general_rp_basket (general_rp_basket_permission, cap $130,000,000, unconditional)\n  - dc_rp_6_06_l_permitted_reorganization (permitted_reorganization_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_m_parent_investment_funding (parent_investment_funding_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_n_transactions_equity_payment (transactions_equity_payment_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_o_ratio_rp_basket (ratio_basket_permission, no dollar cap, either (First Lien Net Leverage Ratio at or below 5.75x) or (pro forma First Lien Net Leverage Ratio is no worse than pre-transaction))\n  - dc_rp_6_06_p_unsub_equity_distribution (unsub_distribution_basket_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_q_post_ipo_basket (post_ipo_basket_permission, no dollar cap, a Qualified IPO has occurred)\n  - dc_rp_6_06_q_post_ipo_ipo_proceeds_component (post_ipo_basket_ipo_proceeds_component, grower-only, unconditional)\n  - dc_rp_6_06_q_post_ipo_market_cap_component (post_ipo_basket_market_cap_component, grower-only, unconditional)\n  - dc_rp_6_06_r_non_collateral_distribution (non_collateral_distribution_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_s_ahydo_catchup_rp (ahydo_catchup_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_u_receivables_fees (receivables_fee_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_w_asset_disposition_dividend (asset_disposition_dividend_permission, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount (builder_basket_aggregate, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_a_starter (builder_source_starter, cap $130,000,000, unconditional)\n  - dc_rp_cumulative_amount_b_aggregate (builder_source_b_aggregate, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_b_x_cni (builder_source_cni, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_y_ecf (builder_source_ecf, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_z_ebitda_component (builder_source_ebitda_component, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_z_ebitda_fc (builder_source_ebitda_fc, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_b_z_fixed_charges_component (builder_source_fixed_charges_component, grower-only, unconditional)\n  - dc_rp_cumulative_amount_c_declined_ecf (builder_source_declined_ecf, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_d_declined_asset_sale (builder_source_declined_asset_sale, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_e_sale_leaseback (builder_source_sale_leaseback, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (builder_source_retained_asset_sale, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_g_joint_venture_returns (builder_source_joint_venture_returns, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (builder_source_unsub_redesignation_fmv, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_i_receivables_royalty_license (builder_source_receivables_royalty_license, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_j_investment_returns (builder_source_investment_returns, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (builder_source_deferred_revenues, grower-only, unconditional)\n  - dc_rp_cumulative_amount_l_other (builder_source_other, no dollar cap, unconditional)\n",
+      "parser_intent_classification": "operation_call",
+      "parser_parsed_as": "The lawyer is asking which RP baskets scope to the action classes make_investment, pay_subordinated_debt, or make_dividend_payment \u2014 specifically looking for baskets whose capacity can be reallocated to make restricted payments or dividends. This is a structural pathway question anchored on the make_dividend_payment action class, with interest in cross-action reallocation.",
+      "parser_operation": "trace_pathways",
+      "parser_parameters": {
+        "anchor_type": "action_class",
+        "anchor_value": "make_dividend_payment",
+        "include_annotations": true,
+        "collapse_contributors": false
+      },
+      "parser_confidence": 0.82,
+      "raw_parser_response_hash": "61db9a796471",
+      "parser_latency_ms": 3701,
+      "world_state_used": null,
+      "execution_error": null,
+      "elapsed_seconds": 7.07,
+      "full_parser_response": {
+        "intent_classification": "operation_call",
+        "parsed_as": "The lawyer is asking which RP baskets scope to the action classes make_investment, pay_subordinated_debt, or make_dividend_payment \u2014 specifically looking for baskets whose capacity can be reallocated to make restricted payments or dividends. This is a structural pathway question anchored on the make_dividend_payment action class, with interest in cross-action reallocation.",
+        "operation": "trace_pathways",
+        "parameters": {
+          "anchor_type": "action_class",
+          "anchor_value": "make_dividend_payment",
+          "include_annotations": true,
+          "collapse_contributors": false
+        },
+        "intent_confidence": 0.82,
+        "question": "Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "61db9a796471",
+        "parser_latency_ms": 3701,
+        "deal_id": "6e76ed06",
+        "operation_response": {
+          "operation": "trace_pathways",
+          "deal_id": "6e76ed06",
+          "parameters": {
+            "anchor_type": "action_class",
+            "anchor_value": "make_dividend_payment",
+            "include_annotations": true,
+            "collapse_contributors": false,
+            "db": "valence_v4_ground_truth"
+          },
+          "result": {
+            "anchor": {
+              "type": "action_class",
+              "value": "make_dividend_payment"
+            },
+            "permissions": [
+              {
+                "norm_id": "dc_rp_6_06_e_cash_equity_funded",
+                "norm_kind": "cash_equity_funded_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(i)",
+                "source_text": "Dividends to the extent that payment for such Dividends is made solely with cash contributions from the issuance of Equity Interests (other than Disqualified Capital Stock) of Holdings or other contr\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_f_cumulative_amount_usage",
+                "norm_kind": "builder_usage_permission",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "general",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(f)",
+                "source_text": "the Group Members may make Dividends, directly or indirectly, to Holdings and/or Holdings' direct or indirect equity holders using the Cumulative Amount; provided that any Limited Condition Transacti\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_g_concurrent_dividend",
+                "norm_kind": "concurrent_receipt_dividend_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(g)",
+                "source_text": "Dividends made solely in Equity Interests of Holdings (other than Disqualified Capital Stock)"
+              },
+              {
+                "norm_id": "dc_rp_6_06_h_purchase_price_adjustment",
+                "norm_kind": "purchase_price_adjustment_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(l)",
+                "source_text": "distributions to any of Holdings' direct or indirect equity holders of any working capital adjustment or any other purchase price adjustment received in connection with any Permitted Acquisition or a\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_j_general_rp_basket",
+                "norm_kind": "general_rp_basket_permission",
+                "capacity_composition": "additive",
+                "cap_usd": 130000000.0,
+                "cap_grower_pct": 100.0,
+                "action_scope": "reallocable",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(j)",
+                "source_text": "additional Dividends may be made, directly or indirectly, by any Group Member to Holdings and/or (without duplication) Holdings' direct or indirect equity holders in an aggregate amount not to exceed\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_l_permitted_reorganization",
+                "norm_kind": "permitted_reorganization_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(r)",
+                "source_text": "(i) Dividends constituting any part of (x) a Permitted Reorganization (and to pay any costs or expenses related thereto) and (y) an IPO Reorganization Transaction and (ii) Dividends to pay costs or e\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_m_parent_investment_funding",
+                "norm_kind": "parent_investment_funding_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(m)",
+                "source_text": "Dividends by any Group Member to any direct or indirect holder of any Equity Interests in a Borrower: (i) to finance any Investment permitted to be made pursuant to Section 6.03; (ii) the proceeds of\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_n_transactions_equity_payment",
+                "norm_kind": "transactions_equity_payment_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(v)",
+                "source_text": "Dividends made in connection with or in order to consummate the Transactions and/or used to fund amounts owed to equityholders in connection therewith, including without limitation, (i) cash payments\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+                "norm_kind": "ratio_basket_permission",
+                "capacity_composition": "unlimited_on_condition",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": {
+                  "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0",
+                  "operator": "or",
+                  "children": [
+                    {
+                      "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0_0",
+                      "operator": "atomic",
+                      "predicate_ref": {
+                        "state_predicate_id": "first_lien_net_leverage_at_or_below|5.75|at_or_below|",
+                        "state_predicate_label": "first_lien_net_leverage_at_or_below",
+                        "threshold_value_double": 5.75,
+                        "operator_comparison": "at_or_below",
+                        "reference_predicate_label": null
+                      }
+                    },
+                    {
+                      "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0_1",
+                      "operator": "atomic",
+                      "predicate_ref": {
+                        "state_predicate_id": "pro_forma_no_worse|||first_lien_net_leverage",
+                        "state_predicate_label": "pro_forma_no_worse",
+                        "threshold_value_double": null,
+                        "operator_comparison": null,
+                        "reference_predicate_label": "first_lien_net_leverage"
+                      }
+                    }
+                  ],
+                  "topology": "or_of_atomics"
+                },
+                "defeaters_potential": [],
+                "source_section": "6.06(o)",
+                "source_text": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the applicable Test Period as of the Applicable Date of Determination shall be no greater than th\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_p_unsub_equity_distribution",
+                "norm_kind": "unsub_distribution_basket_permission",
+                "capacity_composition": "n_a",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(p)",
+                "source_text": "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proce\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                "norm_kind": "post_ipo_basket_permission",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": {
+                  "condition_id": "dc_rp_6_06_q_post_ipo_basket__c0",
+                  "operator": "atomic",
+                  "predicate_ref": {
+                    "state_predicate_id": "qualified_ipo_has_occurred|||",
+                    "state_predicate_label": "qualified_ipo_has_occurred",
+                    "threshold_value_double": null,
+                    "operator_comparison": null,
+                    "reference_predicate_label": null
+                  },
+                  "topology": "atomic"
+                },
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "at any time following the consummation of an IPO, the Restricted Subsidiaries may (or may make Dividends to Holdings or any parent thereof to enable it to) make Dividends with respect to any Equity I\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_ipo_proceeds_component",
+                "norm_kind": "post_ipo_basket_ipo_proceeds_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 7.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "plus 7.00% per annum of the gross proceeds from such IPO (including, for the avoidance of doubt, (x) any proceeds from the initial offering of Equity Interests of any special purpose acquisition comp\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_market_cap_component",
+                "norm_kind": "post_ipo_basket_market_cap_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 7.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "an amount of up to 7.00% per annum of the market capitalization of Holdings (or the applicable public filing entity) and its Subsidiaries"
+              },
+              {
+                "norm_id": "dc_rp_6_06_r_non_collateral_distribution",
+                "norm_kind": "non_collateral_distribution_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(u)",
+                "source_text": "Dividends made in the form of assets of Holdings and its Restricted Subsidiaries that do not constitute Collateral"
+              },
+              {
+                "norm_id": "dc_rp_6_06_s_ahydo_catchup_rp",
+                "norm_kind": "ahydo_catchup_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(n)",
+                "source_text": "Dividends to the extent funded to pay AHYDO catch-up payments relating to a borrowing of any Credit Party"
+              },
+              {
+                "norm_id": "dc_rp_6_06_u_receivables_fees",
+                "norm_kind": "receivables_fee_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(e)",
+                "source_text": "distributions or payments of Receivables Fees and Securitization Fees"
+              },
+              {
+                "norm_id": "dc_rp_6_06_w_asset_disposition_dividend",
+                "norm_kind": "asset_disposition_dividend_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(w)",
+                "source_text": "Dividends of assets or equity permitted to be disposed of pursuant to Section 6.05(a)(z)"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount",
+                "norm_kind": "builder_basket_aggregate",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "general",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount'",
+                "source_text": "On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for compon\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_a_starter",
+                "norm_kind": "builder_source_starter",
+                "capacity_composition": "additive",
+                "cap_usd": 130000000.0,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (a)",
+                "source_text": "an amount equal to the greater of (i) $130,000,000 and (ii) 100% of Consolidated EBITDA for the most recent Test Period"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                "norm_kind": "builder_source_b_aggregate",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "greatest_of",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)",
+                "source_text": "the greatest of (x) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occu\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_x_cni",
+                "norm_kind": "builder_source_cni",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 50.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(x)",
+                "source_text": "50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occurs to the last day o\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_y_ecf",
+                "norm_kind": "builder_source_ecf",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(y)",
+                "source_text": "the Available Retained ECF Amount [as defined: the portion of Excess Cash Flow, determined on a cumulative basis for all fiscal years of Holdings (commencing with the first day of the fiscal quarter\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_ebitda_component",
+                "norm_kind": "builder_source_ebitda_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                        "aggregation_function": "sum",
+                        "aggregation_direction": "add",
+                        "parent_chain": [
+                          {
+                            "pool_norm_id": "dc_rp_cumulative_amount",
+                            "aggregation_function": "greatest_of",
+                            "aggregation_direction": "add",
+                            "parent_chain": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z) EBITDA component",
+                "source_text": "cumulative Consolidated EBITDA ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable dat\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                "norm_kind": "builder_source_ebitda_fc",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z)",
+                "source_text": "cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, in each case, from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_fixed_charges_component",
+                "norm_kind": "builder_source_fixed_charges_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 140.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "subtract",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                        "aggregation_function": "sum",
+                        "aggregation_direction": "add",
+                        "parent_chain": [
+                          {
+                            "pool_norm_id": "dc_rp_cumulative_amount",
+                            "aggregation_function": "greatest_of",
+                            "aggregation_direction": "add",
+                            "parent_chain": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z) 140% Fixed Charges component",
+                "source_text": "140% of cumulative Consolidated Fixed Charges ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_c_declined_ecf",
+                "norm_kind": "builder_source_declined_ecf",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) \u2014 Retained Declined Proceeds (Declined ECF sub-component) / Section 2.10(i)",
+                "source_text": "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_d_declined_asset_sale",
+                "norm_kind": "builder_source_declined_asset_sale",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) \u2014 Retained Declined Proceeds (Declined Asset Sale sub-component) / Section 2.10(i)",
+                "source_text": "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_e_sale_leaseback",
+                "norm_kind": "builder_source_sale_leaseback",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (i) \u2014 Sale Leaseback sub-component",
+                "source_text": "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with Sale Leaseback Transactions ... during the period from t\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_f_retained_asset_sale_proceeds",
+                "norm_kind": "builder_source_retained_asset_sale",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) / Definition of 'Retained Asset Sale Proceeds'",
+                "source_text": "the aggregate amount of Retained Declined Proceeds and Retained Asset Sale Proceeds held by any Group Member during the period from the Business Day immediately following the Closing Date through and\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_g_joint_venture_returns",
+                "norm_kind": "builder_source_joint_venture_returns",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (g)",
+                "source_text": "the aggregate amount of all cash dividends and other cash distributions (and the fair market value of any non-cash dividends or other distributions (and, in the case of distributions of Indebtedness,\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_h_unsub_redesignation_fmv",
+                "norm_kind": "builder_source_unsub_redesignation_fmv",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (j)",
+                "source_text": "in the event that any Borrower re-designates any Unrestricted Subsidiary as a Restricted Subsidiary after the Closing Date (which, for purposes hereof, shall be deemed to also include (A) the merger,\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_i_receivables_royalty_license",
+                "norm_kind": "builder_source_receivables_royalty_license",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (k)",
+                "source_text": "the aggregate amount of proceeds from, Receivables or royalty or license collections, off-balance sheet sales of Receivables, royalties or other similar rights to payment"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_j_investment_returns",
+                "norm_kind": "builder_source_investment_returns",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (i) \u2014 Investment returns sub-component",
+                "source_text": "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with ... the sale, transfer or other disposition of its owner\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_k_cumulative_deferred_revenues",
+                "norm_kind": "builder_source_deferred_revenues",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 50.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (l)",
+                "source_text": "50% of the aggregate amount of cumulative deferred revenues of Holdings and its Restricted Subsidiaries during the period from the first day of the fiscal quarter of Holdings in which the Closing Dat\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_l_other",
+                "norm_kind": "builder_source_other",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clauses (c) and (d) \u2014 Eligible Equity Issuance + Debt-to-Equity Conversion proceeds",
+                "source_text": "(c) an amount determined on a cumulative basis equal to the Net Cash Proceeds received by Holdings after the Closing Date (and contributed as common capital or Qualified Capital Stock to any Restrict\u2026"
+              }
+            ],
+            "prohibitions": [],
+            "summary": {
+              "permission_count": 35,
+              "prohibition_count": 0,
+              "collapsed_contributors": [],
+              "collapsed_count": 0
+            }
+          },
+          "computation_trace": []
+        },
+        "human_readable_interpretation": "Routed to trace_pathways anchored at action class 'make_dividend_payment'; returned 35 permissions (with 0 contributors collapsed into their parent pools)."
+      }
+    },
+    {
+      "question_id": "duck_creek_q4",
+      "question": "Can any asset sale proceeds be used to make dividends?",
+      "gold_answer": "Yes, Retained Asset Sale Proceeds build the Cumulative Amount which consists of proceeds from: Net Cash Proceeds from asset sales not subject to prepayment on account of Section 2.10(c)(iv), permitting proceeds from any Asset Sale using the unlimited basket 6.05(z) if such Asset Sale is a sale of a product line and the pro forma First Lien Net Leverage Ratio is 6.25x or less or if such test is no worse pro forma. Also includes asset sale proceeds not swept when First Lien Net Leverage Ratio is 5.75x or less (50% of proceeds) or 5.50x or less (100% of proceeds). Also includes Net Cash Proceeds from non-collateral assets, ordinary course asset sales, asset sales from non-ratio baskets, casualty events, and proceeds from collateral assets below de minimis thresholds of $20M/15% EBITDA individual and $40M/30% EBITDA annual.",
+      "valence_answer": "Pathways scoping action class `make_dividend_payment`:\n\nPermissions (35):\n  - dc_rp_6_06_e_cash_equity_funded (cash_equity_funded_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_f_cumulative_amount_usage (builder_usage_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_g_concurrent_dividend (concurrent_receipt_dividend_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_h_purchase_price_adjustment (purchase_price_adjustment_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_j_general_rp_basket (general_rp_basket_permission, cap $130,000,000, unconditional)\n  - dc_rp_6_06_l_permitted_reorganization (permitted_reorganization_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_m_parent_investment_funding (parent_investment_funding_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_n_transactions_equity_payment (transactions_equity_payment_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_o_ratio_rp_basket (ratio_basket_permission, no dollar cap, either (First Lien Net Leverage Ratio at or below 5.75x) or (pro forma First Lien Net Leverage Ratio is no worse than pre-transaction))\n  - dc_rp_6_06_p_unsub_equity_distribution (unsub_distribution_basket_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_q_post_ipo_basket (post_ipo_basket_permission, no dollar cap, a Qualified IPO has occurred)\n  - dc_rp_6_06_q_post_ipo_ipo_proceeds_component (post_ipo_basket_ipo_proceeds_component, grower-only, unconditional)\n  - dc_rp_6_06_q_post_ipo_market_cap_component (post_ipo_basket_market_cap_component, grower-only, unconditional)\n  - dc_rp_6_06_r_non_collateral_distribution (non_collateral_distribution_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_s_ahydo_catchup_rp (ahydo_catchup_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_u_receivables_fees (receivables_fee_permission, no dollar cap, unconditional)\n  - dc_rp_6_06_w_asset_disposition_dividend (asset_disposition_dividend_permission, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount (builder_basket_aggregate, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_a_starter (builder_source_starter, cap $130,000,000, unconditional)\n  - dc_rp_cumulative_amount_b_aggregate (builder_source_b_aggregate, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_b_x_cni (builder_source_cni, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_y_ecf (builder_source_ecf, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_z_ebitda_component (builder_source_ebitda_component, grower-only, unconditional)\n  - dc_rp_cumulative_amount_b_z_ebitda_fc (builder_source_ebitda_fc, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_b_z_fixed_charges_component (builder_source_fixed_charges_component, grower-only, unconditional)\n  - dc_rp_cumulative_amount_c_declined_ecf (builder_source_declined_ecf, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_d_declined_asset_sale (builder_source_declined_asset_sale, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_e_sale_leaseback (builder_source_sale_leaseback, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds (builder_source_retained_asset_sale, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_g_joint_venture_returns (builder_source_joint_venture_returns, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_h_unsub_redesignation_fmv (builder_source_unsub_redesignation_fmv, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_i_receivables_royalty_license (builder_source_receivables_royalty_license, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_j_investment_returns (builder_source_investment_returns, no dollar cap, unconditional)\n  - dc_rp_cumulative_amount_k_cumulative_deferred_revenues (builder_source_deferred_revenues, grower-only, unconditional)\n  - dc_rp_cumulative_amount_l_other (builder_source_other, no dollar cap, unconditional)\n",
+      "parser_intent_classification": "operation_call",
+      "parser_parsed_as": "The lawyer is asking whether asset-sale proceeds can feed RP capacity for dividend payments \u2014 specifically whether the builder basket / Cumulative Amount includes a retained-asset-sale-proceeds contribution that scopes to make_dividend_payment. This is an RP-scope question about asset-sale proceeds as a capacity source, not a question about the Section 6.05 Asset Sales covenant.",
+      "parser_operation": "trace_pathways",
+      "parser_parameters": {
+        "anchor_type": "action_class",
+        "anchor_value": "make_dividend_payment",
+        "include_annotations": true,
+        "collapse_contributors": false
+      },
+      "parser_confidence": 0.85,
+      "raw_parser_response_hash": "e255eaee0c57",
+      "parser_latency_ms": 5958,
+      "world_state_used": null,
+      "execution_error": null,
+      "elapsed_seconds": 9.5,
+      "full_parser_response": {
+        "intent_classification": "operation_call",
+        "parsed_as": "The lawyer is asking whether asset-sale proceeds can feed RP capacity for dividend payments \u2014 specifically whether the builder basket / Cumulative Amount includes a retained-asset-sale-proceeds contribution that scopes to make_dividend_payment. This is an RP-scope question about asset-sale proceeds as a capacity source, not a question about the Section 6.05 Asset Sales covenant.",
+        "operation": "trace_pathways",
+        "parameters": {
+          "anchor_type": "action_class",
+          "anchor_value": "make_dividend_payment",
+          "include_annotations": true,
+          "collapse_contributors": false
+        },
+        "intent_confidence": 0.85,
+        "question": "Can any asset sale proceeds be used to make dividends?",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "e255eaee0c57",
+        "parser_latency_ms": 5958,
+        "deal_id": "6e76ed06",
+        "operation_response": {
+          "operation": "trace_pathways",
+          "deal_id": "6e76ed06",
+          "parameters": {
+            "anchor_type": "action_class",
+            "anchor_value": "make_dividend_payment",
+            "include_annotations": true,
+            "collapse_contributors": false,
+            "db": "valence_v4_ground_truth"
+          },
+          "result": {
+            "anchor": {
+              "type": "action_class",
+              "value": "make_dividend_payment"
+            },
+            "permissions": [
+              {
+                "norm_id": "dc_rp_6_06_e_cash_equity_funded",
+                "norm_kind": "cash_equity_funded_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(i)",
+                "source_text": "Dividends to the extent that payment for such Dividends is made solely with cash contributions from the issuance of Equity Interests (other than Disqualified Capital Stock) of Holdings or other contr\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_f_cumulative_amount_usage",
+                "norm_kind": "builder_usage_permission",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "general",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(f)",
+                "source_text": "the Group Members may make Dividends, directly or indirectly, to Holdings and/or Holdings' direct or indirect equity holders using the Cumulative Amount; provided that any Limited Condition Transacti\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_g_concurrent_dividend",
+                "norm_kind": "concurrent_receipt_dividend_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(g)",
+                "source_text": "Dividends made solely in Equity Interests of Holdings (other than Disqualified Capital Stock)"
+              },
+              {
+                "norm_id": "dc_rp_6_06_h_purchase_price_adjustment",
+                "norm_kind": "purchase_price_adjustment_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(l)",
+                "source_text": "distributions to any of Holdings' direct or indirect equity holders of any working capital adjustment or any other purchase price adjustment received in connection with any Permitted Acquisition or a\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_j_general_rp_basket",
+                "norm_kind": "general_rp_basket_permission",
+                "capacity_composition": "additive",
+                "cap_usd": 130000000.0,
+                "cap_grower_pct": 100.0,
+                "action_scope": "reallocable",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(j)",
+                "source_text": "additional Dividends may be made, directly or indirectly, by any Group Member to Holdings and/or (without duplication) Holdings' direct or indirect equity holders in an aggregate amount not to exceed\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_l_permitted_reorganization",
+                "norm_kind": "permitted_reorganization_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(r)",
+                "source_text": "(i) Dividends constituting any part of (x) a Permitted Reorganization (and to pay any costs or expenses related thereto) and (y) an IPO Reorganization Transaction and (ii) Dividends to pay costs or e\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_m_parent_investment_funding",
+                "norm_kind": "parent_investment_funding_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(m)",
+                "source_text": "Dividends by any Group Member to any direct or indirect holder of any Equity Interests in a Borrower: (i) to finance any Investment permitted to be made pursuant to Section 6.03; (ii) the proceeds of\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_n_transactions_equity_payment",
+                "norm_kind": "transactions_equity_payment_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(v)",
+                "source_text": "Dividends made in connection with or in order to consummate the Transactions and/or used to fund amounts owed to equityholders in connection therewith, including without limitation, (i) cash payments\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+                "norm_kind": "ratio_basket_permission",
+                "capacity_composition": "unlimited_on_condition",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": {
+                  "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0",
+                  "operator": "or",
+                  "children": [
+                    {
+                      "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0_0",
+                      "operator": "atomic",
+                      "predicate_ref": {
+                        "state_predicate_id": "first_lien_net_leverage_at_or_below|5.75|at_or_below|",
+                        "state_predicate_label": "first_lien_net_leverage_at_or_below",
+                        "threshold_value_double": 5.75,
+                        "operator_comparison": "at_or_below",
+                        "reference_predicate_label": null
+                      }
+                    },
+                    {
+                      "condition_id": "dc_rp_6_06_o_ratio_rp_basket__c0_1",
+                      "operator": "atomic",
+                      "predicate_ref": {
+                        "state_predicate_id": "pro_forma_no_worse|||first_lien_net_leverage",
+                        "state_predicate_label": "pro_forma_no_worse",
+                        "threshold_value_double": null,
+                        "operator_comparison": null,
+                        "reference_predicate_label": "first_lien_net_leverage"
+                      }
+                    }
+                  ],
+                  "topology": "or_of_atomics"
+                },
+                "defeaters_potential": [],
+                "source_section": "6.06(o)",
+                "source_text": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the applicable Test Period as of the Applicable Date of Determination shall be no greater than th\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_p_unsub_equity_distribution",
+                "norm_kind": "unsub_distribution_basket_permission",
+                "capacity_composition": "n_a",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(p)",
+                "source_text": "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proce\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                "norm_kind": "post_ipo_basket_permission",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": {
+                  "condition_id": "dc_rp_6_06_q_post_ipo_basket__c0",
+                  "operator": "atomic",
+                  "predicate_ref": {
+                    "state_predicate_id": "qualified_ipo_has_occurred|||",
+                    "state_predicate_label": "qualified_ipo_has_occurred",
+                    "threshold_value_double": null,
+                    "operator_comparison": null,
+                    "reference_predicate_label": null
+                  },
+                  "topology": "atomic"
+                },
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "at any time following the consummation of an IPO, the Restricted Subsidiaries may (or may make Dividends to Holdings or any parent thereof to enable it to) make Dividends with respect to any Equity I\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_ipo_proceeds_component",
+                "norm_kind": "post_ipo_basket_ipo_proceeds_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 7.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "plus 7.00% per annum of the gross proceeds from such IPO (including, for the avoidance of doubt, (x) any proceeds from the initial offering of Equity Interests of any special purpose acquisition comp\u2026"
+              },
+              {
+                "norm_id": "dc_rp_6_06_q_post_ipo_market_cap_component",
+                "norm_kind": "post_ipo_basket_market_cap_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 7.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_6_06_q_post_ipo_basket",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(q)",
+                "source_text": "an amount of up to 7.00% per annum of the market capitalization of Holdings (or the applicable public filing entity) and its Subsidiaries"
+              },
+              {
+                "norm_id": "dc_rp_6_06_r_non_collateral_distribution",
+                "norm_kind": "non_collateral_distribution_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(u)",
+                "source_text": "Dividends made in the form of assets of Holdings and its Restricted Subsidiaries that do not constitute Collateral"
+              },
+              {
+                "norm_id": "dc_rp_6_06_s_ahydo_catchup_rp",
+                "norm_kind": "ahydo_catchup_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(n)",
+                "source_text": "Dividends to the extent funded to pay AHYDO catch-up payments relating to a borrowing of any Credit Party"
+              },
+              {
+                "norm_id": "dc_rp_6_06_u_receivables_fees",
+                "norm_kind": "receivables_fee_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(e)",
+                "source_text": "distributions or payments of Receivables Fees and Securitization Fees"
+              },
+              {
+                "norm_id": "dc_rp_6_06_w_asset_disposition_dividend",
+                "norm_kind": "asset_disposition_dividend_permission",
+                "capacity_composition": "categorical",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "6.06(w)",
+                "source_text": "Dividends of assets or equity permitted to be disposed of pursuant to Section 6.05(a)(z)"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount",
+                "norm_kind": "builder_basket_aggregate",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "general",
+                "contributes_to_chain": [],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount'",
+                "source_text": "On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for compon\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_a_starter",
+                "norm_kind": "builder_source_starter",
+                "capacity_composition": "additive",
+                "cap_usd": 130000000.0,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (a)",
+                "source_text": "an amount equal to the greater of (i) $130,000,000 and (ii) 100% of Consolidated EBITDA for the most recent Test Period"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                "norm_kind": "builder_source_b_aggregate",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "greatest_of",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)",
+                "source_text": "the greatest of (x) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occu\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_x_cni",
+                "norm_kind": "builder_source_cni",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 50.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(x)",
+                "source_text": "50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occurs to the last day o\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_y_ecf",
+                "norm_kind": "builder_source_ecf",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(y)",
+                "source_text": "the Available Retained ECF Amount [as defined: the portion of Excess Cash Flow, determined on a cumulative basis for all fiscal years of Holdings (commencing with the first day of the fiscal quarter\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_ebitda_component",
+                "norm_kind": "builder_source_ebitda_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 100.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                        "aggregation_function": "sum",
+                        "aggregation_direction": "add",
+                        "parent_chain": [
+                          {
+                            "pool_norm_id": "dc_rp_cumulative_amount",
+                            "aggregation_function": "greatest_of",
+                            "aggregation_direction": "add",
+                            "parent_chain": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z) EBITDA component",
+                "source_text": "cumulative Consolidated EBITDA ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable dat\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                "norm_kind": "builder_source_ebitda_fc",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount",
+                        "aggregation_function": "greatest_of",
+                        "aggregation_direction": "add",
+                        "parent_chain": []
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z)",
+                "source_text": "cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, in each case, from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_b_z_fixed_charges_component",
+                "norm_kind": "builder_source_fixed_charges_component",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 140.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount_b_z_ebitda_fc",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "subtract",
+                    "parent_chain": [
+                      {
+                        "pool_norm_id": "dc_rp_cumulative_amount_b_aggregate",
+                        "aggregation_function": "sum",
+                        "aggregation_direction": "add",
+                        "parent_chain": [
+                          {
+                            "pool_norm_id": "dc_rp_cumulative_amount",
+                            "aggregation_function": "greatest_of",
+                            "aggregation_direction": "add",
+                            "parent_chain": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (b)(z) 140% Fixed Charges component",
+                "source_text": "140% of cumulative Consolidated Fixed Charges ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_c_declined_ecf",
+                "norm_kind": "builder_source_declined_ecf",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) \u2014 Retained Declined Proceeds (Declined ECF sub-component) / Section 2.10(i)",
+                "source_text": "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_d_declined_asset_sale",
+                "norm_kind": "builder_source_declined_asset_sale",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) \u2014 Retained Declined Proceeds (Declined Asset Sale sub-component) / Section 2.10(i)",
+                "source_text": "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_e_sale_leaseback",
+                "norm_kind": "builder_source_sale_leaseback",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (i) \u2014 Sale Leaseback sub-component",
+                "source_text": "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with Sale Leaseback Transactions ... during the period from t\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_f_retained_asset_sale_proceeds",
+                "norm_kind": "builder_source_retained_asset_sale",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (f) / Definition of 'Retained Asset Sale Proceeds'",
+                "source_text": "the aggregate amount of Retained Declined Proceeds and Retained Asset Sale Proceeds held by any Group Member during the period from the Business Day immediately following the Closing Date through and\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_g_joint_venture_returns",
+                "norm_kind": "builder_source_joint_venture_returns",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (g)",
+                "source_text": "the aggregate amount of all cash dividends and other cash distributions (and the fair market value of any non-cash dividends or other distributions (and, in the case of distributions of Indebtedness,\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_h_unsub_redesignation_fmv",
+                "norm_kind": "builder_source_unsub_redesignation_fmv",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (j)",
+                "source_text": "in the event that any Borrower re-designates any Unrestricted Subsidiary as a Restricted Subsidiary after the Closing Date (which, for purposes hereof, shall be deemed to also include (A) the merger,\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_i_receivables_royalty_license",
+                "norm_kind": "builder_source_receivables_royalty_license",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (k)",
+                "source_text": "the aggregate amount of proceeds from, Receivables or royalty or license collections, off-balance sheet sales of Receivables, royalties or other similar rights to payment"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_j_investment_returns",
+                "norm_kind": "builder_source_investment_returns",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (i) \u2014 Investment returns sub-component",
+                "source_text": "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with ... the sale, transfer or other disposition of its owner\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_k_cumulative_deferred_revenues",
+                "norm_kind": "builder_source_deferred_revenues",
+                "capacity_composition": "additive",
+                "cap_usd": null,
+                "cap_grower_pct": 50.0,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clause (l)",
+                "source_text": "50% of the aggregate amount of cumulative deferred revenues of Holdings and its Restricted Subsidiaries during the period from the first day of the fiscal quarter of Holdings in which the Closing Dat\u2026"
+              },
+              {
+                "norm_id": "dc_rp_cumulative_amount_l_other",
+                "norm_kind": "builder_source_other",
+                "capacity_composition": "computed_from_sources",
+                "cap_usd": null,
+                "cap_grower_pct": null,
+                "action_scope": "specific",
+                "contributes_to_chain": [
+                  {
+                    "pool_norm_id": "dc_rp_cumulative_amount",
+                    "aggregation_function": "sum",
+                    "aggregation_direction": "add",
+                    "parent_chain": []
+                  }
+                ],
+                "conditions_required": null,
+                "defeaters_potential": [],
+                "source_section": "Definition of 'Cumulative Amount', clauses (c) and (d) \u2014 Eligible Equity Issuance + Debt-to-Equity Conversion proceeds",
+                "source_text": "(c) an amount determined on a cumulative basis equal to the Net Cash Proceeds received by Holdings after the Closing Date (and contributed as common capital or Qualified Capital Stock to any Restrict\u2026"
+              }
+            ],
+            "prohibitions": [],
+            "summary": {
+              "permission_count": 35,
+              "prohibition_count": 0,
+              "collapsed_contributors": [],
+              "collapsed_count": 0
+            }
+          },
+          "computation_trace": []
+        },
+        "human_readable_interpretation": "Routed to trace_pathways anchored at action class 'make_dividend_payment'; returned 35 permissions (with 0 contributors collapsed into their parent pools)."
+      }
+    },
+    {
+      "question_id": "duck_creek_q5",
+      "question": "Determine the total amount of quantifiable dividend capacity.",
+      "gold_answer": "$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. RP starter: $130m/100% EBITDA. General RP basket: $130m/100% EBITDA. General prepayment of debt basket: $130m/100% EBITDA. General investment basket: $130m/100% EBITDA.",
+      "valence_answer": "Clarification needed.\n\nParser interpretation: The lawyer wants to know the total quantifiable dividend capacity, but it is unclear whether they want a structural enumeration of all RP baskets that scope to make_dividend_payment (with their cap structures), or a resolved dollar figure requiring specific financial inputs (EBITDA, leverage, Cumulative Amount balance, etc.).\nQuestion for you: Are you looking for (a) a structural map of all RP baskets that permit dividends and their cap/grower formulas, or (b) a resolved dollar capacity figure \u2014 in which case please supply current EBITDA, leverage ratio, and any other relevant financial state so Valence can compute the amounts?\n\nPossible interpretations:\n  1. Structural enumeration of all norms that scope to make_dividend_payment, showing their capacity structures, caps, growers, and conditions \u2014 without resolving to a dollar figure.\n     -> would call `trace_pathways`. Output: A list of all RP baskets (e.g., 6.06(j), 6.06(o), Cumulative Amount, etc.) that permit dividend payments, with their contributor chains, cap formulas, and conditions displayed structurally.\n  2. Resolved dollar capacity across all dividend-permitting baskets given a supplied financial state (EBITDA, leverage, Cumulative Amount balance, etc.).\n     -> would call `evaluate_capacity`. Output: A dollar total of available dividend capacity aggregated across all applicable baskets, with a per-basket breakdown and computation trace.\n  3. A filtered catalog of all permission norms that scope to make_dividend_payment, showing their modality, cap type, and section references \u2014 a quick inventory without full pathway tracing.\n     -> would call `filter_norms`. Output: A table of RP permission norms scoped to dividends, listing norm_id, source_section, cap_usd or cap_grower_pct, and any key conditions.\n\nPlease re-ask specifying which interpretation applies.\n",
+      "parser_intent_classification": "clarification_needed",
+      "parser_parsed_as": "The lawyer wants to know the total quantifiable dividend capacity, but it is unclear whether they want a structural enumeration of all RP baskets that scope to make_dividend_payment (with their cap structures), or a resolved dollar figure requiring specific financial inputs (EBITDA, leverage, Cumulative Amount balance, etc.).",
+      "parser_operation": null,
+      "parser_parameters": null,
+      "parser_confidence": 0.45,
+      "raw_parser_response_hash": "980c695fa716",
+      "parser_latency_ms": 12806,
+      "world_state_used": null,
+      "execution_error": null,
+      "elapsed_seconds": 12.82,
+      "full_parser_response": {
+        "intent_classification": "clarification_needed",
+        "parsed_as": "The lawyer wants to know the total quantifiable dividend capacity, but it is unclear whether they want a structural enumeration of all RP baskets that scope to make_dividend_payment (with their cap structures), or a resolved dollar figure requiring specific financial inputs (EBITDA, leverage, Cumulative Amount balance, etc.).",
+        "clarification_request": "Are you looking for (a) a structural map of all RP baskets that permit dividends and their cap/grower formulas, or (b) a resolved dollar capacity figure \u2014 in which case please supply current EBITDA, leverage ratio, and any other relevant financial state so Valence can compute the amounts?",
+        "possible_interpretations": [
+          {
+            "interpretation": "Structural enumeration of all norms that scope to make_dividend_payment, showing their capacity structures, caps, growers, and conditions \u2014 without resolving to a dollar figure.",
+            "implied_operation": "trace_pathways",
+            "implied_parameters": {
+              "anchor_type": "action_class",
+              "anchor_value": "make_dividend_payment",
+              "include_annotations": true,
+              "collapse_contributors": false
+            },
+            "example_output_shape": "A list of all RP baskets (e.g., 6.06(j), 6.06(o), Cumulative Amount, etc.) that permit dividend payments, with their contributor chains, cap formulas, and conditions displayed structurally."
+          },
+          {
+            "interpretation": "Resolved dollar capacity across all dividend-permitting baskets given a supplied financial state (EBITDA, leverage, Cumulative Amount balance, etc.).",
+            "implied_operation": "evaluate_capacity",
+            "implied_parameters": {
+              "norm_id": "<all dividend-scoped baskets>",
+              "supplied_world_state": "<EBITDA, leverage ratio, Cumulative Amount inputs \u2014 needed from user>"
+            },
+            "example_output_shape": "A dollar total of available dividend capacity aggregated across all applicable baskets, with a per-basket breakdown and computation trace."
+          },
+          {
+            "interpretation": "A filtered catalog of all permission norms that scope to make_dividend_payment, showing their modality, cap type, and section references \u2014 a quick inventory without full pathway tracing.",
+            "implied_operation": "filter_norms",
+            "implied_parameters": {
+              "scopes_action": "make_dividend_payment",
+              "modality": "permission"
+            },
+            "example_output_shape": "A table of RP permission norms scoped to dividends, listing norm_id, source_section, cap_usd or cap_grower_pct, and any key conditions."
+          }
+        ],
+        "intent_confidence": 0.45,
+        "question": "Determine the total amount of quantifiable dividend capacity.",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "980c695fa716",
+        "parser_latency_ms": 12806,
+        "deal_id": "6e76ed06"
+      }
+    },
+    {
+      "question_id": "duck_creek_q6",
+      "question": "If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?",
+      "gold_answer": "Yes, because the Ratio RP basket 6.06(o) permits such transaction as long as the First Lien Net Leverage Ratio, even if above 5.75x, is no worse.",
+      "valence_answer": "Feasibility of `dc_rp_6_06_o_ratio_rp_basket` (permission): INCONCLUSIVE\nReason: condition evaluation inconclusive (missing supplied values)\n\nNote: Valence computed this from your supplied values. Verify against the borrower's actual financial state.\n",
+      "parser_intent_classification": "operation_call",
+      "parser_parsed_as": "The lawyer is asking whether the Borrower can make a dividend distribution of an asset/business division (a non-cash dividend in the form of property/equity) to shareholders given a First Lien Net Leverage Ratio of 6.0x and negative EBITDA of the divested business. This is an RP feasibility question \u2014 specifically whether any RP basket permits a dividend (make_dividend_payment scoping to a non-cash asset distribution) under these financial conditions.",
+      "parser_operation": "evaluate_feasibility",
+      "parser_parameters": {
+        "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+        "supplied_world_state": {
+          "predicate_values": {
+            "first_lien_net_leverage_ratio": 6.0,
+            "target_ebitda_negative": true,
+            "target_asset_fair_market_value_usd": 200000000
+          },
+          "proposed_action": {
+            "action_class": "make_dividend_payment",
+            "description": "Non-cash dividend distribution of an asset/business division (FMV ~$200m, negative EBITDA) to shareholders"
+          }
+        }
+      },
+      "parser_confidence": 0.78,
+      "raw_parser_response_hash": "4edaf3a2fc44",
+      "parser_latency_ms": 6208,
+      "world_state_used": "parser_extracted",
+      "execution_error": null,
+      "elapsed_seconds": 6.94,
+      "full_parser_response": {
+        "intent_classification": "operation_call",
+        "parsed_as": "The lawyer is asking whether the Borrower can make a dividend distribution of an asset/business division (a non-cash dividend in the form of property/equity) to shareholders given a First Lien Net Leverage Ratio of 6.0x and negative EBITDA of the divested business. This is an RP feasibility question \u2014 specifically whether any RP basket permits a dividend (make_dividend_payment scoping to a non-cash asset distribution) under these financial conditions.",
+        "operation": "evaluate_feasibility",
+        "parameters": {
+          "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+          "supplied_world_state": {
+            "predicate_values": {
+              "first_lien_net_leverage_ratio": 6.0,
+              "target_ebitda_negative": true,
+              "target_asset_fair_market_value_usd": 200000000
+            },
+            "proposed_action": {
+              "action_class": "make_dividend_payment",
+              "description": "Non-cash dividend distribution of an asset/business division (FMV ~$200m, negative EBITDA) to shareholders"
+            }
+          }
+        },
+        "intent_confidence": 0.78,
+        "question": "If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?",
+        "parser_version": "v1",
+        "claude_model_used": "claude-sonnet-4-6",
+        "raw_claude_response_hash": "4edaf3a2fc44",
+        "parser_latency_ms": 6208,
+        "deal_id": "6e76ed06",
+        "world_state_source": "parser_extracted",
+        "operation_response": {
+          "operation": "evaluate_feasibility",
+          "deal_id": "6e76ed06",
+          "parameters": {
+            "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+            "db": "valence_v4_ground_truth"
+          },
+          "result": {
+            "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+            "modality": "permission",
+            "norm_kind": "ratio_basket_permission",
+            "applicable": null,
+            "reason": "condition evaluation inconclusive (missing supplied values)",
+            "defeaters_fired": []
+          },
+          "computation_trace": [
+            {
+              "step": 2,
+              "operation": "predicate_holds",
+              "predicate_label": "first_lien_net_leverage_at_or_below",
+              "supplied_key": "first_lien_net_leverage_ratio",
+              "supplied_value": 6.0,
+              "threshold": 5.75,
+              "operator_comparison": "at_or_below",
+              "outcome": false,
+              "reasoning": "6.0 at_or_below 5.75 = False"
+            },
+            {
+              "step": 3,
+              "operation": "predicate_holds",
+              "predicate_label": "pro_forma_no_worse",
+              "reference_predicate": "first_lien_net_leverage",
+              "supplied_key": "proposed_action.is_pro_forma_no_worse",
+              "supplied_value": null,
+              "outcome": null,
+              "reasoning": "no is_pro_forma_no_worse in proposed_action"
+            },
+            {
+              "step": 4,
+              "operation": "condition_holds",
+              "root_topology": "or_of_atomics",
+              "outcome": null,
+              "reasoning": "composed from atomic predicate_holds above"
+            }
+          ],
+          "supplied_world_state": {
+            "predicate_values": {
+              "first_lien_net_leverage_ratio": 6.0,
+              "target_ebitda_negative": true,
+              "target_asset_fair_market_value_usd": 200000000
+            },
+            "proposed_action": {
+              "action_class": "make_dividend_payment",
+              "description": "Non-cash dividend distribution of an asset/business division (FMV ~$200m, negative EBITDA) to shareholders"
+            }
+          }
+        },
+        "human_readable_interpretation": "Routed to evaluate_feasibility on 'dc_rp_6_06_o_ratio_rp_basket' against supplied world state; result: applicable=None, reason='condition evaluation inconclusive (missing supplied values)'."
+      }
+    }
+  ],
+  "full_json_path": "C:\\Users\\olive\\ValenceV3\\.claude\\worktrees\\sweet-raman-b5be00\\app\\data\\v4_eval_results\\v4_eval_6e76ed06_20260424_152042_full.json",
+  "summary_path": "C:\\Users\\olive\\ValenceV3\\.claude\\worktrees\\sweet-raman-b5be00\\app\\data\\v4_eval_results\\v4_eval_6e76ed06_20260424_152042_summary.txt",
+  "verbatim_path": "C:\\Users\\olive\\ValenceV3\\.claude\\worktrees\\sweet-raman-b5be00\\app\\data\\v4_eval_results\\v4_eval_6e76ed06_20260424_152042_verbatim.txt"
+}
