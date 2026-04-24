@@ -323,19 +323,42 @@ def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Enti
             except Exception as exc:  # noqa: BLE001
                 logger.warning("v3 basket fetch failed for %s: %s", v3_type, str(exc)[:160])
 
-        # J.Crew blocker — currently scoped by provision_of_deal linkage if any.
-        # Pilot: fetch all jcrew_blocker instances; filter by deal_id via
-        # related rp_provision once extraction lands. No blockers exist in
-        # valence_v4 before extraction so an over-broad fetch returns zero.
+        # J.Crew blocker — non-basket entity. Fetch attributes including
+        # source_text/section/page so projection can populate A1-required
+        # provenance on the projected prohibition norm.
         for v3_type in _V3_NON_BASKET_TYPES:
-            q = f"match $e isa! {v3_type}; select $e;"
+            # Use blocker_id if present (jcrew_blocker has it); fall back to
+            # _instance convention for types without a distinct key attr.
+            q = f'''
+                match
+                  $e isa! {v3_type};
+                  try {{ $e has blocker_id $kid; }};
+                  try {{ $e has source_text $st; }};
+                  try {{ $e has source_section $ss; }};
+                  try {{ $e has section_reference $sref; }};
+                  try {{ $e has source_page $sp; }};
+                select $e, $kid, $st, $ss, $sref, $sp;
+            '''
             try:
                 result = tx.query(q).resolve()
                 for row in result.as_concept_rows():
+                    attrs: dict = {}
+                    st_c = row.get("st")
+                    if st_c is not None:
+                        attrs["source_text"] = st_c.as_attribute().get_value()
+                    ss_c = row.get("ss")
+                    if ss_c is not None:
+                        attrs["source_section"] = ss_c.as_attribute().get_value()
+                    sref_c = row.get("sref")
+                    if sref_c is not None:
+                        attrs["section_reference"] = sref_c.as_attribute().get_value()
+                    sp_c = row.get("sp")
+                    if sp_c is not None:
+                        attrs["source_page"] = sp_c.as_attribute().get_value()
                     entities.append(V3Entity(
                         entity_type=v3_type,
                         basket_id=None,
-                        attrs={},  # blocker attrs fetched on demand in Part 5
+                        attrs=attrs,
                         deal_id=deal_id,
                     ))
             except Exception as exc:  # noqa: BLE001
@@ -897,21 +920,49 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
     #    computed_from_sources, aggregation greatest_of.
     inner_flags = ("has_cni_source", "has_ecf_source", "has_ebitda_fc_source")
     needs_b_aggregate = any(attrs.get(f) for f in inner_flags)
+    # Pull parent builder provenance — sub-sources inherit it so structural
+    # completeness (A1) holds. Without this they'd lack source_text/section/page.
+    parent_text = attrs.get("source_text") or ""
+    parent_section = attrs.get("section_reference") or attrs.get("source_section") or ""
+    parent_page = attrs.get("source_page")
+    subject_roles = [r.strip() for r in (mapping.default_subject_role or "").split(",") if r.strip()]
+
     b_agg_nid = f"{basket_id}__b_aggregate:norm:permission:0"
     if needs_b_aggregate:
-        agg_q = f"""
-            insert $n isa norm,
-              has norm_id {_tq_string(b_agg_nid)},
-              has norm_kind "builder_source_b_aggregate",
-              has modality "permission",
-              has capacity_composition "computed_from_sources",
-              has action_scope "specific";
-        """
+        agg_owns = [
+            f'has norm_id {_tq_string(b_agg_nid)}',
+            'has norm_kind "builder_source_b_aggregate"',
+            'has modality "permission"',
+            'has capacity_composition "computed_from_sources"',
+            'has action_scope "specific"',
+        ]
+        if parent_text:
+            agg_owns.append(f'has source_text {_tq_string(str(parent_text))}')
+        if parent_section:
+            agg_owns.append(f'has source_section {_tq_string(str(parent_section))}')
+        if isinstance(parent_page, int):
+            agg_owns.append(f"has source_page {parent_page}")
+        agg_q = f"insert $n isa norm, {', '.join(agg_owns)};"
         try:
             _execute_write(driver, db_name, agg_q)
             report.norms_created += 1
         except Exception as exc:  # noqa: BLE001
             report.warnings.append(f"b_aggregate emit failed: {str(exc)[:160]}")
+
+        # Subject bindings — inherit from parent's default_subject_role so
+        # norm_is_structurally_complete passes.
+        for role in subject_roles:
+            q_sub = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(b_agg_nid)};
+                  $p isa party, has party_role {_tq_string(role)};
+                insert
+                  (norm: $n, subject: $p) isa norm_binds_subject;
+            """
+            try:
+                _execute_write(driver, db_name, q_sub)
+            except Exception:
+                pass
 
         # b_aggregate also inherits parent-scope actions+object so its tuple
         # matches the corresponding GT builder_source_b_aggregate norm.
@@ -983,6 +1034,14 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
             owns.append(f"has cap_grower_pct {float(cap_grower)}")
         if grower_ref:
             owns.append(f'has cap_grower_reference {_tq_string(grower_ref)}')
+        # Sub-sources inherit parent builder's provenance so A1 structural
+        # completeness passes (source_text/section/page required).
+        if parent_text:
+            owns.append(f'has source_text {_tq_string(str(parent_text))}')
+        if parent_section:
+            owns.append(f'has source_section {_tq_string(str(parent_section))}')
+        if isinstance(parent_page, int):
+            owns.append(f"has source_page {parent_page}")
 
         norm_q = f"insert $n isa norm, {', '.join(owns)};"
         try:
@@ -991,6 +1050,20 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
         except Exception as exc:  # noqa: BLE001
             report.warnings.append(f"builder sub-source {kind} emit failed: {str(exc)[:160]}")
             continue
+
+        # Subject bindings — inherit parent's default_subject_role for A1.
+        for role in subject_roles:
+            q_sub = f"""
+                match
+                  $n isa norm, has norm_id {_tq_string(sub_nid)};
+                  $p isa party, has party_role {_tq_string(role)};
+                insert
+                  (norm: $n, subject: $p) isa norm_binds_subject;
+            """
+            try:
+                _execute_write(driver, db_name, q_sub)
+            except Exception:
+                pass
 
         # Scope edges — inherit from the builder parent so the structural
         # tuple (norm_kind, modality, primary_action, primary_object) matches
