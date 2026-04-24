@@ -1,0 +1,613 @@
+# ════════════════════════════════════════════════════════════════════════════
+# v3 Extraction Snapshot — deal 6e76ed06
+# Exported: 2026-04-24T08:28:07.121962+00:00
+# Source: valence_v4 on https://ip654h-0.cluster.typedb.com:80
+#
+# Restore via `py -3.12 -m app.scripts.restore_extraction_snapshot`
+# against a freshly-initialized valence_v4 (schema + seeds loaded,
+# no extraction). Deal + provision are re-inserted idempotently; all
+# extracted entities follow; relations wire them together last.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ─── §1 deal + rp_provision ─────────────────────────────────────────────
+
+insert $e isa deal,
+    has borrower_name "Duck Creek Technologies, Inc.",
+    has deal_id "6e76ed06",
+    has deal_name "Duck Creek Technologies (DISCO Parent Inc.)",
+    has deal_type "credit_agreement",
+    has facility_type "term_loan";
+
+insert $e isa rp_provision,
+    has provision_id "6e76ed06_rp";
+
+# ─── §2 RP basket entities ──────────────────────────────────────────────
+
+insert $e isa builder_basket,
+    has basket_id "6e76ed06_rp_builder_basket",
+    has capacity_aggregation_function "greatest_of",
+    has capacity_category "general_purpose",
+    has capacity_composition "computed_from_sources",
+    has cni_percentage 0.5,
+    has ebitda_fc_multiplier 1.4,
+    has ecf_retained_formula "Available Retained ECF Amount: the portion of Excess Cash Flow, determined on a cumulative basis for all fiscal years of Holdings (commencing with the first day of the fiscal quarter of Holdings in which the Closing Date occurs) that was not required to be applied to prepay Term Loans pursuant to Section 2.10(f) or to prepay any other Indebtedness pursuant to Section 2.10(h) on account of Section 2.10(f); provided that in no event shall the \"Available Retained ECF Amount\" be less than $0 for any fiscal year or portion thereof.",
+    has equity_proceeds_pct 1.0,
+    has has_asset_proceeds_source true,
+    has has_cni_source true,
+    has has_debt_conversion_source true,
+    has has_ebitda_fc_source true,
+    has has_ecf_source true,
+    has has_equity_proceeds_source true,
+    has has_investment_returns_source true,
+    has has_starter_amount_source true,
+    has object_class_multiselect "cash,equity_interest",
+    has partial_applicability false,
+    has reduced_by_designation false,
+    has reduced_by_investment_usage true,
+    has reduced_by_rdp_usage true,
+    has reduced_by_rp_usage true,
+    has section_reference "Definition of Cumulative Amount",
+    has source_page 32,
+    has source_text "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):",
+    has start_date_language "the first day of the fiscal quarter in which the Closing Date occurs",
+    has starter_dollar_amount 130000000.0,
+    has starter_ebitda_pct 1.0,
+    has starter_uses_greater_of true,
+    has uses_greatest_of_tests true;
+
+insert $e isa ratio_basket,
+    has basket_id "6e76ed06_rp_ratio_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "unlimited_conditional",
+    has capacity_composition "unlimited_on_condition",
+    has has_multiple_tiers false,
+    has has_no_worse_test true,
+    has is_unlimited_if_met true,
+    has lct_treatment_available true,
+    has object_class_multiselect "cash,equity_interest",
+    has partial_applicability true,
+    has pro_forma_basis true,
+    has ratio_threshold 5.75,
+    has ratio_type "First Lien Leverage Ratio",
+    has section_reference "6.06(o)",
+    has source_page 198,
+    has source_text "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the applicable Test Period as of the Applicable Date of Determination shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis) for the most recently ended Test Period prior to the Applicable Date of Determination",
+    has test_date_type "as of the Applicable Date of Determination for the applicable Test Period";
+
+insert $e isa general_rp_basket,
+    has basket_amount_usd 130000000.0,
+    has basket_grower_pct 1.0,
+    has basket_id "6e76ed06_rp_general_rp_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "general_purpose",
+    has capacity_composition "fungible",
+    has is_per_annum false,
+    has object_class_multiselect "cash,equity_interest",
+    has partial_applicability false,
+    has section_reference "6.06(j)",
+    has source_page 196,
+    has source_text "additional Dividends may be made, directly or indirectly, by any Group Member to Holdings and/or (without duplication) Holdings' direct or indirect equity holders in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period";
+
+insert $e isa management_equity_basket,
+    has annual_cap_pct_ebitda 0.15,
+    has annual_cap_usd 20000000.0,
+    has basket_id "6e76ed06_rp_management_equity_basket",
+    has cap_uses_greater_of true,
+    has capacity_aggregation_function "greatest_of",
+    has capacity_category "restricted_purpose",
+    has capacity_composition "additive",
+    has carryforward_permitted true,
+    has eligible_person_scope "current or former officers, directors, consultants or employees (or their respective transferees, spouses, ex-spouses, heirs, family members, estates or beneficiaries under their estates) of any Group Member",
+    has object_class_multiselect "equity_interest,holdco_equity",
+    has partial_applicability true,
+    has section_reference "6.06(b)",
+    has source_page 195,
+    has source_text "payments to Holdings (and/or (without duplication) any direct or indirect parent company of Holdings) to permit Holdings (or any such direct or indirect parent company of Holdings) to repurchase or redeem Qualified Capital Stock of Holdings (or any direct or indirect parent company of Holdings) held by current or former officers, directors, consultants or employees";
+
+insert $e isa tax_distribution_basket,
+    has basket_id "6e76ed06_rp_tax_distribution_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "restricted_purpose",
+    has capacity_composition "categorical",
+    has estimated_taxes_permitted false,
+    has object_class_multiselect "cash",
+    has partial_applicability false,
+    has section_reference "6.06(c)",
+    has source_page 196,
+    has source_text "for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group for federal and/or applicable state or local income Tax purposes",
+    has standalone_taxpayer_limit true,
+    has tax_sharing_permitted false;
+
+insert $e isa holdco_overhead_basket,
+    has basket_id "6e76ed06_rp_holdco_overhead_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "restricted_purpose",
+    has capacity_composition "categorical",
+    has covers_admin_expenses true,
+    has covers_audit_fees true,
+    has covers_director_fees true,
+    has covers_franchise_taxes true,
+    has covers_insurance_premiums false,
+    has covers_legal_fees true,
+    has covers_management_fees false,
+    has management_fee_recipient_scope "Holdings or any direct or indirect parent of Holdings",
+    has object_class_multiselect "cash",
+    has partial_applicability false,
+    has requires_arms_length false,
+    has requires_board_approval false,
+    has section_reference "6.06(k)",
+    has source_page 197,
+    has source_text "distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses (including franchise and similar Taxes required to maintain corporate existence and other legal, accounting and other overhead costs, fees and expenses) of Holdings or any direct or indirect parent of Holdings, and (ii) Public Company Costs";
+
+insert $e isa equity_award_basket,
+    has basket_id "6e76ed06_rp_equity_award_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "restricted_purpose",
+    has capacity_composition "unlimited_on_condition",
+    has carryforward_permitted false,
+    has covers_cashless_exercise true,
+    has covers_clawback false,
+    has covers_forfeiture false,
+    has covers_net_settlement true,
+    has covers_tax_withholding true,
+    has object_class_multiselect "equity_interest",
+    has partial_applicability true,
+    has section_reference "6.06(d)",
+    has source_page 196,
+    has source_text "repurchases of Equity Interests deemed to occur upon the exercise of stock options if the Equity Interests represent a portion of the exercise price or withholding tax thereof";
+
+insert $e isa unsub_distribution_basket,
+    has basket_id "6e76ed06_rp_unsub_distribution_basket",
+    has capacity_aggregation_function "n_a",
+    has capacity_category "categorical",
+    has capacity_composition "n_a",
+    has covers_assets true,
+    has covers_equity_interests true,
+    has covers_indebtedness true,
+    has covers_proceeds true,
+    has distributions_can_cascade true,
+    has has_anti_duplication false,
+    has includes_noncash_at_fmv true,
+    has is_categorical true,
+    has object_class_multiselect "unrestricted_subsidiary_equity_or_assets",
+    has partial_applicability false,
+    has rebuild_is_capped false,
+    has rebuilds_builder_basket true,
+    has redesignation_returns_investment true,
+    has redesignation_valuation_method "fair market value at time of redesignation, without any limitation as to the original amount of the Investment therein",
+    has reduces_investment_basket false,
+    has requires_valid_designation false,
+    has section_reference "6.06(p)",
+    has source_page 198,
+    has source_text "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof";
+
+insert $e isa general_rdp_basket,
+    has basket_amount_usd 130000000.0,
+    has basket_grower_pct 1.0,
+    has basket_id "6e76ed06_rp_general_rdp_basket",
+    has capacity_category "general_purpose",
+    has section_reference "6.09(a)(I)",
+    has source_page 200,
+    has source_text "making prepayments, redemptions, purchases, defeasance or other satisfaction of Indebtedness in a principal amount not to exceed (x) the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period";
+
+insert $e isa refinancing_rdp_basket,
+    has basket_id "6e76ed06_rp_refinancing_rdp_basket",
+    has capacity_category "restricted_purpose",
+    has not_otherwise_applied true,
+    has permits_refinancing_with_equity true,
+    has requires_no_increase_in_principal false,
+    has requires_qualified_stock_only true,
+    has requires_same_or_later_maturity true,
+    has requires_same_or_lower_priority false,
+    has section_reference "6.09(a)(B)",
+    has source_page 199,
+    has source_text "in connection with any Permitted Refinancing thereof or to the extent made with the proceeds of Qualified Capital Stock of Holdings that are Not Otherwise Applied",
+    has subject_to_intercreditor true;
+
+insert $e isa ratio_rdp_basket,
+    has basket_id "6e76ed06_rp_ratio_rdp_basket",
+    has capacity_category "unlimited_conditional",
+    has is_unlimited_if_met true,
+    has pro_forma_basis true,
+    has ratio_threshold 5.75,
+    has ratio_type "First Lien Leverage Ratio",
+    has section_reference "6.09(a)(J)",
+    has source_page 200,
+    has source_text "making prepayments, redemptions, purchases, defeasance or other satisfaction of such Indebtedness, so long as the First Lien Leverage Ratio computed on a Pro Forma Basis for the applicable Test Period as of the Applicable Date of Determination is no greater than the greater of (x) 5.75 to 1.00",
+    has test_date_type "At the Applicable Date of Determination for the applicable Test Period",
+    has uses_closing_ratio_alternative true;
+
+insert $e isa builder_rdp_basket,
+    has basket_id "6e76ed06_rp_builder_rdp_basket",
+    has capacity_category "general_purpose",
+    has section_reference "6.09(a)(A)",
+    has shares_with_rp_builder true,
+    has source_page 199,
+    has source_text "to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount",
+    has subject_to_intercreditor true;
+
+insert $e isa equity_funded_rdp_basket,
+    has basket_id "6e76ed06_rp_equity_funded_rdp_basket",
+    has capacity_category "restricted_purpose",
+    has not_otherwise_applied true,
+    has requires_cash_common_equity true,
+    has requires_qualified_stock_only true,
+    has section_reference "6.09(a)(F)",
+    has source_page 200,
+    has source_text "to the extent that such payment is made solely with cash contributions from the issuance of Equity Interests (other than Disqualified Capital Stock) of Holdings, which are contributed as cash common equity to any Credit Party and Not Otherwise Applied";
+
+# ─── §3 J.Crew blocker + exceptions ─────────────────────────────────────
+
+insert $e isa jcrew_blocker,
+    has blocker_id "6e76ed06_rp_jcrew_blocker",
+    has covers_designation true,
+    has covers_ip true,
+    has covers_licenses_granted true,
+    has covers_licenses_received false,
+    has covers_material_assets false,
+    has covers_post_designation false,
+    has covers_transfer false,
+    has section_reference "Definition of Unrestricted Subsidiary",
+    has source_page 89,
+    has source_text "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if, immediately after giving effect to such designation, such Unrestricted Subsidiary would own or have an exclusive license (from Holdings or its Restricted Subsidiaries) at the time of such designation to any Material Intellectual Property.";
+
+insert $e isa nonexclusive_license_exception,
+    has confidence "high",
+    has exception_id "6e76ed06_rp_nonexclusive_license_exception_1",
+    has exception_name "Licenses and sublicenses of IP permitted under Section 6.02",
+    has scope_limitation "Licenses and sublicenses of Intellectual Property otherwise permitted under Section 6.02 and other personal property in the ordinary course of business",
+    has section_reference "6.05(c)(y)",
+    has source_text "licenses and sublicenses of Intellectual Property otherwise permitted under Section 6.02";
+
+insert $e isa intercompany_exception,
+    has confidence "high",
+    has exception_id "6e76ed06_rp_intercompany_exception_2",
+    has exception_name "Intercompany transfers within restricted group",
+    has scope_limitation "Sales, transfers, leases and other dispositions to any Credit Party, to non-Credit Party Restricted Subsidiaries from other non-Credit Party Restricted Subsidiaries, or to non-Credit Party Restricted Subsidiaries from Credit Parties",
+    has section_reference "6.05(j)",
+    has source_text "sales, transfers, leases and other dispositions (i) to any Credit Party, (ii) to any Restricted Subsidiary that is not a Credit Party from another Restricted Subsidiary that is not a Credit Party, or (iii) to any of the Restricted Subsidiaries that are not Credit Parties from any Credit Party";
+
+insert $e isa immaterial_ip_exception,
+    has confidence "high",
+    has exception_id "6e76ed06_rp_immaterial_ip_exception_3",
+    has exception_name "Immaterial or obsolete property dispositions",
+    has scope_limitation "Property that is in the reasonable business judgment of the Borrowers immaterial, including equity interests or assets of Immaterial Subsidiaries, no longer economically practical to maintain or no longer used or useful in the business",
+    has section_reference "6.05(a)(z)",
+    has source_text "sales, transfers, leases, subleases and other dispositions of property by any Group Member (including Intellectual Property) that is, in the reasonable business judgment of the Borrowers, immaterial (including, for the avoidance of doubt, equity interests or assets of Immaterial Subsidiaries), no longer economically practical to maintain or no longer used or useful in the business";
+
+insert $e isa fair_value_exception,
+    has confidence "high",
+    has exception_id "6e76ed06_rp_fair_value_exception_4",
+    has exception_name "Fair market value disposition requirement",
+    has scope_limitation "Dispositions must be for fair market value as determined by the Borrowers in good faith, subject to cash consideration requirements above the greater of $130M and 100% of Consolidated EBITDA threshold",
+    has section_reference "6.05(b)(i)",
+    has source_text "such sale, lease, assignment, transfer or disposition shall be for fair market value (as determined by the Borrowers in good faith)";
+
+insert $e isa ordinary_course_exception,
+    has confidence "high",
+    has exception_id "6e76ed06_rp_ordinary_course_exception_0",
+    has exception_name "Ordinary course IP dispositions",
+    has scope_limitation "Sales, licenses, sublicenses, transfers, abandonment, allowance to lapse or other dispositions of IP in the ordinary course of business or at end of statutory term, or IP that is immaterial, no longer economically practicable to maintain or no longer used or useful in the business",
+    has section_reference "6.05(a)(y)",
+    has source_text "the sale, license, sublicense, transfer, abandonment, allowance to lapse or other disposition of Intellectual Property that occurs in the ordinary course of business (or at the end of the applicable statutory term) or of Intellectual Property that is, in the reasonable business judgment of the Borrowers, immaterial, no longer economically practicable to maintain or no longer used or useful in the business";
+
+# ─── §4 sweep_tiers + investment_pathways ───────────────────────────────
+
+insert $e isa sweep_tier,
+    has confidence "high",
+    has is_highest_tier true,
+    has leverage_threshold 5.75,
+    has ratio_basket_avoids_sweep false,
+    has section_reference "Definition of Applicable Net Cash Proceeds Percentage, clause (a)",
+    has source_text "(a) 100% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.75 to 1.00",
+    has sweep_percentage 1.0,
+    has tier_id "6e76ed06_rp_sweep_tier_0";
+
+insert $e isa sweep_tier,
+    has confidence "high",
+    has is_highest_tier false,
+    has leverage_threshold 5.5,
+    has ratio_basket_avoids_sweep false,
+    has section_reference "Definition of Applicable Net Cash Proceeds Percentage, clause (b)",
+    has source_text "(b) 50% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.50 to 1.00 but less than or equal to 5.75 to 1.00",
+    has sweep_percentage 0.5,
+    has tier_id "6e76ed06_rp_sweep_tier_1";
+
+insert $e isa sweep_tier,
+    has confidence "high",
+    has is_highest_tier false,
+    has leverage_threshold 5.5,
+    has ratio_basket_avoids_sweep true,
+    has section_reference "Definition of Applicable Net Cash Proceeds Percentage, clause (c)",
+    has source_text "(c) 0% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is less than or equal to 5.50 to 1.00",
+    has sweep_exempt_ratio_threshold 5.5,
+    has sweep_percentage 0.0,
+    has tier_id "6e76ed06_rp_sweep_tier_2";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild false,
+    has can_stack_with_other_baskets true,
+    has cap_uses_greater_of false,
+    has confidence "high",
+    has is_uncapped true,
+    has pathway_id "6e76ed06_rp_investment_pathway_0",
+    has pathway_source_type "loan_party",
+    has pathway_target_type "non_guarantor_rs",
+    has section_reference "6.03(f)(iii)",
+    has source_text "Investments (i) by any Group Member in a Credit Party, (ii) by any Group Member that is not a Credit Party in any other Group Member and (iii) by any Credit Party in any Restricted Subsidiary that is not a Subsidiary Guarantor";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild true,
+    has can_stack_with_other_baskets true,
+    has cap_dollar_usd 40000000.0,
+    has cap_uses_greater_of true,
+    has confidence "high",
+    has is_uncapped false,
+    has pathway_id "6e76ed06_rp_investment_pathway_1",
+    has pathway_source_type "loan_party",
+    has pathway_target_type "unrestricted_sub",
+    has section_reference "6.03(s)",
+    has source_text "Investments in Unrestricted Subsidiaries in an aggregate amount not to exceed the greater of $40,000,000 and 35% of Consolidated EBITDA for the most recently ended Test Period at any time outstanding";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild false,
+    has can_stack_with_other_baskets true,
+    has cap_uses_greater_of false,
+    has confidence "high",
+    has is_uncapped true,
+    has pathway_id "6e76ed06_rp_investment_pathway_2",
+    has pathway_source_type "loan_party",
+    has pathway_target_type "unrestricted_sub",
+    has section_reference "6.03(x)",
+    has source_text "Investments in an aggregate amount not to exceed the Cumulative Amount; provided that any Limited Condition Transaction remains subject to the terms of Section 1.06 hereof";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild true,
+    has can_stack_with_other_baskets true,
+    has cap_dollar_usd 130000000.0,
+    has cap_uses_greater_of true,
+    has confidence "high",
+    has is_uncapped false,
+    has pathway_id "6e76ed06_rp_investment_pathway_3",
+    has pathway_source_type "loan_party",
+    has pathway_target_type "unrestricted_sub",
+    has section_reference "6.03(y)",
+    has source_text "other Investments in an aggregate amount at any time not to exceed the result of (i) the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period at any time outstanding plus (ii)(A) the aggregate total of all amounts available to be utilized for Restricted Debt Payments pursuant to Section 6.09(a)";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild false,
+    has can_stack_with_other_baskets true,
+    has cap_uses_greater_of false,
+    has confidence "high",
+    has is_uncapped true,
+    has pathway_id "6e76ed06_rp_investment_pathway_4",
+    has pathway_source_type "loan_party",
+    has pathway_target_type "unrestricted_sub",
+    has section_reference "6.03(bb)",
+    has source_text "unlimited additional Investments; provided that on a Pro Forma Basis, either (or both) (i) the First Lien Leverage Ratio on a Pro Forma Basis for the applicable Test Period as of the Applicable Date of Determination shall not be greater than the greater of (x) 6.00 to 1.00";
+
+insert $e isa investment_pathway,
+    has basket_can_rebuild true,
+    has can_stack_with_other_baskets true,
+    has cap_dollar_usd 40000000.0,
+    has cap_uses_greater_of true,
+    has confidence "high",
+    has is_uncapped false,
+    has pathway_id "6e76ed06_rp_investment_pathway_5",
+    has pathway_source_type "non_guarantor_rs",
+    has pathway_target_type "unrestricted_sub",
+    has section_reference "6.03(s)",
+    has source_text "Investments in Unrestricted Subsidiaries in an aggregate amount not to exceed the greater of $40,000,000 and 35% of Consolidated EBITDA for the most recently ended Test Period at any time outstanding";
+
+# ─── §5 Relations wiring entities together ──────────────────────────────
+
+match
+  $d isa deal, has deal_id "6e76ed06";
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+insert
+  (deal: $d, provision: $p) isa deal_has_provision;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_builder_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_ratio_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_general_rp_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_management_equity_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_tax_distribution_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_holdco_overhead_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_equity_award_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $b isa rp_basket, has basket_id "6e76ed06_rp_unsub_distribution_basket";
+insert
+  (provision: $p, basket: $b) isa provision_has_basket;
+
+match
+  $b isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+  $e isa blocker_exception, has exception_id "6e76ed06_rp_nonexclusive_license_exception_1";
+insert
+  (blocker: $b, exception: $e) isa blocker_has_exception;
+
+match
+  $b isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+  $e isa blocker_exception, has exception_id "6e76ed06_rp_intercompany_exception_2";
+insert
+  (blocker: $b, exception: $e) isa blocker_has_exception;
+
+match
+  $b isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+  $e isa blocker_exception, has exception_id "6e76ed06_rp_immaterial_ip_exception_3";
+insert
+  (blocker: $b, exception: $e) isa blocker_has_exception;
+
+match
+  $b isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+  $e isa blocker_exception, has exception_id "6e76ed06_rp_fair_value_exception_4";
+insert
+  (blocker: $b, exception: $e) isa blocker_has_exception;
+
+match
+  $b isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+  $e isa blocker_exception, has exception_id "6e76ed06_rp_ordinary_course_exception_0";
+insert
+  (blocker: $b, exception: $e) isa blocker_has_exception;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa jcrew_blocker, has blocker_id "6e76ed06_rp_jcrew_blocker";
+insert
+  (provision: $p, blocker: $x) isa provision_has_blocker;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa sweep_tier, has tier_id "6e76ed06_rp_sweep_tier_0";
+insert
+  (provision: $p, tier: $x) isa provision_has_sweep_tier;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa sweep_tier, has tier_id "6e76ed06_rp_sweep_tier_1";
+insert
+  (provision: $p, tier: $x) isa provision_has_sweep_tier;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa sweep_tier, has tier_id "6e76ed06_rp_sweep_tier_2";
+insert
+  (provision: $p, tier: $x) isa provision_has_sweep_tier;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_0";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_1";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_2";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_3";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_4";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa investment_pathway, has pathway_id "6e76ed06_rp_investment_pathway_5";
+insert
+  (provision: $p, pathway: $x) isa provision_has_pathway;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa rdp_basket, has basket_id "6e76ed06_rp_refinancing_rdp_basket";
+insert
+  (provision: $p, rdp_basket: $x) isa provision_has_rdp_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa rdp_basket, has basket_id "6e76ed06_rp_general_rdp_basket";
+insert
+  (provision: $p, rdp_basket: $x) isa provision_has_rdp_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa rdp_basket, has basket_id "6e76ed06_rp_ratio_rdp_basket";
+insert
+  (provision: $p, rdp_basket: $x) isa provision_has_rdp_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa rdp_basket, has basket_id "6e76ed06_rp_builder_rdp_basket";
+insert
+  (provision: $p, rdp_basket: $x) isa provision_has_rdp_basket;
+
+match
+  $p isa rp_provision, has provision_id "6e76ed06_rp";
+  $x isa rdp_basket, has basket_id "6e76ed06_rp_equity_funded_rdp_basket";
+insert
+  (provision: $p, rdp_basket: $x) isa provision_has_rdp_basket;
+
+# ════════════════════════════════════════════════════════════════════════════
+# Snapshot summary
+#
+#   entities: 30
+#     builder_basket: 1
+#     builder_rdp_basket: 1
+#     deal: 1
+#     equity_award_basket: 1
+#     equity_funded_rdp_basket: 1
+#     fair_value_exception: 1
+#     general_rdp_basket: 1
+#     general_rp_basket: 1
+#     holdco_overhead_basket: 1
+#     immaterial_ip_exception: 1
+#     intercompany_exception: 1
+#     investment_pathway: 6
+#     jcrew_blocker: 1
+#     management_equity_basket: 1
+#     nonexclusive_license_exception: 1
+#     ordinary_course_exception: 1
+#     ratio_basket: 1
+#     ratio_rdp_basket: 1
+#     refinancing_rdp_basket: 1
+#     rp_provision: 1
+#     sweep_tier: 3
+#     tax_distribution_basket: 1
+#     unsub_distribution_basket: 1
+#   relations: 29
+#     blocker_has_exception: 5
+#     deal_has_provision: 1
+#     provision_has_basket: 8
+#     provision_has_blocker: 1
+#     provision_has_pathway: 6
+#     provision_has_rdp_basket: 5
+#     provision_has_sweep_tier: 3
+# ════════════════════════════════════════════════════════════════════════════

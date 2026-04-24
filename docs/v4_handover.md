@@ -18,6 +18,7 @@ Short-form summary for a fresh session continuing the work. Authoritative detail
 - **Validation harness:** [app/services/validation_harness.py](../app/services/validation_harness.py) — A1–A5 completeness checks. A5 implemented via `norm_extracted_from:fact`
 - **Ground truth:** [app/data/duck_creek_rp_ground_truth.yaml](../app/data/duck_creek_rp_ground_truth.yaml) — 63 norms. Loaded into `valence_v4_ground_truth` via [app/scripts/load_ground_truth.py](../app/scripts/load_ground_truth.py)
 - **$12.95 extracted artifact:** Duck Creek RP fully extracted into `valence_v4` (Part 5 of Prompt 07). **Must not be re-extracted.**
+- **Extraction snapshot (post-Prompt-10):** [app/data/extraction_snapshots/6e76ed06.tql](../app/data/extraction_snapshots/6e76ed06.tql) — 30 entities + 29 relations dumped to TQL, committed in git. Recoverable via `restore_extraction_snapshot` if the cloud DB ever disappears. Round-trip verified (30/30 inserts, 29/29 match-inserts, 6.9s).
 
 ## TypeDB Cloud databases
 
@@ -170,9 +171,34 @@ finally:
 
 If rp_basket or jcrew_blocker returns 0, the $12.95 extraction has been lost — stop and investigate before doing any work.
 
+## Recovery path (if cloud `valence_v4` is ever lost)
+
+```bash
+# 1. Rebuild schema + seeds into fresh valence_v4
+py -3.12 -m app.scripts.init_schema_v4
+
+# 2. Restore v3 extraction from the committed snapshot
+py -3.12 -m app.scripts.restore_extraction_snapshot --deal 6e76ed06
+
+# 3. Regenerate projection output (norms, conditions, defeaters, etc.)
+py -3.12 -m app.services.deontic_projection --deal 6e76ed06
+
+# 4. Sanity-check: measurement + harness should report same numbers
+#    as docs/v4_prompt10_report.md
+```
+
+The snapshot captures only the irreplaceable v3 extraction (deal, provision, baskets, blocker, exceptions, sweep_tiers, pathways, and all relations wiring them). Projection output regenerates from it.
+
+To refresh the snapshot after a future re-extraction or mutation:
+
+```bash
+py -3.12 -m app.scripts.export_extraction_snapshot --deal 6e76ed06
+# commits overwrite app/data/extraction_snapshots/6e76ed06.tql
+```
+
 ## Hard constraints
 
-- **No re-extraction.** `valence_v4` extraction is a $12.95 artifact. `init_schema_v4` refuses to drop without `--preserve-extraction`. For seed/schema updates use `--schema-only`.
+- **No re-extraction.** `valence_v4` extraction is a $12.95 artifact. `init_schema_v4` refuses to drop without `--preserve-extraction`. For seed/schema updates use `--schema-only`. Local snapshot at `app/data/extraction_snapshots/6e76ed06.tql` is the git-backed safety net.
 - **TypeDB Cloud only.** `ip654h-0.cluster.typedb.com:80`. `.env` at `C:/Users/olive/ValenceV3/.env`.
 - **Branch is local-only.** Do not push to remote.
 - **`py -3.12`** required (not system `py`) — typedb-driver needs Python 3.12 on Windows.
