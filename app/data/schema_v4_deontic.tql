@@ -580,3 +580,23 @@ state_predicate plays builder_spec_uses_predicate:predicate;
 attribute segment_prefix_pattern, value string;
 
 document_segment_type owns segment_prefix_pattern @card(0..8);
+
+
+# ─── §4.14 Classification field config (Prompt 10 Fix 2) ────────────────────────
+#
+# Per-field dimension relevance for classification_measurement's aggregate
+# grade. Different fields exercise different dimensions — capacity_composition
+# has all six (syntactic validity, semantic correctness, category accuracy,
+# precondition, consistency), while condition_structure only has D1–D4
+# (D5/D6 don't apply to topology). Without per-field relevance, aggregate
+# grade artificially fails instances on n/a dimensions, hiding real signal.
+#
+# One classification_field_config instance per classification field, seeded
+# with a comma-separated list of relevant Dn dimension names.
+
+attribute classification_field_name, value string;
+attribute relevant_dimensions, value string;   # "D1,D2,D3,D4,D5,D6" or subset
+
+entity classification_field_config,
+    owns classification_field_name @key,
+    owns relevant_dimensions;

@@ -145,6 +145,11 @@ EXTRACTION_ONLY_SEEDS: list[SeedFile] = [
         probe_type="deontic_mapping",
         probe_query='match $m isa deontic_mapping, has mapping_id "map_management_equity_basket", has target_norm_kind "management_equity_basket_permission"; select $m;',
     ),
+    # Classification field config — per-field dimension relevance (Prompt 10 Fix 2)
+    SeedFile(
+        "classification_field_config_seed.tql",
+        probe_type="classification_field_config",
+    ),
 ]
 
 

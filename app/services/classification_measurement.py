@@ -636,12 +636,48 @@ def _call_claude_classify(prompt: str, input_payload: dict,
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _load_relevant_dimensions(field: str) -> list[str]:
+    """Query valence_v4 for a classification_field_config entry listing the
+    dimensions that apply to the given field. Returns ordered Dn list.
+    Falls back to all six dimensions when the entity isn't seeded (so the
+    harness never silently degrades to zero)."""
+    try:
+        driver = connect()
+        try:
+            tx = driver.transaction(EXPECTED_DB, TransactionType.READ)
+            try:
+                q = (
+                    'match $c isa classification_field_config, '
+                    'has classification_field_name $fn, has relevant_dimensions $rd; '
+                    f'$fn == "{field}"; select $rd;'
+                )
+                rows = list(tx.query(q).resolve().as_concept_rows())
+                if rows:
+                    raw = rows[0].get("rd").as_attribute().get_value()
+                    return [d.strip() for d in raw.split(",") if d.strip()]
+            finally:
+                try:
+                    if tx.is_open():
+                        tx.close()
+                except Exception:
+                    pass
+        finally:
+            try:
+                driver.close()
+            except Exception:
+                pass
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("relevant_dimensions lookup failed for %s: %s", field, exc)
+    return ["D1", "D2", "D3", "D4", "D5", "D6"]
+
+
 def _score_instance(
     field: str,
     norm_kind: str,
     prompt_output: dict | None,
     expected: Any,
     enum_values: list[str] | None,
+    relevant_dims: list[str] | None = None,
 ) -> dict:
     """
     Score a single instance on D1-D6 with short-circuit grading.
@@ -649,20 +685,34 @@ def _score_instance(
     D1 completeness is deal-level, not per-instance — set externally.
     D2-D5 are per-instance. D6 cross-instance consistency is deal-level.
 
+    When relevant_dims is provided, grade passes iff all relevant dimensions
+    pass; dimensions outside the list are computed but don't affect the grade.
+    Default (None) treats all six as relevant for back-compat.
+
     Returns dict with dimension_scores (bool per D1-D6), first_failure, grade.
     """
     scores = {"D1": True, "D2": None, "D3": None, "D4": None, "D5": None, "D6": None}
     first_failure = None
+    if relevant_dims is None:
+        relevant_dims = ["D1", "D2", "D3", "D4", "D5", "D6"]
+    relevant_set = set(relevant_dims)
+
+    def _trip(dim: str) -> None:
+        """Mark first_failure iff dim is in the relevant set. Non-relevant
+        failures are recorded in scores but don't affect the grade."""
+        nonlocal first_failure
+        if first_failure is None and dim in relevant_set:
+            first_failure = dim
 
     # D2 syntactic validity
     if prompt_output is None:
         scores["D2"] = False
-        first_failure = "D2"
+        _trip("D2")
     else:
         predicted = prompt_output.get("classification") or prompt_output.get("topology")
         if enum_values and predicted not in enum_values:
             scores["D2"] = False
-            first_failure = "D2"
+            _trip("D2")
         else:
             scores["D2"] = True
 
@@ -674,23 +724,24 @@ def _score_instance(
     if first_failure is None:
         scores["D3"] = prompt_output is not None and prompt_output.get("classification", prompt_output.get("topology")) is not None
         if not scores["D3"]:
-            first_failure = "D3"
+            _trip("D3")
 
     # D4 category accuracy — exact match to expected
     if first_failure is None:
         predicted = prompt_output.get("classification") or prompt_output.get("topology")
         scores["D4"] = (predicted == expected)
         if not scores["D4"]:
-            first_failure = "D4"
+            _trip("D4")
 
     # D5 precondition appropriateness. For capacity_composition and action_scope
     # there are no sub-preconditions, so D5 inherits from D4 when applicable.
-    # For condition_structure, D5 checks content_correctness == "correct".
+    # For condition_structure, D5 checks content_correctness == "correct" but
+    # is typically NOT in relevant_dims (topology doesn't have preconditions).
     if first_failure is None:
         if field == "condition_structure" and prompt_output is not None:
             scores["D5"] = prompt_output.get("content_correctness") == "correct"
             if not scores["D5"]:
-                first_failure = "D5"
+                _trip("D5")
         else:
             scores["D5"] = scores["D4"]
 
@@ -702,6 +753,7 @@ def _score_instance(
         "dimension_scores": scores,
         "first_failure": first_failure,
         "grade": grade,
+        "relevant_dimensions": list(relevant_dims),
     }
 
 
@@ -765,6 +817,12 @@ def _measure_generic(
         except Exception:
             pass
 
+    # Per-field dimension relevance: graph-sourced (Prompt 10 Fix 2). Condition-
+    # structure excludes D5/D6 because topology has no preconditions or inter-
+    # instance consistency axis. Other fields exercise all six dimensions.
+    relevant_dims = _load_relevant_dimensions(field)
+    logger.info("relevant dimensions for %s: %s", field, relevant_dims)
+
     per_instance = []
     confusion = defaultdict(lambda: defaultdict(int))
     dim_counters = {d: {"reached": 0, "passed": 0} for d in ("D1", "D2", "D3", "D4", "D5", "D6")}
@@ -801,7 +859,10 @@ def _measure_generic(
             logger.error("classification SDK path unavailable: %s", exc)
             prompt_output = None
 
-        result = _score_instance(field, ex["norm_kind"], prompt_output, expected, enum_values)
+        result = _score_instance(
+            field, ex["norm_kind"], prompt_output, expected, enum_values,
+            relevant_dims=relevant_dims,
+        )
         per_instance.append({
             "norm_id": ex["norm_id"],
             "norm_kind": ex["norm_kind"],
@@ -881,6 +942,7 @@ def _measure_generic(
         "prompt_version": prompt_version,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "instance_count": len(per_instance),
+        "relevant_dimensions": relevant_dims,
         # Headline — what to lead with when judging extraction quality.
         "headline_metric": {
             "accuracy_on_matched": accuracy_on_matched,
@@ -965,6 +1027,9 @@ def _print_summary(result: dict) -> None:
     for d in ("D1", "D2", "D3", "D4", "D5", "D6"):
         acc = result["per_dimension_accuracy"][d]
         print(f"    {d}: {('%.3f' % acc) if acc is not None else '   n/a'}")
+    rel_dims = result.get("relevant_dimensions") or []
+    if rel_dims:
+        print(f"  relevant dimensions:           {', '.join(rel_dims)}")
     print(
         f"  rule-selection accuracy:       {result['rule_selection_submatrix']['accuracy']:.1%}  "
         f"(correct={result['rule_selection_submatrix']['correct']} / "

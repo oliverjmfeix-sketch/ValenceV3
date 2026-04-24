@@ -1,0 +1,30 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Classification field config — per-field dimension relevance
+#
+# Prompt 10 Fix 2. Each classification field declares which of the six
+# Horner dimensions (D1–D6) it's measured against. Measurement computes
+# the per-instance grade using only relevant dimensions, so fields that
+# don't exercise D5/D6 don't have their aggregate grade forced to 0.
+#
+# Dimension semantics (recap from classification_measurement.py):
+#   D1 = coverage (matched/expected ratio)  — always relevant
+#   D2 = syntactic validity (enum)          — always relevant
+#   D3 = semantic correctness               — always relevant
+#   D4 = category accuracy                  — always relevant
+#   D5 = precondition appropriateness       — only condition_structure in v1
+#   D6 = cross-instance consistency         — applies to enumerable classes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+insert
+
+$cfc_cc isa classification_field_config,
+    has classification_field_name "capacity_composition",
+    has relevant_dimensions "D1,D2,D3,D4,D5,D6";
+
+$cfc_as isa classification_field_config,
+    has classification_field_name "action_scope",
+    has relevant_dimensions "D1,D2,D3,D4,D5,D6";
+
+$cfc_cs isa classification_field_config,
+    has classification_field_name "condition_structure",
+    has relevant_dimensions "D1,D2,D3,D4";

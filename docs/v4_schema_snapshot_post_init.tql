@@ -1250,6 +1250,10 @@ attribute defeater_id,
  value string;
 attribute defeater_name,
  value string;
+attribute classification_field_name,
+ value string;
+attribute relevant_dimensions,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2430,6 +2434,9 @@ entity condition_builder_spec,
   owns condition_topology_emitted,
   owns description,
   plays builder_spec_uses_predicate:builder_spec;
+entity classification_field_config,
+  owns classification_field_name @key,
+  owns relevant_dimensions;
 relation provision_has_exclusion,
   sub provision_has_extracted_entity,
   relates exclusion as extracted,
