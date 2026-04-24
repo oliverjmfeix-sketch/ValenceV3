@@ -1,116 +1,179 @@
 # v4 Deontic Pilot — Handover
 
-Short-form summary for a fresh session continuing the work. Authoritative detail lives in the docs listed below; this page exists so you don't have to read 24 commits to pick up.
+Short-form summary for a fresh session continuing the work. Authoritative detail lives in the docs listed below; this page exists so you don't have to read 50+ commits to pick up.
 
-## Where we are (as of 2026-04-23)
+## Where we are (as of 2026-04-24, post-Prompt-10)
 
 **Branch:** `v4-deontic` (local-only, never pushed). Running in worktree `C:\Users\olive\ValenceV3\.claude\worktrees\sweet-raman-b5be00`.
 
-**Scope:** Valence v4 pilot — covenant-analysis platform refactor from v3's attribute-heavy model to a deontic graph model. Pilot target: RP only, Duck Creek deal, 6+12 gold-standard questions. Other covenants (MFN, DI, Liens, Asset Sales, …) remain v3 behavior until RP pilot passes its acceptance test (Rule 7.1).
+**Scope:** Valence v4 pilot — covenant-analysis platform refactor from v3's attribute-heavy model to a deontic graph model. Pilot target: RP only, Duck Creek deal (`6e76ed06`), 6 lawyer gold-standard questions. Other covenants (MFN, DI, Liens, Asset Sales, …) remain v3 behavior until the RP pilot passes its acceptance test (Rule 7.1).
 
-**What exists now:**
+**What exists now (all three layers live in TypeDB Cloud):**
 
 - **Foundational rules + architecture:** [docs/v4_foundational_rules.md](v4_foundational_rules.md), [docs/v4_deontic_architecture.md](v4_deontic_architecture.md)
-- **Schema:** [app/data/schema_v4_deontic.tql](../app/data/schema_v4_deontic.tql) — deontic entities (party, action_class, object_class, state_predicate, condition, norm, defeater, event_instance, gold_question, document_segment_type, segment_norm_expectation, expected_norm_kind) + relations (norm_binds_subject, norm_scopes_action/instrument/object, norm_has_condition, norm_contributes_to_capacity with aggregation_direction + aggregation_function on edges, norm_provides_carryforward_to / _carryback_to, norm_in_segment, norm_serves_question, defeats, etc.)
-- **Function library:** 6 files in `app/data/deontic_*_functions.tql` — 25 functions; see [docs/v4_function_library_audit.md](v4_function_library_audit.md) for per-function verdicts (17 graph-native, 3 minor-concern/park, 2 needs-restructure deferred to Prompt 07, 3 stubs)
-- **Seeds:** deontic_primitives (18 singletons: 9 object + 9 action), state_predicates (22 per-threshold instances), segment_types (21), segment_norm_expectations (7), expected_norm_kinds (14), gold_questions (18 — 6 lawyer + 12 Xtract RP)
-- **Ground truth:** [app/data/duck_creek_rp_ground_truth.yaml](../app/data/duck_creek_rp_ground_truth.yaml) — 63 norms with scoped actions/objects, conditions with topology, capacity aggregation trees, carryforward/back relations, serves_questions relationships. Loaded into TypeDB via [app/scripts/load_ground_truth.py](../app/scripts/load_ground_truth.py).
-- **Harnesses:** [app/services/validation_harness.py](../app/services/validation_harness.py) runs A1–A5 completeness checks. [app/services/classification_measurement.py](../app/services/classification_measurement.py) runs six-dimensional (Horner et al. 2025) classification measurement + rule-selection accuracy (DeonticBench 2026) with short-circuit grading and confusion matrices. Claude API calls stubbed with `NotImplementedError` — wire the Anthropic SDK in Prompt 08.
+- **Schema:** [app/data/schema_v4_deontic.tql](../app/data/schema_v4_deontic.tql) — deontic entities, conditions, defeaters, event_instance, segment types, classification_field_config (Prompt 10), projection infrastructure (deontic_mapping + condition_builder_spec), per-deal party seeding (Prompt 08)
+- **Function library:** 6 files in `app/data/deontic_*_functions.tql` — condition / norm / capacity / pathway / validation / pattern functions
+- **Projection engine:** [app/services/deontic_projection.py](../app/services/deontic_projection.py) — mapping-driven plus per-entity-type concessions for builder sub-sources and J.Crew defeaters. Includes `clear_v4_projection_for_deal` for idempotent re-runs
+- **Classification harness:** [app/services/classification_measurement.py](../app/services/classification_measurement.py) — V2 prompts, tuple-join to GT, per-field dimension relevance (Prompt 10), accuracy-on-matched headline metric (Prompt 09)
+- **Validation harness:** [app/services/validation_harness.py](../app/services/validation_harness.py) — A1–A5 completeness checks. A5 implemented via `norm_extracted_from:fact`
+- **Ground truth:** [app/data/duck_creek_rp_ground_truth.yaml](../app/data/duck_creek_rp_ground_truth.yaml) — 63 norms. Loaded into `valence_v4_ground_truth` via [app/scripts/load_ground_truth.py](../app/scripts/load_ground_truth.py)
+- **$12.95 extracted artifact:** Duck Creek RP fully extracted into `valence_v4` (Part 5 of Prompt 07). **Must not be re-extracted.**
 
 ## TypeDB Cloud databases
 
 | DB | Purpose | Populated? |
 |---|---|---|
-| `valence` | v3 live data (untouched) | yes — v3 extractions present |
-| `valence_v4` | v4 extraction target | schema + seeds only; no extracted data yet |
-| `valence_v4_ground_truth` | authored ground-truth graph | 63 norms + 78 serves-question edges + 11 conditions + 20 capacity-contributor edges + 22 state predicates + 18 gold questions + 6 predicate-reference edges |
+| `valence` | v3 live data (untouched) | yes |
+| `valence_v4` | v4 extraction target + projection output | 8 rp_baskets + 1 jcrew_blocker + 5 blocker_exceptions + 3 sweep_tiers + 6 investment_pathways + 22 projected norms + 5 defeaters + 7 parties |
+| `valence_v4_ground_truth` | authored ground-truth graph | 63 norms + 25 conditions + 18 gold_questions + per-deal party instances |
 
-Per-deal party instances (3 roles in use: borrower, loan_party, restricted_sub) are seeded in `valence_v4_ground_truth` but NOT in `valence_v4`.
+## Current baseline (end of Prompt 10)
+
+**Classification accuracy (V2 prompts, structural-tuple match to GT):**
+
+| Field | Accuracy-on-matched | Aggregate |
+|---|---|---|
+| `capacity_composition` | 75.0% (12/16) | 54.5% |
+| `action_scope` | 87.5% (14/16) | 63.6% |
+| `condition_structure` | 93.8% (15/16) | 68.2% (D1–D4 relevant only) |
+| Rule-selection | **100% (via A5)** | — |
+
+**A1–A5 verdicts:**
+
+| Check | Verdict | Notes |
+|---|---|---|
+| A1 structural | **pass** | 22/22 norms structurally complete |
+| A2 segment counts | fail | Coverage gaps (extraction produces fewer norms than gold expects) |
+| A3 kind coverage | fail | 2 always-expected kinds missing: `builder_basket_aggregate`, `intercompany_permission` |
+| A4 round-trip | fail | missing=46, spurious=6, mismatched=0. Missing is coverage; spurious is GT's narrower RDP scope |
+| A5 rule-selection | **pass** | 100% per-entity-type accuracy |
 
 ## What's pending
 
-**Prompt 07** = projection engine + v3 extraction additions + first data load into `valence_v4`. The prompt itself hasn't been authored yet; the shape from the architecture doc §8 is:
+**Prompt 11** = operations layer. The query engine that answers user questions by composing a finite set of typed operations over the graph. Target is Duck Creek's 6 gold-standard questions (`app/data/gold_standard/lawyer_dc_rp.json`). Per architecture doc §6, 11 operations:
 
-- v3 extraction (builder_basket, ratio_basket, jcrew_blocker, etc.) stays untouched — v3's extractor remains the source of raw facts.
-- Four surgical extraction-side additions (per arch doc §8.2): `capacity_aggregation_function`, `object_class`, `partial_applicability` on reallocation edges, `capacity_composition_validation` classification.
-- **Projection engine** (new): declarative mapping rules (seeded in `app/data/rp_deontic_mappings.tql`) translate v3 extracted entities into v4 norms. Engine reads the mapping, iterates extracted entities, emits norm instances + relations + condition trees, gates on `norm_is_structurally_complete`.
-- After projection runs, `valence_v4` has extracted v4 norms. Harness runs graph-to-graph against `valence_v4_ground_truth`.
+1. `describe_norm`
+2. `get_attribute`
+3. `enumerate_linked`
+4. `evaluate_capacity`
+5. `evaluate_feasibility`
+6. `enumerate_defeaters`
+7. `trace_pathways`
+8. `describe_relation`
+9. `lookup_definition`
+10. `filter_norms`
+11. `enumerate_patterns`
 
-**After Prompt 07:** Prompt 08 wires the Anthropic client into `classification_measurement.py`, runs classification measurement for real, calibrates the v1 prompts. Prompt 09–12 scope TBD but aim at the acceptance test.
+Entry point is `app/services/deontic_operations.py` (doesn't exist yet). Plus `app/services/intent_parser.py` (natural-language → IntentObject) and `app/services/deontic_renderer.py` (result → prose).
 
-## Key commits
+**After Prompt 11:** Prompt 12+ scope TBD; acceptance test is the final gate (all 6 questions produce answers that substantively match the gold answers per Rule 7.4).
 
-24 commits on v4-deontic since fork from main. Most recent first:
+## Key commits since the previous handover (`e290fc4`)
+
+27 commits across Prompts 07–10. Most recent first:
 
 ```
-928dcc6  v4: classification fills on 21 definitional norms
-9955adf  v4: ground-truth-to-graph loader — graph is source of truth
-5bc7fac  v4: function library graph-native audit
-1fa1e13  v4: norm_serves_question relation — multi-question multi-role graph-native
-a72d169  v4: norm_in_segment relation — typed segment membership
-f1c2cf4  v4: condition_topology attribute — graph-native topology classification
-cb8b71d  v4: cap_grower_reference + formulaic-cap + carryforward/carryback decomposition
-27ecfdd  v4: aggregation_direction on norm_contributes_to_capacity — native subtract
-93d8031  v4: state_predicate composite key — per-threshold instances
-ed61576  v4: harnesses with six-dimensional eval, confusion matrices, rule-selection accuracy
-3466fb9  v4: Duck Creek RP ground truth
-c120620  v4: deontic schema + init script + snapshots
-10cd890  v4: architecture spec
-4bcab03  v4: establish foundational rules
-8f1fe98  v4: backup v3 to sibling dir, establish v4 database + branch
+a027700  v4: Prompt 10 report + known-gaps follow-ups
+cced216  v4: diagnostic — cap_usd + grower-pct scale fix
+2be78a6  v4: A1 harness — provenance inheritance on sub-sources
+71b03b6  v4: per-field dimension relevance
+18ee63d  v4: projection — specific action_scope for contributors per audit
+fff8e0b  v4: audit — action_scope semantics for capacity contributions
+11ddc56  v4: Prompt 09 final metrics report
+ea50a9f  v4: classification reporting — accuracy-on-matched as headline
+8b158ab  v4: A5 harness marker — report real rule-selection accuracy
+a496308  v4: projection — builder sub-source tuple population
+b182a9c  v4: classification prompts V2 — vocabulary alignment
+dbe7ad7  v4: Prompt 08 final metrics report
+d8d907f  v4: projection — J.Crew blocker defeater emission
+c54bc8f  v4: projection — builder sub-source emission with b_aggregate
+388f6d0  v4: norm_kind alignment
+f4ba847  v4: projection — norm_in_segment via prefix patterns
+4437566  v4: projection — per-deal party seeding + subject edges
+a697dc1  v4: classification harness — tuple join, not norm_id
+7e5d02b  v4: init_schema_v4 safeguards — refuse to drop extraction
+7ba9589  v4: Duck Creek RP — FIRST DATA LANDING ($12.95 extraction)
+047ae82  v4: per-subtype extraction questions (Option A)
+2959f8e  v4: classification harness — wire Claude SDK
+0039967  v4: projection engine — v3 entities to v4 norms
+8a05c4e  v4: projection infrastructure — extraction additions + mappings
+1ac2d3f  v4: seed_loader — factored shared seed loading
+0a54d21  v4: loader — full condition tree recursion + multi-scope edges
+69890a6  v4: state_predicate_id integrity check
 ```
 
-Read commit messages for design rationale — they carry institutional memory that isn't in the docs.
+Read commit messages for design rationale — institutional memory lives there.
 
 ## Hard-learned gotchas
 
-Documented in memory file `typedb-patterns.md` under "v4 session gotchas." Summary:
+Documented in memory file `typedb-patterns.md` under "v4 session gotchas." Key ones from Prompts 07–10:
 
-- **`@abstract` cannot combine with `sub`** in one statement — two statements required
-- **Composite `@key` / `@unique`** across attributes is unsupported; `double`-valued attrs can't be key-constrained. Composite-id string attribute (computed via [app/services/predicate_id.py](../app/services/predicate_id.py)) is the fallback
-- **`FUN9`** — TypeDB 3.x rejects recursive function cycles through negation/reduction/single-return. Rewrite to avoid self-recursion through those forms
-- **Function params** — underscore-prefix names rejected; unused params rejected (add parameter-use guards); `long` is not a valid type (`integer`); one `reduce` per function body
-- **Value/attribute boundary** — variables bound via `has X $v` can't cross into a function declared `string` parameter. Take the entity concept instead
-- **Disjunction branches** — variables appearing in some but not all branches must use unique per-branch names
-- **Retroactive `@key`** — can't add to an attribute on an entity type that already has instances without the attribute populated first. Drop + re-init
-- **Additive schema migrations** work in-place; type-renames/hierarchy-changes require drop/rebuild
+- **Multiple `define` blocks in one SCHEMA transaction fail.** Keep one `define` per schema file.
+- **TypeDB 3.x WRITE transactions silently execute only the first match-insert when multiple are bundled.** `seed_loader._load_write_file` splits statements and runs each in its own tx (ported from v3's `_load_mixed_tql_file`).
+- **INF11 type-inference errors on three-hop role-aliased relation joins.** Workaround: filter by attribute prefix (e.g., `$bid contains "<deal_id>_"`) instead of joining through abstract relations.
+- **`isa` is polymorphic; `isa!` is exact.** Use `isa!` to avoid over-broad matches on abstract parents.
+- **Schema additions apply in-place; type hierarchy changes require rebuild.** `init_schema_v4 --schema-only` is safe against preserved extraction.
+- **`str(int)` vs `str(float)` differ.** `construct_state_predicate_id` coerces numeric inputs to float for consistent id format across YAML-int and Python-float callers.
+- **`load_dotenv(override=True)` for CLI invocation.** `override=False` can lose the API key when launched via `py -3.12 -m`.
+- **Delete queries silently fail when the referenced type isn't in the schema** (e.g., defeater_id before Fix 6 lands). Run each delete in its own tx so one failure doesn't roll back the others.
 
-## Open gaps / known issues
+## Post-pilot follow-ups (in `docs/v4_known_gaps.md`)
 
-Authoritative: [docs/v4_known_gaps.md](v4_known_gaps.md). Highlights:
+- **action_scope fourth-value taxonomy.** Audit `fff8e0b` ruled Candidate A (`specific`) for capacity contributors as the pilot solution. Post-pilot, revisit Candidate C (`contributory`) if operations-layer queries reveal conflation friction.
+- **cap_grower_pct extraction convention.** v3 stores fractions (1.0 = 100%), GT authors percentages (100.0). Projection coerces via `value ≤ 5.0 → ×100` heuristic. Ideal fix is extraction-side, requires re-extraction.
+- **Source text / source_page verification.** 54 of 63 GT norms carry `<source_text_verification_required>` and 55 of 63 carry `<page_unknown>`. Pre-Prompt-8 pass was deferred — if operations layer surfaces issues, do the 1–2 hour PDF-reading pass.
+- **Norm count drift 23→22.** Low-priority investigation. Duplicate `builder_source_other` handling suspected.
+- **2 residual Claude action_scope misses** on `general_rp_basket_permission` (exp=reallocable, Claude=specific). V3 prompt candidate if measurement becomes a bottleneck.
 
-- **55 of 63 norms carry `<page_unknown>` placeholders** for `source_page`; **54** carry `<source_text_verification_required>` placeholders. PDF-reading pass needed before Prompt 08's round-trip check runs meaningfully. Estimated 1–2 hours of manual agreement reading.
-- **Norm_kind names for §6.06(d)–(w) are provisional** — may need reclassification after PDF pass confirms letter→clause content.
-- **Function library audit** flagged 3 park-worthy restructures (post-pilot) + 2 needs-restructure items (`norm_enables_hop`, `state_reachable`) deferred to Prompt 07 when typed state-transition modeling lands.
-- **`condition_references_predicate` has only 6 edges in the ground-truth graph** for 11 conditions — the 5 non-atomic conditions have children that the loader doesn't yet construct. Prompt 07 projection should emit the full nested tree.
-- **Harness Claude-API stub** — `_call_claude_classify` raises `NotImplementedError`; wire in Prompt 08.
-- **`action_class.is_critical` et al.** — park-worthy graph-native improvements if the relevant sets grow.
+## How to start a new session
 
-## How to start
+1. `cd "C:/Users/olive/ValenceV3/.claude/worktrees/sweet-raman-b5be00"` — this is the v4 worktree
+2. `git status` to confirm clean working tree on `v4-deontic`
+3. `git log --oneline -5` to confirm latest is `a027700`
+4. Read [docs/v4_foundational_rules.md](v4_foundational_rules.md) — governing invariants
+5. Read [docs/v4_deontic_architecture.md](v4_deontic_architecture.md) — authoritative spec (esp. §6 operations for Prompt 11)
+6. Read [docs/v4_prompt10_report.md](v4_prompt10_report.md) — latest baseline metrics
+7. Read [docs/v4_known_gaps.md](v4_known_gaps.md) — open items
+8. Read this file — summary + entry points
+9. Await next prompt (expected: Prompt 11, operations layer)
 
-1. `git status` to confirm clean working tree on `v4-deontic`
-2. `git log --oneline -5` to confirm latest is `928dcc6`
-3. Read [docs/v4_foundational_rules.md](v4_foundational_rules.md) — governing invariants
-4. Read [docs/v4_deontic_architecture.md](v4_deontic_architecture.md) — 800+ lines but authoritative
-5. Read [docs/v4_known_gaps.md](v4_known_gaps.md) — open items
-6. Read this file — summary + entry points
-7. Await next prompt (expected: Prompt 07)
-
-Verify TypeDB connectivity before any data work:
+### Verify TypeDB connectivity + extraction preservation
 
 ```bash
 py -3.12 -c "
-import os
+import os, sys
 from pathlib import Path
+sys.path.insert(0, str(Path.cwd()))
 from dotenv import load_dotenv
 load_dotenv(Path('C:/Users/olive/ValenceV3/.env'), override=True)
-from typedb.driver import TypeDB, Credentials, DriverOptions
+from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType
 d = TypeDB.driver(os.environ['TYPEDB_ADDRESS'],
                   Credentials(os.environ['TYPEDB_USERNAME'], os.environ['TYPEDB_PASSWORD']),
                   DriverOptions())
-print('databases:', sorted([db.name for db in d.databases.all()]))
-d.close()
+try:
+    print('databases:', sorted([db.name for db in d.databases.all()]))
+    tx = d.transaction('valence_v4', TransactionType.READ)
+    try:
+        for tp in ('rp_basket','jcrew_blocker','norm','defeater','party'):
+            r = tx.query(f'match \$e isa {tp}; select \$e;').resolve()
+            print(f'  {tp}: {len(list(r.as_concept_rows()))}')
+    finally:
+        tx.close()
+finally:
+    d.close()
 "
 ```
 
-Expected output includes `valence`, `valence_v4`, and `valence_v4_ground_truth`.
+**Expected output:**
+- `databases:` includes `valence`, `valence_v4`, `valence_v4_ground_truth`
+- `rp_basket: 8`, `jcrew_blocker: 1`, `norm: 22`, `defeater: 5`, `party: 7`
+
+If rp_basket or jcrew_blocker returns 0, the $12.95 extraction has been lost — stop and investigate before doing any work.
+
+## Hard constraints
+
+- **No re-extraction.** `valence_v4` extraction is a $12.95 artifact. `init_schema_v4` refuses to drop without `--preserve-extraction`. For seed/schema updates use `--schema-only`.
+- **TypeDB Cloud only.** `ip654h-0.cluster.typedb.com:80`. `.env` at `C:/Users/olive/ValenceV3/.env`.
+- **Branch is local-only.** Do not push to remote.
+- **`py -3.12`** required (not system `py`) — typedb-driver needs Python 3.12 on Windows.
+- **Before any TypeQL/TypeDB Python work**, read `typedb-patterns.md` in memory.
