@@ -40,10 +40,13 @@ error rather than inventing values.
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
+import hashlib
 import json
 import logging
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +75,14 @@ logger = logging.getLogger("intent_parser")
 # simpler than the classification measurement harness's per-field parses;
 # Sonnet handles this well at ~5x lower cost than Opus.
 DEFAULT_MODEL = "claude-sonnet-4-6"
+
+# Parser version — bump on meaningful prompt or response-shape changes.
+# Logged into every audit entry so historical parses can be correlated
+# to the prompt that produced them.
+PARSER_VERSION = "v1"
+
+# Audit log location. Gitignored via .gitignore addition in Commit 4.
+_AUDIT_LOG_DIR = _REPO_ROOT / "app" / "data" / "intent_parser_log"
 
 
 # ─── Static operation catalog ──────────────────────────────────────────────────
@@ -544,6 +555,7 @@ def parse_intent(question: str, model: str | None = None,
 
     last_error: Exception | None = None
     raw_text = ""
+    start_ns = time.perf_counter_ns()
     for attempt in range(max_retries):
         try:
             response = client.messages.create(
@@ -554,6 +566,16 @@ def parse_intent(question: str, model: str | None = None,
                 messages=[{"role": "user", "content": user_message}],
             )
             raw_text = response.content[0].text if response.content else ""
+            latency_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
+            # Short hash identifying the exact Claude response for audit
+            # correlation. First 12 hex chars of sha256.
+            raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()[:12]
+            transparency = {
+                "parser_version": PARSER_VERSION,
+                "claude_model_used": model_name,
+                "raw_claude_response_hash": raw_hash,
+                "parser_latency_ms": latency_ms,
+            }
             parsed = _extract_json(raw_text)
             if parsed is None:
                 logger.warning("intent parse did not return JSON; raw=%r", raw_text[:200])
@@ -564,6 +586,7 @@ def parse_intent(question: str, model: str | None = None,
                     "intent_confidence": 0.0,
                     "parser_error": "JSON parse failure",
                     "raw_claude_text": raw_text[:500],
+                    **transparency,
                 }
             ok, err = _validate_intent(parsed)
             if not ok:
@@ -576,8 +599,14 @@ def parse_intent(question: str, model: str | None = None,
                     "parser_error": err,
                     "raw_claude_text": raw_text[:500],
                     "raw_claude_parsed": parsed,
+                    **transparency,
                 }
             parsed["question"] = question
+            parsed.update(transparency)
+            # Stash raw text on the parsed dict for the audit logger
+            # (stripped from the final response before return to caller
+            # if caller wants a clean envelope; kept for log fidelity).
+            parsed["_raw_claude_response"] = raw_text
             return parsed
         except Exception as exc:  # noqa: BLE001
             last_error = exc
@@ -586,6 +615,7 @@ def parse_intent(question: str, model: str | None = None,
             if attempt + 1 >= max_retries or not transient:
                 break
 
+    latency_ms = (time.perf_counter_ns() - start_ns) // 1_000_000
     return {
         "question": question,
         "intent_classification": "parser_error",
@@ -593,7 +623,98 @@ def parse_intent(question: str, model: str | None = None,
         "intent_confidence": 0.0,
         "parser_error": str(last_error) if last_error else "unknown",
         "raw_claude_text": raw_text[:500] if raw_text else "",
+        "parser_version": PARSER_VERSION,
+        "claude_model_used": model_name,
+        "raw_claude_response_hash": hashlib.sha256(
+            (raw_text or "").encode("utf-8")).hexdigest()[:12] if raw_text else None,
+        "parser_latency_ms": latency_ms,
     }
+
+
+def _human_readable_interpretation(intent: dict) -> str:
+    """Build a 1-2 sentence prose summary of how the operation_call was
+    interpreted. Fired after operation dispatch; complements parsed_as
+    (short) with longer-form interpretation.
+    """
+    op = intent.get("operation") or "?"
+    params = intent.get("parameters") or {}
+    resp = intent.get("operation_response") or {}
+
+    if "error" in resp:
+        return (f"Attempted to route to {op} with parameters {params} but "
+                f"execution failed: {resp.get('error','unknown')}.")
+
+    result = resp.get("result", {}) if isinstance(resp, dict) else {}
+    if op == "describe_norm":
+        return (f"Routed to describe_norm on {params.get('norm_id')!r}, "
+                f"returning its full structural description (modality, "
+                f"capacity composition, condition tree, subject/action/"
+                f"object scopes, contributors, defeaters).")
+    if op == "get_attribute":
+        val = result.get("value")
+        return (f"Routed to get_attribute on entity {params.get('entity_id')!r}, "
+                f"attribute {params.get('attribute_name')!r}; returned "
+                f"value {val!r}.")
+    if op == "enumerate_linked":
+        return (f"Routed to enumerate_linked on {params.get('entity_id')!r} "
+                f"via {params.get('relation_type')} (playing role "
+                f"{params.get('role_played')}); returned "
+                f"{result.get('count', 0)} linked entities.")
+    if op == "trace_pathways":
+        if params.get("anchor_type") == "action_class":
+            perms = result.get("summary", {}).get("permission_count", 0)
+            collapsed = result.get("summary", {}).get("collapsed_count", 0)
+            return (f"Routed to trace_pathways anchored at action class "
+                    f"{params.get('anchor_value')!r}; returned {perms} "
+                    f"permissions (with {collapsed} contributors collapsed "
+                    f"into their parent pools).")
+        return (f"Routed to trace_pathways anchored at state predicate "
+                f"{params.get('anchor_value')!r}; returned "
+                f"{result.get('summary',{}).get('norm_count',0)} referencing "
+                f"norms.")
+    if op == "filter_norms":
+        return (f"Routed to filter_norms with criteria {params.get('criteria')}; "
+                f"returned {result.get('count', 0)} matching norms.")
+    if op == "evaluate_feasibility":
+        return (f"Routed to evaluate_feasibility on {params.get('norm_id')!r} "
+                f"against supplied world state; result: applicable="
+                f"{result.get('applicable')}, reason="
+                f"{result.get('reason','')[:80]!r}.")
+    if op == "evaluate_capacity":
+        return (f"Routed to evaluate_capacity on {params.get('norm_id')!r} "
+                f"against supplied world state; computed capacity_usd="
+                f"{result.get('capacity_usd')} (composition="
+                f"{result.get('capacity_composition')}).")
+    return f"Routed to {op}; see operation_response for details."
+
+
+def _write_audit_log(deal_id: str, response: dict) -> None:
+    """Append one JSONL line to app/data/intent_parser_log/<deal>_<date>.jsonl."""
+    try:
+        _AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        date = _dt.datetime.now().strftime("%Y-%m-%d")
+        path = _AUDIT_LOG_DIR / f"{deal_id}_{date}.jsonl"
+        entry = {
+            "timestamp": _dt.datetime.now().isoformat(),
+            "deal_id": deal_id,
+            "question": response.get("question"),
+            "raw_claude_response": response.get("_raw_claude_response"),
+            "parsed_intent": {
+                k: v for k, v in response.items()
+                if k not in ("_raw_claude_response", "operation_response",
+                             "human_readable_interpretation")
+            },
+            "operation_response": response.get("operation_response"),
+            "human_readable_interpretation":
+                response.get("human_readable_interpretation"),
+            "parser_latency_ms": response.get("parser_latency_ms"),
+            "claude_model_used": response.get("claude_model_used"),
+            "parser_version": response.get("parser_version"),
+        }
+        with path.open("a", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("audit log write failed: %s", exc)
 
 
 # ─── Operation dispatch (Commit 2) ────────────────────────────────────────────
@@ -665,7 +786,8 @@ def answer_question(question: str, deal_id: str,
 
     cls = intent.get("intent_classification")
     if cls != "operation_call":
-        return intent
+        _finalize_and_log(deal_id, intent)
+        return _strip_internal(intent)
 
     op_name = intent.get("operation")
     params = dict(intent.get("parameters") or {})
@@ -754,7 +876,21 @@ def answer_question(question: str, deal_id: str,
         resp = {"error": f"operation_raised: {type(exc).__name__}: {exc}"}
 
     intent["operation_response"] = resp
-    return intent
+    intent["human_readable_interpretation"] = _human_readable_interpretation(intent)
+    _finalize_and_log(deal_id, intent)
+    return _strip_internal(intent)
+
+
+def _finalize_and_log(deal_id: str, intent: dict) -> None:
+    """Write the audit log entry. Called from answer_question's exit paths."""
+    _write_audit_log(deal_id, intent)
+
+
+def _strip_internal(intent: dict) -> dict:
+    """Remove internal-only fields (e.g., _raw_claude_response) from the
+    response returned to callers. The raw text lives in the audit log.
+    """
+    return {k: v for k, v in intent.items() if not k.startswith("_")}
 
 
 # ─── CLI ───────────────────────────────────────────────────────────────────────
@@ -798,7 +934,8 @@ def main() -> int:
     if args.op == "parse":
         resp = parse_intent(args.question, model=args.model)
         resp["deal_id"] = args.deal
-        _print(resp, compact)
+        _finalize_and_log(args.deal, resp)
+        _print(_strip_internal(resp), compact)
         return 0
 
     if args.op == "answer":
