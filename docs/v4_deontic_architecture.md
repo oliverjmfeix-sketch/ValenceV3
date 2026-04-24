@@ -720,6 +720,30 @@ Additional detectors (`has_jcrew_pattern_deontic`, `has_serta_pattern_deontic`, 
 
 v4 answers questions by composing a finite set of operations (Rule 5.4). Each operation has a typed parameter schema and a typed return shape. The intent parser (`app/services/intent_parser.py`) converts a natural-language question into an `IntentObject` that selects an operation and fills its parameters. The operation (`app/services/deontic_operations.py`) calls TypeDB functions and returns a structured `OperationResult`. The renderer (`app/services/deontic_renderer.py`) converts the result to prose. No operation contains legal reasoning; no renderer contains legal reasoning (Rules 5.2, 5.3, 4.4).
 
+### 6.0 Operations posture — structural vs evaluated (Rule 8.1)
+
+Operations divide into two kinds by their dependency on world state:
+
+- **Structural operations** take no world-state input. They return agreement structure — what a norm says, what predicates it references, how capacity is composed. A consumer who needs to know "what does 6.06(j) permit" never needs to tell Valence their current leverage ratio. Operations in this class: `describe_norm`, `get_attribute`, `enumerate_linked`, `enumerate_defeaters`, `describe_relation`, `lookup_definition`, `filter_norms`, `enumerate_patterns` (when used to return pattern definitions), `trace_pathways` (when used to enumerate structural paths without firing the predicates along them).
+
+- **Evaluated operations** take `supplied_world_state` as a required parameter. The consumer provides ratio snapshots, proposed-action details, and any other transaction-specific facts; Valence evaluates predicates and functions against those inputs and returns the result plus an echo of what was supplied plus a `computation_trace`. Operations in this class: `evaluate_feasibility`, `evaluate_capacity`. The consumer retains authoritative ownership of the world state; Valence's role is structural interpretation of agreement rules against supplied inputs.
+
+Response shape for **evaluated operations**:
+```
+{
+  "supplied_world_state": <echo of what the consumer sent>,
+  "computation_trace": [
+    { "step": "...", "predicate": "...", "supplied_value": ..., "threshold": ..., "outcome": true|false },
+    ...
+  ],
+  "result": <operation-specific result>
+}
+```
+
+This preserves auditability: a consumer can verify that Valence used their inputs correctly and that no authoritative claim about the world has been smuggled in. See `docs/v4_foundational_rules.md` §VIII for the governing rule.
+
+Backwards reference note. Earlier drafts used `hypothetical_impact` as the parameter name on `evaluate_feasibility`; the Rule 8.1 posture renames it to `supplied_world_state` for consistency across evaluated operations. Same shape, clearer name.
+
 ### 6.1 The 11 operations (names and one-line purposes)
 
 1. `describe_norm` — return prose descriptions of the norm(s) matching a filter
@@ -753,23 +777,41 @@ Parameters are typed and JSON-serializable. Closed-enum parameters reference Typ
 ```
 Returns `{ "norms": [ { norm_id, modality, action, scope, cap_usd, cap_grower_pct, condition_tree, source_section, source_text, provenance_anchors: [entity_ids] } ] }`.
 
-**`evaluate_feasibility`**
+**`evaluate_feasibility`** — evaluated operation (§6.0); consumer supplies world state.
 ```
 {
   "provision_id": string,
   "action_class": string,
   "object_class": string | null,
-  "hypothetical_impact": {
+  "supplied_world_state": {
     "proposed_amount_usd": double | null,
     "target_party_role": string | null,
     "ratio_snapshot_first_lien_net_leverage": double | null,
     "ratio_snapshot_senior_secured_leverage": double | null,
     "ratio_snapshot_total_leverage": double | null,
-    "is_no_worse_pro_forma": boolean | null
+    "is_no_worse_pro_forma": boolean | null,
+    "consolidated_ebitda_ltm": double | null
   }
 }
 ```
-Returns `{ "verdict": "permitted" | "prohibited" | "conditional", "permissions_fired": [...], "prohibitions_fired": [...], "defeaters_applied": [...], "limiting_condition": condition_tree | null, "citations": [source_section...] }`.
+Returns:
+```
+{
+  "supplied_world_state": <echo>,
+  "computation_trace": [
+    { "step": "...", "predicate": "...", "supplied_value": ..., "threshold": ..., "outcome": true|false },
+    ...
+  ],
+  "result": {
+    "verdict": "permitted" | "prohibited" | "conditional",
+    "permissions_fired": [...],
+    "prohibitions_fired": [...],
+    "defeaters_applied": [...],
+    "limiting_condition": condition_tree | null,
+    "citations": [source_section...]
+  }
+}
+```
 
 **`enumerate_linked`**
 ```
@@ -797,17 +839,37 @@ Source and target anchors are polymorphic (Judgment 3): a capacity-sourcing ques
 
 Returns `{ "pathways": [ { hops: [ { hop_kind: "norm" | "capacity_contribution", norm_id, action_class, object_class, state_predicate_label, cap_usd, source_section } ], total_cap_usd } ] }`.
 
-**`evaluate_capacity`**
+**`evaluate_capacity`** — evaluated operation (§6.0); consumer supplies world state for grower-pct resolution + any applicable condition evaluation.
 ```
 {
   "provision_id": string,
   "action_class": string,
   "include_reallocated_capacity": boolean,   # Q5 uses true
   "quantification_mode": "additive" | "fungible" | "categorical" | "total",
-  "normalize_to": "usd" | "ebitda_pct"       # presentation hint; value returned in both
+  "normalize_to": "usd" | "ebitda_pct",      # presentation hint; value returned in both
+  "supplied_world_state": {
+    "consolidated_ebitda_ltm": double | null,  # resolves grower-pct components to absolute dollars
+    "ratio_snapshot_first_lien_net_leverage": double | null,
+    "ratio_snapshot_senior_secured_leverage": double | null,
+    "ratio_snapshot_total_leverage": double | null,
+    "is_no_worse_pro_forma": boolean | null
+  }
 }
 ```
-Returns `{ "total_usd": double, "total_ebitda_pct": double, "components": [ { norm_id, action_class, cap_usd, cap_grower_pct, capacity_composition, source_section } ], "reallocation_inflows": [ { from_norm, to_norm, cap_usd } ] }`.
+Returns:
+```
+{
+  "supplied_world_state": <echo>,
+  "computation_trace": [ ... ],
+  "result": {
+    "total_usd": double,
+    "total_ebitda_pct": double,
+    "components": [ { norm_id, action_class, cap_usd, cap_grower_pct, capacity_composition, source_section } ],
+    "reallocation_inflows": [ { from_norm, to_norm, cap_usd } ]
+  }
+}
+```
+If `supplied_world_state` is omitted, the operation returns structural components only (norm list + raw cap_usd / cap_grower_pct values unresolved); the `total_usd` field is null in that case and the response notes which grower-pct components could not be resolved without an EBITDA input.
 
 ### 6.3 The other six operations (parameter schemas, briefly)
 

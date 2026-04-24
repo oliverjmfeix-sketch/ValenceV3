@@ -169,6 +169,37 @@ The `v4-deontic` branch does not merge to main until all 6 Duck Creek gold-stand
 
 ---
 
+## VIII. World state discipline
+
+### 8.1 World state is per-query input, not stored state
+Valence's graph stores agreement state — norms, conditions, capacity formulas, defeaters, and their relations. Valence does NOT store world state — the borrower's current financial reality (leverage ratios, EBITDA, accumulated usage, EoD status, transaction-specific facts, proposed-action details).
+
+Operations-layer functions that need world state accept it as a per-query parameter supplied by the consumer. Every evaluation is a pure function of (graph: agreement structure) + (supplied: world state). Nothing persists across calls about the borrower's current reality.
+
+Response shape for evaluated queries:
+- Echo the `supplied_world_state` (the consumer's inputs)
+- Include a `computation_trace` showing which predicates/functions were evaluated with which supplied values
+- Return the result
+
+This preserves a clean audit trail: the consumer can verify Valence used their inputs correctly and can't be surprised by Valence substituting values of its own.
+
+*Rationale:* the agreement defines rules. The borrower's current financial state is the borrower's to know, update, and certify — not Valence's to maintain. Storing world state creates a staleness liability (numbers drift the moment the next quarter closes) and a correctness liability (whose authoritative copy?). Accepting world state as input preserves Valence's role as agreement-explainer and evaluator-against-supplied-inputs without claiming authoritative knowledge of the world.
+
+*Prevents:* stale-data claims surfaced as conclusions; Valence becoming a system-of-record it was never designed to be; disagreement between Valence's snapshot and the borrower's books.
+
+**Practical consequences:**
+
+- No `world_state` entity persisted in `valence_v4` as ongoing graph state
+- No seed file that hydrates current leverage, EBITDA, etc. into the graph
+- `predicate_holds`, `condition_holds`, and capacity functions accept world state via their signature (as they already do — `$ws: event_instance`); consumers pass it
+- `evaluate_*` and `compute_*` operations-layer functions take `supplied_world_state` as a required parameter
+- `describe_*` operations-layer functions (pure structure) don't need world state at all
+- `event_instance` as a schema type remains, but serves as the *shape* of the input parameter. Instances live in the graph only transiently during a query's evaluation, not as persistent state
+
+**Accept vs store distinction.** Accepting world state as input is necessary and correct — `predicate_holds($pred, $ws)` cannot evaluate a ratio test without being told what the ratio is. Storing world state as persistent graph state is the liability. This rule removes the stored pattern wherever it appears; the accept-as-input pattern is the design target for the operations layer.
+
+---
+
 ## How to apply these rules
 
 **When writing code:** if you are about to put a legal rule in a string, check 2.1. If you are about to hardcode a list, check 1.2. If you are about to flatten a condition into booleans, check 2.4.

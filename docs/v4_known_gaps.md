@@ -136,6 +136,44 @@ Scope: enum comment update in §4.1 + ~20 GT YAML edits + projection
 branch + V3 classification prompt. Order of magnitude 90 minutes of
 work. Tracked for post-pilot review.
 
+## Accept-as-input vs store-as-state (posture clarification)
+
+Earlier design drafts muddled "Valence uses world state" with "Valence
+stores world state." The corrected posture (Rule 8.1 in
+`docs/v4_foundational_rules.md`) is: Valence accepts world state as
+per-query input, never stores it.
+
+`predicate_holds` / `condition_holds` / capacity functions remain in
+the library as full first-class evaluation functions — they were
+always designed to take world state as a parameter (`$ws:
+event_instance`). The removed pattern is persistent world-state
+storage: seed files hydrating current-leverage-ratio values into the
+graph, schema entities that hold authoritative borrower state, loader
+code that writes such entities at init time.
+
+Schema artefacts that remain:
+
+- `event_instance` as an entity type is kept (§4.9) as the *shape* of
+  the input parameter the consumer supplies at query time. Instances
+  live in the graph only transiently during a query's evaluation, not
+  as persistent state.
+- Event-instance attributes (`ratio_snapshot_*`, `is_no_worse_pro_forma`,
+  `proposed_amount_usd`, etc.) remain. They define the input parameter
+  shape.
+
+Schema artefacts that are removed:
+
+- Any seed file that loads current-state facts as persistent event_instance instances into `valence_v4` at init time.
+
+Operation schemas updated to rename `hypothetical_impact` →
+`supplied_world_state` on `evaluate_feasibility` for consistency; the
+same-shape parameter was already accepted per-query. `evaluate_capacity`
+gains `supplied_world_state` as an optional input for grower-pct
+resolution; without it, the operation returns structural components
+only. See `docs/v4_deontic_architecture.md` §6.0 for the structural vs
+evaluated operation distinction and the evaluated-operation response
+shape.
+
 ## `cap_grower_pct` extraction scale convention (post-pilot)
 
 v3 extraction stores `basket_grower_pct` as fractions (1.0 for 100%,
