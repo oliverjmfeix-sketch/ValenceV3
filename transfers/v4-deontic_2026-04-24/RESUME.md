@@ -1,16 +1,18 @@
 # Resume v4-deontic on another machine
 
 Date: 2026-04-24
-Branch: `v4-deontic` (HEAD: `c9ca2df`)
-Bundle: `v4-deontic_20260424_c9ca2df.bundle` (447 KB)
+Branch: `v4-deontic` (HEAD: `d4a970d`)
+Bundle: `v4-deontic_20260424_d4a970d.bundle` (454 KB)
 Source machine path: `C:/Users/olive/ValenceV3/.claude/worktrees/sweet-raman-b5be00`
 
 ## What's in the bundle
 
-All 78 commits ahead of `main`, including:
+All 79 commits ahead of `main`, including:
 - Prompts 06-13 (extraction, projection, harness, operations, intent
   parser, renderer, eval runner, pilot acceptance run)
-- Phase A norm-id rename (4 most recent commits, ending `c9ca2df`)
+- Phase A norm-id rename (4 commits, ending `c9ca2df`)
+- Handover doc refresh (`d4a970d`) — current state for fresh-session
+  pickup. Read `docs/v4_handover.md` first after restore.
 - All docs under `docs/v4_*.md`, the GT YAML with renamed
   identifiers, the extraction snapshot at
   `app/data/extraction_snapshots/6e76ed06.tql`
@@ -30,11 +32,11 @@ cd <repo>
 git fetch origin main
 
 # 2. Pull the bundle into the local repo
-git fetch /path/to/v4-deontic_20260424_c9ca2df.bundle v4-deontic:v4-deontic
+git fetch /path/to/v4-deontic_20260424_d4a970d.bundle v4-deontic:v4-deontic
 
 # 3. Switch to it
 git switch v4-deontic
-git log --oneline -3  # should show c9ca2df at HEAD
+git log --oneline -3  # should show d4a970d at HEAD (handover refresh)
 ```
 
 If you'd rather work in a worktree (matches the source-machine setup):
