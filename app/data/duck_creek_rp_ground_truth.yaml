@@ -1,7 +1,7 @@
 # Duck Creek RP Ground Truth
 #
 # CONVENTION: norm_id suffixes are internal labels, not clause citations.
-# Example: `dc_rp_6_06_e_cash_equity_funded` refers to the agreement's
+# Example: `6e76ed06_cash_equity_funded_rp_permission` refers to the agreement's
 # 6.06(i) (cash-equity-funded dividends), not 6.06(e). The `source_section`
 # attribute is the authoritative citation; norm_ids are stable identifiers
 # preserved across clause-letter corrections for backwards compatibility
@@ -45,8 +45,8 @@ norms:
 # § 6.06 — Restricted Payments permissions
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_6_06_a_intercompany
-  norm_kind: intercompany_permission
+- norm_id: 6e76ed06_intercompany_rp_permission
+  norm_kind: intercompany_rp_permission
   modality: permission
   capacity_composition: n_a
   action_scope: specific
@@ -61,7 +61,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_b_mgmt_equity_base
+- norm_id: 6e76ed06_management_equity_basket_permission
   norm_kind: management_equity_basket_permission
   modality: permission
   capacity_composition: additive
@@ -84,7 +84,7 @@ norms:
 # Carryforward: prior-year-unused capacity of 6.06(b) base carries forward one year.
 # Graph-native via norm_provides_carryforward_to relation; condition gates on the
 # prior-year-capacity-was-unused predicate.
-- norm_id: dc_rp_6_06_b_mgmt_equity_carryforward
+- norm_id: 6e76ed06_management_equity_carryforward
   norm_kind: management_equity_carryforward
   modality: permission
   capacity_composition: additive
@@ -102,7 +102,7 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q6
       role: primary
-  provides_carryforward_to: dc_rp_6_06_b_mgmt_equity_base
+  provides_carryforward_to: 6e76ed06_management_equity_basket_permission
   carryforward_years: 1
   condition:
     type: atomic
@@ -110,7 +110,7 @@ norms:
     predicate: prior_year_capacity_was_unused
 
 # Carryback: subsequent-year-unused capacity of 6.06(b) base carries back one year.
-- norm_id: dc_rp_6_06_b_mgmt_equity_carryback
+- norm_id: 6e76ed06_management_equity_carryback
   norm_kind: management_equity_carryback
   modality: permission
   capacity_composition: additive
@@ -128,14 +128,14 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q6
       role: primary
-  provides_carryback_to: dc_rp_6_06_b_mgmt_equity_base
+  provides_carryback_to: 6e76ed06_management_equity_basket_permission
   carryback_years: 1
   condition:
     type: atomic
     topology: atomic
     predicate: base_capacity_will_be_unused_in_subsequent_year
 
-- norm_id: dc_rp_6_06_c_tax_distributions
+- norm_id: 6e76ed06_tax_distribution_basket_permission
   norm_kind: tax_distribution_basket_permission
   modality: permission
   capacity_composition: categorical
@@ -151,7 +151,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_f_cumulative_amount_usage
+- norm_id: 6e76ed06_builder_usage_permission
   norm_kind: builder_usage_permission
   modality: permission
   capacity_composition: computed_from_sources
@@ -163,7 +163,7 @@ norms:
   cap_grower_pct: null
   capacity_aggregation_function: sum
   source_norm_ids:
-    - dc_rp_cumulative_amount
+    - 6e76ed06_builder_basket_aggregate
   source_section: "6.06(f)"
   source_page: 190
   source_text: "the Group Members may make Dividends, directly or indirectly, to Holdings and/or Holdings' direct or indirect equity holders using the Cumulative Amount; provided that any Limited Condition Transaction remains subject to the terms of Section 1.06 hereof"
@@ -178,7 +178,7 @@ norms:
       role: primary
   condition: null
 
-- norm_id: dc_rp_6_06_j_general_rp_basket
+- norm_id: 6e76ed06_general_rp_basket_permission
   norm_kind: general_rp_basket_permission
   modality: permission
   capacity_composition: additive
@@ -205,7 +205,7 @@ norms:
       role: primary
   condition: null
 
-- norm_id: dc_rp_6_06_k_parent_overhead
+- norm_id: 6e76ed06_holdco_overhead_basket_permission
   norm_kind: holdco_overhead_basket_permission
   modality: permission
   capacity_composition: categorical
@@ -225,8 +225,8 @@ norms:
   # Borrower-attributable expenses. Flag for v4 classification harness.
   condition: null
 
-- norm_id: dc_rp_6_06_o_ratio_rp_basket
-  norm_kind: ratio_basket_permission
+- norm_id: 6e76ed06_ratio_rp_basket_permission
+  norm_kind: ratio_rp_basket_permission
   modality: permission
   capacity_composition: unlimited_on_condition
   action_scope: specific
@@ -255,8 +255,8 @@ norms:
         predicate: pro_forma_no_worse
         reference_predicate_label: first_lien_net_leverage
 
-- norm_id: dc_rp_6_06_p_unsub_equity_distribution
-  norm_kind: unsub_distribution_basket_permission
+- norm_id: 6e76ed06_unrestricted_sub_equity_distribution_permission
+  norm_kind: unrestricted_sub_equity_distribution_permission
   modality: permission
   capacity_composition: n_a
   action_scope: specific
@@ -275,8 +275,8 @@ norms:
       role: primary
   condition: null
 
-- norm_id: dc_rp_6_06_q_post_ipo_basket
-  norm_kind: post_ipo_basket_permission
+- norm_id: 6e76ed06_post_ipo_rp_basket_permission
+  norm_kind: post_ipo_rp_basket_permission
   modality: permission
   capacity_composition: computed_from_sources    # parent aggregates the two formulaic summands (Part 3)
   capacity_aggregation_function: sum
@@ -287,8 +287,8 @@ norms:
   cap_usd: null                                  # aggregated from two source components below
   cap_grower_pct: null
   source_norm_ids:
-    - dc_rp_6_06_q_post_ipo_ipo_proceeds_component
-    - dc_rp_6_06_q_post_ipo_market_cap_component
+    - 6e76ed06_post_ipo_rp_basket_ipo_proceeds_component
+    - 6e76ed06_post_ipo_rp_basket_market_cap_component
   source_section: "6.06(q)"
   source_page: 192
   source_text: "at any time following the consummation of an IPO, the Restricted Subsidiaries may (or may make Dividends to Holdings or any parent thereof to enable it to) make Dividends with respect to any Equity Interest in an amount of up to 7.00% per annum of the market capitalization of Holdings (or the applicable public filing entity) and its Subsidiaries, plus 7.00% per annum of the gross proceeds from such IPO"
@@ -304,8 +304,8 @@ norms:
 # is structurally a sum of two grower-style components. Each component is its own
 # norm with cap_grower_pct + cap_grower_reference; the sum lives on the parent
 # via norm_contributes_to_capacity edges. No cap_formula string.
-- norm_id: dc_rp_6_06_q_post_ipo_ipo_proceeds_component
-  norm_kind: post_ipo_basket_ipo_proceeds_component
+- norm_id: 6e76ed06_post_ipo_rp_basket_ipo_proceeds_component
+  norm_kind: post_ipo_rp_basket_ipo_proceeds_component
   modality: permission
   capacity_composition: additive
   action_scope: specific
@@ -321,12 +321,12 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q10
       role: capacity_source
-  contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
+  contributes_to_norm_id: 6e76ed06_post_ipo_rp_basket_permission
   aggregation_direction: add
   condition: null
 
-- norm_id: dc_rp_6_06_q_post_ipo_market_cap_component
-  norm_kind: post_ipo_basket_market_cap_component
+- norm_id: 6e76ed06_post_ipo_rp_basket_market_cap_component
+  norm_kind: post_ipo_rp_basket_market_cap_component
   modality: permission
   capacity_composition: additive
   action_scope: specific
@@ -342,7 +342,7 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q10
       role: capacity_source
-  contributes_to_norm_id: dc_rp_6_06_q_post_ipo_basket
+  contributes_to_norm_id: 6e76ed06_post_ipo_rp_basket_permission
   aggregation_direction: add
   condition: null
 
@@ -357,7 +357,7 @@ norms:
 # semantics.
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_6_06_d_option_exercise_repurchase
+- norm_id: 6e76ed06_option_exercise_repurchase_permission
   norm_kind: option_exercise_repurchase_permission
   modality: permission
   capacity_composition: n_a
@@ -373,8 +373,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_e_cash_equity_funded
-  norm_kind: cash_equity_funded_permission
+- norm_id: 6e76ed06_cash_equity_funded_rp_permission
+  norm_kind: cash_equity_funded_rp_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -389,8 +389,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_g_concurrent_dividend
-  norm_kind: concurrent_receipt_dividend_permission
+- norm_id: 6e76ed06_equity_in_kind_dividend_permission
+  norm_kind: equity_in_kind_dividend_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -406,8 +406,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_h_purchase_price_adjustment
-  norm_kind: purchase_price_adjustment_permission
+- norm_id: 6e76ed06_purchase_price_adjustment_rp_permission
+  norm_kind: purchase_price_adjustment_rp_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -422,7 +422,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_i_director_fees
+- norm_id: 6e76ed06_director_fees_permission
   norm_kind: director_fees_permission
   modality: permission
   capacity_composition: categorical
@@ -438,8 +438,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_l_permitted_reorganization
-  norm_kind: permitted_reorganization_permission
+- norm_id: 6e76ed06_reorganization_rp_permission
+  norm_kind: reorganization_rp_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -454,8 +454,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_m_parent_investment_funding
-  norm_kind: parent_investment_funding_permission
+- norm_id: 6e76ed06_parent_fund_distribution_permission
+  norm_kind: parent_fund_distribution_permission
   modality: permission
   # Per Prompt 06 judgment: modeled as a single parent norm with sub_clauses
   # annotation rather than four separate norms. Operations layer reads sub_clauses
@@ -483,8 +483,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_n_transactions_equity_payment
-  norm_kind: transactions_equity_payment_permission
+- norm_id: 6e76ed06_transaction_consideration_rp_permission
+  norm_kind: transaction_consideration_rp_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -499,8 +499,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_r_non_collateral_distribution
-  norm_kind: non_collateral_distribution_permission
+- norm_id: 6e76ed06_non_collateral_asset_distribution_permission
+  norm_kind: non_collateral_asset_distribution_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -515,8 +515,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_s_ahydo_catchup_rp
-  norm_kind: ahydo_catchup_permission
+- norm_id: 6e76ed06_ahydo_catchup_rp_permission
+  norm_kind: ahydo_catchup_rp_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -531,7 +531,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_t_transfer_pricing
+- norm_id: 6e76ed06_transfer_pricing_permission
   norm_kind: transfer_pricing_permission
   modality: permission
   capacity_composition: categorical
@@ -547,8 +547,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_u_receivables_fees
-  norm_kind: receivables_fee_permission
+- norm_id: 6e76ed06_receivables_financing_fee_permission
+  norm_kind: receivables_financing_fee_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -563,7 +563,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_v_fractional_shares
+- norm_id: 6e76ed06_fractional_share_permission
   norm_kind: fractional_share_permission
   modality: permission
   capacity_composition: categorical
@@ -579,8 +579,8 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_06_w_asset_disposition_dividend
-  norm_kind: asset_disposition_dividend_permission
+- norm_id: 6e76ed06_asset_disposition_proceeds_distribution_permission
+  norm_kind: asset_disposition_proceeds_distribution_permission
   modality: permission
   capacity_composition: categorical
   action_scope: specific
@@ -599,7 +599,7 @@ norms:
 # § 6.09 — Restricted Debt Payments (reallocation sources for 6.06(j))
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_6_09_a_general_rdp_basket
+- norm_id: 6e76ed06_general_rdp_basket_permission
   norm_kind: general_rdp_basket_permission
   modality: permission
   capacity_composition: additive
@@ -623,7 +623,7 @@ norms:
     - question_id: duck_creek_rp_q12
       role: reallocation_source
   # Reallocates into 6.06(j) via norm_contributes_to_capacity edge
-  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  reallocates_to: 6e76ed06_general_rp_basket_permission
   condition: null
 
 # § 6.09(a) tailored sub-baskets (A)–(H) — distinct RDP permissions. Per Q3
@@ -633,8 +633,8 @@ norms:
 # sub-baskets — they exist as RDP permissions but don't feed 6.06(j).
 # All placeholders per the pre-Prompt-08 verification pass.
 
-- norm_id: dc_rp_6_09_a_A_cumulative_amount_usage
-  norm_kind: cumulative_amount_rdp_usage_permission
+- norm_id: 6e76ed06_builder_usage_rdp_permission
+  norm_kind: builder_usage_rdp_permission
   modality: permission
   capacity_composition: computed_from_sources
   action_scope: reallocable
@@ -645,7 +645,7 @@ norms:
   cap_grower_pct: null
   capacity_aggregation_function: sum
   source_norm_ids:
-    - dc_rp_cumulative_amount
+    - 6e76ed06_builder_basket_aggregate
   source_section: "6.09(a)(A)"
   source_page: 193
   source_text: "to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount"
@@ -654,10 +654,10 @@ norms:
       role: reallocation_source
     - question_id: duck_creek_rp_q4
       role: reallocation_source
-  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  reallocates_to: 6e76ed06_general_rp_basket_permission
   condition: null
 
-- norm_id: dc_rp_6_09_a_B_permitted_refinancing
+- norm_id: 6e76ed06_permitted_refinancing_rdp_permission
   norm_kind: permitted_refinancing_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -673,7 +673,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_C_like_for_like_refinancing
+- norm_id: 6e76ed06_like_for_like_refinancing_rdp_permission
   norm_kind: like_for_like_refinancing_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -689,7 +689,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_D_intragroup_payments
+- norm_id: 6e76ed06_intragroup_rdp_permission
   norm_kind: intragroup_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -707,7 +707,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_E_scheduled_payments
+- norm_id: 6e76ed06_scheduled_rdp_permission
   norm_kind: scheduled_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -723,7 +723,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_F_cash_equity_funded
+- norm_id: 6e76ed06_cash_equity_funded_rdp_permission
   norm_kind: cash_equity_funded_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -739,7 +739,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_G_conversion_qualified_capital_stock
+- norm_id: 6e76ed06_conversion_rdp_permission
   norm_kind: conversion_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -755,7 +755,7 @@ norms:
   serves_questions: []
   condition: null
 
-- norm_id: dc_rp_6_09_a_H_ahydo_catchup
+- norm_id: 6e76ed06_ahydo_catchup_rdp_permission
   norm_kind: ahydo_catchup_rdp_permission
   modality: permission
   capacity_composition: categorical
@@ -775,7 +775,7 @@ norms:
 # § 6.03 — Investments (reallocation source for 6.06(j))
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_6_03_y_general_investment_basket
+- norm_id: 6e76ed06_general_investment_basket_permission
   norm_kind: general_investment_basket_permission
   modality: permission
   capacity_composition: additive
@@ -798,14 +798,14 @@ norms:
       role: reallocation_source
     - question_id: duck_creek_rp_q12
       role: reallocation_source
-  reallocates_to: dc_rp_6_06_j_general_rp_basket
+  reallocates_to: 6e76ed06_general_rp_basket_permission
   condition: null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Upstream precondition — J.Crew blocker on Unsub designation
 # ─────────────────────────────────────────────────────────────────────────────
 
-- norm_id: dc_rp_jcrew_blocker
+- norm_id: 6e76ed06_jcrew_blocker_prohibition
   norm_kind: jcrew_blocker_prohibition
   modality: prohibition
   # J.Crew blocker encoded as a prohibition on designate_unrestricted_subsidiary
@@ -838,7 +838,7 @@ norms:
 # CUMULATIVE AMOUNT — builder basket and its twelve source clauses (a)–(l) + (m)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-- norm_id: dc_rp_cumulative_amount
+- norm_id: 6e76ed06_builder_basket_aggregate
   norm_kind: builder_basket_aggregate
   modality: permission
   capacity_composition: computed_from_sources
@@ -850,19 +850,19 @@ norms:
   cap_grower_pct: null
   capacity_aggregation_function: sum
   source_norm_ids:
-    - dc_rp_cumulative_amount_a_starter
-    - dc_rp_cumulative_amount_b_aggregate
-    - dc_rp_cumulative_amount_c_declined_ecf
-    - dc_rp_cumulative_amount_d_declined_asset_sale
-    - dc_rp_cumulative_amount_e_sale_leaseback
-    - dc_rp_cumulative_amount_f_retained_asset_sale_proceeds
-    - dc_rp_cumulative_amount_g_joint_venture_returns
-    - dc_rp_cumulative_amount_h_unsub_redesignation_fmv
-    - dc_rp_cumulative_amount_i_receivables_royalty_license
-    - dc_rp_cumulative_amount_j_investment_returns
-    - dc_rp_cumulative_amount_k_cumulative_deferred_revenues
-    - dc_rp_cumulative_amount_l_other
-    - dc_rp_cumulative_amount_m_netting   # subtract-direction contributor (aggregation_direction: subtract on the edge)
+    - 6e76ed06_builder_source_starter
+    - 6e76ed06_builder_source_three_test_aggregate
+    - 6e76ed06_builder_source_declined_ecf
+    - 6e76ed06_builder_source_declined_asset_sale
+    - 6e76ed06_builder_source_sale_leaseback
+    - 6e76ed06_builder_source_retained_asset_sale_proceeds
+    - 6e76ed06_builder_source_joint_venture_returns
+    - 6e76ed06_builder_source_unsub_redesignation_fmv
+    - 6e76ed06_builder_source_receivables_royalty_license
+    - 6e76ed06_builder_source_investment_returns
+    - 6e76ed06_builder_source_deferred_revenues
+    - 6e76ed06_builder_source_other
+    - 6e76ed06_builder_source_netting   # subtract-direction contributor (aggregation_direction: subtract on the edge)
   source_section: "Definition of 'Cumulative Amount'"
   source_page: 26
   source_text: "On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for component detail."
@@ -875,7 +875,7 @@ norms:
       role: primary
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_a_starter
+- norm_id: 6e76ed06_builder_source_starter
   norm_kind: builder_source_starter
   modality: permission
   capacity_composition: additive
@@ -898,11 +898,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q12
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_b_aggregate
-  norm_kind: builder_source_b_aggregate
+- norm_id: 6e76ed06_builder_source_three_test_aggregate
+  norm_kind: builder_source_three_test_aggregate
   modality: permission
   capacity_composition: computed_from_sources
   action_scope: specific
@@ -913,9 +913,9 @@ norms:
   cap_grower_pct: null
   capacity_aggregation_function: greatest_of
   source_norm_ids:
-    - dc_rp_cumulative_amount_b_x_cni
-    - dc_rp_cumulative_amount_b_y_ecf
-    - dc_rp_cumulative_amount_b_z_ebitda_fc
+    - 6e76ed06_builder_source_cni
+    - 6e76ed06_builder_source_ecf
+    - 6e76ed06_builder_source_ebitda_fc
   source_section: "Definition of 'Cumulative Amount', clause (b)"
   source_page: 26
   source_text: "the greatest of (x) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available, (y) the Available Retained ECF Amount and (z) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges"
@@ -924,10 +924,10 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_b_x_cni
+- norm_id: 6e76ed06_builder_source_cni
   norm_kind: builder_source_cni
   modality: permission
   capacity_composition: additive
@@ -947,11 +947,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  contributes_to_norm_id: 6e76ed06_builder_source_three_test_aggregate
   aggregation_direction: add
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_b_y_ecf
+- norm_id: 6e76ed06_builder_source_ecf
   norm_kind: builder_source_ecf
   modality: permission
   capacity_composition: additive
@@ -975,16 +975,16 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  contributes_to_norm_id: 6e76ed06_builder_source_three_test_aggregate
   aggregation_direction: add
   condition: null
 
 # EBITDA - 140% FC: Part 3 decomposition into two source norms under a
 # parent that aggregates with "sum" and the Fixed Charges component using
-# aggregation_direction: subtract. The parent dc_rp_cumulative_amount_b_z_ebitda_fc
+# aggregation_direction: subtract. The parent 6e76ed06_builder_source_ebitda_fc
 # keeps its slot in b_aggregate's greatest_of comparison; internally it's a
 # net-of-two-components itself.
-- norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+- norm_id: 6e76ed06_builder_source_ebitda_fc
   norm_kind: builder_source_ebitda_fc
   modality: permission
   capacity_composition: computed_from_sources
@@ -997,8 +997,8 @@ norms:
   cap_grower_pct: null
   floor_value: 0
   source_norm_ids:
-    - dc_rp_cumulative_amount_b_z_ebitda_component
-    - dc_rp_cumulative_amount_b_z_fixed_charges_component
+    - 6e76ed06_builder_source_ebitda_component
+    - 6e76ed06_builder_source_fixed_charges_component
   source_section: "Definition of 'Cumulative Amount', clause (b)(z)"
   source_page: 26
   source_text: "cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, in each case, from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available (which amount in this clause (z) shall not be less than zero for any fiscal quarter)"
@@ -1007,11 +1007,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount_b_aggregate
+  contributes_to_norm_id: 6e76ed06_builder_source_three_test_aggregate
   aggregation_direction: add
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_b_z_ebitda_component
+- norm_id: 6e76ed06_builder_source_ebitda_component
   norm_kind: builder_source_ebitda_component
   modality: permission
   capacity_composition: additive
@@ -1030,11 +1030,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+  contributes_to_norm_id: 6e76ed06_builder_source_ebitda_fc
   aggregation_direction: add
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_b_z_fixed_charges_component
+- norm_id: 6e76ed06_builder_source_fixed_charges_component
   norm_kind: builder_source_fixed_charges_component
   modality: permission
   capacity_composition: additive
@@ -1053,11 +1053,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount_b_z_ebitda_fc
+  contributes_to_norm_id: 6e76ed06_builder_source_ebitda_fc
   aggregation_direction: subtract    # 140% of Fixed Charges is SUBTRACTED from EBITDA
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_c_declined_ecf
+- norm_id: 6e76ed06_builder_source_declined_ecf
   norm_kind: builder_source_declined_ecf
   modality: permission
   capacity_composition: computed_from_sources
@@ -1074,10 +1074,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_d_declined_asset_sale
+- norm_id: 6e76ed06_builder_source_declined_asset_sale
   norm_kind: builder_source_declined_asset_sale
   modality: permission
   capacity_composition: computed_from_sources
@@ -1094,10 +1094,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_e_sale_leaseback
+- norm_id: 6e76ed06_builder_source_sale_leaseback
   norm_kind: builder_source_sale_leaseback
   modality: permission
   capacity_composition: computed_from_sources
@@ -1114,11 +1114,11 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_f_retained_asset_sale_proceeds
-  norm_kind: builder_source_retained_asset_sale
+- norm_id: 6e76ed06_builder_source_retained_asset_sale_proceeds
+  norm_kind: builder_source_retained_asset_sale_proceeds
   modality: permission
   capacity_composition: computed_from_sources
   action_scope: specific
@@ -1139,11 +1139,11 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q8
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   # Feeds via structural pathway: asset sale → sweep tiers and exemptions → retention → this source norm
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_g_joint_venture_returns
+- norm_id: 6e76ed06_builder_source_joint_venture_returns
   norm_kind: builder_source_joint_venture_returns
   modality: permission
   capacity_composition: computed_from_sources
@@ -1159,10 +1159,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_h_unsub_redesignation_fmv
+- norm_id: 6e76ed06_builder_source_unsub_redesignation_fmv
   norm_kind: builder_source_unsub_redesignation_fmv
   modality: permission
   capacity_composition: computed_from_sources
@@ -1178,10 +1178,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_i_receivables_royalty_license
+- norm_id: 6e76ed06_builder_source_receivables_royalty_license
   norm_kind: builder_source_receivables_royalty_license
   modality: permission
   capacity_composition: computed_from_sources
@@ -1197,10 +1197,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_j_investment_returns
+- norm_id: 6e76ed06_builder_source_investment_returns
   norm_kind: builder_source_investment_returns
   modality: permission
   capacity_composition: computed_from_sources
@@ -1217,10 +1217,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_k_cumulative_deferred_revenues
+- norm_id: 6e76ed06_builder_source_deferred_revenues
   norm_kind: builder_source_deferred_revenues
   modality: permission
   capacity_composition: additive
@@ -1237,11 +1237,11 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   aggregation_direction: add
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_l_other
+- norm_id: 6e76ed06_builder_source_other
   norm_kind: builder_source_other
   modality: permission
   capacity_composition: computed_from_sources
@@ -1258,10 +1258,10 @@ norms:
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   condition: null
 
-- norm_id: dc_rp_cumulative_amount_m_netting
+- norm_id: 6e76ed06_builder_source_netting
   norm_kind: builder_source_netting
   modality: permission
   capacity_composition: additive       # individually additive; subtract-direction lives on its edge to parent
@@ -1279,7 +1279,7 @@ norms:
       role: capacity_source
     - question_id: duck_creek_rp_q1
       role: capacity_source
-  contributes_to_norm_id: dc_rp_cumulative_amount
+  contributes_to_norm_id: 6e76ed06_builder_basket_aggregate
   aggregation_direction: subtract
   condition: null
 
@@ -1287,7 +1287,7 @@ norms:
 # ASSET SALE PATHWAYS — §6.05(z), §2.10(c) — feed Retained Asset Sale Proceeds
 # ═══════════════════════════════════════════════════════════════════════════════
 
-- norm_id: dc_rp_6_05_z_unlimited_asset_sale_basket
+- norm_id: 6e76ed06_unlimited_asset_sale_basket_permission
   norm_kind: unlimited_asset_sale_basket_permission
   modality: permission
   capacity_composition: unlimited_on_condition
@@ -1317,7 +1317,7 @@ norms:
         predicate: pro_forma_no_worse
         reference_predicate_label: first_lien_net_leverage
 
-- norm_id: dc_rp_2_10_c_iv_product_line_sweep_exemption
+- norm_id: 6e76ed06_sweep_exemption_product_line
   norm_kind: sweep_exemption_product_line
   modality: permission
   # Strategy A FLATTENED per Convention 4. Pre-flattening depth-3 tree:
@@ -1359,7 +1359,7 @@ norms:
             predicate: pro_forma_no_worse
             reference_predicate_label: first_lien_net_leverage
 
-- norm_id: dc_rp_2_10_c_i_de_minimis_exemption
+- norm_id: 6e76ed06_sweep_exemption_de_minimis
   norm_kind: sweep_exemption_de_minimis
   modality: permission
   capacity_composition: unlimited_on_condition
@@ -1392,7 +1392,7 @@ norms:
         threshold_value_string: "greater_of(40_000_000, 30% EBITDA)"
         operator_comparison: at_or_below
 
-- norm_id: dc_rp_sweep_tier_100pct
+- norm_id: 6e76ed06_sweep_tier_100pct
   norm_kind: sweep_tier
   modality: obligation
   # Obligation: the borrower MUST sweep 100% of Net Cash Proceeds when ratio > 5.75x.
@@ -1420,7 +1420,7 @@ norms:
     threshold_value_double: 5.75
     operator_comparison: greater_than
 
-- norm_id: dc_rp_sweep_tier_50pct
+- norm_id: 6e76ed06_sweep_tier_50pct
   norm_kind: sweep_tier
   modality: obligation
   capacity_composition: n_a
@@ -1452,7 +1452,7 @@ norms:
         threshold_value_double: 5.75
         operator_comparison: at_or_below
 
-- norm_id: dc_rp_sweep_tier_0pct
+- norm_id: 6e76ed06_sweep_tier_0pct
   norm_kind: sweep_tier
   modality: obligation
   capacity_composition: n_a
@@ -1524,7 +1524,7 @@ predicates_introduced:
 #
 # Shape per defeater:
 #   defeater_id: kebab-separated identifier
-#   defeats_norm_id: norm the defeater attaches to (here: dc_rp_jcrew_blocker)
+#   defeats_norm_id: norm the defeater attaches to (here: 6e76ed06_jcrew_blocker_prohibition)
 #   defeater_type: one of {exception, lex_specialis, lex_posterior, higher_consent}
 #   defeater_name: short human-readable label
 #   source_section, source_text, source_page: provenance on the exception clause
@@ -1533,8 +1533,8 @@ predicates_introduced:
 
 defeaters:
 
-  - defeater_id: dc_rp_jcrew_ordinary_course_exception
-    defeats_norm_id: dc_rp_jcrew_blocker
+  - defeater_id: 6e76ed06_jcrew_ordinary_course_exception
+    defeats_norm_id: 6e76ed06_jcrew_blocker_prohibition
     defeater_type: exception
     defeater_name: "Ordinary-course IP dispositions (§6.05(a)(y))"
     source_section: "6.05(a)(y)"
@@ -1545,8 +1545,8 @@ defeaters:
       topology: atomic
       predicate: is_ordinary_course_transfer
 
-  - defeater_id: dc_rp_jcrew_immaterial_ip_exception
-    defeats_norm_id: dc_rp_jcrew_blocker
+  - defeater_id: 6e76ed06_jcrew_immaterial_ip_exception
+    defeats_norm_id: 6e76ed06_jcrew_blocker_prohibition
     defeater_type: exception
     defeater_name: "Immaterial or obsolete property dispositions (§6.05(a)(z))"
     source_section: "6.05(a)(z)"
@@ -1557,8 +1557,8 @@ defeaters:
       topology: atomic
       predicate: is_immaterial_or_obsolete_ip
 
-  - defeater_id: dc_rp_jcrew_fair_value_exception
-    defeats_norm_id: dc_rp_jcrew_blocker
+  - defeater_id: 6e76ed06_jcrew_fair_value_exception
+    defeats_norm_id: 6e76ed06_jcrew_blocker_prohibition
     defeater_type: exception
     defeater_name: "Fair market value disposition requirement (§6.05(b)(i))"
     source_section: "6.05(b)(i)"
@@ -1569,8 +1569,8 @@ defeaters:
       topology: atomic
       predicate: transfer_is_at_or_above_fair_market_value
 
-  - defeater_id: dc_rp_jcrew_nonexclusive_license_exception
-    defeats_norm_id: dc_rp_jcrew_blocker
+  - defeater_id: 6e76ed06_jcrew_nonexclusive_license_exception
+    defeats_norm_id: 6e76ed06_jcrew_blocker_prohibition
     defeater_type: exception
     defeater_name: "Licenses/sublicenses of IP permitted under §6.02 (§6.05(c)(y))"
     source_section: "6.05(c)(y)"
@@ -1581,8 +1581,8 @@ defeaters:
       topology: atomic
       predicate: is_nonexclusive_license
 
-  - defeater_id: dc_rp_jcrew_intercompany_exception
-    defeats_norm_id: dc_rp_jcrew_blocker
+  - defeater_id: 6e76ed06_jcrew_intercompany_exception
+    defeats_norm_id: 6e76ed06_jcrew_blocker_prohibition
     defeater_type: exception
     defeater_name: "Intercompany transfers within the restricted group (§6.05(j))"
     source_section: "6.05(j)"
