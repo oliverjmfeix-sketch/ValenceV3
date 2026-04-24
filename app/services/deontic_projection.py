@@ -472,6 +472,14 @@ def project_entity(driver, db_name: str, entity: V3Entity,
 
     cap_usd = attrs.get("cap_usd") or attrs.get("basket_amount_usd") or attrs.get("annual_cap_usd")
     cap_grower = attrs.get("cap_grower_pct") or attrs.get("basket_grower_pct") or attrs.get("annual_cap_pct_ebitda")
+    # Scale coercion: v3 stores basket_grower_pct as fractions (1.0 for
+    # 100% of EBITDA, 0.15 for 15%). GT authors percentages (100.0, 15.0).
+    # Covenant grower-pct values span 1–200% (0.01–2.00 in fraction form);
+    # legitimate percentage values are ≥ 5.0, so value ≤ 5.0 reliably
+    # identifies fractions needing 100× up-scaling. Same heuristic as
+    # _project_builder_sub_sources (Prompt 08 Fix 5).
+    if cap_grower is not None and cap_grower <= 5.0:
+        cap_grower = cap_grower * 100.0
     cap_uses_greater_of = attrs.get("cap_uses_greater_of")
     capacity_comp = attrs.get("capacity_composition") or "additive"       # reasonable default
     cap_agg = attrs.get("capacity_aggregation_function") or "n_a"
