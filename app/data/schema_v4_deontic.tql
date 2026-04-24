@@ -371,6 +371,13 @@ norm plays defeats:defeated;
 
 
 # ─── §4.9 Event instance entity and evaluation relations ────────────────────────
+# POSTURE (Rule 8.1): event_instance defines the *shape* of the world-state
+# input parameter consumers supply to evaluated operations
+# (evaluate_feasibility, evaluate_capacity). Instances live in the graph only
+# transiently during a query's evaluation — they are NOT persisted as
+# ongoing borrower-state data. No seed file hydrates event_instance rows
+# into valence_v4; none should. The attributes below enumerate the
+# input-parameter fields the operations-layer API accepts from consumers.
 
 entity event_instance,
     owns event_instance_id @key,

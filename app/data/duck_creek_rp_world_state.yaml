@@ -1,8 +1,21 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# Duck Creek RP World States — v4 Pilot Baseline
+# Duck Creek RP World States — Per-Query Input Reference Fixtures
 #
-# World states are event_instance fixtures the v4 operations layer and the
-# acceptance test use to evaluate conditions. Two states below:
+# Per Rule 8.1 (docs/v4_foundational_rules.md §VIII), Valence does NOT store
+# world state as persistent graph data. This file is NEVER loaded into
+# valence_v4 or valence_v4_ground_truth. It sits on disk as a reference
+# fixture — a canonical example of the shape a consumer would supply as the
+# `supplied_world_state` parameter to evaluated operations
+# (evaluate_feasibility, evaluate_capacity) at query time.
+#
+# Use cases for this file:
+#   - Prompt 11 CLI testing of the operations layer (load a fixture, pass it
+#     as the supplied_world_state parameter to an operation)
+#   - Prompt 13 acceptance-test setup (the representative world state that
+#     resolves evaluated gold questions to concrete answers)
+#   - Documentation of the input-parameter shape consumers should supply
+#
+# Two fixtures:
 #
 #   dc_baseline_closing  — facts known at Duck Creek's closing, used as the
 #                          default world for Q1/Q2/Q3/Q4/Q5 capacity questions
@@ -10,8 +23,11 @@
 #   dc_q6_hypothetical   — Q6's hypothetical (First Lien Net Leverage = 6.0x,
 #                          proposed $200M business-division dividend).
 #
-# Values marked <value_unknown> must be filled in before the acceptance test
-# runs. The list at the bottom catalogues these.
+# Values marked <value_unknown> must be filled by the consumer at query time.
+# The list at the bottom catalogues these. Unknown values don't block the
+# operations layer — they signal which inputs the consumer must supply for
+# an evaluated answer; structural operations (describe_*) don't need any of
+# them.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 world_states:
