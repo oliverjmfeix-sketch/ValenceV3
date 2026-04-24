@@ -95,7 +95,7 @@ OPERATION_CATALOG = """\
 
 Purpose: Return the complete structural description of a single named
 norm (basket, definition, exemption, or blocker).
-Parameters: norm_id (required, string — e.g., "dc_rp_6_06_o_ratio_rp_basket")
+Parameters: norm_id (required, string — e.g., "6e76ed06_ratio_rp_basket_permission")
 Use when: the lawyer asks about a SPECIFIC named norm — "tell me about
 6.06(o)", "what are the conditions on the ratio basket", "describe the
 general RP basket".
@@ -135,7 +135,7 @@ Relation + role catalog (role names are LITERAL; use exactly as shown):
   - condition_references_predicate: roles = condition | predicate
 
 Use when: the lawyer wants to know what's directly linked — "what
-components feed the Cumulative Amount" (entity=dc_rp_cumulative_amount,
+components feed the Cumulative Amount" (entity=6e76ed06_builder_basket_aggregate,
 relation=norm_contributes_to_capacity, role_played=pool), "what
 defeaters apply to 6.06(p)" (relation=defeats, role_played=defeated),
 "what actions does the ratio basket scope to" (role_played=norm).
@@ -310,7 +310,7 @@ Q: "What are the conditions on 6.06(o)?"
   "intent_classification": "operation_call",
   "parsed_as": "describe the 6.06(o) ratio RP basket, including its condition tree",
   "operation": "describe_norm",
-  "parameters": {"norm_id": "dc_rp_6_06_o_ratio_rp_basket"},
+  "parameters": {"norm_id": "6e76ed06_ratio_rp_basket_permission"},
   "intent_confidence": 0.9
 }
 
@@ -334,7 +334,7 @@ Q: "At 6.0x leverage no-worse pro forma, is the ratio RP basket available?"
   "parsed_as": "evaluate 6.06(o) ratio basket feasibility given 6.0x leverage + no-worse flag",
   "operation": "evaluate_feasibility",
   "parameters": {
-    "norm_id": "dc_rp_6_06_o_ratio_rp_basket",
+    "norm_id": "6e76ed06_ratio_rp_basket_permission",
     "supplied_world_state_keys_needed": ["first_lien_net_leverage_ratio", "is_pro_forma_no_worse"]
   },
   "intent_confidence": 0.9
@@ -355,7 +355,7 @@ Q: "Tell me about investment capacity."
     {
       "interpretation": "resolved dollar capacity",
       "implied_operation": "evaluate_capacity",
-      "implied_parameters": {"norm_id": "dc_rp_6_03_y_general_investment_basket", "supplied_world_state": "<needed>"}
+      "implied_parameters": {"norm_id": "6e76ed06_general_investment_basket_permission", "supplied_world_state": "<needed>"}
     }
   ],
   "intent_confidence": 0.5
@@ -445,9 +445,13 @@ And, depending on classification:
   - clarification_needed: clarification_request (string), possible_interpretations (array)
   - out_of_scope: out_of_scope_category (string), out_of_scope_reason (string)
 
-If the question names a specific norm, use the GT norm_id form
-(dc_rp_6_06_j_general_rp_basket, dc_rp_cumulative_amount, etc.). If
-unsure of the exact norm_id, return clarification_needed.
+If the question names a specific norm, use the GT norm_id form:
+`<deal_id>_<categorical_kind>` (e.g., `6e76ed06_general_rp_basket_permission`,
+`6e76ed06_builder_basket_aggregate`, `6e76ed06_jcrew_blocker_prohibition`).
+NEVER use clause letters or section numbers in the norm_id (e.g.,
+`dc_rp_6_06_p_unsub_equity_distribution` is the OLD format and is
+wrong — the correct id is `6e76ed06_unrestricted_sub_equity_distribution_permission`).
+If unsure of the exact norm_id, return clarification_needed.
 """
 
 

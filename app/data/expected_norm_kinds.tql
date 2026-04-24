@@ -43,7 +43,7 @@ $ek_builder_usage isa expected_norm_kind,
 # ── usually-expected kinds ────────────────────────────────────────────────────
 $ek_ratio isa expected_norm_kind,
     has covenant_type "rp",
-    has norm_kind "ratio_basket_permission",
+    has norm_kind "ratio_rp_basket_permission",
     has typicality "usually";
 
 $ek_mgmt isa expected_norm_kind,
@@ -74,12 +74,12 @@ $ek_inv isa expected_norm_kind,
 # ── sometimes-expected kinds (deal-specific) ──────────────────────────────────
 $ek_unsub isa expected_norm_kind,
     has covenant_type "rp",
-    has norm_kind "unsub_distribution_basket_permission",
+    has norm_kind "unrestricted_sub_equity_distribution_permission",
     has typicality "sometimes";
 
 $ek_postipo isa expected_norm_kind,
     has covenant_type "rp",
-    has norm_kind "post_ipo_basket_permission",
+    has norm_kind "post_ipo_rp_basket_permission",
     has typicality "sometimes";
 
 $ek_as_unlimited isa expected_norm_kind,

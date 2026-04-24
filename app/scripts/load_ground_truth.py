@@ -347,8 +347,9 @@ def construct_condition_id(norm_id: str, path: str) -> str:
     """Deterministic id for a condition node from norm_id + tree path.
 
     Root is always path="c0"; children suffix depth+index. Example:
-    norm `dc_rp_6_06_o_ratio_basket` → root `dc_rp_6_06_o_ratio_basket__c0`,
-    first child `__c0_0`, second `__c0_1`, grandchild `__c0_0_0`, etc.
+    norm `6e76ed06_ratio_rp_basket_permission` → root
+    `6e76ed06_ratio_rp_basket_permission__c0`, first child `__c0_0`,
+    second `__c0_1`, grandchild `__c0_0_0`, etc.
 
     Deterministic ids aid debugging and make reloads idempotent (though
     the loader drops + recreates the DB via --force, so idempotency
