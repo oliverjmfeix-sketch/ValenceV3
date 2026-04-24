@@ -1142,6 +1142,581 @@ def filter_norms(deal_id: str, criteria: dict, db: str = DEFAULT_DB) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  EVALUATED OPERATIONS — evaluate_feasibility, evaluate_capacity
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Evaluator architecture (pilot scope, Rule 8.1 + 5.2 trade-off note):
+#
+# Rule 5.2 says deontic logic lives in TypeDB functions, not Python. The
+# function library (deontic_*_functions.tql) does contain predicate_holds,
+# condition_holds, and capacity aggregators taking $ws: event_instance.
+#
+# Ideally Python would call those functions directly with a transient
+# event_instance instance inserted in-tx and never committed. TypeDB 3.x
+# doesn't expose clean rollback semantics for WRITE transactions, and
+# inserting a throwaway instance per call is a correctness risk (the
+# instance persists if anything goes wrong between insert and close).
+#
+# Pilot fallback: Python walks the condition tree and evaluates atomic
+# predicates against supplied_world_state. The evaluator is ~80 lines
+# and contains zero legal reasoning — it does numeric/boolean comparison
+# only, reading threshold and operator_comparison from the graph. The
+# *rules* (which predicates, which thresholds, how conditions compose)
+# remain graph-owned; Python is the thin caller Rule 5.2 contemplates.
+#
+# Post-pilot: revisit transient-event_instance approach. If TypeDB 3.x
+# adds ergonomic rollback or a stateless function-call variant, swap
+# this evaluator for function-library calls without changing the
+# evaluated-operation API.
+
+
+# Canonical supplied-value key per predicate label.
+# A predicate with one of these labels reads the mapped field from
+# supplied_world_state.predicate_values. Unmapped labels return None
+# ("cannot evaluate without more input") with a trace entry.
+_PREDICATE_TO_SUPPLIED_KEY: dict[str, str] = {
+    "first_lien_net_leverage_at_or_below": "first_lien_net_leverage_ratio",
+    "first_lien_net_leverage_above":        "first_lien_net_leverage_ratio",
+    "senior_secured_leverage_at_or_below":  "senior_secured_leverage_ratio",
+    "total_leverage_at_or_below":           "total_leverage_ratio",
+    "individual_proceeds_at_or_below":      "individual_proceeds_amount_usd",
+    "annual_aggregate_at_or_below":         "annual_aggregate_proceeds_amount_usd",
+    "no_event_of_default_exists":           "no_event_of_default_exists",
+    "pro_forma_compliance_financial_covenants": "pro_forma_compliance_financial_covenants",
+    "qualified_ipo_has_occurred":           "qualified_ipo_has_occurred",
+    "is_product_line_or_line_of_business_sale": "is_product_line_or_line_of_business_sale",
+    "unsub_would_own_or_license_material_ip_at_designation": "unsub_would_own_or_license_material_ip_at_designation",
+    "prior_year_capacity_was_unused":       "prior_year_capacity_was_unused",
+    "base_capacity_will_be_unused_in_subsequent_year": "base_capacity_will_be_unused_in_subsequent_year",
+    "incurrence_test_satisfied":            "incurrence_test_satisfied",
+    "officer_certificate_delivered":        "officer_certificate_delivered",
+    "board_approval_obtained":              "board_approval_obtained",
+}
+
+
+def _eval_predicate(pred_ref: dict, supplied: dict, trace: list,
+                    step_counter: list) -> bool | None:
+    """Evaluate a single atomic predicate against supplied state.
+
+    Returns True/False/None (None = inconclusive for unmapped predicates
+    or missing supplied values).
+    """
+    step_counter[0] += 1
+    step = step_counter[0]
+    label = pred_ref.get("state_predicate_label")
+    op = pred_ref.get("operator_comparison")
+    threshold = pred_ref.get("threshold_value_double")
+    ref_pred = pred_ref.get("reference_predicate_label")
+
+    predicate_values = supplied.get("predicate_values", {}) or {}
+    proposed = supplied.get("proposed_action", {}) or {}
+
+    # Special case: pro_forma_no_worse — reads the is_pro_forma_no_worse
+    # flag from proposed_action (Rule 8.1 posture: consumer tells us
+    # whether the hypothetical ratio is no-worse pro forma).
+    if label == "pro_forma_no_worse":
+        val = proposed.get("is_pro_forma_no_worse")
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label, "reference_predicate": ref_pred,
+            "supplied_key": "proposed_action.is_pro_forma_no_worse",
+            "supplied_value": val,
+            "outcome": bool(val) if val is not None else None,
+            "reasoning": ("consumer-supplied flag"
+                          if val is not None
+                          else "no is_pro_forma_no_worse in proposed_action"),
+        })
+        return bool(val) if val is not None else None
+
+    # Special case: retained_asset_sale_proceeds is not a predicate to
+    # evaluate — it's a state-name anchor used by trace_pathways. If
+    # encountered here, treat as true (presence of asset-sale proceeds
+    # is not a gate for norm applicability; it's a capacity source).
+    if label == "retained_asset_sale_proceeds":
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label,
+            "outcome": True,
+            "reasoning": "state-name anchor, not a gating predicate",
+        })
+        return True
+
+    supplied_key = _PREDICATE_TO_SUPPLIED_KEY.get(label)
+    if supplied_key is None:
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label,
+            "outcome": None,
+            "reasoning": f"no evaluator mapping for predicate label {label!r}",
+        })
+        return None
+
+    supplied_value = predicate_values.get(supplied_key)
+    if supplied_value is None:
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label, "supplied_key": supplied_key,
+            "outcome": None,
+            "reasoning": f"supplied_world_state missing predicate_values[{supplied_key!r}]",
+        })
+        return None
+
+    # Boolean predicate — operator_comparison absent, no threshold
+    if op is None and threshold is None:
+        outcome = bool(supplied_value)
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label, "supplied_key": supplied_key,
+            "supplied_value": supplied_value,
+            "outcome": outcome,
+            "reasoning": "boolean predicate; truthiness of supplied value",
+        })
+        return outcome
+
+    # Ratio / numeric threshold comparison
+    try:
+        sv = float(supplied_value)
+        thr = float(threshold) if threshold is not None else None
+    except (TypeError, ValueError):
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label, "supplied_key": supplied_key,
+            "supplied_value": supplied_value, "threshold": threshold,
+            "outcome": None,
+            "reasoning": f"cannot coerce to float: supplied={supplied_value!r} threshold={threshold!r}",
+        })
+        return None
+
+    outcome = None
+    if op == "at_or_below":
+        outcome = sv <= thr
+    elif op == "at_or_above":
+        outcome = sv >= thr
+    elif op == "less_than":
+        outcome = sv < thr
+    elif op == "greater_than":
+        outcome = sv > thr
+    elif op == "equals":
+        outcome = sv == thr
+    else:
+        trace.append({
+            "step": step, "operation": "predicate_holds",
+            "predicate_label": label, "operator_comparison": op,
+            "outcome": None,
+            "reasoning": f"unknown operator_comparison {op!r}",
+        })
+        return None
+
+    trace.append({
+        "step": step, "operation": "predicate_holds",
+        "predicate_label": label, "supplied_key": supplied_key,
+        "supplied_value": sv, "threshold": thr,
+        "operator_comparison": op,
+        "outcome": outcome,
+        "reasoning": f"{sv} {op} {thr} = {outcome}",
+    })
+    return outcome
+
+
+def _eval_condition_tree(cond: dict, supplied: dict, trace: list,
+                          step_counter: list) -> bool | None:
+    """Recursively evaluate a condition tree. Three-valued logic:
+    True, False, or None (inconclusive due to missing inputs).
+    """
+    if cond is None:
+        return True  # unconditional
+    op = cond.get("operator")
+    if op == "atomic":
+        pred_ref = cond.get("predicate_ref") or {}
+        return _eval_predicate(pred_ref, supplied, trace, step_counter)
+    if op in ("or", "and"):
+        children = cond.get("children", []) or []
+        child_results = [
+            _eval_condition_tree(ch, supplied, trace, step_counter)
+            for ch in children
+        ]
+        if op == "or":
+            if any(r is True for r in child_results):
+                return True
+            if all(r is False for r in child_results):
+                return False
+            return None  # at least one inconclusive, none true
+        # and
+        if all(r is True for r in child_results):
+            return True
+        if any(r is False for r in child_results):
+            return False
+        return None
+    # unknown operator
+    step_counter[0] += 1
+    trace.append({
+        "step": step_counter[0], "operation": "condition_holds",
+        "outcome": None,
+        "reasoning": f"unknown operator {op!r} in condition tree",
+    })
+    return None
+
+
+def evaluate_feasibility(deal_id: str, norm_id: str,
+                          supplied_world_state: dict,
+                          db: str = DEFAULT_DB) -> dict:
+    """Evaluate whether a norm is currently applicable given the consumer's
+    supplied world state.
+
+    Steps:
+      1. Read the norm's condition tree via describe_norm helper.
+      2. Evaluate the tree against supplied predicate_values +
+         proposed_action. None (inconclusive) for any missing inputs.
+      3. Evaluate defeaters — a defeater's condition holding against
+         supplied state means the norm is defeated.
+      4. applicable = (condition_holds OR unconditional) AND not defeated.
+
+    Returns envelope with supplied_world_state echoed, computation_trace
+    populated, and result.applicable plus result.reason.
+    """
+    params = {"norm_id": norm_id, "db": db}
+    trace: list = []
+    step_counter = [0]
+
+    driver = _connect()
+    try:
+        tx = driver.transaction(db, TransactionType.READ)
+        try:
+            # Pull norm shell and condition tree.
+            q_scalars = f'''
+                match
+                  $n isa norm, has norm_id "{_escape(norm_id)}";
+                  try {{ $n has modality $mod; }};
+                  try {{ $n has norm_kind $nk; }};
+                select $mod, $nk;
+            '''
+            rows = _rows(tx, q_scalars)
+            if not rows:
+                return _envelope(
+                    "evaluate_feasibility", deal_id, params,
+                    {"applicable": None, "reason": f"norm_not_found: {norm_id}"},
+                    trace=trace, supplied_world_state=supplied_world_state)
+            modality = _attr(rows[0], "mod")
+            norm_kind = _attr(rows[0], "nk")
+
+            cond = _describe_condition_for_norm(tx, norm_id)
+            step_counter[0] += 1
+            if cond is None:
+                trace.append({
+                    "step": step_counter[0], "operation": "condition_holds",
+                    "outcome": True,
+                    "reasoning": "norm is unconditional; no predicates to evaluate",
+                })
+                condition_outcome: bool | None = True
+            else:
+                condition_outcome = _eval_condition_tree(
+                    cond, supplied_world_state, trace, step_counter)
+                step_counter[0] += 1
+                trace.append({
+                    "step": step_counter[0], "operation": "condition_holds",
+                    "root_topology": cond.get("topology"),
+                    "outcome": condition_outcome,
+                    "reasoning": "composed from atomic predicate_holds above",
+                })
+
+            # Evaluate defeaters.
+            defeaters = _list_defeaters(tx, norm_id)
+            defeats_fired: list[dict] = []
+            for d in defeaters:
+                d_cond = d.get("condition")
+                step_counter[0] += 1
+                if d_cond is None:
+                    # An unconditional defeater fires whenever attached.
+                    trace.append({
+                        "step": step_counter[0], "operation": "defeater_check",
+                        "defeater_id": d.get("defeater_id"),
+                        "outcome": True,
+                        "reasoning": "defeater has no condition (always active)",
+                    })
+                    defeats_fired.append(d)
+                    continue
+                d_outcome = _eval_condition_tree(
+                    d_cond, supplied_world_state, trace, step_counter)
+                step_counter[0] += 1
+                trace.append({
+                    "step": step_counter[0], "operation": "defeater_check",
+                    "defeater_id": d.get("defeater_id"),
+                    "outcome": d_outcome,
+                    "reasoning": "defeater condition evaluated",
+                })
+                if d_outcome is True:
+                    defeats_fired.append(d)
+
+            # Combine
+            if condition_outcome is None:
+                applicable = None
+                reason = "condition evaluation inconclusive (missing supplied values)"
+            elif condition_outcome is False:
+                applicable = False
+                reason = "norm condition does not hold against supplied state"
+            elif defeats_fired:
+                applicable = False
+                reason = f"{len(defeats_fired)} defeater(s) fired"
+            else:
+                applicable = True
+                reason = "condition holds (or norm is unconditional) and no defeaters fire"
+
+            result = {
+                "norm_id": norm_id,
+                "modality": modality,
+                "norm_kind": norm_kind,
+                "applicable": applicable,
+                "reason": reason,
+                "defeaters_fired": [d.get("defeater_id") for d in defeats_fired],
+            }
+            return _envelope("evaluate_feasibility", deal_id, params,
+                             result, trace=trace,
+                             supplied_world_state=supplied_world_state)
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:  # noqa: BLE001
+                pass
+    finally:
+        try:
+            driver.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def evaluate_capacity(deal_id: str, norm_id: str,
+                       supplied_world_state: dict,
+                       db: str = DEFAULT_DB) -> dict:
+    """Compute dollar capacity available under a norm given supplied state.
+
+    Dispatches on capacity_composition:
+      - additive (with cap_usd alone, or cap_uses_greater_of + grower):
+        capacity = greater_of(cap_usd, cap_grower_pct * reference_value)
+        or just cap_usd if no grower.
+      - categorical: capacity = cap_usd (single-purpose fixed)
+      - computed_from_sources: recurse over contributors via
+        norm_contributes_to_capacity; aggregate per per-edge
+        aggregation_function and aggregation_direction.
+      - unlimited_on_condition: evaluate the norm's condition; if it
+        holds, capacity is None (interpretation: unlimited); else 0.
+      - n_a: return None (not a capacity-bearing norm).
+
+    floor_value is applied after computation if present.
+    """
+    params = {"norm_id": norm_id, "db": db}
+    trace: list = []
+    step_counter = [0]
+
+    driver = _connect()
+    try:
+        tx = driver.transaction(db, TransactionType.READ)
+        try:
+            capacity = _compute_capacity_for_norm(
+                tx, norm_id, supplied_world_state, trace, step_counter)
+            # Extract scalars for the result envelope.
+            q = f'''
+                match
+                  $n isa norm, has norm_id "{_escape(norm_id)}";
+                  try {{ $n has capacity_composition $cc; }};
+                select $cc;
+            '''
+            rows = _rows(tx, q)
+            cc = _attr(rows[0], "cc") if rows else None
+            result = {
+                "norm_id": norm_id,
+                "capacity_composition": cc,
+                "capacity_usd": capacity,
+            }
+            return _envelope("evaluate_capacity", deal_id, params,
+                             result, trace=trace,
+                             supplied_world_state=supplied_world_state)
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:  # noqa: BLE001
+                pass
+    finally:
+        try:
+            driver.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _compute_capacity_for_norm(tx, norm_id: str, supplied: dict,
+                                trace: list, step_counter: list,
+                                max_depth: int = 5) -> float | None:
+    """Compute dollar capacity for a norm; recurses into contributors."""
+    if max_depth <= 0:
+        step_counter[0] += 1
+        trace.append({
+            "step": step_counter[0], "operation": "capacity",
+            "norm_id": norm_id,
+            "outcome": None,
+            "reasoning": "recursion depth exceeded; cycle guard",
+        })
+        return None
+
+    # Read scalars
+    q = f'''
+        match
+          $n isa norm, has norm_id "{_escape(norm_id)}";
+          try {{ $n has capacity_composition $cc; }};
+          try {{ $n has cap_usd $cu; }};
+          try {{ $n has cap_grower_pct $cg; }};
+          try {{ $n has cap_grower_reference $cgr; }};
+          try {{ $n has cap_uses_greater_of $cugo; }};
+          try {{ $n has floor_value $fv; }};
+        select $cc, $cu, $cg, $cgr, $cugo, $fv;
+    '''
+    rows = _rows(tx, q)
+    if not rows:
+        step_counter[0] += 1
+        trace.append({
+            "step": step_counter[0], "operation": "capacity",
+            "norm_id": norm_id, "outcome": None,
+            "reasoning": "norm not found",
+        })
+        return None
+
+    r = rows[0]
+    cc = _attr(r, "cc")
+    cap_usd = _attr(r, "cu")
+    cap_grower = _attr(r, "cg")
+    grower_ref = _attr(r, "cgr")
+    uses_greater = _attr(r, "cugo")
+    floor = _attr(r, "fv")
+
+    predicate_values = supplied.get("predicate_values", {}) or {}
+    step_counter[0] += 1
+    step = step_counter[0]
+
+    if cc == "n_a":
+        trace.append({
+            "step": step, "operation": "capacity",
+            "norm_id": norm_id, "composition": cc,
+            "outcome": None,
+            "reasoning": "n_a composition — not a capacity-bearing norm",
+        })
+        return None
+
+    if cc == "unlimited_on_condition":
+        cond = _describe_condition_for_norm(tx, norm_id)
+        cond_outcome = _eval_condition_tree(cond, supplied, trace, step_counter) if cond else True
+        trace.append({
+            "step": step, "operation": "capacity",
+            "norm_id": norm_id, "composition": cc,
+            "condition_outcome": cond_outcome,
+            "outcome": (None if cond_outcome is True else 0 if cond_outcome is False else None),
+            "reasoning": "unlimited when condition holds (None means no cap); 0 when false",
+        })
+        return None if cond_outcome is True else (0 if cond_outcome is False else None)
+
+    if cc == "computed_from_sources":
+        # Recurse into contributors.
+        q_contrib = f'''
+            match
+              $pool isa norm, has norm_id "{_escape(norm_id)}";
+              $rel isa norm_contributes_to_capacity,
+                links (contributor: $contrib, pool: $pool);
+              $contrib has norm_id $cid;
+              try {{ $rel has aggregation_function $af; }};
+              try {{ $rel has aggregation_direction $ad; }};
+            select $cid, $af, $ad;
+        '''
+        contrib_rows = _rows(tx, q_contrib)
+        components: list[tuple[str, float | None, str | None, str | None]] = []
+        for row in contrib_rows:
+            cid = _attr(row, "cid")
+            af = _attr(row, "af")
+            ad = _attr(row, "ad")
+            sub_cap = _compute_capacity_for_norm(
+                tx, cid, supplied, trace, step_counter,
+                max_depth=max_depth - 1)
+            components.append((cid, sub_cap, af, ad))
+
+        # Aggregate per the pool's expected aggregation.
+        # Precedence: use the per-edge aggregation_function if uniform;
+        # otherwise default to sum for additive, greatest_of for
+        # builder-pattern pools.
+        defined_ops = {c[2] for c in components if c[2] is not None}
+        agg_op = next(iter(defined_ops)) if len(defined_ops) == 1 else "sum"
+
+        addable = [c[1] for c in components if c[3] == "add" and c[1] is not None]
+        subtractable = [c[1] for c in components if c[3] == "subtract" and c[1] is not None]
+
+        total: float | None
+        if agg_op == "greatest_of":
+            candidates = [c[1] for c in components
+                          if c[3] != "subtract" and c[1] is not None]
+            total = max(candidates) if candidates else None
+        else:
+            # sum / default
+            total = (sum(addable) if addable else 0.0) - (sum(subtractable) if subtractable else 0.0)
+            if not addable and not subtractable:
+                total = None
+
+        if floor is not None and total is not None:
+            total = max(total, float(floor))
+
+        trace.append({
+            "step": step, "operation": "capacity",
+            "norm_id": norm_id, "composition": cc,
+            "aggregation_op": agg_op,
+            "component_count": len(components),
+            "floor_applied": floor,
+            "outcome": total,
+            "reasoning": f"aggregated {len(components)} contributor(s) via {agg_op}",
+        })
+        return total
+
+    # additive / categorical / unknown — resolve cap_usd + grower
+    base_dollar = float(cap_usd) if cap_usd is not None else None
+
+    grower_dollar: float | None = None
+    if cap_grower is not None and grower_ref:
+        reference_value = predicate_values.get(grower_ref)
+        if reference_value is not None:
+            try:
+                grower_dollar = (float(cap_grower) / 100.0) * float(reference_value)
+            except (TypeError, ValueError):
+                grower_dollar = None
+
+    if uses_greater and base_dollar is not None and grower_dollar is not None:
+        resolved = max(base_dollar, grower_dollar)
+        reasoning = f"greater_of(cap_usd={base_dollar}, grower={grower_dollar})"
+    elif base_dollar is not None and grower_dollar is not None:
+        resolved = base_dollar + grower_dollar
+        reasoning = "sum of cap_usd + grower_resolved"
+    elif base_dollar is not None:
+        resolved = base_dollar
+        reasoning = "cap_usd only; no grower or grower_reference unresolved"
+    elif grower_dollar is not None:
+        resolved = grower_dollar
+        reasoning = "grower resolved; no cap_usd floor"
+    else:
+        resolved = None
+        reasoning = ("neither cap_usd nor grower resolvable "
+                     "(may need cap_grower_reference value in supplied predicate_values)")
+
+    if floor is not None and resolved is not None:
+        resolved = max(resolved, float(floor))
+
+    trace.append({
+        "step": step, "operation": "capacity",
+        "norm_id": norm_id, "composition": cc,
+        "cap_usd": base_dollar, "cap_grower_pct": cap_grower,
+        "cap_grower_reference": grower_ref,
+        "cap_uses_greater_of": uses_greater,
+        "floor_value": floor,
+        "outcome": resolved,
+        "reasoning": reasoning,
+    })
+    return resolved
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  CLI DISPATCH
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1193,6 +1768,24 @@ def main() -> int:
     p_fn.add_argument("--db", default=DEFAULT_DB)
     p_fn.add_argument("--compact", action="store_true")
 
+    # evaluate_feasibility
+    p_ef = sub.add_parser("evaluate_feasibility")
+    p_ef.add_argument("--deal", required=True)
+    p_ef.add_argument("--norm", required=True)
+    p_ef.add_argument("--world-state", required=True,
+                      help="Path to JSON file containing supplied_world_state.")
+    p_ef.add_argument("--db", default=DEFAULT_DB)
+    p_ef.add_argument("--compact", action="store_true")
+
+    # evaluate_capacity
+    p_ec = sub.add_parser("evaluate_capacity")
+    p_ec.add_argument("--deal", required=True)
+    p_ec.add_argument("--norm", required=True)
+    p_ec.add_argument("--world-state", required=True,
+                      help="Path to JSON file containing supplied_world_state.")
+    p_ec.add_argument("--db", default=DEFAULT_DB)
+    p_ec.add_argument("--compact", action="store_true")
+
     # trace_pathways
     p_tp = sub.add_parser("trace_pathways")
     p_tp.add_argument("--deal", required=True)
@@ -1229,6 +1822,20 @@ def main() -> int:
             parser.error(f"--criteria must be valid JSON: {e}")
             return 2
         resp = filter_norms(args.deal, criteria, db=args.db)
+    elif args.op == "evaluate_feasibility":
+        ws_path = Path(args.world_state)
+        if not ws_path.exists():
+            parser.error(f"--world-state file not found: {ws_path}")
+            return 2
+        ws = json.loads(ws_path.read_text(encoding="utf-8"))
+        resp = evaluate_feasibility(args.deal, args.norm, ws, db=args.db)
+    elif args.op == "evaluate_capacity":
+        ws_path = Path(args.world_state)
+        if not ws_path.exists():
+            parser.error(f"--world-state file not found: {ws_path}")
+            return 2
+        ws = json.loads(ws_path.read_text(encoding="utf-8"))
+        resp = evaluate_capacity(args.deal, args.norm, ws, db=args.db)
     else:
         parser.error(f"unknown op: {args.op}")
         return 2
