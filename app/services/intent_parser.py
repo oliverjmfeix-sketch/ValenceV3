@@ -203,41 +203,81 @@ reasonable confidence. Pick the operation, fill its parameters.
 **clarification_needed** — two or more operations could plausibly answer
 the question and would produce MATERIALLY DIFFERENT output (structural
 enumeration vs evaluated dollar figure, or ambiguity about which norm is
-being asked about). Provide 2-3 distinct possible interpretations, each
-with the operation it would trigger.
+being asked about). Provide 2-3 distinct possible interpretations. Each
+interpretation must include:
+  - `interpretation`: prose (1 sentence) describing the reading
+  - `implied_operation`: one of the 7 operation names
+  - `implied_parameters`: the parameters that would be used
+  - `example_output_shape`: 1-sentence description of what the consumer
+    would see back (e.g., "A list of RP baskets with their capacity
+    structure and conditions" vs "A boolean feasibility + computation
+    trace")
+
+Also include a `clarification_request` field: a short prose question
+to the consumer asking them to pick an interpretation or provide
+additional input.
 
 **out_of_scope** — question cannot be answered by the operations layer.
 Three sub-categories:
+
   - `not_about_agreement`: question is not about the credit agreement at
-    all (weather, general knowledge, personal advice, etc.)
+    all (weather, general knowledge, personal advice, etc.).
+    Signal: no mention of agreement terms, covenants, or financial
+    structure.
+
   - `non_rp_covenant`: question is about a covenant outside Restricted
     Payments — MFN, debt incurrence, negative pledge, asset sales as
     primary topic (vs asset-sale proceeds as a capacity source for RP),
     liens, etc.
+    Signal: the question's primary subject is a named non-RP covenant.
+    Remember the RP-pilot scope extension above: questions about
+    make_investment / pay_subordinated_debt / repurchase_equity as
+    actions scoped by RP norms stay in scope.
+
   - `not_valence_capability`: question requests something Valence
-    structurally does not do. Sub-signals:
-      * Recommendation ("should the borrower", "would it be wise",
-        "is this a good idea") — Valence describes permissibility,
-        not advisability.
-      * Prediction about third-party behavior ("will the agent consent",
-        "will lenders waive") — Valence interprets the agreement, not
-        counterparty behavior.
-      * Legal conclusion ("is this legal", "would this be binding") —
-        Valence provides structural analysis to support legal
-        interpretation; it doesn't itself conclude legality.
-      * Real-time financial state ("what's the current leverage",
-        "what's today's capacity") asked WITHOUT supplying values —
-        Valence never stores world state (Rule 8.1); the consumer must
-        supply inputs. IMPORTANT: if the question SUPPLIES specific
-        numbers (e.g., "given leverage of 4.5x", "assuming EBITDA of
-        $150M", "a $50M dividend"), those ARE the supplied world state —
-        route to operation_call with evaluate_feasibility or
+    structurally does not do. Four narrow sub-signals — pick the
+    most specific one in out_of_scope_reason:
+
+      * Recommendation. Signal: the question uses "should", "ought to",
+        "would it be wise", "is it a good idea", "do you recommend".
+        Response: "Valence describes what the agreement permits, not
+        whether an action should be taken. For permissibility of a
+        specific action, rephrase as 'can X do Y given <state>.'"
+
+      * Prediction about third-party behavior. Signal: the question
+        asks about the agent, lenders, counterparties — "will X
+        consent", "will lenders waive", "would the agent approve".
+        Response: "Valence interprets the agreement's structure; it
+        doesn't predict lender / agent / counterparty behavior."
+
+      * Legal conclusion. Signal: "is this legal", "would this be
+        enforceable", "does this create liability", "is this binding",
+        "would a court hold". Response: "Valence provides structural
+        analysis to support legal interpretation; it doesn't itself
+        conclude legality. Consult the agreement and counsel."
+        IMPORTANT borderline: "is this legally permissible" when
+        addressed to the agreement itself (not broader law) is
+        better routed to evaluate_feasibility if supplied state is
+        present, or clarification_needed if not. Only classify as
+        legal-conclusion out_of_scope when the question clearly asks
+        about legal effect beyond agreement permissibility.
+
+      * Real-time financial state. Signal: "current", "today",
+        "right now", "as of this quarter" — asked WITHOUT supplied
+        values. Response: "Valence doesn't maintain current financial
+        state (Rule 8.1). Provide leverage / EBITDA / proposed amount
+        and Valence will evaluate against them."
+        IMPORTANT override: if the question SUPPLIES specific numbers
+        (e.g., "given leverage of 4.5x", "assuming EBITDA of $150M",
+        "a $50M dividend"), those ARE the supplied world state —
+        route to operation_call with evaluate_feasibility /
         evaluate_capacity, even if the wording says "current" or "now."
-        The "current" cue triggers out_of_scope ONLY when no numbers
-        are provided.
 
 For out_of_scope classifications, produce a short `out_of_scope_reason`
-and set `out_of_scope_category` to one of the sub-categories above.
+and set `out_of_scope_category` to one of the three sub-categories.
+For not_valence_capability, embed the specific sub-signal (recommendation /
+prediction / legal-conclusion / real-time) in out_of_scope_reason so
+the consumer sees why.
 
 For "legal conclusion" borderlines ("is this legally permissible"),
 prefer operation_call with evaluate_feasibility IF the lawyer has
