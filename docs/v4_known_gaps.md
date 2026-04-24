@@ -213,3 +213,74 @@ grower-pct values span 1-200%.
 Post-pilot correct fix: update v3 extraction to emit percentages
 directly, eliminating the coercion. Requires re-extraction to
 re-populate. Tracked for post-pilot extraction-pass review.
+
+## Role-name collisions on `condition`
+
+Three relations in `app/data/schema_v4_deontic.tql` declare a role
+named `condition` (or a role that plays the `condition` role in
+another relation):
+
+- `basket_requires_condition:condition`
+- `condition_references_predicate:condition`
+- plus subtype variants of the above
+
+`norm_has_condition` avoids the collision by using role name `root`
+instead of `condition` (see schema line 266). This works but sets a
+latent trap: adding a fourth relation with a `condition` role would
+deadlock type inference on any query that references the role without
+relation qualification. Prompt 11's INF11 probes (Commit 1 of
+operations.py) surfaced the ambiguity during query debugging — the
+parser correctly refused the ambiguous form but the error message
+("type-inference was unable to find compatible types") took a minute
+to read past.
+
+Post-pilot cleanup: prefer disambiguated role names
+(`predicate_condition`, `requires_condition`, `root_condition` or
+similar) over sharing `condition` across relations. Low urgency during
+pilot — no current queries trip the collision — but flag before
+MFN/DI extension adds more condition-shaped relations.
+
+## Python-side evaluator for evaluate_feasibility / evaluate_capacity (Rule 5.2 concession)
+
+The operations-layer evaluation functions (`_eval_predicate`,
+`_eval_condition_tree`, and `_compute_capacity_for_norm` in
+`app/services/operations.py`) execute predicate and condition
+evaluation in Python rather than calling the TypeDB function library
+(`predicate_holds`, `condition_holds`, capacity aggregators).
+
+This is a pragmatic concession against Rule 5.2 (graph complicity).
+The TypeDB function library expects `$ws: event_instance` as input;
+injecting transient event_instance rows per call would require
+WRITE-transaction semantics with clean rollback that TypeDB 3.x does
+not ergonomically expose. Inserting and leaving stale `event_instance`
+instances in the graph would violate Rule 8.1 (no stored world state).
+Neither option is acceptable for the pilot.
+
+**Containment discipline:**
+
+- Python evaluator reads thresholds, operators, and condition-tree
+  topology from graph state via standard operations-layer helpers;
+  no legal rule is hardcoded in Python.
+- Function library (`predicate_holds`, `condition_holds`, capacity
+  functions) stays intact in `app/data/deontic_*_functions.tql` for
+  audit-trail purposes; operations layer just doesn't invoke it at
+  runtime.
+- Any change to evaluation semantics must land in both places
+  (function library AND Python evaluator) to maintain parity. This
+  is the load-bearing discipline — drift between the two IS the
+  failure mode this concession accepts.
+
+**Revisit trigger:** replace the Python evaluator with
+function-library invocation when TypeDB 3.x gains either:
+
+- Parameterized function calls that don't require persistent arg
+  entities (would let us call `predicate_holds($pred, <supplied_dict>)`
+  directly without the event_instance indirection), or
+- WRITE-transaction rollback ergonomics that make transient entity
+  injection safe and stale-state-free.
+
+**Current scope:** ~80 lines in `app/services/operations.py`
+(`_eval_predicate` + `_eval_condition_tree` + `_compute_capacity_for_norm`).
+Any future replacement is a local refactor of a bounded surface, not
+a pervasive change. Regression tests for evaluated operations live
+in Prompt 13's acceptance test suite.

@@ -326,6 +326,55 @@ load_dotenv(Path("C:/Users/olive/ValenceV3/.env"), override=True)
 
 ---
 
+## 14. Role + edge-attribute access via `links` form
+
+**Symptom.** The intuitive form combining an `isa` on a relation tuple
+with attribute access on that same relation variable fails at type
+inference:
+
+```tql
+match
+  $rel (contributor: $n, pool: $parent) isa norm_contributes_to_capacity;
+  try { $rel has aggregation_direction $dir; };
+select $n, $parent, $dir;
+```
+
+Error: `[REP1] The variable 'rel' cannot be declared as both a 'Object'
+and as a 'ThingType'.`
+
+**Root cause.** In TypeDB 3.x, the tuple-form `$rel (role: $var, ...) isa
+$reltype` declares `$rel` as a type-bound relation (ThingType scope),
+while `$rel has $attr` requires `$rel` to be an instance (Object scope).
+The parser cannot reconcile both assertions on the same variable.
+
+**Workaround.** Use the `links` form to separate relation identification
+from role binding:
+
+```tql
+match
+  $rel isa norm_contributes_to_capacity,
+      links (contributor: $n, pool: $parent);
+  try { $rel has aggregation_direction $dir; };
+select $n, $parent, $dir;
+```
+
+`$rel isa <reltype>` establishes `$rel` as a concrete relation instance;
+`links (role: $var, ...)` then binds role-players on that instance
+without re-scoping `$rel`. Attribute access via `has` then works.
+
+**Where needed:** any query reading both role players AND edge
+attributes of the same relation. Four call sites in
+`app/services/operations.py` (Prompt 11 commits) use this pattern. The
+two-query fallback (one for structure, one for attributes) is the only
+alternative when the `links` form isn't available — see the
+`_describe_condition` children-walk in operations.py for that variant.
+
+**Prior occurrence.** v3's `app/services/graph_storage.py` uses this
+form for every relation query that reads both role-bound entities and
+edge attributes (lines 1487+, 2074+, 2099+ etc.).
+
+---
+
 ## Index of known schema-time blockers
 
 For quick reference, the annotations and constructs that don't work in
