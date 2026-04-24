@@ -120,3 +120,36 @@ These placeholders MUST be resolved before Prompt 08 runs. The Prompt 08 round-t
 Resolution approach: dedicated PDF-reading pass before Prompt 08, reading the Duck Creek agreement section by section and filling in verbatim text + page numbers for every placeholder. Estimated effort: 1-2 hours. The pass also double-checks the audit's per-norm classifications against operative text for any norms added during ground truth extension (the 22 new norms in `7890eac` use provisional norm_kind mappings that may need reclassification).
 
 Tracked for pre-Prompt-08 completion.
+
+## `action_scope` taxonomic gap for capacity contributors (post-pilot)
+
+The three-way enum (`specific | general | reallocable`) conflates
+single-purpose permissions with capacity contributors that inherit their
+parent's scope. Audit `fff8e0b` ruled Candidate A (`specific`) as the
+pilot solution, preserving GT's 20/20 authoring convention. Post-pilot,
+revisit: if operations-layer queries reveal friction from the
+conflation (e.g., "list specific-scope permissions for dividends"
+returns both usable permissions and internal contributors, confusing
+users), introduce a fourth value (`contributory` or `n_a_for_scope`).
+
+Scope: enum comment update in §4.1 + ~20 GT YAML edits + projection
+branch + V3 classification prompt. Order of magnitude 90 minutes of
+work. Tracked for post-pilot review.
+
+## `cap_grower_pct` extraction scale convention (post-pilot)
+
+v3 extraction stores `basket_grower_pct` as fractions (1.0 for 100%,
+0.15 for 15%). Ground truth YAML authors the same concept as
+percentages (100.0, 15.0). Prompt 08 Fix 5 and Prompt 10 Fix 4 apply a
+projection-time coercion heuristic (`value ≤ 5.0 → multiply by 100`)
+that safely normalizes extracted fractions to GT's percentage
+convention for the three affected Duck Creek norms (general_rp_basket,
+management_equity_basket, general_rdp_basket).
+
+The heuristic works because legitimate percentage values in agreements
+are always ≥ 5% and legitimate fraction values are always ≤ 2.0. Real
+grower-pct values span 1-200%.
+
+Post-pilot correct fix: update v3 extraction to emit percentages
+directly, eliminating the coercion. Requires re-extraction to
+re-populate. Tracked for post-pilot extraction-pass review.
