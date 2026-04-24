@@ -329,15 +329,20 @@ def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Enti
         for v3_type in _V3_NON_BASKET_TYPES:
             # Use blocker_id if present (jcrew_blocker has it); fall back to
             # _instance convention for types without a distinct key attr.
+            # Note: jcrew_blocker owns section_reference (not source_section);
+            # referencing source_section here — even inside a try-block —
+            # triggers TypeDB 3.x INF11 at type-inference time, which aborts
+            # the whole query and suppresses the prohibition norm and its
+            # defeaters downstream. Query only attributes the type actually
+            # owns; project_entity normalises section_reference → source_section.
             q = f'''
                 match
                   $e isa! {v3_type};
                   try {{ $e has blocker_id $kid; }};
                   try {{ $e has source_text $st; }};
-                  try {{ $e has source_section $ss; }};
                   try {{ $e has section_reference $sref; }};
                   try {{ $e has source_page $sp; }};
-                select $e, $kid, $st, $ss, $sref, $sp;
+                select $e, $kid, $st, $sref, $sp;
             '''
             try:
                 result = tx.query(q).resolve()
@@ -346,9 +351,6 @@ def load_v3_entities_for_deal(driver, db_name: str, deal_id: str) -> list[V3Enti
                     st_c = row.get("st")
                     if st_c is not None:
                         attrs["source_text"] = st_c.as_attribute().get_value()
-                    ss_c = row.get("ss")
-                    if ss_c is not None:
-                        attrs["source_section"] = ss_c.as_attribute().get_value()
                     sref_c = row.get("sref")
                     if sref_c is not None:
                         attrs["section_reference"] = sref_c.as_attribute().get_value()
