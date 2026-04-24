@@ -414,22 +414,21 @@ def _fetch_entity_attrs(tx, concept, identifier: str | None) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _make_norm_id(entity: V3Entity, mapping: MappingRecord) -> str:
-    """Deterministic norm_id scheme.
+    """Phase-A deal-agnostic norm_id scheme: <deal_id>_<categorical_kind>.
 
-    Baskets: `{basket_id}:norm:{modality}:0` where basket_id has the deal
-    prefix (e.g., `6e76ed06_rp_builder_basket:norm:permission:0`).
+    See docs/v4_norm_id_rename_map.md for the rename rationale. The
+    categorical norm_kind from the deontic_mapping doubles as the
+    norm_id slug — keeps GT and projection aligned on the same string
+    so A4 round-trip matching works.
 
-    Non-basket entities (jcrew_blocker): `{deal_id}_{entity_type}_instance:
-    norm:{modality}:0` — the deal_id prefix lets `clear_v4_projection_for_deal`
-    find these norms via `norm_id contains deal_id` even though they have
-    no basket_id attribute.
+    Disambiguators are NOT needed for the pilot deal: each
+    (source_entity_type, deal) pair produces one norm. Multi-instance
+    cases (sweep tiers, post_ipo components) are emitted by
+    _project_builder_sub_sources / future helpers with
+    kind-suffix disambiguators.
     """
-    if entity.basket_id:
-        anchor = entity.basket_id
-    else:
-        deal_prefix = entity.deal_id or "unknown_deal"
-        anchor = f"{deal_prefix}_{entity.entity_type}_instance"
-    return f"{anchor}:norm:{mapping.target_modality}:0"
+    deal_prefix = entity.deal_id or "unknown_deal"
+    return f"{deal_prefix}_{mapping.target_norm_kind}"
 
 
 def _make_condition_id(norm_id: str, path: str) -> str:
@@ -891,6 +890,10 @@ def _attach_predicate(driver, db_name, cid: str, pid: str,
 #     └── debt_conversion_source (sum)
 _BUILDER_SUB_SOURCES = [
     # (flag_attr, norm_kind, cap_usd_attr, cap_grower_attr, cap_grower_ref, aggregates_into)
+    # Phase-A renames:
+    #   builder_source_b_aggregate         -> builder_source_three_test_aggregate
+    #   builder_source_retained_asset_sale -> builder_source_retained_asset_sale_proceeds
+    # See docs/v4_norm_id_rename_map.md
     ("has_starter_amount_source", "builder_source_starter",
         "starter_dollar_amount", "starter_ebitda_pct", "consolidated_ebitda_ltm", "parent"),
     ("has_cni_source", "builder_source_cni",
@@ -901,13 +904,23 @@ _BUILDER_SUB_SOURCES = [
         None, "ebitda_fc_multiplier", "consolidated_ebitda_ltm", "b_aggregate"),
     ("has_equity_proceeds_source", "builder_source_other",
         None, "equity_proceeds_pct", "equity_proceeds_usd", "parent"),
-    ("has_asset_proceeds_source", "builder_source_retained_asset_sale",
+    ("has_asset_proceeds_source", "builder_source_retained_asset_sale_proceeds",
         None, None, None, "parent"),
     ("has_investment_returns_source", "builder_source_investment_returns",
         None, None, None, "parent"),
     ("has_debt_conversion_source", "builder_source_other",
         None, None, None, "parent"),
 ]
+
+
+# Two builder sub-source kinds (`builder_source_other`) collide for a
+# single deal because both has_equity_proceeds_source and
+# has_debt_conversion_source map to it. Disambiguator below keeps each
+# norm_id unique within the deal while the kind stays categorical.
+_BUILDER_OTHER_DISAMBIGUATOR: dict[str, str] = {
+    "has_equity_proceeds_source": "equity_proceeds",
+    "has_debt_conversion_source": "debt_conversion",
+}
 
 
 def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
@@ -923,11 +936,12 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
     Amount.
     """
     attrs = entity.attrs
-    basket_id = entity.basket_id or f"{entity.deal_id}_builder"
+    deal_id = entity.deal_id or "unknown_deal"
 
     # 1. Emit b_aggregate intermediate — only when any of the 3 inner sources
-    #    is active. Kind: builder_source_b_aggregate, composition
-    #    computed_from_sources, aggregation greatest_of.
+    #    is active. Phase-A: kind renamed builder_source_b_aggregate ->
+    #    builder_source_three_test_aggregate; norm_id is the categorical
+    #    <deal_id>_<kind>.
     inner_flags = ("has_cni_source", "has_ecf_source", "has_ebitda_fc_source")
     needs_b_aggregate = any(attrs.get(f) for f in inner_flags)
     # Pull parent builder provenance — sub-sources inherit it so structural
@@ -937,11 +951,11 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
     parent_page = attrs.get("source_page")
     subject_roles = [r.strip() for r in (mapping.default_subject_role or "").split(",") if r.strip()]
 
-    b_agg_nid = f"{basket_id}__b_aggregate:norm:permission:0"
+    b_agg_nid = f"{deal_id}_builder_source_three_test_aggregate"
     if needs_b_aggregate:
         agg_owns = [
             f'has norm_id {_tq_string(b_agg_nid)}',
-            'has norm_kind "builder_source_b_aggregate"',
+            'has norm_kind "builder_source_three_test_aggregate"',
             'has modality "permission"',
             'has capacity_composition "computed_from_sources"',
             'has action_scope "specific"',
@@ -1023,7 +1037,14 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
         if not attrs.get(flag):
             continue
 
-        sub_nid = f"{basket_id}__{flag.replace('has_', '').replace('_source', '')}:norm:permission:0"
+        # Phase-A: norm_id is <deal_id>_<categorical_kind>, with a
+        # categorical disambiguator only when two flags map to the same
+        # kind (the two `builder_source_other` cases).
+        if kind == "builder_source_other":
+            disambiguator = _BUILDER_OTHER_DISAMBIGUATOR.get(flag, flag)
+            sub_nid = f"{deal_id}_{kind}_{disambiguator}"
+        else:
+            sub_nid = f"{deal_id}_{kind}"
         cap_usd = attrs.get(cap_usd_attr) if cap_usd_attr else None
         cap_grower = attrs.get(cap_grower_attr) if cap_grower_attr else None
         # cap_grower_pct is stored as percentage (0–100), but v3 extraction
@@ -1200,12 +1221,21 @@ def _project_jcrew_defeaters(driver, db_name: str, prohibition_nid: str,
             "sref": sref_c.as_attribute().get_value() if sref_c else None,
         })
 
-    # For each exception, emit a defeater + defeats edge
+    # For each exception, emit a defeater + defeats edge.
+    # Phase-A: defeater_id is <deal_id>_jcrew_<subtype>_exception per the
+    # rename map (matches GT defeater_ids). The exception's concrete v3
+    # subtype (e.g., ordinary_course_exception) IS the categorical slug
+    # already; just prefix with the deal_id.
+    deal_id = entity.deal_id or "unknown_deal"
     for exc_data in unique:
-        # defeater_id = {exception_id} — already deal-prefixed, so
-        # clear_v4_projection_for_deal picks it up via `contains deal_id`.
-        defeater_id = f"{exc_data['eid']}_defeater"
-        defeater_type = exc_data["concrete_type"] or "exception"
+        concrete = exc_data["concrete_type"] or "exception"
+        # concrete may be a Label object; extract .name if so
+        concrete_name = concrete.name if hasattr(concrete, "name") else str(concrete)
+        defeater_id = f"{deal_id}_jcrew_{concrete_name}"
+        # defeater_type is a closed taxonomy {exception, lex_specialis, ...}
+        # — concrete_name is e.g. ordinary_course_exception which is NOT
+        # one of those. Use the literal taxonomy value.
+        defeater_type = "exception"
         owns = [
             f'has defeater_id {_tq_string(defeater_id)}',
             f'has defeater_type {_tq_string(defeater_type)}',

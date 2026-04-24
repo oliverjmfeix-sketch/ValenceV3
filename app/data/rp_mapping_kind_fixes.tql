@@ -33,3 +33,39 @@ delete has $old of $m;
 match
   $m isa deontic_mapping, has mapping_id "map_tax_distribution_basket";
 insert $m has target_norm_kind "tax_distribution_basket_permission";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase A (norm_id rename) — additional kind alignments
+#
+# Two more target_norm_kind renames per docs/v4_norm_id_rename_map.md, applied
+# in-place so the existing valence_v4 deontic_mapping rows pick up the new
+# categorical kinds without a full reseed (which would lose the $12.95
+# extraction). Fresh builds get the corrected form directly from
+# rp_deontic_mappings.tql.
+#
+#   ratio_basket_permission              ->  ratio_rp_basket_permission
+#   unsub_distribution_basket_permission ->  unrestricted_sub_equity_distribution_permission
+#
+# Idempotent: each match-delete-insert is a no-op on a freshly-seeded DB
+# (the old value isn't present so the match returns zero rows).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+match
+  $m isa deontic_mapping, has mapping_id "map_ratio_basket",
+    has target_norm_kind $old;
+  $old == "ratio_basket_permission";
+delete has $old of $m;
+
+match
+  $m isa deontic_mapping, has mapping_id "map_ratio_basket";
+insert $m has target_norm_kind "ratio_rp_basket_permission";
+
+match
+  $m isa deontic_mapping, has mapping_id "map_unsub_distribution_basket",
+    has target_norm_kind $old;
+  $old == "unsub_distribution_basket_permission";
+delete has $old of $m;
+
+match
+  $m isa deontic_mapping, has mapping_id "map_unsub_distribution_basket";
+insert $m has target_norm_kind "unrestricted_sub_equity_distribution_permission";
