@@ -1511,3 +1511,84 @@ predicates_introduced:
   - label: annual_aggregate_at_or_below
     value_type: ratio-or-dollar (greater_of semantics)
     already_in_predicate_holds: false     # NEW — add to predicate_holds for de minimis
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Defeaters
+#
+# Each defeater is a typed exception that defeats a named norm when its
+# condition holds in the supplied world state. For the pilot, the only
+# defeaters are the five §6.05 permitted-disposition carveouts that
+# defeat the Material-IP transfer component of the J.Crew blocker
+# prohibition. Source: Prompt 10 v3 extraction produced 5 blocker_exception
+# instances on Duck Creek; this section lifts them into GT.
+#
+# Shape per defeater:
+#   defeater_id: kebab-separated identifier
+#   defeats_norm_id: norm the defeater attaches to (here: dc_rp_jcrew_blocker)
+#   defeater_type: one of {exception, lex_specialis, lex_posterior, higher_consent}
+#   defeater_name: short human-readable label
+#   source_section, source_text, source_page: provenance on the exception clause
+#   condition: atomic predicate the exception gates on (same shape as norm condition)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+defeaters:
+
+  - defeater_id: dc_rp_jcrew_ordinary_course_exception
+    defeats_norm_id: dc_rp_jcrew_blocker
+    defeater_type: exception
+    defeater_name: "Ordinary-course IP dispositions (§6.05(a)(y))"
+    source_section: "6.05(a)(y)"
+    source_page: 186
+    source_text: "the sale, license, sublicense, transfer, abandonment, allowance to lapse or other disposition of Intellectual Property that occurs in the ordinary course of business (or at the end of the applicable statutory term) or of Intellectual Property that is, in the reasonable business judgment of the Borrowers, immaterial, no longer economically practicable to maintain or no longer used or useful in the business"
+    condition:
+      type: atomic
+      topology: atomic
+      predicate: is_ordinary_course_transfer
+
+  - defeater_id: dc_rp_jcrew_immaterial_ip_exception
+    defeats_norm_id: dc_rp_jcrew_blocker
+    defeater_type: exception
+    defeater_name: "Immaterial or obsolete property dispositions (§6.05(a)(z))"
+    source_section: "6.05(a)(z)"
+    source_page: 186
+    source_text: "sales, transfers, leases, subleases and other dispositions of property by any Group Member (including Intellectual Property) that is, in the reasonable business judgment of the Borrowers, immaterial (including, for the avoidance of doubt, equity interests or assets of Immaterial Subsidiaries), no longer economically practical to maintain or no longer used or useful in the business"
+    condition:
+      type: atomic
+      topology: atomic
+      predicate: is_immaterial_or_obsolete_ip
+
+  - defeater_id: dc_rp_jcrew_fair_value_exception
+    defeats_norm_id: dc_rp_jcrew_blocker
+    defeater_type: exception
+    defeater_name: "Fair market value disposition requirement (§6.05(b)(i))"
+    source_section: "6.05(b)(i)"
+    source_page: 187
+    source_text: "such sale, lease, assignment, transfer or disposition shall be for fair market value (as determined by the Borrowers in good faith)"
+    condition:
+      type: atomic
+      topology: atomic
+      predicate: transfer_is_at_or_above_fair_market_value
+
+  - defeater_id: dc_rp_jcrew_nonexclusive_license_exception
+    defeats_norm_id: dc_rp_jcrew_blocker
+    defeater_type: exception
+    defeater_name: "Licenses/sublicenses of IP permitted under §6.02 (§6.05(c)(y))"
+    source_section: "6.05(c)(y)"
+    source_page: 187
+    source_text: "licenses and sublicenses of Intellectual Property otherwise permitted under Section 6.02"
+    condition:
+      type: atomic
+      topology: atomic
+      predicate: is_nonexclusive_license
+
+  - defeater_id: dc_rp_jcrew_intercompany_exception
+    defeats_norm_id: dc_rp_jcrew_blocker
+    defeater_type: exception
+    defeater_name: "Intercompany transfers within the restricted group (§6.05(j))"
+    source_section: "6.05(j)"
+    source_page: 187
+    source_text: "sales, transfers, leases and other dispositions (i) to any Credit Party, (ii) to any Restricted Subsidiary that is not a Credit Party from another Restricted Subsidiary that is not a Credit Party, or (iii) to any of the Restricted Subsidiaries that are not Credit Parties from any Credit Party"
+    condition:
+      type: atomic
+      topology: atomic
+      predicate: is_intercompany_transfer_within_restricted_group

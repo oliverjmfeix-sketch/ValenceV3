@@ -76,6 +76,47 @@ $sp_prodline isa state_predicate,
     has source_section "2.10(c)(iv)",
     has source_page 106;
 
+# ── J.Crew blocker defeater predicates — exception-gate booleans ──────────────
+# Each gates one of the 5 §6.05 permitted-disposition carveouts that defeat
+# the Material-IP transfer prohibition underlying the J.Crew blocker. All
+# boolean (no threshold, no operator_comparison). predicate_holds reads the
+# consumer-supplied flag from supplied_world_state.predicate_values.
+
+$sp_ord_course_xfer isa state_predicate,
+    has state_predicate_id "is_ordinary_course_transfer|||",
+    has state_predicate_label "is_ordinary_course_transfer",
+    has source_text "disposition is of Intellectual Property in the ordinary course of business, or is property immaterial / no longer economically practicable to maintain / no longer used or useful — 6.05(a)(y)",
+    has source_section "6.05(a)(y)",
+    has source_page 186;
+
+$sp_nonex_license isa state_predicate,
+    has state_predicate_id "is_nonexclusive_license|||",
+    has state_predicate_label "is_nonexclusive_license",
+    has source_text "disposition is a license or sublicense of Intellectual Property otherwise permitted under Section 6.02 — 6.05(c)(y)",
+    has source_section "6.05(c)(y)",
+    has source_page 187;
+
+$sp_intercompany_xfer isa state_predicate,
+    has state_predicate_id "is_intercompany_transfer_within_restricted_group|||",
+    has state_predicate_label "is_intercompany_transfer_within_restricted_group",
+    has source_text "disposition is to / between Credit Parties or between non-Credit-Party Restricted Subsidiaries, per clauses (i)-(iii) — 6.05(j)",
+    has source_section "6.05(j)",
+    has source_page 187;
+
+$sp_immaterial_ip isa state_predicate,
+    has state_predicate_id "is_immaterial_or_obsolete_ip|||",
+    has state_predicate_label "is_immaterial_or_obsolete_ip",
+    has source_text "property disposed (including Intellectual Property) is, in the Borrower's reasonable business judgment, immaterial / no longer economically practical / no longer used or useful (includes Immaterial Subsidiaries' equity/assets) — 6.05(a)(z)",
+    has source_section "6.05(a)(z)",
+    has source_page 186;
+
+$sp_fmv_transfer isa state_predicate,
+    has state_predicate_id "transfer_is_at_or_above_fair_market_value|||",
+    has state_predicate_label "transfer_is_at_or_above_fair_market_value",
+    has source_text "sale, lease, assignment, transfer, or disposition is for fair market value (as determined by the Borrowers in good faith) — 6.05(b)(i)",
+    has source_section "6.05(b)(i)",
+    has source_page 187;
+
 # Part 3 carryforward/carryback predicates (boolean, no threshold)
 $sp_carryfwd_prior isa state_predicate,
     has state_predicate_id "prior_year_capacity_was_unused|||",

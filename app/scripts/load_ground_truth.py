@@ -536,6 +536,66 @@ insert
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 
+def insert_defeater(driver, defeater: dict) -> None:
+    """Insert a defeater entity + defeats edge + optional defeater_has_condition.
+
+    YAML shape (see duck_creek_rp_ground_truth.yaml § Defeaters):
+      defeater_id, defeats_norm_id, defeater_type, defeater_name,
+      source_section, source_page, source_text, condition (optional).
+
+    Condition follows the same tree shape as norm.condition; we reuse
+    _insert_condition_node with a defeater-scoped path prefix so
+    condition_ids don't collide with norm-sourced conditions.
+    """
+    did = defeater["defeater_id"]
+    norm_id = defeater["defeats_norm_id"]
+
+    owns = [
+        f'has defeater_id {_tq_string(did)}',
+        f'has defeater_type {_tq_string(defeater.get("defeater_type","exception"))}',
+    ]
+    if defeater.get("defeater_name"):
+        owns.append(f'has defeater_name {_tq_string(defeater["defeater_name"])}')
+    if defeater.get("source_text"):
+        owns.append(f'has source_text {_tq_string(defeater["source_text"])}')
+    if defeater.get("source_section"):
+        owns.append(f'has source_section {_tq_string(defeater["source_section"])}')
+    if isinstance(defeater.get("source_page"), int):
+        owns.append(f"has source_page {defeater['source_page']}")
+
+    q_def = f"insert $d isa defeater, {', '.join(owns)};"
+    execute_write(driver, TARGET_DB, q_def)
+
+    # defeats edge — defeater to norm
+    q_edge = f"""
+match
+    $d isa defeater, has defeater_id {_tq_string(did)};
+    $n isa norm, has norm_id {_tq_string(norm_id)};
+insert
+    (defeater: $d, defeated: $n) isa defeats;
+"""
+    execute_write(driver, TARGET_DB, q_edge)
+
+    # Optional condition tree
+    cond = defeater.get("condition")
+    if not cond or not isinstance(cond, dict):
+        return
+
+    # Reuse norm condition-tree insertion; use the defeater_id as the
+    # "norm_id" anchor for condition_id construction so ids are unique
+    # across norm vs defeater trees.
+    _insert_condition_node(driver, did, cond, path="c0", is_root=True)
+    root_cid = construct_condition_id(did, "c0")
+    q_has_cond = f"""
+match
+    $d isa defeater, has defeater_id {_tq_string(did)};
+    $c isa condition, has condition_id {_tq_string(root_cid)};
+insert
+    (defeater: $d, root: $c) isa defeater_has_condition;
+"""
+    execute_write(driver, TARGET_DB, q_has_cond)
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Load Duck Creek RP ground truth YAML into valence_v4_ground_truth.")
     p.add_argument("--force", action="store_true", help="Drop existing target DB and recreate.")
@@ -605,6 +665,20 @@ def main() -> int:
         for n in norms:
             link_carryforward_carryback(driver, n)
 
+        # Phase 6: defeaters (Prompt 13 / Commit 0 backfill)
+        defeaters = gt.get("defeaters", []) or []
+        if defeaters:
+            logger.info("inserting %d defeaters", len(defeaters))
+            def_inserted = 0
+            for d in defeaters:
+                try:
+                    insert_defeater(driver, d)
+                    def_inserted += 1
+                except Exception as e:
+                    logger.error("  defeater insert failed for %s: %s",
+                                 d.get("defeater_id"), str(e)[:160])
+            logger.info("  %d/%d defeaters inserted", def_inserted, len(defeaters))
+
         # Verify counts
         logger.info("=== verification ===")
         for isa in ("norm", "condition", "norm_has_condition", "condition_has_child",
@@ -613,7 +687,8 @@ def main() -> int:
                     "norm_scopes_instrument",
                     "norm_serves_question", "norm_contributes_to_capacity",
                     "norm_provides_carryforward_to", "norm_provides_carryback_to",
-                    "gold_question", "state_predicate"):
+                    "gold_question", "state_predicate",
+                    "defeater", "defeats", "defeater_has_condition"):
             try:
                 n = count_of(driver, TARGET_DB, isa)
                 logger.info("  %-35s: %d", isa, n)
