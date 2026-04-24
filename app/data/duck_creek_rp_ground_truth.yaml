@@ -41,8 +41,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(a)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required for 6.06(a) quote>"
+  source_page: 189
+  source_text: "Dividends by any Group Member (x) to any Borrower or any Subsidiary Guarantor, (y) to any Restricted Subsidiary that is not a Guarantor; provided that any such Dividend under this clause (y) is either (I) paid only in Equity Interests of such Group Member (other than Disqualified Capital Stock) or (II) if paid in cash, is paid to all equityholders on a pro rata basis, and (z) to Holdings paid only in Equity Interests in kind"
   serves_questions: []
   condition: null
 
@@ -59,8 +59,8 @@ norms:
   cap_grower_reference: "consolidated_ebitda_ltm"
   cap_uses_greater_of: true
   source_section: "6.06(b)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 189
+  source_text: "payments to Holdings (and/or (without duplication) any direct or indirect parent company of Holdings) to permit Holdings (or any such direct or indirect parent company of Holdings) to repurchase or redeem Qualified Capital Stock of Holdings (or any direct or indirect parent company of Holdings) held by current or former officers, directors, consultants or employees ... provided that the aggregate cash consideration ... paid for all such redemptions and payments shall not exceed, in any fiscal year, the sum of (i) the greater of $20,000,000 and 15% of Consolidated EBITDA (or, following the consummation of an IPO, $40,000,000 and 30% of Consolidated EBITDA) for the most recently ended Test Period"
   serves_questions:
     - question_id: duck_creek_rp_q6
       role: primary
@@ -82,8 +82,8 @@ norms:
   cap_grower_reference: "consolidated_ebitda_ltm"
   cap_uses_greater_of: true
   source_section: "6.06(b)(i)(x) carryforward proviso"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 189
+  source_text: "provided, that such amount may be increased by (x) up to $20,000,000 or, if greater, 15% of Consolidated EBITDA (or, following the consummation of an IPO, the greater of $40,000,000 and 30% of Consolidated EBITDA for the most recently ended Test Period) for each applicable fiscal year, solely to the extent the amount available under this clause (i) was not utilized in any preceding fiscal years"
   serves_questions:
     - question_id: duck_creek_rp_q6
       role: primary
@@ -108,8 +108,8 @@ norms:
   cap_grower_reference: "consolidated_ebitda_ltm"
   cap_uses_greater_of: true
   source_section: "6.06(b)(i)(y) carryback proviso"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 189
+  source_text: "and/or (y) by up to $20,000,000 or, if greater, 15% of Consolidated EBITDA (or, following the consummation of an IPO, $40,000,000 and 30% of Consolidated EBITDA for the most recently ended Test Period) for each applicable fiscal year solely to the extent that any such additional amount utilized pursuant to this clause (y) shall reduce the amount of Dividends permitted pursuant to this Section 6.06(b)(i) in subsequent fiscal years on a dollar-for-dollar basis"
   serves_questions:
     - question_id: duck_creek_rp_q6
       role: primary
@@ -131,8 +131,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(c)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required for 6.06(c) tax distribution permission>"
+  source_page: 190
+  source_text: "for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group ... Holdings, the Borrowers and any of their respective Subsidiaries, as applicable, may make Dividends to Holdings or such direct or indirect common parent company of Holdings to pay any consolidated, combined or similar income Taxes of such Tax Group that are due and payable"
   serves_questions: []
   condition: null
 
@@ -150,8 +150,8 @@ norms:
   source_norm_ids:
     - dc_rp_cumulative_amount
   source_section: "6.06(f)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.06(f) uses Cumulative Amount>"
+  source_page: 190
+  source_text: "the Group Members may make Dividends, directly or indirectly, to Holdings and/or Holdings' direct or indirect equity holders using the Cumulative Amount; provided that any Limited Condition Transaction remains subject to the terms of Section 1.06 hereof"
   serves_questions:
     - question_id: duck_creek_q1
       role: primary
@@ -175,8 +175,8 @@ norms:
   cap_grower_pct: 100.0
   cap_uses_greater_of: true
   source_section: "6.06(j)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; $130M / 100% EBITDA general RP basket reallocable>"
+  source_page: 190
+  source_text: "additional Dividends may be made, directly or indirectly, by any Group Member to Holdings and/or (without duplication) Holdings' direct or indirect equity holders in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period, less, for the avoidance of doubt, the aggregate amount reallocated by the Borrowers pursuant to Section 6.01(r), Section 6.01(x), Section 6.02(x) (without duplication of any amounts reallocated to Section 6.01(x)), Section 6.03(y), or Section 6.09(a)(I) plus (A) the aggregate total of all other amounts available to be utilized for Restricted Debt Payments pursuant to Section 6.09(a) ... plus (B) the aggregate total of all other amounts available to be utilized for Investments pursuant to Section 6.03(y), which the Borrowers may, from time to time, in the case of (A) and (B), elect to reallocate to the making of Dividends pursuant to this Section 6.06(j)"
   serves_questions:
     - question_id: duck_creek_q3
       role: primary
@@ -201,8 +201,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(k)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.06(k) parent company overhead expenses>"
+  source_page: 191
+  source_text: "distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses (including franchise and similar Taxes required to maintain corporate existence and other legal, accounting and other overhead costs, fees and expenses) of Holdings or any direct or indirect parent of Holdings, and (ii) Public Company Costs"
   serves_questions:
     - question_id: duck_creek_rp_q11
       role: primary
@@ -221,8 +221,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(o)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.06(o) Ratio RP basket — unlimited when First Lien Leverage Ratio ≤ 5.75x OR no-worse pro forma>"
+  source_page: 192
+  source_text: "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the applicable Test Period as of the Applicable Date of Determination shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis) for the most recently ended Test Period prior to the Applicable Date of Determination; provided further that any Limited Condition Transaction remains subject to the terms of Section 1.06 hereof"
   serves_questions:
     - question_id: duck_creek_q6
       role: primary
@@ -251,8 +251,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(p)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.06(p) permits dividend of Unrestricted Subsidiary equity or assets — unconditional once designation is legitimate>"
+  source_page: 192
+  source_text: "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof"
   serves_questions:
     - question_id: duck_creek_q2
       role: primary
@@ -275,8 +275,8 @@ norms:
     - dc_rp_6_06_q_post_ipo_ipo_proceeds_component
     - dc_rp_6_06_q_post_ipo_market_cap_component
   source_section: "6.06(q)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 192
+  source_text: "at any time following the consummation of an IPO, the Restricted Subsidiaries may (or may make Dividends to Holdings or any parent thereof to enable it to) make Dividends with respect to any Equity Interest in an amount of up to 7.00% per annum of the market capitalization of Holdings (or the applicable public filing entity) and its Subsidiaries, plus 7.00% per annum of the gross proceeds from such IPO"
   serves_questions:
     - question_id: duck_creek_rp_q10
       role: primary
@@ -301,8 +301,8 @@ norms:
   cap_grower_pct: 7.0
   cap_grower_reference: "ipo_proceeds_usd"
   source_section: "6.06(q)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 192
+  source_text: "plus 7.00% per annum of the gross proceeds from such IPO (including, for the avoidance of doubt, (x) any proceeds from the initial offering of Equity Interests of any special purpose acquisition company, targeted acquisition company or other entity similar to the foregoing ...)"
   serves_questions:
     - question_id: duck_creek_rp_q10
       role: capacity_source
@@ -322,8 +322,8 @@ norms:
   cap_grower_pct: 7.0
   cap_grower_reference: "holdings_market_cap_usd"
   source_section: "6.06(q)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 192
+  source_text: "an amount of up to 7.00% per annum of the market capitalization of Holdings (or the applicable public filing entity) and its Subsidiaries"
   serves_questions:
     - question_id: duck_creek_rp_q10
       role: capacity_source
@@ -353,8 +353,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(d)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 190
+  source_text: "repurchases of Equity Interests deemed to occur upon the exercise of stock options if the Equity Interests represent a portion of the exercise price or withholding tax thereof"
   serves_questions: []
   condition: null
 
@@ -369,7 +369,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(e)"
-  source_page: <page_unknown>
+  source_page: 190
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -385,7 +385,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(g)"
-  source_page: <page_unknown>
+  source_page: 190
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -401,7 +401,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(h)"
-  source_page: <page_unknown>
+  source_page: 190
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -417,7 +417,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(i)"
-  source_page: <page_unknown>
+  source_page: 190
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -433,7 +433,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(l)"
-  source_page: <page_unknown>
+  source_page: 191
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -454,16 +454,16 @@ norms:
   cap_grower_pct: null
   sub_clauses:
     - sub_ref: "6.06(m)(i)"
-      description: <source_text_verification_required>
+      description: "to finance any Investment permitted to be made pursuant to Section 6.03; provided that (A) such Dividend shall be made substantially concurrently with the closing of such Investment and (B) Holdings or such parent, as applicable, shall, immediately following the closing thereof, cause (1) all property so acquired (whether assets or Equity Interests) to be held by or contributed to any Restricted Subsidiary or (2) the merger or amalgamation (to the extent permitted in Section 6.04) of the Person formed or acquired into any Restricted Subsidiary in order to consummate such Permitted Acquisition"
     - sub_ref: "6.06(m)(ii)"
-      description: <source_text_verification_required>
+      description: "the proceeds of which shall be used to pay customary costs, fees and expenses (other than to Affiliates) related to an IPO (whether or not consummated) or any successful or unsuccessful equity or debt offering, debt incurrence, Investment (including, for the avoidance of doubt, any Permitted Acquisition) or other transaction, in each case, to the extent not prohibited by this Agreement"
     - sub_ref: "6.06(m)(iii)"
-      description: <source_text_verification_required>
+      description: "the proceeds of which shall be used to pay customary salary, bonus, severance (including, in each case, payroll, social security and similar Taxes in respect thereof) and other benefits payable to, and indemnities provided on behalf of, officers and employees of any direct or indirect parent company or partner of the Borrowers to the extent such salaries, bonuses, severance and other benefits are attributable to the ownership or operation of the Restricted Subsidiaries"
     - sub_ref: "6.06(m)(iv)"
-      description: <source_text_verification_required>
+      description: "the proceeds of which are used to pay any withholding, employment or similar Taxes payable by and future, present or former employee, director, manager or consultant of any Restricted Subsidiary or any direct or indirect parent of any Restricted Subsidiary and any repurchase of Equity Interest deemed to occur upon exercise, vesting or settlement of, or payment with respect to, any equity or equity-based award, including, without limitation, stock or other equity options, stock or other equity appreciation rights, warrants, restricted equity units, restricted equity, deferred equity units or similar rights if such Equity Interests are used by the holder of such award to pay a portion of the exercise price of such options, appreciation rights, warrants or similar rights or to satisfy any required withholding or similar Taxes with respect to any such award"
   source_section: "6.06(m)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 191
+  source_text: "Dividends by any Group Member to any direct or indirect holder of any Equity Interests in a Borrower: (i) to finance any Investment permitted to be made pursuant to Section 6.03; (ii) the proceeds of which shall be used to pay customary costs, fees and expenses (other than to Affiliates) related to an IPO ...; (iii) the proceeds of which shall be used to pay customary salary, bonus, severance ... and/or (iv) the proceeds of which are used to pay any withholding, employment or similar Taxes ..."
   serves_questions: []
   condition: null
 
@@ -478,7 +478,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(n)"
-  source_page: <page_unknown>
+  source_page: 191
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -494,7 +494,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(r)"
-  source_page: <page_unknown>
+  source_page: 192
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -510,7 +510,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(s)"
-  source_page: <page_unknown>
+  source_page: 192
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -526,7 +526,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(t)"
-  source_page: <page_unknown>
+  source_page: 192
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -542,7 +542,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(u)"
-  source_page: <page_unknown>
+  source_page: 192
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -558,7 +558,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(v)"
-  source_page: <page_unknown>
+  source_page: 192
   source_text: <source_text_verification_required>
   serves_questions: []
   condition: null
@@ -574,8 +574,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(w)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 193
+  source_text: "Dividends of assets or equity permitted to be disposed of pursuant to Section 6.05(a)(z)"
   serves_questions: []
   condition: null
 
@@ -595,8 +595,8 @@ norms:
   cap_grower_pct: 100.0
   cap_uses_greater_of: true
   source_section: "6.09(a)(I)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.09(a)(I) general RDP basket $130M/100% EBITDA reallocable>"
+  source_page: 194
+  source_text: "making prepayments, redemptions, purchases, defeasance or other satisfaction of Indebtedness in a principal amount not to exceed (x) the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period less (y) the aggregate amount reallocated to Section 6.01(r), Section 6.01(x), Section 6.02(x) ... Section 6.03(y) or Section 6.06(j) by the Borrowers pursuant to the terms of such Sections, plus (z) (A) the aggregate total of all other amounts available to be utilized for Investments pursuant to Section 6.03(y), plus (B) the aggregate total of all amounts available to be utilized for Dividends pursuant to Section 6.06 ..., which the Borrowers may, from time to time, in the case of (A) and (B), elect to reallocate to the making of Restricted Debt Payments pursuant to this Section 6.09(a)(I)"
   serves_questions:
     - question_id: duck_creek_q3
       role: reallocation_source
@@ -631,8 +631,8 @@ norms:
   source_norm_ids:
     - dc_rp_cumulative_amount
   source_section: "6.09(a)(A)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 193
+  source_text: "to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount"
   serves_questions:
     - question_id: duck_creek_q3
       role: reallocation_source
@@ -652,8 +652,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(B)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 193
+  source_text: "in connection with any Permitted Refinancing thereof or to the extent made with the proceeds of Qualified Capital Stock of Holdings that are Not Otherwise Applied"
   serves_questions: []
   condition: null
 
@@ -668,8 +668,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(C)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 193
+  source_text: "refinancings or exchanges of Subordinated Indebtedness for like or other Subordinated Indebtedness with a maturity not earlier than such refinanced or exchanged Subordinated Indebtedness"
   serves_questions: []
   condition: null
 
@@ -686,8 +686,8 @@ norms:
   # Per prompt: "multiple sub-clauses"; captured as annotation pending verification.
   sub_clauses_note: "6.09(a)(D) has multiple sub-clauses governing intra-group payments — sub-clause enumeration deferred to pre-Prompt-08 verification pass."
   source_section: "6.09(a)(D)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 194
+  source_text: "prepaying, redeeming, purchasing, defeasing or otherwise satisfying prior to the scheduled maturity thereof ... (1) in the case of any Group Member that is not a Credit Party, any Indebtedness owing by such Group Member to any other Group Member, (2) otherwise, any Indebtedness owing to any Credit Party, and (3) any mandatory prepayments of Indebtedness incurred under clauses (b) and (e) of Section 6.01 and any Permitted Refinancing thereof"
   serves_questions: []
   condition: null
 
@@ -702,8 +702,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(E)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 194
+  source_text: "making regularly scheduled or otherwise required payments of interest and mandatory prepayments (including for the avoidance of doubt, any payment of accrued and unpaid interest in connection with a mandatory prepayment) in respect of such Indebtedness (and any Permitted Refinancing of any of the foregoing) and payments of fees, expenses and indemnification obligations thereunder"
   serves_questions: []
   condition: null
 
@@ -718,8 +718,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(F)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 194
+  source_text: "to the extent that such payment is made solely with cash contributions from the issuance of Equity Interests (other than Disqualified Capital Stock) of Holdings, which are contributed as cash common equity to any Credit Party and Not Otherwise Applied"
   serves_questions: []
   condition: null
 
@@ -734,8 +734,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(G)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 194
+  source_text: "converting (or exchanging) any Indebtedness to (or for) Qualified Capital Stock of Holdings"
   serves_questions: []
   condition: null
 
@@ -750,8 +750,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.09(a)(H)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 194
+  source_text: "if applicable, any AHYDO catch-up payments with respect thereto"
   serves_questions: []
   condition: null
 
@@ -771,8 +771,8 @@ norms:
   cap_grower_pct: 100.0
   cap_uses_greater_of: true
   source_section: "6.03(y)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.03(y) general investment basket $130M/100% EBITDA reallocable>"
+  source_page: 184
+  source_text: "other Investments in an aggregate amount at any time not to exceed the result of (i) the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period at any time outstanding plus (ii)(A) the aggregate total of all amounts available to be utilized for Restricted Debt Payments pursuant to Section 6.09(a) (including, without limitation, pursuant to Section 6.09(a)(I)), plus (B) the aggregate total of all amounts available to be utilized for Dividends pursuant to Section 6.06 (including, without limitation, Section 6.06(j)), which the Borrowers may, from time to time, in the case of (A) and (B), elect to reallocate to the making of Investments pursuant to this Section 6.03(y); provided that, in each case, any such reallocated amount shall reduce the applicable basket under Section 6.06 or 6.09(a) from which availability was reallocated, on a dollar-for-dollar basis"
   serves_questions:
     - question_id: duck_creek_q3
       role: reallocation_source
@@ -806,7 +806,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Unrestricted Subsidiary' (agreement page ~83)"
-  source_page: <page_unknown>       # approximately p.83 per audit, human verification required
+  source_page: 83       # approximately p.83 per audit, human verification required
   source_text: "no Restricted Subsidiary may be designated as an Unrestricted Subsidiary if, immediately after giving effect to such designation, such Unrestricted Subsidiary would own or have an exclusive license (from Holdings or its Restricted Subsidiaries) at the time of such designation to any Material Intellectual Property."
   serves_questions:
     - question_id: duck_creek_q2
@@ -848,8 +848,8 @@ norms:
     - dc_rp_cumulative_amount_l_other
     - dc_rp_cumulative_amount_m_netting   # subtract-direction contributor (aggregation_direction: subtract on the edge)
   source_section: "Definition of 'Cumulative Amount'"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; top-level Cumulative Amount is a sum of clauses (a) through (l), less clause (m) netting adjustments>"
+  source_page: 26
+  source_text: "On any date of determination (the \"Reference Date\"), the sum of (without duplication) clauses (a) through (l), less clause (m). See clauses (a)-(m) of the definition of \"Cumulative Amount\" for component detail."
   serves_questions:
     - question_id: duck_creek_q1
       role: primary
@@ -871,8 +871,8 @@ norms:
   cap_grower_pct: 100.0
   cap_uses_greater_of: true
   source_section: "Definition of 'Cumulative Amount', clause (a)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; clause (a): greater of $130M and 100% EBITDA as starter amount>"
+  source_page: 26
+  source_text: "an amount equal to the greater of (i) $130,000,000 and (ii) 100% of Consolidated EBITDA for the most recent Test Period"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -901,8 +901,8 @@ norms:
     - dc_rp_cumulative_amount_b_y_ecf
     - dc_rp_cumulative_amount_b_z_ebitda_fc
   source_section: "Definition of 'Cumulative Amount', clause (b)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; clause (b) is the greatest of three sub-tests (b)(x), (b)(y), (b)(z)>"
+  source_page: 26
+  source_text: "the greatest of (x) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available, (y) the Available Retained ECF Amount and (z) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -924,8 +924,8 @@ norms:
   cap_grower_reference: "cumulative_consolidated_net_income_from_closing"
   floor_value: 0          # "shall not be less than zero for any fiscal quarter" — attribute-modeled floor
   source_section: "Definition of 'Cumulative Amount', clause (b)(x)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 26
+  source_text: "50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter) from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -952,8 +952,8 @@ norms:
   cap_grower_reference: "available_retained_ecf_amount_from_first_full_fy_after_closing"
   cap_grower_pct: 100.0    # structural pass-through — entire defined amount
   source_section: "Definition of 'Cumulative Amount', clause (b)(y)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 26
+  source_text: "the Available Retained ECF Amount [as defined: the portion of Excess Cash Flow, determined on a cumulative basis for all fiscal years of Holdings (commencing with the first day of the fiscal quarter of Holdings in which the Closing Date occurs) that was not required to be applied to prepay Term Loans pursuant to Section 2.10(f) or to prepay any other Indebtedness pursuant to Section 2.10(h) on account of Section 2.10(f); provided that in no event shall the Available Retained ECF Amount be less than $0 for any fiscal year or portion thereof]"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -984,8 +984,8 @@ norms:
     - dc_rp_cumulative_amount_b_z_ebitda_component
     - dc_rp_cumulative_amount_b_z_fixed_charges_component
   source_section: "Definition of 'Cumulative Amount', clause (b)(z)"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 26
+  source_text: "cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges, in each case, from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available (which amount in this clause (z) shall not be less than zero for any fiscal quarter)"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -1007,8 +1007,8 @@ norms:
   cap_grower_pct: 100.0
   cap_grower_reference: "cumulative_ebitda_from_closing_fiscal_quarter_start"
   source_section: "Definition of 'Cumulative Amount', clause (b)(z) EBITDA component"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 26
+  source_text: "cumulative Consolidated EBITDA ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -1030,8 +1030,8 @@ norms:
   cap_grower_pct: 140.0
   cap_grower_reference: "cumulative_fixed_charges_from_closing_fiscal_quarter_start"
   source_section: "Definition of 'Cumulative Amount', clause (b)(z) 140% Fixed Charges component"
-  source_page: <page_unknown>
-  source_text: <source_text_verification_required>
+  source_page: 26
+  source_text: "140% of cumulative Consolidated Fixed Charges ... from the first day of the fiscal quarter in which the Closing Date occurs to the last day of the most recent fiscal quarter ending on or prior to the applicable date of determination for which financial statements are internally available"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -1052,7 +1052,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (c)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; Declined ECF Sweep Proceeds (ECF prepayments declined by lenders)>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1071,7 +1071,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (d)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; Declined Asset Sale Proceeds>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1090,7 +1090,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (e)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; proceeds from sale/leaseback transactions>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1109,8 +1109,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (f) / Definition of 'Retained Asset Sale Proceeds'"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; Retained Asset Sale Proceeds — non-swept portion of Asset Sale Net Cash Proceeds surviving §2.10(c) tiers, exemptions, and de minimis filters>"
+  source_page: 27
+  source_text: "the aggregate amount of Retained Declined Proceeds and Retained Asset Sale Proceeds held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date"
   serves_questions:
     - question_id: duck_creek_q4
       role: capacity_source
@@ -1135,8 +1135,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (g)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; joint venture dividends and returns>"
+  source_page: 27
+  source_text: "the aggregate amount of all cash dividends and other cash distributions (and the fair market value of any non-cash dividends or other distributions (and, in the case of distributions of Indebtedness, the principal amount of any Indebtedness)) received by any Group Member from any joint ventures or Unrestricted Subsidiaries during the period from the Business Day immediately following the Closing Date through and including the Reference Date, without any limitation as to the original amount of the Investment therein"
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1154,7 +1154,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (h)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; FMV of assets of an Unrestricted Subsidiary redesignated as Restricted or transferred to Borrower or a Restricted Subsidiary>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1173,7 +1173,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (i)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; proceeds from sales of receivables, royalties, or licenses>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1192,7 +1192,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (j)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: "<operative-text verification required; returns on ALL investments including those refilling the basket used>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1212,7 +1212,7 @@ norms:
   cap_grower_pct: 50.0
   cap_grower_reference: "cumulative_deferred_revenues_from_closing"
   source_section: "Definition of 'Cumulative Amount', clause (k)"
-  source_page: <page_unknown>
+  source_page: 27
   source_text: <source_text_verification_required>
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1232,7 +1232,7 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (l)"
-  source_page: <page_unknown>
+  source_page: 28
   source_text: "<operative-text verification required; catch-all additional builder source per agreement's clause (l)>"
   serves_questions:
     - question_id: duck_creek_rp_q2
@@ -1251,12 +1251,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "Definition of 'Cumulative Amount', clause (m)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; netting reduction — amounts already used from the Cumulative Amount>"
-  # Graph-native subtract-direction edge to parent (Part 2 of pre-Prompt-07
-  # bundle). Projection emits norm_contributes_to_capacity with
-  # aggregation_function="sum", aggregation_direction="subtract". No
-  # operations-layer interpretation of a Python flag.
+  source_page: 28
+  source_text: "(i) the aggregate amount of Investments made pursuant to Section 6.03(x) using the Cumulative Amount, (ii) the aggregate amount of Dividends made pursuant to Section 6.06(f) using the Cumulative Amount and (iii) the aggregate amount of prepayments of indebtedness pursuant to Section 6.09(a) using the Cumulative Amount, in each case during the period from and including the Business Day immediately following the Closing Date through and including the Reference Date (without taking account of the intended usage of the Cumulative Amount on such Reference Date)"
   serves_questions:
     - question_id: duck_creek_q1
       role: capacity_source
@@ -1281,8 +1277,8 @@ norms:
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.05(z)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; 6.05(z) permits Asset Sale when First Lien Leverage Ratio ≤ greater of 6.00x and pre-transaction ratio (no-worse)>"
+  source_page: 189
+  source_text: "unlimited additional sales or dispositions; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the most recently ended Test Period prior to the Applicable Date of Determination shall be no greater than the greater of (x) 6.00 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis) for the most recently ended Test Period prior to the Applicable Date of Determination; provided further that any Limited Condition Transaction remains subject to the terms of Section 1.06"
   serves_questions:
     - question_id: duck_creek_q4
       role: primary
@@ -1389,8 +1385,8 @@ norms:
   cap_grower_pct: null
   sweep_percentage: 100
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (a)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; clause (a) of Applicable Net Cash Proceeds Percentage — 100% sweep when First Lien Leverage Ratio exceeds 5.75x>"
+  source_page: 5
+  source_text: "(a) 100% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.75 to 1.00"
   serves_questions:
     - question_id: duck_creek_q4
       role: primary
@@ -1415,8 +1411,8 @@ norms:
   cap_grower_pct: null
   sweep_percentage: 50
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (b)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; clause (b) — 50% sweep when First Lien Leverage Ratio is in (5.50x, 5.75x] band>"
+  source_page: 5
+  source_text: "(b) 50% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.50 to 1.00 but less than or equal to 5.75 to 1.00"
   serves_questions:
     - question_id: duck_creek_q4
       role: primary
@@ -1447,8 +1443,8 @@ norms:
   cap_grower_pct: null
   sweep_percentage: 0
   source_section: "Definition of 'Applicable Net Cash Proceeds Percentage', clause (c)"
-  source_page: <page_unknown>
-  source_text: "<operative-text verification required; clause (c) — 0% sweep (full retention) when First Lien Leverage Ratio ≤ 5.50x>"
+  source_page: 6
+  source_text: "(c) 0% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is less than or equal to 5.50 to 1.00"
   serves_questions:
     - question_id: duck_creek_q4
       role: primary
