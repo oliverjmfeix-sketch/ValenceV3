@@ -983,6 +983,165 @@ def _truncate(s: str | None, n: int) -> str | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  FILTER_NORMS — declarative criteria filter
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# Criterion-name → (TypeQL clause template, select_vars_to_add_if_any)
+# Each template references `$n` as the norm and injects clauses based on
+# the criterion value. "contains" is TypeDB 3.x's starts-with/substring
+# test on string attributes.
+_FILTER_CRITERIA: dict[str, str] = {
+    "modality":              'modality',
+    "action_scope":          'action_scope',
+    "capacity_composition":  'capacity_composition',
+    "norm_kind":             'norm_kind',
+}
+
+
+def filter_norms(deal_id: str, criteria: dict, db: str = DEFAULT_DB) -> dict:
+    """Return norms matching every criterion in the provided dict.
+
+    Supported criteria keys:
+      - modality, action_scope, capacity_composition: exact string match
+      - source_section_prefix: substring match on source_section
+      - norm_kind_prefix:      substring match on norm_kind
+      - scopes_action:         norm_scopes_action -> action_class_label
+      - scopes_object:         norm_scopes_object -> object_class_label
+                               (union with instrument_class)
+      - has_condition:         bool — presence/absence of
+                               norm_has_condition edge
+      - serves_question:       norm_serves_question -> question_id
+
+    All criteria AND together. Returns {count, norms: [{norm_id,
+    norm_kind, modality, source_section, capacity_composition,
+    action_scope}]}.
+    """
+    params = {"criteria": criteria, "db": db}
+
+    # Build match clauses + extra patterns.
+    match_lines: list[str] = [
+        "$n isa norm, has norm_id $nid",
+    ]
+    # Scalars always fetched for the return shape
+    select_scalars = [
+        ("$nid", "nid"),
+    ]
+    # Pattern-matched equality clauses for scalar criteria
+    scalar_eq = {
+        "modality": "modality",
+        "action_scope": "action_scope",
+        "capacity_composition": "capacity_composition",
+    }
+    for key, attr in scalar_eq.items():
+        if key in criteria and criteria[key] is not None:
+            match_lines.append(
+                f'$n has {attr} "{_escape(str(criteria[key]))}"'
+            )
+
+    # Substring criteria (TypeDB 3.x `contains` operator)
+    substring_criteria = {
+        "source_section_prefix": "source_section",
+        "norm_kind_prefix": "norm_kind",
+    }
+    for key, attr in substring_criteria.items():
+        if key in criteria and criteria[key] is not None:
+            # $n has attr $val + substring check
+            match_lines.append(f"$n has {attr} ${key}_v")
+            match_lines.append(f'${key}_v contains "{_escape(str(criteria[key]))}"')
+
+    # Relation-backed criteria
+    if "scopes_action" in criteria and criteria["scopes_action"]:
+        match_lines.append(
+            f'$scoped_act isa action_class, '
+            f'has action_class_label "{_escape(criteria["scopes_action"])}"'
+        )
+        match_lines.append(
+            "(norm: $n, action: $scoped_act) isa norm_scopes_action"
+        )
+
+    if "scopes_object" in criteria and criteria["scopes_object"]:
+        # Object or instrument — union. We express as two alternative paths
+        # via a sub-match OR. TypeDB 3.x supports `or { ... };` pattern.
+        obj_label = _escape(criteria["scopes_object"])
+        match_lines.append(
+            "{ $scoped_obj isa object_class, "
+            f'has object_class_label "{obj_label}"; '
+            "(norm: $n, object: $scoped_obj) isa norm_scopes_object; } or "
+            "{ $scoped_instr isa instrument_class, "
+            f'has instrument_class_label "{obj_label}"; '
+            "(norm: $n, instrument: $scoped_instr) isa norm_scopes_instrument; }"
+        )
+
+    if "serves_question" in criteria and criteria["serves_question"]:
+        match_lines.append(
+            f'$sq_q isa gold_question, '
+            f'has question_id "{_escape(criteria["serves_question"])}"'
+        )
+        match_lines.append(
+            "(norm: $n, question: $sq_q) isa norm_serves_question"
+        )
+
+    # has_condition bool — positive is a match; negative uses not{...}
+    if "has_condition" in criteria:
+        if criteria["has_condition"]:
+            match_lines.append(
+                "(norm: $n, root: $hc_c) isa norm_has_condition"
+            )
+        else:
+            # not { (norm: $n, root: $...) isa norm_has_condition; }
+            match_lines.append(
+                "not { (norm: $n, root: $hc_c) isa norm_has_condition; }"
+            )
+
+    # Additional scalar selects for the return shape
+    match_lines.append("try { $n has modality $mod; }")
+    match_lines.append("try { $n has norm_kind $nk; }")
+    match_lines.append("try { $n has capacity_composition $cc; }")
+    match_lines.append("try { $n has action_scope $sc; }")
+    match_lines.append("try { $n has source_section $ss; }")
+
+    q_match = "match\n  " + ";\n  ".join(match_lines) + ";"
+    q_select = "select $nid, $mod, $nk, $cc, $sc, $ss;"
+    full_q = f"{q_match}\n{q_select}"
+
+    driver = _connect()
+    try:
+        tx = driver.transaction(db, TransactionType.READ)
+        try:
+            rows = _rows(tx, full_q)
+            seen = set()
+            norms = []
+            for row in rows:
+                nid = _attr(row, "nid")
+                if nid in seen:
+                    continue
+                seen.add(nid)
+                norms.append({
+                    "norm_id": nid,
+                    "norm_kind": _attr(row, "nk"),
+                    "modality": _attr(row, "mod"),
+                    "capacity_composition": _attr(row, "cc"),
+                    "action_scope": _attr(row, "sc"),
+                    "source_section": _attr(row, "ss"),
+                })
+            norms.sort(key=lambda n: n["norm_id"])
+            return _envelope("filter_norms", deal_id, params,
+                             {"count": len(norms), "norms": norms})
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:  # noqa: BLE001
+                pass
+    finally:
+        try:
+            driver.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  CLI DISPATCH
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1026,6 +1185,14 @@ def main() -> int:
     p_el.add_argument("--db", default=DEFAULT_DB)
     p_el.add_argument("--compact", action="store_true")
 
+    # filter_norms
+    p_fn = sub.add_parser("filter_norms")
+    p_fn.add_argument("--deal", required=True)
+    p_fn.add_argument("--criteria", required=True,
+                      help='JSON dict, e.g. \'{"modality":"permission"}\'')
+    p_fn.add_argument("--db", default=DEFAULT_DB)
+    p_fn.add_argument("--compact", action="store_true")
+
     # trace_pathways
     p_tp = sub.add_parser("trace_pathways")
     p_tp.add_argument("--deal", required=True)
@@ -1055,6 +1222,13 @@ def main() -> int:
         resp = trace_pathways(
             args.deal, args.anchor_type, args.anchor_value,
             include_annotations=args.annotations, db=args.db)
+    elif args.op == "filter_norms":
+        try:
+            criteria = json.loads(args.criteria)
+        except json.JSONDecodeError as e:
+            parser.error(f"--criteria must be valid JSON: {e}")
+            return 2
+        resp = filter_norms(args.deal, criteria, db=args.db)
     else:
         parser.error(f"unknown op: {args.op}")
         return 2
