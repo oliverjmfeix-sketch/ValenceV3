@@ -824,20 +824,63 @@ Returns:
 ```
 Returns `{ "entities": [ { entity_type, attributes: {...}, children: [...], annotations: [...] } ] }`.
 
-**`trace_pathways`**
+**`trace_pathways`** — structural operation (§6.0); single anchor, polymorphic over anchor kind.
 ```
 {
-  "provision_id": string,
-  "source": { "kind": "action_class" | "state_predicate", "label": string },
-  "target": { "kind": "action_class" | "state_predicate", "label": string },
-  "direction": "forward" | "backward",
-  "max_hops": integer,                      # default 3
-  "quantification_mode": "all" | "first" | "shortest"
+  "deal_id": string,
+  "anchor_type": "action_class" | "state_predicate",
+  "anchor_value": string,             # action_class_label OR state_predicate_id
+  "include_annotations": boolean,     # default false
+  "collapse_contributors": boolean    # default true (pre-Prompt-12)
 }
 ```
-Source and target anchors are polymorphic (Judgment 3): a capacity-sourcing question like Q4 traces from a state_predicate (`retained_asset_sale_proceeds`) through the builder basket's `norm_contributes_to_capacity` chain to an action_class target; an action-composition question like Q3 traces action_class → action_class. A hop may be either a norm (which enables the next action) or a `norm_contributes_to_capacity` edge (which supplies capacity to the next norm).
 
-Returns `{ "pathways": [ { hops: [ { hop_kind: "norm" | "capacity_contribution", norm_id, action_class, object_class, state_predicate_label, cap_usd, source_section } ], total_cap_usd } ] }`.
+Per-anchor semantics:
+
+- `action_class`: returns every norm that scopes the named action
+  class, grouped by modality (permissions, prohibitions). Each norm
+  entry includes its contributor chain (walked upward via
+  `norm_contributes_to_capacity`), conditions it carries, and
+  defeaters attached to it.
+- `state_predicate`: returns every norm / defeater whose condition
+  tree references the named state_predicate, with the path through
+  the tree to the referencing leaf and the leaf's logical role
+  (atomic / or_branch / and_branch).
+
+`include_annotations` toggles per-node source_text + source_section
+excerpts for renderer-facing usage vs pure-structure consumers.
+
+`collapse_contributors` (default true): filter top-level norms whose
+`norm_contributes_to_capacity:contributor` parent (the "pool") is
+itself in the result set. These contributors are already visible
+inside the parent's `contributes_to_chain`; surfacing them as
+independent top-level entries is noise for most consumers.
+Contributors whose parent is NOT in the result set are kept (they
+stand alone). Pass `false` to return the raw scoping set — useful for
+internal tooling, noisy for lawyers.
+
+Returns:
+```
+{
+  "anchor": {"type": ..., "value": ...},
+  "permissions": [...],    # action_class anchor
+  "prohibitions": [...],   # action_class anchor
+  "referencing_norms": [...],    # state_predicate anchor
+  "referencing_defeaters": [...], # state_predicate anchor
+  "summary": {
+    "permission_count": int,
+    "prohibition_count": int,
+    "collapsed_contributors": [norm_id...],
+    "collapsed_count": int
+  }
+}
+```
+
+Composite pathway queries (e.g., Q4's asset_sale action → retained
+proceeds state → builder capacity → dividend action) are composed by
+the renderer making two `trace_pathways` calls and merging, rather
+than by a single multi-hop operation. This keeps each call simple and
+the operation's responsibility structural, not strategic.
 
 **`evaluate_capacity`** — evaluated operation (§6.0); consumer supplies world state for grower-pct resolution + any applicable condition evaluation.
 ```

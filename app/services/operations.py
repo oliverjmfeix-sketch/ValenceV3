@@ -675,6 +675,7 @@ def enumerate_linked(deal_id: str, entity_id: str, relation_type: str,
 
 def trace_pathways(deal_id: str, anchor_type: str, anchor_value: str,
                    include_annotations: bool = False,
+                   collapse_contributors: bool = True,
                    db: str = DEFAULT_DB) -> dict:
     """Trace pathways through the deontic graph from an anchor.
 
@@ -689,11 +690,20 @@ def trace_pathways(deal_id: str, anchor_type: str, anchor_value: str,
 
     include_annotations: when True, attach source_text / source_section
     excerpts alongside each node. When False, pure structure.
+
+    collapse_contributors: when True (default), filter out norms whose
+    norm_contributes_to_capacity parent is already present in the
+    result set. These norms are visible inside their parent's
+    contribution chain; surfacing them as top-level entries is usually
+    noise (builder sub-sources swamping the dividend-action list).
+    Contributors whose parent is NOT in the result set are kept — they
+    can stand alone. Pass False to preserve the raw scoping set.
     """
     params = {
         "anchor_type": anchor_type,
         "anchor_value": anchor_value,
         "include_annotations": include_annotations,
+        "collapse_contributors": collapse_contributors,
         "db": db,
     }
 
@@ -703,10 +713,12 @@ def trace_pathways(deal_id: str, anchor_type: str, anchor_value: str,
         try:
             if anchor_type == "action_class":
                 result = _trace_from_action_class(
-                    tx, anchor_value, include_annotations)
+                    tx, anchor_value, include_annotations,
+                    collapse_contributors=collapse_contributors)
             elif anchor_type == "state_predicate":
                 result = _trace_from_state_predicate(
-                    tx, anchor_value, include_annotations)
+                    tx, anchor_value, include_annotations,
+                    collapse_contributors=collapse_contributors)
             else:
                 result = {
                     "error": f"unknown anchor_type: {anchor_type}",
@@ -726,10 +738,50 @@ def trace_pathways(deal_id: str, anchor_type: str, anchor_value: str,
             pass
 
 
+def _contributors_whose_pool_is_in(tx, norm_ids: list[str]) -> set[str]:
+    """Return the subset of norm_ids whose outgoing
+    norm_contributes_to_capacity edge points at a pool that is ALSO in
+    norm_ids.
+
+    These are the contributors a caller would want to collapse away
+    when surfacing top-level pathways — the parent pool already
+    represents them. Contributors whose pool isn't in the input list
+    are excluded from the returned set (callers keep them visible).
+    """
+    if not norm_ids:
+        return set()
+    # Build a single query that filters contributors whose pool norm_id
+    # is in the given list. TypeDB 3.x supports inline literal sets via
+    # disjunction; building one OR-clause per id keeps the query simple.
+    pool_ors = " or ".join(
+        f'{{ $pool has norm_id "{_escape(nid)}"; }}'
+        for nid in norm_ids
+    )
+    q = f'''
+        match
+          $n isa norm, has norm_id $nid;
+          $rel isa norm_contributes_to_capacity,
+            links (contributor: $n, pool: $pool);
+          {pool_ors};
+        select $nid;
+    '''
+    rows = _rows(tx, q)
+    in_set = {nid for nid in norm_ids}
+    return {_attr(r, "nid") for r in rows
+            if _attr(r, "nid") in in_set}
+
+
 def _trace_from_action_class(tx, action_label: str,
-                              include_annotations: bool) -> dict:
+                              include_annotations: bool,
+                              collapse_contributors: bool = True) -> dict:
     """Find all norms scoping to action_label, group by modality,
-    attach contributor chains, conditions, defeaters."""
+    attach contributor chains, conditions, defeaters.
+
+    When collapse_contributors is True, norms whose
+    norm_contributes_to_capacity parent is also in the scoping set are
+    removed from top-level permissions/prohibitions (they remain
+    visible inside the parent's contributes_to_chain).
+    """
     # 1. Norms that scope directly to this action.
     q = f'''
         match
@@ -785,6 +837,15 @@ def _trace_from_action_class(tx, action_label: str,
     permissions.sort(key=lambda n: n["norm_id"])
     prohibitions.sort(key=lambda n: n["norm_id"])
 
+    collapsed_ids: list[str] = []
+    if collapse_contributors:
+        all_ids = [n["norm_id"] for n in permissions + prohibitions]
+        collapsed = _contributors_whose_pool_is_in(tx, all_ids)
+        if collapsed:
+            collapsed_ids = sorted(collapsed)
+            permissions = [n for n in permissions if n["norm_id"] not in collapsed]
+            prohibitions = [n for n in prohibitions if n["norm_id"] not in collapsed]
+
     return {
         "anchor": {"type": "action_class", "value": action_label},
         "permissions": permissions,
@@ -792,6 +853,8 @@ def _trace_from_action_class(tx, action_label: str,
         "summary": {
             "permission_count": len(permissions),
             "prohibition_count": len(prohibitions),
+            "collapsed_contributors": collapsed_ids,
+            "collapsed_count": len(collapsed_ids),
         },
     }
 
@@ -838,7 +901,8 @@ def _walk_contribution_chain(tx, norm_id: str, max_hops: int = 5,
 
 
 def _trace_from_state_predicate(tx, predicate_id: str,
-                                  include_annotations: bool) -> dict:
+                                  include_annotations: bool,
+                                  collapse_contributors: bool = True) -> dict:
     """Find all norms whose condition tree references this predicate.
 
     For each referencing norm, report:
@@ -912,13 +976,29 @@ def _trace_from_state_predicate(tx, predicate_id: str,
             node["source_text"] = _truncate(_attr(row, "st"), 200)
         referencing.append(node)
 
+    referencing_norms = [r for r in referencing if r.get("referrer_type") == "norm"]
+    referencing_defeaters = [r for r in referencing if r.get("referrer_type") == "defeater"]
+
+    collapsed_ids: list[str] = []
+    if collapse_contributors and referencing_norms:
+        ids = [r["norm_id"] for r in referencing_norms]
+        collapsed = _contributors_whose_pool_is_in(tx, ids)
+        if collapsed:
+            collapsed_ids = sorted(collapsed)
+            referencing_norms = [
+                r for r in referencing_norms
+                if r["norm_id"] not in collapsed
+            ]
+
     return {
         "anchor": {"type": "state_predicate", "value": predicate_id},
-        "referencing_norms": [r for r in referencing if r.get("referrer_type") == "norm"],
-        "referencing_defeaters": [r for r in referencing if r.get("referrer_type") == "defeater"],
+        "referencing_norms": referencing_norms,
+        "referencing_defeaters": referencing_defeaters,
         "summary": {
-            "norm_count": sum(1 for r in referencing if r.get("referrer_type") == "norm"),
-            "defeater_count": sum(1 for r in referencing if r.get("referrer_type") == "defeater"),
+            "norm_count": len(referencing_norms),
+            "defeater_count": len(referencing_defeaters),
+            "collapsed_contributors": collapsed_ids,
+            "collapsed_count": len(collapsed_ids),
         },
     }
 
@@ -1799,6 +1879,16 @@ def main() -> int:
                            dest="annotations")
     ann_group.add_argument("--no-annotations", action="store_false",
                            dest="annotations", default=False)
+    collapse_group = p_tp.add_mutually_exclusive_group()
+    collapse_group.add_argument("--collapse-contributors", action="store_true",
+                                dest="collapse", default=True,
+                                help="(default) drop top-level norms whose "
+                                     "contribution parent is already in the "
+                                     "result set.")
+    collapse_group.add_argument("--no-collapse-contributors",
+                                action="store_false", dest="collapse",
+                                help="Preserve every scoping norm including "
+                                     "capacity contributors.")
     p_tp.add_argument("--db", default=DEFAULT_DB)
     p_tp.add_argument("--compact", action="store_true")
 
@@ -1814,7 +1904,9 @@ def main() -> int:
     elif args.op == "trace_pathways":
         resp = trace_pathways(
             args.deal, args.anchor_type, args.anchor_value,
-            include_annotations=args.annotations, db=args.db)
+            include_annotations=args.annotations,
+            collapse_contributors=args.collapse,
+            db=args.db)
     elif args.op == "filter_norms":
         try:
             criteria = json.loads(args.criteria)
