@@ -61,6 +61,7 @@ load_dotenv(_REPO_ROOT / ".env", override=False)
 from anthropic import Anthropic  # noqa: E402
 
 from app.config import settings  # noqa: E402
+from app.services import operations  # noqa: E402
 
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s  %(levelname)-7s  %(message)s", datefmt="%H:%M:%S")
@@ -105,13 +106,28 @@ beyond one attribute. Use describe_norm instead.
 
 Purpose: List entities linked to a named entity via a specific relation
 (contributions, scopes, defeaters, etc.).
-Parameters: entity_id (required), relation_type (required — one of
-norm_contributes_to_capacity, norm_scopes_action, norm_scopes_object,
-defeats, norm_has_condition, condition_has_child, ...), role_played
+Parameters: entity_id (required), relation_type (required), role_played
 (required — which role the entity_id plays in the relation).
+
+Relation + role catalog (role names are LITERAL; use exactly as shown):
+  - norm_contributes_to_capacity: roles = contributor | pool
+    (pool = "the parent basket"; contributor = "a source feeding in".
+    Asking "what contributes to X": entity_id=X, role_played=pool.)
+  - norm_scopes_action:            roles = norm | action
+  - norm_scopes_object:            roles = norm | object
+  - norm_scopes_instrument:        roles = norm | instrument
+  - norm_binds_subject:            roles = norm | subject
+  - norm_has_condition:            roles = norm | root
+  - norm_serves_question:          roles = norm | question
+  - defeats:                       roles = defeater | defeated
+  - condition_has_child:           roles = parent | child
+  - condition_references_predicate: roles = condition | predicate
+
 Use when: the lawyer wants to know what's directly linked — "what
-components feed the Cumulative Amount", "what defeaters apply to 6.06(p)",
-"what actions does the ratio basket scope to".
+components feed the Cumulative Amount" (entity=dc_rp_cumulative_amount,
+relation=norm_contributes_to_capacity, role_played=pool), "what
+defeaters apply to 6.06(p)" (relation=defeats, role_played=defeated),
+"what actions does the ratio basket scope to" (role_played=norm).
 Don't use when: the lawyer wants structural context or an indirect walk.
 Use trace_pathways.
 
@@ -329,6 +345,30 @@ Valence's pilot covers RESTRICTED PAYMENTS (RP) only. Questions about
 other covenants (MFN, debt incurrence, liens, asset sales as primary
 topic, etc.) are out of scope.
 
+IMPORTANT: RP scope includes FOUR action classes that any RP basket may
+scope to via the Cumulative Amount and its reallocation edges:
+  - make_dividend_payment
+  - repurchase_equity
+  - pay_subordinated_debt
+  - make_investment
+
+A question about "investments" that refers to the action of making an
+investment AS PART OF RP (e.g., "what RP baskets scope to make_investment",
+"which RP norms permit investment", "can the Cumulative Amount be used
+for investments") IS in scope — route to trace_pathways with
+action_class anchor. This is distinct from the Section 6.03 Investments
+covenant (which governs the broader pool of Investments) — the latter
+would be out_of_scope under non_rp_covenant.
+
+Likewise for "asset sale" / "asset-sale proceeds": if the question is
+about asset-sale proceeds FEEDING RP capacity (via the builder basket's
+retained-asset-sale-proceeds contribution), it's in scope. If it's
+about the Section 6.05 Asset Sales covenant broadly, it's
+non_rp_covenant.
+
+Prefer routing rather than declining when the question could plausibly
+be read as an RP question.
+
 # Operations catalog
 
 {OPERATION_CATALOG}
@@ -516,6 +556,167 @@ def parse_intent(question: str, model: str | None = None,
     }
 
 
+# ─── Operation dispatch (Commit 2) ────────────────────────────────────────────
+
+# Mapping from operation name -> operations-layer callable. Keeping this
+# explicit rather than importing all operations; catches typos in parsed
+# intents as unknown operations rather than AttributeError.
+OPERATION_DISPATCH = {
+    "describe_norm":        operations.describe_norm,
+    "get_attribute":        operations.get_attribute,
+    "enumerate_linked":     operations.enumerate_linked,
+    "trace_pathways":       operations.trace_pathways,
+    "filter_norms":         operations.filter_norms,
+    "evaluate_feasibility": operations.evaluate_feasibility,
+    "evaluate_capacity":    operations.evaluate_capacity,
+}
+
+# Required parameters per operation, for parameter-validation before dispatch.
+_REQUIRED_PARAMS: dict[str, list[str]] = {
+    "describe_norm":        ["norm_id"],
+    "get_attribute":        ["entity_id", "attribute_name"],
+    "enumerate_linked":     ["entity_id", "relation_type", "role_played"],
+    "trace_pathways":       ["anchor_type", "anchor_value"],
+    "filter_norms":         ["criteria"],
+    "evaluate_feasibility": ["norm_id"],   # supplied_world_state via CLI
+    "evaluate_capacity":    ["norm_id"],
+}
+
+# Evaluated operations that require supplied_world_state.
+_EVALUATED_OPS = {"evaluate_feasibility", "evaluate_capacity"}
+
+
+def _validate_norm_exists(deal_id: str, norm_id: str,
+                           db: str = operations.DEFAULT_DB) -> bool:
+    """Ping the graph to confirm the named norm exists before dispatching.
+
+    Uses the structural operation's own lookup path — reuses describe_norm's
+    not-found handling via get_attribute on norm_id.
+    """
+    try:
+        resp = operations.get_attribute(deal_id, norm_id, "norm_id", db=db)
+        return resp.get("result", {}).get("value") is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def answer_question(question: str, deal_id: str,
+                    world_state: dict | None = None,
+                    model: str | None = None,
+                    db: str = operations.DEFAULT_DB) -> dict:
+    """Parse a question and dispatch it through the operations layer.
+
+    Three branches, uniform envelope:
+
+    operation_call:
+      - validates parameters, pings the graph for identified norms,
+        dispatches to the operations-layer function, attaches the
+        operation response as `operation_response`.
+      - if the operation is evaluated and world_state is None, skips
+        execution and returns a structured error surface in
+        operation_response with the keys the operation would have
+        consulted.
+
+    clarification_needed / out_of_scope: returned unchanged; no
+    execution.
+    """
+    intent = parse_intent(question, model=model)
+    intent["deal_id"] = deal_id
+
+    cls = intent.get("intent_classification")
+    if cls != "operation_call":
+        return intent
+
+    op_name = intent.get("operation")
+    params = dict(intent.get("parameters") or {})
+
+    if op_name not in OPERATION_DISPATCH:
+        intent["operation_response"] = {
+            "error": f"unknown_operation: {op_name!r}",
+            "known_operations": sorted(OPERATION_DISPATCH.keys()),
+            "parsed_parameters": params,
+        }
+        return intent
+
+    # Parameter required-field check.
+    missing = [p for p in _REQUIRED_PARAMS[op_name] if p not in params]
+    if missing:
+        intent["operation_response"] = {
+            "error": f"parameter_validation_failed: missing {missing}",
+            "parsed_parameters": params,
+        }
+        return intent
+
+    # norm_id existence check (when applicable).
+    if "norm_id" in params:
+        if not _validate_norm_exists(deal_id, params["norm_id"], db=db):
+            intent["operation_response"] = {
+                "error": f"norm_not_found: {params['norm_id']!r} does not exist in {db}",
+                "parsed_parameters": params,
+            }
+            return intent
+
+    # Evaluated operations — consumer must supply world state.
+    if op_name in _EVALUATED_OPS:
+        if world_state is None:
+            # Parser may have produced a nested supplied_world_state in
+            # params (Claude sometimes fills this from the question
+            # itself). Use that if present.
+            parser_supplied = params.pop("supplied_world_state", None)
+            if parser_supplied and isinstance(parser_supplied, dict):
+                world_state = parser_supplied
+                intent["world_state_source"] = "parser_extracted"
+            else:
+                # Predicate keys the operation might consult — surface a
+                # hint for the consumer.
+                intent["operation_response"] = {
+                    "error": ("evaluated operation requires supplied_world_state; "
+                              "pass --world-state PATH at CLI or include in the question"),
+                    "operation": op_name,
+                    "parsed_parameters": params,
+                    "world_state_keys_relevant": [
+                        "first_lien_net_leverage_ratio",
+                        "senior_secured_leverage_ratio",
+                        "total_leverage_ratio",
+                        "consolidated_ebitda_ltm",
+                        "no_event_of_default_exists",
+                        "is_pro_forma_no_worse (under proposed_action)",
+                        "proposed_amount_usd (under proposed_action)",
+                    ],
+                }
+                return intent
+        else:
+            intent["world_state_source"] = "cli_supplied"
+
+    # Filter params to the signature of the operation (drop keys the
+    # parser may have added, like supplied_world_state_keys_needed).
+    fn = OPERATION_DISPATCH[op_name]
+    try:
+        if op_name in _EVALUATED_OPS:
+            resp = fn(deal_id, params["norm_id"], world_state, db=db)
+        elif op_name == "describe_norm":
+            resp = fn(deal_id, params["norm_id"], db=db)
+        elif op_name == "get_attribute":
+            resp = fn(deal_id, params["entity_id"], params["attribute_name"], db=db)
+        elif op_name == "enumerate_linked":
+            resp = fn(deal_id, params["entity_id"], params["relation_type"],
+                      params["role_played"], db=db)
+        elif op_name == "trace_pathways":
+            resp = fn(deal_id, params["anchor_type"], params["anchor_value"],
+                      include_annotations=params.get("include_annotations", False),
+                      collapse_contributors=params.get("collapse_contributors", True),
+                      db=db)
+        elif op_name == "filter_norms":
+            resp = fn(deal_id, params["criteria"], db=db)
+        else:
+            resp = {"error": f"dispatch_not_implemented_for {op_name!r}"}
+    except Exception as exc:  # noqa: BLE001
+        resp = {"error": f"operation_raised: {type(exc).__name__}: {exc}"}
+
+    intent["operation_response"] = resp
+    return intent
+
+
 # ─── CLI ───────────────────────────────────────────────────────────────────────
 
 
@@ -532,20 +733,46 @@ def main() -> int:
     )
     sub = parser.add_subparsers(dest="op", required=True)
 
-    # parse: Commit 1 scope — intent classification only, no execution
+    # parse: intent classification only, no execution
     p_parse = sub.add_parser("parse", help="Parse a question; return the intent dict without executing the operation.")
     p_parse.add_argument("--deal", required=True)
     p_parse.add_argument("--question", required=True)
     p_parse.add_argument("--model", default=DEFAULT_MODEL)
+    p_parse.add_argument("--db", default=operations.DEFAULT_DB)
     p_parse.add_argument("--compact", action="store_true")
+
+    # answer: parse + execute + return combined response
+    p_answer = sub.add_parser("answer", help="Parse a question AND execute the operation; return combined response.")
+    p_answer.add_argument("--deal", required=True)
+    p_answer.add_argument("--question", required=True)
+    p_answer.add_argument("--model", default=DEFAULT_MODEL)
+    p_answer.add_argument("--world-state", default=None,
+                           help="Path to JSON file with supplied_world_state. "
+                                "Required for evaluate_* operations.")
+    p_answer.add_argument("--db", default=operations.DEFAULT_DB)
+    p_answer.add_argument("--compact", action="store_true")
 
     args = parser.parse_args()
     compact = bool(getattr(args, "compact", False))
 
     if args.op == "parse":
         resp = parse_intent(args.question, model=args.model)
-        # deal_id is bookkeeping at this layer — echo for CLI UX
         resp["deal_id"] = args.deal
+        _print(resp, compact)
+        return 0
+
+    if args.op == "answer":
+        ws = None
+        if args.world_state:
+            ws_path = Path(args.world_state)
+            if not ws_path.exists():
+                parser.error(f"--world-state file not found: {ws_path}")
+                return 2
+            ws = json.loads(ws_path.read_text(encoding="utf-8"))
+        resp = answer_question(
+            args.question, args.deal,
+            world_state=ws, model=args.model, db=args.db,
+        )
         _print(resp, compact)
         return 0
 
