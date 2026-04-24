@@ -470,7 +470,236 @@ def check_rule_selection_accuracy(deal_id: str, ground_truth_path: Path, tx) -> 
     }
 
 
-# ─── A6: run_all_completeness_checks ──────────────────────────────────────────
+# ─── A6: graph-state invariant assertions ────────────────────────────────────
+
+
+# A6 checks structural presence invariants that projection is expected to
+# maintain. Unlike A1-A5 (which test quality of what projection emits), A6
+# tests that the *categories* of thing projection must emit are present —
+# catching the kind of silent regression where a projection path silently
+# fails and a whole class of entity disappears from the graph.
+#
+# Example: the Prompt 10 INF11 trap silently suppressed the J.Crew
+# prohibition norm and all 5 defeaters for a week. Classification metrics
+# didn't flag it because they measure matched-tuple accuracy, not
+# presence. A6 adds explicit bright-line assertions so the next regression
+# of this class is caught on the first harness run.
+
+
+def check_graph_invariants(deal_id: str, tx, driver=None) -> dict:
+    """Run presence invariants against the projected graph for a deal.
+
+    Some invariants query valence_v4 (projection output) via `tx`;
+    others (carryforward/carryback edges) query valence_v4_ground_truth
+    and open their own read transaction via `driver` when provided.
+
+    Returns:
+        {
+          "verdict": "pass" | "fail",
+          "checks": [
+            {"name": str, "verdict": "pass"|"fail", "expected": ...,
+             "actual": ..., "message": str},
+            ...
+          ]
+        }
+    """
+    checks: list[dict] = []
+
+    def _add(name: str, ok: bool, expected, actual, message: str) -> None:
+        checks.append({
+            "name": name,
+            "verdict": "pass" if ok else "fail",
+            "expected": expected,
+            "actual": actual,
+            "message": message,
+        })
+
+    # ─── Check 1: modality distribution ──
+    # Prohibitions come from J.Crew blocker projection; permissions from
+    # basket projection. A norm with null/empty modality fails structural
+    # validation (A1) but we also assert it never happens via A6 for
+    # symmetry.
+    prohib_rows = _query_rows(
+        tx,
+        'match $n isa norm, has modality "prohibition", has norm_id $nid;'
+        f' $nid contains "{deal_id}"; select $nid;',
+    )
+    perm_rows = _query_rows(
+        tx,
+        'match $n isa norm, has modality "permission", has norm_id $nid;'
+        f' $nid contains "{deal_id}"; select $nid;',
+    )
+    all_norms = _query_rows(
+        tx,
+        'match $n isa norm, has norm_id $nid;'
+        f' $nid contains "{deal_id}"; select $n, $nid;',
+    )
+    # Count norms lacking a modality attribute entirely
+    norms_with_mod = _query_rows(
+        tx,
+        'match $n isa norm, has norm_id $nid, has modality $m;'
+        f' $nid contains "{deal_id}"; select $nid;',
+    )
+    null_modality_count = max(0, len(all_norms) - len(norms_with_mod))
+
+    _add(
+        "modality_distribution_prohibition_floor",
+        len(prohib_rows) >= 1,
+        expected=">= 1",
+        actual=len(prohib_rows),
+        message=(
+            f"Expected at least 1 prohibition norm (J.Crew blocker). "
+            f"Got {len(prohib_rows)}. Prior regression mode: projection's "
+            f"non-basket fetch silently returned zero entities, suppressing "
+            f"the prohibition norm and all defeaters."
+        ),
+    )
+    _add(
+        "modality_distribution_permission_floor",
+        len(perm_rows) >= 20,
+        expected=">= 20",
+        actual=len(perm_rows),
+        message=(
+            f"Expected at least 20 permission norms (baskets + sub-sources). "
+            f"Got {len(perm_rows)}."
+        ),
+    )
+    _add(
+        "modality_distribution_no_null",
+        null_modality_count == 0,
+        expected=0,
+        actual=null_modality_count,
+        message=(
+            f"Expected zero norms with null/missing modality. Got "
+            f"{null_modality_count}."
+        ),
+    )
+
+    # ─── Check 2: defeater presence per J.Crew blocker ──
+    blocker_rows = _query_rows(
+        tx,
+        'match $b isa jcrew_blocker, has blocker_id $bid;'
+        f' $bid contains "{deal_id}"; select $bid;',
+    )
+    defeater_rows = _query_rows(
+        tx,
+        'match $d isa defeater, has defeater_id $did;'
+        f' $did contains "{deal_id}"; select $did;',
+    )
+    defeats_rows = _query_rows(
+        tx,
+        "match $e isa defeats; select $e;",
+    )
+    exception_rows = _query_rows(
+        tx,
+        'match $b isa jcrew_blocker, has blocker_id $bid;'
+        f' $bid contains "{deal_id}";'
+        " (blocker: $b, exception: $e) isa blocker_has_exception;"
+        " $e has exception_id $eid; select $eid;",
+    )
+    expected_defeaters = len(exception_rows)
+
+    if blocker_rows:
+        _add(
+            "jcrew_defeater_count_matches_exceptions",
+            len(defeater_rows) == expected_defeaters,
+            expected=expected_defeaters,
+            actual=len(defeater_rows),
+            message=(
+                f"Each v3 blocker_exception should project to exactly one "
+                f"v4 defeater. Expected {expected_defeaters}, got "
+                f"{len(defeater_rows)}."
+            ),
+        )
+        _add(
+            "jcrew_defeats_edge_count",
+            len(defeats_rows) >= len(defeater_rows),
+            expected=f">= {len(defeater_rows)}",
+            actual=len(defeats_rows),
+            message=(
+                f"Each defeater should have at least one defeats edge. "
+                f"Got {len(defeats_rows)} edges for {len(defeater_rows)} "
+                f"defeaters."
+            ),
+        )
+    else:
+        # No J.Crew blocker for this deal — vacuously satisfied.
+        _add(
+            "jcrew_defeater_count_matches_exceptions",
+            True,
+            expected="n/a (no jcrew_blocker)",
+            actual=0,
+            message="Deal has no jcrew_blocker; check skipped.",
+        )
+
+    # ─── Check 3: carryforward / carryback invariant (GT integrity) ──
+    # Duck Creek has exactly one of each (management-equity basket
+    # carryforward/back provisos per 6.06(b)). These edges live in
+    # valence_v4_ground_truth only — projection doesn't currently emit
+    # separate carryforward/back norms — so this check opens its own GT
+    # read transaction.
+    if deal_id == "6e76ed06" and driver is not None:
+        gt_tx = None
+        try:
+            gt_tx = driver.transaction(GROUND_TRUTH_DB, TransactionType.READ)
+            carryfwd_rows = _query_rows(
+                gt_tx,
+                "match $e isa norm_provides_carryforward_to; select $e;",
+            )
+            carryback_rows = _query_rows(
+                gt_tx,
+                "match $e isa norm_provides_carryback_to; select $e;",
+            )
+            _add(
+                "gt_carryforward_edge_count",
+                len(carryfwd_rows) == 1,
+                expected=1,
+                actual=len(carryfwd_rows),
+                message=(
+                    f"GT integrity: Duck Creek 6.06(b)(i)(x) carryforward "
+                    f"should produce exactly 1 norm_provides_carryforward_to "
+                    f"edge in valence_v4_ground_truth. Got "
+                    f"{len(carryfwd_rows)}."
+                ),
+            )
+            _add(
+                "gt_carryback_edge_count",
+                len(carryback_rows) == 1,
+                expected=1,
+                actual=len(carryback_rows),
+                message=(
+                    f"GT integrity: Duck Creek 6.06(b)(i)(y) carryback "
+                    f"should produce exactly 1 norm_provides_carryback_to "
+                    f"edge in valence_v4_ground_truth. Got "
+                    f"{len(carryback_rows)}."
+                ),
+            )
+        finally:
+            if gt_tx is not None:
+                try:
+                    if gt_tx.is_open():
+                        gt_tx.close()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    # ─── Check 4: projected norm count floor ──
+    _add(
+        "norm_count_floor",
+        len(all_norms) >= 20,
+        expected=">= 20",
+        actual=len(all_norms),
+        message=(
+            f"Duck Creek projection should emit at least 20 norms. Got "
+            f"{len(all_norms)}. Sharp drops here signal a silent projection "
+            f"regression (see INF11 trap in docs/typedb_patterns.md)."
+        ),
+    )
+
+    verdict = "pass" if all(c["verdict"] == "pass" for c in checks) else "fail"
+    return {"verdict": verdict, "checks": checks}
+
+
+# ─── Main runner ──────────────────────────────────────────────────────────────
 
 
 def run_all_completeness_checks(
@@ -523,6 +752,9 @@ def run_all_completeness_checks(
                 else ("pass" if rule_sel["aggregate_accuracy"] >= 0.95 else "fail")
             )
 
+            # A6 — graph-state invariant assertions
+            invariants = check_graph_invariants(deal_id, tx, driver=driver)
+
             report = {
                 "deal_id": deal_id,
                 "covenant": covenant,
@@ -552,6 +784,7 @@ def run_all_completeness_checks(
                     "verdict": rule_sel_verdict,
                     **rule_sel,
                 },
+                "A6_graph_invariants": invariants,
             }
             return report
         finally:
@@ -590,8 +823,25 @@ def main() -> int:
     print("=" * 70)
     print(f"Validation harness — deal={args.deal}  covenant={args.covenant}")
     print("=" * 70)
-    for check in ("A1_structural", "A2_segment_counts", "A3_kind_coverage", "A4_round_trip", "A5_rule_selection"):
+    for check in (
+        "A1_structural",
+        "A2_segment_counts",
+        "A3_kind_coverage",
+        "A4_round_trip",
+        "A5_rule_selection",
+        "A6_graph_invariants",
+    ):
         print(f"  {check:25s} -> {report[check]['verdict']}")
+    # A6 sub-check detail — always print when any check failed so silent
+    # regressions surface at the CLI level, not only in the JSON blob.
+    a6 = report.get("A6_graph_invariants", {})
+    failed_subchecks = [c for c in a6.get("checks", []) if c.get("verdict") == "fail"]
+    if failed_subchecks:
+        print()
+        print("  A6 failed sub-checks:")
+        for c in failed_subchecks:
+            print(f"    - {c['name']}: expected={c['expected']} actual={c['actual']}")
+            print(f"      {c['message']}")
     print("=" * 70)
     print()
     print(json.dumps(report, indent=2, default=str))
