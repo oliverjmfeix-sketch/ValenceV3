@@ -268,12 +268,15 @@ Return literally one of:
 Do NOT return any other string.
 
 Value definitions:
-- specific: the norm applies to a narrow, named action or set of closely-related actions (e.g., tax distributions only, management equity buyouts only, post-IPO dividends only).
-- general: the norm applies broadly across multiple RP-like action classes without discrimination (e.g., a ratio basket available for dividends OR repurchases OR RDPs).
+- specific: the norm applies to a narrow, named action or set of closely-related actions (e.g., tax distributions only, management equity buyouts only, post-IPO dividends only). ALSO applies to CAPACITY CONTRIBUTION norms that earmark their capacity to a specific parent basket, even if the parent's action set is broad — see rule below.
+- general: the norm applies broadly across multiple RP-like action classes without discrimination (e.g., a ratio basket available for dividends OR repurchases OR RDPs) AND is itself a usage permission (the norm at the point of action selection), not a capacity contributor.
 - reallocable: the norm's capacity can be redirected from its primary action class into other RP actions via an explicit reallocation mechanism (e.g., a general RP basket that can reallocate to prepay subordinated debt).
 
+CAPACITY CONTRIBUTOR RULE (important):
+If the norm_kind starts with "builder_source_" or ends with "_component" (e.g., builder_source_cni, post_ipo_basket_ipo_proceeds_component), it is a CAPACITY CONTRIBUTION — it supplies capacity to a parent basket rather than governing action selection itself. Label such norms `specific`, not `general`. They inherit the parent's action set but their own scope is narrow: "contribute capacity to this specific parent." The 4-action Cumulative Amount usage set on a builder_source_* norm does NOT make it general — general is reserved for the usage permission at the top (builder_usage_permission, builder_basket_aggregate), not for its contributors.
+
 Disambiguation:
-- specific vs general: does the basket name a specific action class (tax, management equity, etc.)? specific. Does it cover any RP action without restriction? general.
+- specific vs general: does the basket name a specific action class (tax, management equity, etc.)? specific. Does it cover any RP action without restriction AND is it a usage permission (not a contributor)? general. Is it a capacity contributor? specific.
 - general vs reallocable: a general basket is available for multiple action classes by its own terms. A reallocable basket is primarily one action class but can be redirected to others via a cross-reference clause.
 
 Output format (JSON only):

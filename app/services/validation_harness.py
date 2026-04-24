@@ -77,15 +77,24 @@ def load_ground_truth_from_graph(driver) -> dict:
     tx = driver.transaction(GROUND_TRUTH_DB, TransactionType.READ)
     norms: list[dict] = []
     try:
-        # Pull norm scalars
+        # Pull norm scalars — now including action_scope + capacity_composition.
+        # Previous omission meant A4's mismatch check compared extracted
+        # action_scope to GT's action_scope=None, flagging every matched norm
+        # as mismatched. Graph has the values; fetch them.
         rows = list(tx.query(
             "match $n isa norm, has norm_id $nid, has norm_kind $nk, has modality $m;"
-            " select $nid, $nk, $m;"
+            " try { $n has action_scope $as; };"
+            " try { $n has capacity_composition $cc; };"
+            " select $nid, $nk, $m, $as, $cc;"
         ).resolve().as_concept_rows())
         for r in rows:
             nid = _attr(r, "nid")
             nk = _attr(r, "nk")
             m = _attr(r, "m")
+            as_concept = r.get("as")
+            as_val = as_concept.as_attribute().get_value() if as_concept else None
+            cc_concept = r.get("cc")
+            cc_val = cc_concept.as_attribute().get_value() if cc_concept else None
             # primary action / object
             a_rows = list(tx.query(
                 f'match $n isa norm, has norm_id "{nid}";'
@@ -101,6 +110,8 @@ def load_ground_truth_from_graph(driver) -> dict:
                 "norm_id": nid,
                 "norm_kind": nk,
                 "modality": m,
+                "action_scope": as_val,
+                "capacity_composition": cc_val,
                 "scoped_actions": [_attr(r, "al") for r in a_rows],
                 "scoped_objects": [_attr(r, "ol") for r in o_rows],
             })

@@ -905,7 +905,7 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
               has norm_kind "builder_source_b_aggregate",
               has modality "permission",
               has capacity_composition "computed_from_sources",
-              has action_scope "general";
+              has action_scope "specific";
         """
         try:
             _execute_write(driver, db_name, agg_q)
@@ -975,7 +975,7 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
             f'has norm_kind {_tq_string(kind)}',
             'has modality "permission"',
             'has capacity_composition "additive"',
-            'has action_scope "general"',
+            'has action_scope "specific"',
         ]
         if cap_usd is not None:
             owns.append(f"has cap_usd {float(cap_usd)}")
