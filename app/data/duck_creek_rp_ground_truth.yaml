@@ -1,3 +1,18 @@
+# Duck Creek RP Ground Truth
+#
+# CONVENTION: norm_id suffixes are internal labels, not clause citations.
+# Example: `dc_rp_6_06_e_cash_equity_funded` refers to the agreement's
+# 6.06(i) (cash-equity-funded dividends), not 6.06(e). The `source_section`
+# attribute is the authoritative citation; norm_ids are stable identifiers
+# preserved across clause-letter corrections for backwards compatibility
+# with cross-references (`contributes_to_norm_id`, `serves_questions`, etc.).
+#
+# If you need to know which clause a norm actually maps to, read
+# `source_section`, not the norm_id suffix.
+#
+# History: clause-letter corrections landed per Option A from
+# docs/v4_source_verification_findings.md (commit follows this file's edit).
+#
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duck Creek RP Ground Truth — v4 Pilot Baseline
 #
@@ -368,9 +383,9 @@ norms:
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(e)"
+  source_section: "6.06(i)"
   source_page: 190
-  source_text: <source_text_verification_required>
+  source_text: "Dividends to the extent that payment for such Dividends is made solely with cash contributions from the issuance of Equity Interests (other than Disqualified Capital Stock) of Holdings or other contributions to the Equity Interests of Holdings (other than in exchange for Disqualified Capital Stock), which are contributed as cash common equity to any Credit Party and Not Otherwise Applied"
   serves_questions: []
   condition: null
 
@@ -386,7 +401,8 @@ norms:
   cap_grower_pct: null
   source_section: "6.06(g)"
   source_page: 190
-  source_text: <source_text_verification_required>
+  source_text: "Dividends made solely in Equity Interests of Holdings (other than Disqualified Capital Stock)"
+  # norm_id suffix "concurrent_dividend" is an internal label; operative content is equity-in-kind dividends per 6.06(g).
   serves_questions: []
   condition: null
 
@@ -400,9 +416,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(h)"
-  source_page: 190
-  source_text: <source_text_verification_required>
+  source_section: "6.06(l)"
+  source_page: 191
+  source_text: "distributions to any of Holdings' direct or indirect equity holders of any working capital adjustment or any other purchase price adjustment received in connection with any Permitted Acquisition or any other Investment permitted under Section 6.03; provided that, with respect to any Permitted Acquisition or other Investment, the amount of such distribution shall be limited to the Equity Funded Portion thereof (and, to the extent such Equity Funded Portion was funded in the form of shareholder loans, the repayment of such shareholder loans shall be deemed to be a Dividend for the purposes of this Section 6.06(l))"
   serves_questions: []
   condition: null
 
@@ -416,9 +432,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(i)"
+  source_section: "6.06(h)"
   source_page: 190
-  source_text: <source_text_verification_required>
+  source_text: "Dividends to finance payments expressly permitted by Section 5.17(d) and payments for reasonable director fees and reasonable and documented director indemnities and expenses (which for the avoidance of doubt, may be paid as a Dividend)"
   serves_questions: []
   condition: null
 
@@ -432,9 +448,9 @@ norms:
   scoped_objects: [equity_interest, cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(l)"
-  source_page: 191
-  source_text: <source_text_verification_required>
+  source_section: "6.06(r)"
+  source_page: 192
+  source_text: "(i) Dividends constituting any part of (x) a Permitted Reorganization (and to pay any costs or expenses related thereto) and (y) an IPO Reorganization Transaction and (ii) Dividends to pay costs or expenses related to any IPO (or IPO Reorganization Transactions), in each case whether or not such IPO (and any related IPO Reorganization Transactions) is consummated"
   serves_questions: []
   condition: null
 
@@ -477,9 +493,9 @@ norms:
   scoped_objects: [equity_interest, cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(n)"
-  source_page: 191
-  source_text: <source_text_verification_required>
+  source_section: "6.06(v)"
+  source_page: 192
+  source_text: "Dividends made in connection with or in order to consummate the Transactions and/or used to fund amounts owed to equityholders in connection therewith, including without limitation, (i) cash payments to holders of equity interests, restricted stock units, options or other equity-linked interests under any management equity plan, stock option plan or any other management or employee benefit or incentive plan or agreement and (y) other payments with respect to working capital adjustments"
   serves_questions: []
   condition: null
 
@@ -493,9 +509,9 @@ norms:
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(r)"
+  source_section: "6.06(u)"
   source_page: 192
-  source_text: <source_text_verification_required>
+  source_text: "Dividends made in the form of assets of Holdings and its Restricted Subsidiaries that do not constitute Collateral"
   serves_questions: []
   condition: null
 
@@ -509,9 +525,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(s)"
-  source_page: 192
-  source_text: <source_text_verification_required>
+  source_section: "6.06(n)"
+  source_page: 191
+  source_text: "Dividends to the extent funded to pay AHYDO catch-up payments relating to a borrowing of any Credit Party"
   serves_questions: []
   condition: null
 
@@ -525,9 +541,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(t)"
+  source_section: "6.06(s)"
   source_page: 192
-  source_text: <source_text_verification_required>
+  source_text: "Dividends and distributions among Credit Parties in connection with transfer pricing or shared services agreements to the extent advances related thereto are permitted pursuant to Section 6.03(z)"
   serves_questions: []
   condition: null
 
@@ -541,9 +557,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(u)"
-  source_page: 192
-  source_text: <source_text_verification_required>
+  source_section: "6.06(e)"
+  source_page: 190
+  source_text: "distributions or payments of Receivables Fees and Securitization Fees"
   serves_questions: []
   condition: null
 
@@ -557,9 +573,9 @@ norms:
   scoped_objects: [equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "6.06(v)"
+  source_section: "6.06(t)"
   source_page: 192
-  source_text: <source_text_verification_required>
+  source_text: "any Restricted Subsidiary may (a) pay cash in lieu of fractional Equity Interests in connection with any dividend, split, distribution, exercise of warrants, options or other securities convertible into or exchangeable for Equity Interests of any Restricted Subsidiary or any merger, consolidation amalgamation or other business combination of any Restricted Subsidiary or any combination thereof, any Permitted Acquisition and (b) honor any conversion request by a holder of convertible Indebtedness and make cash payments in lieu of fractional shares in connection with any such conversion and may make payments on convertible Indebtedness in accordance with its terms"
   serves_questions: []
   condition: null
 
@@ -1051,9 +1067,10 @@ norms:
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (c)"
+  source_section: "Definition of 'Cumulative Amount', clause (f) — Retained Declined Proceeds (Declined ECF sub-component) / Section 2.10(i)"
   source_page: 27
-  source_text: "<operative-text verification required; Declined ECF Sweep Proceeds (ECF prepayments declined by lenders)>"
+  source_text: "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date [where Retained Declined Proceeds per §2.10(i) includes Declined Proceeds from ECF mandatory prepayments under Section 2.10(f): \"each Lender may reject all or a portion of its pro rata share of any mandatory prepayment (such declined amounts, the 'Declined Proceeds') of Term Loans required to be made pursuant to clauses (c), (d) ... and (f) of this Section 2.10 ... Any Declined Proceeds may be applied by the Borrowers to prepay any other Indebtedness or retained by the Borrowers ... (any amounts so retained ..., 'Retained Declined Proceeds')\"]"
+  # Sub-component of agreement clause (f) "Retained Declined Proceeds"; GT decomposes for modeling clarity. Defined term Retained Declined Proceeds is in Section 2.10(i).
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1070,9 +1087,10 @@ norms:
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (d)"
+  source_section: "Definition of 'Cumulative Amount', clause (f) — Retained Declined Proceeds (Declined Asset Sale sub-component) / Section 2.10(i)"
   source_page: 27
-  source_text: "<operative-text verification required; Declined Asset Sale Proceeds>"
+  source_text: "the aggregate amount of Retained Declined Proceeds ... held by any Group Member during the period from the Business Day immediately following the Closing Date through and including the Reference Date [where Retained Declined Proceeds per §2.10(i) includes Declined Proceeds from Asset Sale mandatory prepayments under Section 2.10(c): \"each Lender may reject all or a portion of its pro rata share of any mandatory prepayment (such declined amounts, the 'Declined Proceeds') of Term Loans required to be made pursuant to clauses (c), (d) ... and (f) of this Section 2.10 ... Any Declined Proceeds may be applied by the Borrowers to prepay any other Indebtedness or retained by the Borrowers ... (any amounts so retained ..., 'Retained Declined Proceeds')\"]"
+  # Sub-component of agreement clause (f) "Retained Declined Proceeds"; GT decomposes for modeling clarity. Defined term Retained Declined Proceeds is in Section 2.10(i).
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1089,9 +1107,10 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (e)"
+  source_section: "Definition of 'Cumulative Amount', clause (i) — Sale Leaseback sub-component"
   source_page: 27
-  source_text: "<operative-text verification required; proceeds from sale/leaseback transactions>"
+  source_text: "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with Sale Leaseback Transactions ... during the period from the Business Day immediately following the Closing Date through and including the Reference Date"
+  # Agreement clause (i) bundles Sale Leaseback + Investment returns; GT splits — Sale Leaseback portion lives here, Investment returns portion in cumulative_amount_j_investment_returns.
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1153,9 +1172,9 @@ norms:
   scoped_objects: [cash, equity_interest, unrestricted_subsidiary_equity_or_assets]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (h)"
+  source_section: "Definition of 'Cumulative Amount', clause (j)"
   source_page: 27
-  source_text: "<operative-text verification required; FMV of assets of an Unrestricted Subsidiary redesignated as Restricted or transferred to Borrower or a Restricted Subsidiary>"
+  source_text: "in the event that any Borrower re-designates any Unrestricted Subsidiary as a Restricted Subsidiary after the Closing Date (which, for purposes hereof, shall be deemed to also include (A) the merger, amalgamation, consolidation, liquidation or similar combination of any Unrestricted Subsidiary into or with any Restricted Subsidiary of Holdings, so long as such Restricted Subsidiary of Holdings is the surviving Person, and (B) the transfer of any assets of an Unrestricted Subsidiary to any Restricted Subsidiary of Holdings), the fair market value (as determined in good faith by the Borrowers) of the Investment in such Unrestricted Subsidiary or such transferred assets at the time of such re-designation, in each case without any limitation as to the original amount of the Investment therein"
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1172,9 +1191,9 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (i)"
+  source_section: "Definition of 'Cumulative Amount', clause (k)"
   source_page: 27
-  source_text: "<operative-text verification required; proceeds from sales of receivables, royalties, or licenses>"
+  source_text: "the aggregate amount of proceeds from, Receivables or royalty or license collections, off-balance sheet sales of Receivables, royalties or other similar rights to payment"
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1191,9 +1210,10 @@ norms:
   scoped_objects: [cash, equity_interest]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (j)"
+  source_section: "Definition of 'Cumulative Amount', clause (i) — Investment returns sub-component"
   source_page: 27
-  source_text: "<operative-text verification required; returns on ALL investments including those refilling the basket used>"
+  source_text: "the aggregate amount of all Net Cash Proceeds, and the fair market value of non-cash proceeds, received by any Group Member in connection with ... the sale, transfer or other disposition of its ownership interest in, or cash amounts of any returns, dividends, profits, distributions and similar amounts received on, any Investment (including in any Unrestricted Subsidiary or a joint venture), during the period from the Business Day immediately following the Closing Date through and including the Reference Date"
+  # Agreement clause (i) bundles Sale Leaseback + Investment returns; GT splits — Investment returns portion lives here, Sale Leaseback portion in cumulative_amount_e_sale_leaseback.
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1211,9 +1231,9 @@ norms:
   cap_usd: null
   cap_grower_pct: 50.0
   cap_grower_reference: "cumulative_deferred_revenues_from_closing"
-  source_section: "Definition of 'Cumulative Amount', clause (k)"
-  source_page: 27
-  source_text: <source_text_verification_required>
+  source_section: "Definition of 'Cumulative Amount', clause (l)"
+  source_page: 28
+  source_text: "50% of the aggregate amount of cumulative deferred revenues of Holdings and its Restricted Subsidiaries during the period from the first day of the fiscal quarter of Holdings in which the Closing Date occurs through and including the applicable date of determination for which financial statements are internally available"
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
@@ -1231,9 +1251,10 @@ norms:
   scoped_objects: [cash]
   cap_usd: null
   cap_grower_pct: null
-  source_section: "Definition of 'Cumulative Amount', clause (l)"
-  source_page: 28
-  source_text: "<operative-text verification required; catch-all additional builder source per agreement's clause (l)>"
+  source_section: "Definition of 'Cumulative Amount', clauses (c) and (d) — Eligible Equity Issuance + Debt-to-Equity Conversion proceeds"
+  source_page: 26
+  source_text: "(c) an amount determined on a cumulative basis equal to the Net Cash Proceeds received by Holdings after the Closing Date (and contributed as common capital or Qualified Capital Stock to any Restricted Subsidiary) from Eligible Equity Issuances, to the extent Not Otherwise Applied; plus (d) an amount determined on a cumulative basis equal to the Net Cash Proceeds received by Holdings and its Restricted Subsidiaries (and contributed as common capital or Qualified Capital Stock to any Restricted Subsidiary) from Indebtedness or Disqualified Capital Stock issued after the Closing Date and subsequently converted or exchanged into Qualified Capital Stock of Holdings or any direct or indirect parent company of Holdings, to the extent Not Otherwise Applied"
+  # GT aggregate stand-in for projection's kind `builder_source_other`, which fires for v3 flags has_equity_proceeds_source (agreement (c)) and has_debt_conversion_source (agreement (d)). Not a single agreement clause — spans (c) and (d).
   serves_questions:
     - question_id: duck_creek_rp_q2
       role: capacity_source
