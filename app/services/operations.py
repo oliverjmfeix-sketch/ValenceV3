@@ -669,7 +669,321 @@ def enumerate_linked(deal_id: str, entity_id: str, relation_type: str,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  CLI DISPATCH (structural operations only; trace/filter/evaluate added later)
+#  TRACE_PATHWAYS — polymorphic anchor (action_class or state_predicate)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def trace_pathways(deal_id: str, anchor_type: str, anchor_value: str,
+                   include_annotations: bool = False,
+                   db: str = DEFAULT_DB) -> dict:
+    """Trace pathways through the deontic graph from an anchor.
+
+    Two anchor types:
+      - "action_class": returns all norms scoping to the action class,
+        grouped by modality. Each norm's entry includes its contributor
+        chain (walked up via norm_contributes_to_capacity), any conditions
+        it carries, and any defeaters targeting it.
+      - "state_predicate": returns all norms whose condition tree
+        references the given state_predicate_id, with the path through
+        the tree to the referencing leaf.
+
+    include_annotations: when True, attach source_text / source_section
+    excerpts alongside each node. When False, pure structure.
+    """
+    params = {
+        "anchor_type": anchor_type,
+        "anchor_value": anchor_value,
+        "include_annotations": include_annotations,
+        "db": db,
+    }
+
+    driver = _connect()
+    try:
+        tx = driver.transaction(db, TransactionType.READ)
+        try:
+            if anchor_type == "action_class":
+                result = _trace_from_action_class(
+                    tx, anchor_value, include_annotations)
+            elif anchor_type == "state_predicate":
+                result = _trace_from_state_predicate(
+                    tx, anchor_value, include_annotations)
+            else:
+                result = {
+                    "error": f"unknown anchor_type: {anchor_type}",
+                    "supported": ["action_class", "state_predicate"],
+                }
+            return _envelope("trace_pathways", deal_id, params, result)
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:  # noqa: BLE001
+                pass
+    finally:
+        try:
+            driver.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _trace_from_action_class(tx, action_label: str,
+                              include_annotations: bool) -> dict:
+    """Find all norms scoping to action_label, group by modality,
+    attach contributor chains, conditions, defeaters."""
+    # 1. Norms that scope directly to this action.
+    q = f'''
+        match
+          $a isa action_class, has action_class_label "{_escape(action_label)}";
+          (norm: $n, action: $a) isa norm_scopes_action;
+          $n has norm_id $nid;
+          try {{ $n has modality $mod; }};
+          try {{ $n has norm_kind $nk; }};
+          try {{ $n has capacity_composition $cc; }};
+          try {{ $n has cap_usd $cu; }};
+          try {{ $n has cap_grower_pct $cg; }};
+          try {{ $n has action_scope $sc; }};
+          try {{ $n has source_section $ss; }};
+          try {{ $n has source_text $st; }};
+        select $nid, $mod, $nk, $cc, $cu, $cg, $sc, $ss, $st;
+    '''
+    rows = _rows(tx, q)
+
+    permissions: list[dict] = []
+    prohibitions: list[dict] = []
+    seen: set[str] = set()
+
+    for row in rows:
+        nid = _attr(row, "nid")
+        if nid in seen:
+            continue
+        seen.add(nid)
+
+        node = {
+            "norm_id": nid,
+            "norm_kind": _attr(row, "nk"),
+            "capacity_composition": _attr(row, "cc"),
+            "cap_usd": _attr(row, "cu"),
+            "cap_grower_pct": _attr(row, "cg"),
+            "action_scope": _attr(row, "sc"),
+            # contributor-chain walk-up
+            "contributes_to_chain": _walk_contribution_chain(tx, nid),
+            # any condition tree
+            "conditions_required": _describe_condition_for_norm(tx, nid),
+            # defeaters attached
+            "defeaters_potential": _list_defeaters(tx, nid),
+        }
+        if include_annotations:
+            node["source_section"] = _attr(row, "ss")
+            node["source_text"] = _truncate(_attr(row, "st"), 200)
+
+        modality = _attr(row, "mod")
+        if modality == "prohibition":
+            prohibitions.append(node)
+        else:
+            permissions.append(node)
+
+    permissions.sort(key=lambda n: n["norm_id"])
+    prohibitions.sort(key=lambda n: n["norm_id"])
+
+    return {
+        "anchor": {"type": "action_class", "value": action_label},
+        "permissions": permissions,
+        "prohibitions": prohibitions,
+        "summary": {
+            "permission_count": len(permissions),
+            "prohibition_count": len(prohibitions),
+        },
+    }
+
+
+def _walk_contribution_chain(tx, norm_id: str, max_hops: int = 5,
+                              seen: set[str] | None = None) -> list[dict]:
+    """Walk up norm_contributes_to_capacity from contributor -> pool.
+
+    Returns a list describing the chain from the starting norm to each
+    reachable pool. Each list entry is one hop: {pool_norm_id,
+    aggregation_function, aggregation_direction}. Stops at max_hops or
+    on cycle. Stores nothing if the norm doesn't contribute to anything.
+    """
+    if seen is None:
+        seen = set()
+    if norm_id in seen or max_hops <= 0:
+        return []
+    seen.add(norm_id)
+
+    q = f'''
+        match
+          $n isa norm, has norm_id "{_escape(norm_id)}";
+          $rel isa norm_contributes_to_capacity,
+            links (contributor: $n, pool: $pool);
+          $pool has norm_id $pid;
+          try {{ $rel has aggregation_function $af; }};
+          try {{ $rel has aggregation_direction $ad; }};
+        select $pid, $af, $ad;
+    '''
+    rows = _rows(tx, q)
+    chain = []
+    for row in rows:
+        pid = _attr(row, "pid")
+        hop = {
+            "pool_norm_id": pid,
+            "aggregation_function": _attr(row, "af"),
+            "aggregation_direction": _attr(row, "ad"),
+        }
+        # Recurse to the pool's parent pool (if any)
+        hop["parent_chain"] = _walk_contribution_chain(
+            tx, pid, max_hops=max_hops - 1, seen=seen)
+        chain.append(hop)
+    return chain
+
+
+def _trace_from_state_predicate(tx, predicate_id: str,
+                                  include_annotations: bool) -> dict:
+    """Find all norms whose condition tree references this predicate.
+
+    For each referencing norm, report:
+      - norm_id + minimal structure (kind, modality, source_section)
+      - condition_path: list of condition_ids from root to the atomic
+        leaf that references this predicate
+      - logical_role: how the atomic sits in its parent — atomic (no
+        parent), or_branch (parent is `or`), or and_branch (parent is
+        `and`)
+    """
+    # Find conditions that reference this predicate directly.
+    q_refs = f'''
+        match
+          $p isa state_predicate, has state_predicate_id "{_escape(predicate_id)}";
+          (condition: $c, predicate: $p) isa condition_references_predicate;
+          $c has condition_id $cid;
+        select $cid;
+    '''
+    ref_rows = _rows(tx, q_refs)
+    atomic_ids = [_attr(r, "cid") for r in ref_rows]
+
+    referencing: list[dict] = []
+    for atomic_cid in atomic_ids:
+        # Walk up to root via condition_has_child (parent).
+        path = _walk_condition_up(tx, atomic_cid)
+        root_cid = path[0] if path else atomic_cid
+
+        # Find the norm via norm_has_condition:root on the path's root.
+        q_norm = f'''
+            match
+              $c isa condition, has condition_id "{_escape(root_cid)}";
+              (norm: $n, root: $c) isa norm_has_condition;
+              $n has norm_id $nid;
+              try {{ $n has modality $mod; }};
+              try {{ $n has norm_kind $nk; }};
+              try {{ $n has source_section $ss; }};
+              try {{ $n has source_text $st; }};
+            select $nid, $mod, $nk, $ss, $st;
+        '''
+        n_rows = _rows(tx, q_norm)
+        if not n_rows:
+            # May belong to a defeater instead
+            q_def = f'''
+                match
+                  $c isa condition, has condition_id "{_escape(root_cid)}";
+                  (defeater: $d, root: $c) isa defeater_has_condition;
+                  $d has defeater_id $did;
+                select $did;
+            '''
+            d_rows = _rows(tx, q_def)
+            if d_rows:
+                referencing.append({
+                    "referrer_type": "defeater",
+                    "defeater_id": _attr(d_rows[0], "did"),
+                    "condition_path_from_root": path + [atomic_cid] if len(path) > 0 and path[-1] != atomic_cid else [atomic_cid],
+                    "logical_role": _atomic_logical_role(tx, atomic_cid),
+                })
+            continue
+
+        row = n_rows[0]
+        node = {
+            "referrer_type": "norm",
+            "norm_id": _attr(row, "nid"),
+            "modality": _attr(row, "mod"),
+            "norm_kind": _attr(row, "nk"),
+            "condition_path_from_root": path + [atomic_cid] if (not path or path[-1] != atomic_cid) else path,
+            "logical_role": _atomic_logical_role(tx, atomic_cid),
+        }
+        if include_annotations:
+            node["source_section"] = _attr(row, "ss")
+            node["source_text"] = _truncate(_attr(row, "st"), 200)
+        referencing.append(node)
+
+    return {
+        "anchor": {"type": "state_predicate", "value": predicate_id},
+        "referencing_norms": [r for r in referencing if r.get("referrer_type") == "norm"],
+        "referencing_defeaters": [r for r in referencing if r.get("referrer_type") == "defeater"],
+        "summary": {
+            "norm_count": sum(1 for r in referencing if r.get("referrer_type") == "norm"),
+            "defeater_count": sum(1 for r in referencing if r.get("referrer_type") == "defeater"),
+        },
+    }
+
+
+def _walk_condition_up(tx, condition_id: str, max_hops: int = 8) -> list[str]:
+    """Walk condition_has_child from child to parent until no parent found.
+
+    Returns list of condition_ids from root to the child BEFORE the
+    starting condition_id (exclusive of the starting id). Empty list if
+    the starting condition is already a root.
+    """
+    path: list[str] = []
+    current = condition_id
+    hops = 0
+    while hops < max_hops:
+        q = f'''
+            match
+              $ch isa condition, has condition_id "{_escape(current)}";
+              (parent: $p, child: $ch) isa condition_has_child;
+              $p has condition_id $pid;
+            select $pid;
+        '''
+        rows = _rows(tx, q)
+        if not rows:
+            break
+        pid = _attr(rows[0], "pid")
+        path.append(pid)
+        current = pid
+        hops += 1
+    path.reverse()  # root-first
+    return path
+
+
+def _atomic_logical_role(tx, atomic_cid: str) -> str:
+    """Determine the logical role of an atomic condition: atomic (root,
+    no parent), or_branch, or and_branch."""
+    q = f'''
+        match
+          $ch isa condition, has condition_id "{_escape(atomic_cid)}";
+          (parent: $p, child: $ch) isa condition_has_child;
+          $p has condition_operator $op;
+        select $op;
+    '''
+    rows = _rows(tx, q)
+    if not rows:
+        return "atomic"
+    op = _attr(rows[0], "op")
+    if op == "or":
+        return "or_branch"
+    if op == "and":
+        return "and_branch"
+    return op or "atomic"
+
+
+def _truncate(s: str | None, n: int) -> str | None:
+    if s is None:
+        return None
+    s = str(s)
+    if len(s) <= n:
+        return s
+    return s[:n - 1].rstrip() + "\u2026"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CLI DISPATCH
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -712,6 +1026,22 @@ def main() -> int:
     p_el.add_argument("--db", default=DEFAULT_DB)
     p_el.add_argument("--compact", action="store_true")
 
+    # trace_pathways
+    p_tp = sub.add_parser("trace_pathways")
+    p_tp.add_argument("--deal", required=True)
+    p_tp.add_argument("--anchor-type", required=True,
+                      choices=["action_class", "state_predicate"])
+    p_tp.add_argument("--anchor-value", required=True,
+                      help="e.g., make_dividend_payment OR "
+                           "'first_lien_net_leverage_at_or_below|5.75|at_or_below|None'")
+    ann_group = p_tp.add_mutually_exclusive_group()
+    ann_group.add_argument("--with-annotations", action="store_true",
+                           dest="annotations")
+    ann_group.add_argument("--no-annotations", action="store_false",
+                           dest="annotations", default=False)
+    p_tp.add_argument("--db", default=DEFAULT_DB)
+    p_tp.add_argument("--compact", action="store_true")
+
     args = parser.parse_args()
     compact = bool(getattr(args, "compact", False))
 
@@ -721,6 +1051,10 @@ def main() -> int:
         resp = get_attribute(args.deal, args.entity, args.attr, db=args.db)
     elif args.op == "enumerate_linked":
         resp = enumerate_linked(args.deal, args.entity, args.relation, args.role, db=args.db)
+    elif args.op == "trace_pathways":
+        resp = trace_pathways(
+            args.deal, args.anchor_type, args.anchor_value,
+            include_annotations=args.annotations, db=args.db)
     else:
         parser.error(f"unknown op: {args.op}")
         return 2
