@@ -136,6 +136,28 @@ Scope: enum comment update in §4.1 + ~20 GT YAML edits + projection
 branch + V3 classification prompt. Order of magnitude 90 minutes of
 work. Tracked for post-pilot review.
 
+## Editorial commentary in gold answers (Prompt 13 scoring consideration)
+
+At least one gold answer (xtract Q8) includes editorial commentary that
+is not Valence-answerable under the structural posture: "the Xtract
+report notes this needs to be removed since it contradicts the
+mandatory prepayment provisions." Valence's correct structural answer
+should match §6.05(z) permissibility; the "contradicts mandatory
+prepayment" observation is out-of-scope for the agreement-structure
+interpretation — it's an inter-section consistency judgment, not a
+property of any single norm.
+
+xtract Q11 similarly flags a "concern" about parent-company expense
+scope. Valence's structural answer returns the operative text and
+scope semantics; the concern is commentary.
+
+When Prompt 13's acceptance-test scoring is built, scoring rules
+should evaluate Valence's answer against the structural portion of
+the gold only. Editorial commentary is informational, not scorable.
+Flag during acceptance-test setup. See
+`docs/v4_gold_question_posture_audit.md` § Problematic questions for
+the full list.
+
 ## Accept-as-input vs store-as-state (posture clarification)
 
 Earlier design drafts muddled "Valence uses world state" with "Valence
