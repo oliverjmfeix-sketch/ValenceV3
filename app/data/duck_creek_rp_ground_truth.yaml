@@ -275,7 +275,14 @@ norms:
   action_scope: specific
   subject_role: [borrower]
   scoped_actions: [make_dividend_payment]
-  scoped_objects: [unrestricted_subsidiary_equity_or_assets]
+  # Phase B Commit 4: dual scope. The umbrella object_class
+  # `unrestricted_subsidiary_equity_or_assets` matches the broad source text
+  # ("Equity Interests of, or...any assets of, an Unrestricted Subsidiary");
+  # `unrestricted_sub_equity` is the equity_interest subtype that lets the
+  # intent parser route Q2's specific "Unrestricted Subsidiary equity"
+  # phrasing to this norm (norm_scopes_instrument edge). Both scopes preserve
+  # the source text — neither is a stretch of the agreement.
+  scoped_objects: [unrestricted_subsidiary_equity_or_assets, unrestricted_sub_equity]
   cap_usd: null
   cap_grower_pct: null
   source_section: "6.06(p)"

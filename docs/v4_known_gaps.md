@@ -284,3 +284,77 @@ function-library invocation when TypeDB 3.x gains either:
 Any future replacement is a local refactor of a bounded surface, not
 a pervasive change. Regression tests for evaluated operations live
 in Prompt 13's acceptance test suite.
+
+## Phase B residual gaps (2026-04-27)
+
+Recorded after Phase B (4 commits) landed: temporal anchors, reallocation
+relations, cross-covenant proceeds-flow, object-scope audit. These are the
+items the phase deliberately deferred or accepted as known-gap.
+
+### Reallocation extraction not yet wired (Commit 2)
+
+Schema captures `basket_reallocates_to` (v3) and `norm_reallocates_capacity_from`
+(v4); `_project_reallocations` reads v3 → emits v4 via `norm_extracted_from`
+walk. **Pre-flight check on Duck Creek 2026-04-27: zero v3 instances.**
+Extraction never populated `basket_reallocates_to` despite the schema slot.
+
+GT YAML carries the full Q3 reallocation chain (3 edges); valence_v4 has 0.
+**Trigger to revisit:** when extraction questions for `reallocates_to`
+attributes land (likely Phase C re-extraction). Until then, evaluator paths
+that need reallocation edges read GT, not v4.
+
+### `event_governed_by_norm` deferred (Commit 3)
+
+Phase B Commit 3 only authored `event_provides_proceeds_to_norm` (the
+event → receiver-norm side). The complementary `event_governed_by_norm`
+relation (which norms govern the event class) was deferred because the
+governing norms — sweep tiers, de minimis, 6.05(z) — are not authored in
+GT today. Adding them is broader 6.05 + Section 2.10 covenant work, beyond
+Phase B's RP scope. **Trigger to revisit:** Liens / Asset-Sales prompt.
+
+### `proceeds_flow_conditions` is free-text
+
+Currently a single string per edge describing the conditions under which
+proceeds flow. Q4's gold answer references specific leverage thresholds
+(5.75x, 5.50x), de minimis dollar thresholds ($20M/15%, $40M/30%), and
+section refs (Section 2.10(c)(iv)) that should ideally be queryable.
+
+A structured condition tree (parallel to `norm_has_condition`) would let
+operations like `evaluate_feasibility` walk the proceeds-flow conditions
+and surface "would this asset sale's proceeds reach the Cumulative Amount?"
+without prose interpretation. **Trigger to revisit:** when the synthesis
+layer (Phase D) needs surface-able proceeds-flow conditions.
+
+### Other event_class instances absent
+
+Pilot seeds only `asset_sale_event`. The schema supports an arbitrary set;
+adding `debt_issuance_event`, `equity_issuance_event`, `qualified_ipo_event`,
+`subsidiary_designation_event` is mechanical (1 line per seed, plus GT/
+projection edges per receiver norm). **Trigger to revisit:** when an
+operation needs to trace proceeds from one of those events.
+
+### Q2 parser-side gap (object scope)
+
+Q2 returns `clarification_needed` because the intent parser doesn't
+auto-extract "Unrestricted Subsidiary equity" as an object-scope filter.
+Schema has `unrestricted_sub_equity` (instrument_class subtype); Phase B
+Commit 4 added it to 6.06(p)'s scoped_objects so the norm matches both
+the umbrella `unrestricted_subsidiary_equity_or_assets` and the granular
+`unrestricted_sub_equity`. The remaining gap is parser-layer: the intent
+parser's prompt needs a hint that "Unrestricted Sub equity" maps to that
+instrument label. **Trigger to revisit:** intent-parser prompt iteration
+(intent_parser.py prompt revision).
+
+### Sweep tier / 6.05(z) source norms not authored
+
+Q4's gold answer references sweep tiers (5.75x / 5.50x) and 6.05(z) as the
+governing logic. None of these are GT norms today. Adding them gives
+Q4's trace_pathways a structurally faithful path from asset-sale event
+to Cumulative Amount. **Trigger to revisit:** Liens / Asset-Sales prompt.
+
+### Q5 / Q6 are evaluation-layer issues, not schema
+
+Q5 wants a calculated $520m figure (evaluator output); Q6 returns
+INCONCLUSIVE because of insufficient world-state input. Both are out
+of Phase B scope. **Trigger to revisit:** post-Phase-D synthesis work
+or world-state-input formalization (a follow-on Phase B+1 item).

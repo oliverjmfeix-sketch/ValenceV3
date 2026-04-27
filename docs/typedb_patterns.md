@@ -375,6 +375,60 @@ edge attributes (lines 1487+, 2074+, 2099+ etc.).
 
 ---
 
+## 15. Disambiguate role names up-front when adding new relations
+
+**Discipline (not a trap, but a policy).** Generic role names like
+`source`, `target`, `event`, `condition`, `norm` invite collisions when
+later relations try to re-use them. The collision either silently
+breaks queries (Pattern #14 territory) or forces awkward `@role-alias`
+patches after the fact.
+
+**Evidence.** The `condition` role on `norm_has_condition`,
+`condition_references_predicate`, and `condition_has_child` already
+required a role-alias workaround (`norm_has_condition` uses `root` as
+its alias) — see `docs/v4_known_gaps.md` §"Role-name collisions on
+condition." Phase B avoided rerunning that pain by disambiguating the
+moment new relations were added.
+
+**Phase B examples (committed 2026-04-27).**
+
+`norm_reallocates_capacity_from`:
+
+```tql
+relation norm_reallocates_capacity_from,
+    relates reallocation_receiver,    # disambiguated: not just "receiver"
+    relates reallocation_source,      # disambiguated: not just "source"
+    owns reallocation_mechanism,
+    owns reduction_direction;
+norm plays norm_reallocates_capacity_from:reallocation_receiver;
+norm plays norm_reallocates_capacity_from:reallocation_source;
+```
+
+`event_provides_proceeds_to_norm`:
+
+```tql
+relation event_provides_proceeds_to_norm,
+    relates proceeds_event,           # disambiguated: not just "event"
+    relates proceeds_target_norm,     # disambiguated: not just "target_norm"
+    owns proceeds_flow_kind,
+    owns proceeds_flow_conditions;
+event_class plays event_provides_proceeds_to_norm:proceeds_event;
+norm plays event_provides_proceeds_to_norm:proceeds_target_norm;
+```
+
+The rule of thumb: **prefix the role with a relation-specific qualifier**
+(`reallocation_*`, `proceeds_*`) when the unqualified name (`source`,
+`event`, `target_norm`) would land in TypeDB's role-name namespace
+shared across relations. Verify before declaring with:
+
+```bash
+grep -rn "relates <candidate_name>" app/data/*.tql
+```
+
+If the grep returns hits for any other relation, disambiguate.
+
+---
+
 ## Index of known schema-time blockers
 
 For quick reference, the annotations and constructs that don't work in
