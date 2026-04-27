@@ -1,0 +1,13 @@
+# Phase B — categorical event_class instances. Deal-agnostic; one per
+# agreement-level event type that some norm receives proceeds from.
+#
+# Pilot scope: asset_sale_event only. Other event classes (debt_issuance_event,
+# equity_issuance_event, qualified_ipo_event, subsidiary_designation_event)
+# added when their consumers need them (likely Phase B+1 / future covenant
+# expansions: Liens, Asset Sales, Investments, etc.).
+
+insert
+    $asset_sale isa event_class,
+        has event_class_id "asset_sale_event",
+        has event_class_label "asset_sale_event",
+        has event_class_description "Disposition of borrower or restricted-subsidiary assets governed by Section 6.05 (asset sale permissions) and Section 2.10(c) (mandatory prepayment of asset-sale proceeds, with sweep tier and de minimis exemptions).";

@@ -1546,6 +1546,29 @@ predicates_introduced:
 #   condition: atomic predicate the exception gates on (same shape as norm condition)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cross-covenant proceeds flows (Phase B Commit 3)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Each entry emits one event_provides_proceeds_to_norm edge. The proceeds_event
+# role binds to an event_class instance (seeded in event_classes_seed.tql);
+# proceeds_target_norm is a v4 norm that receives the proceeds.
+#
+# Pilot scope: asset_sale_event only. Sweep tiers / de minimis / 6.05(z)
+# carve-out norms not yet authored — event_governed_by_norm relation deferred
+# until those land. See docs/v4_known_gaps.md.
+proceeds_flows:
+
+  - event_class_id: asset_sale_event
+    target_norm_id: 6e76ed06_builder_source_retained_asset_sale_proceeds
+    proceeds_flow_kind: retained_after_sweep
+    proceeds_flow_conditions: "Net Cash Proceeds from asset sales subject to mandatory prepayment under Section 2.10(c) flow into clause (f) of the Cumulative Amount when retained per the leverage-based sweep tier exemptions (≤5.75x First Lien Net Leverage Ratio retains 50%; ≤5.50x retains 100%) or qualify under the 6.05(z) unlimited basket (≤6.25x leverage). Proceeds also retained when below de minimis thresholds ($20M/15% EBITDA individual, $40M/30% EBITDA annual) or sourced from non-collateral assets / ordinary-course / casualty events."
+
+  - event_class_id: asset_sale_event
+    target_norm_id: 6e76ed06_builder_source_declined_asset_sale
+    proceeds_flow_kind: declined_lender_payment
+    proceeds_flow_conditions: "Asset Sale proceeds offered to lenders under Section 2.10(c) but rejected (Declined Proceeds per Section 2.10(f)) flow back into the Cumulative Amount as Retained Declined Proceeds, contributing to the Cumulative Amount via clause (f). Lender refusal of the mandatory prepayment offer is the gating event."
+
 defeaters:
 
   - defeater_id: 6e76ed06_jcrew_ordinary_course_exception

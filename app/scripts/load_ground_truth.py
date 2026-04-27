@@ -544,6 +544,49 @@ insert
             logger.warning("carryback edge skipped for %s: %s", nid, str(e)[:120])
 
 
+def link_proceeds_flows(driver, gt: dict) -> int:
+    """Phase B — emit event_provides_proceeds_to_norm edges from the
+    YAML's top-level `proceeds_flows` block.
+
+    Each entry shape:
+        - event_class_id: <id of seeded event_class instance>
+          target_norm_id: <v4 norm_id receiving proceeds>
+          proceeds_flow_kind: <retained_after_sweep | declined_lender_payment | excluded_below_threshold>
+          proceeds_flow_conditions: <free-text describing the conditions>
+
+    Returns count of edges inserted.
+    """
+    flows = gt.get("proceeds_flows") or []
+    inserted = 0
+    for flow in flows:
+        ecid = flow.get("event_class_id")
+        target = flow.get("target_norm_id")
+        if not ecid or not target:
+            logger.warning("proceeds_flow entry missing event_class_id or target_norm_id; skipped")
+            continue
+        kind = flow.get("proceeds_flow_kind") or ""
+        conditions = flow.get("proceeds_flow_conditions") or ""
+        owns = []
+        if kind:
+            owns.append(f"has proceeds_flow_kind {_tq_string(kind)}")
+        if conditions:
+            owns.append(f"has proceeds_flow_conditions {_tq_string(conditions)}")
+        owns_clause = (",\n        " + ",\n        ".join(owns)) if owns else ""
+        q = f"""
+match
+    $e isa event_class, has event_class_id {_tq_string(ecid)};
+    $n isa norm, has norm_id {_tq_string(target)};
+insert
+    (proceeds_event: $e, proceeds_target_norm: $n) isa event_provides_proceeds_to_norm{owns_clause};
+"""
+        try:
+            execute_write(driver, TARGET_DB, q)
+            inserted += 1
+        except Exception as e:
+            logger.warning("proceeds_flow edge skipped (%s -> %s): %s", ecid, target, str(e)[:160])
+    return inserted
+
+
 def link_reallocates_from(driver, norm: dict) -> None:
     """Phase B — receiver-keyed reallocation edges.
 
@@ -714,6 +757,11 @@ def main() -> int:
         for n in norms:
             link_reallocates_from(driver, n)
 
+        # Phase B Commit 3: cross-covenant proceeds flows
+        flow_count = link_proceeds_flows(driver, gt)
+        if flow_count:
+            logger.info("inserted %d event_provides_proceeds_to_norm edges", flow_count)
+
         # Phase 6: defeaters (Prompt 13 / Commit 0 backfill)
         defeaters = gt.get("defeaters", []) or []
         if defeaters:
@@ -737,6 +785,7 @@ def main() -> int:
                     "norm_serves_question", "norm_contributes_to_capacity",
                     "norm_provides_carryforward_to", "norm_provides_carryback_to",
                     "norm_reallocates_capacity_from",
+                    "event_class", "event_provides_proceeds_to_norm",
                     "gold_question", "state_predicate",
                     "defeater", "defeats", "defeater_has_condition"):
             try:

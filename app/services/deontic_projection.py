@@ -1469,7 +1469,70 @@ def project_deal(driver, db_name: str, deal_id: str, dry_run: bool = False) -> P
     if not dry_run:
         _project_reallocations(driver, db_name, deal_id, report)
 
+    # Phase B Commit 3 — cross-covenant proceeds flows. Hardcoded for the
+    # pilot since v3 extraction doesn't capture event-class proceeds flows
+    # directly. Mirrors the GT YAML's `proceeds_flows` block so v4 graph-state
+    # parallels GT for the Q4 trace_pathways operation.
+    if not dry_run:
+        _project_proceeds_flows(driver, db_name, deal_id, report)
+
     return report
+
+
+# Phase B — pilot-scope hardcoded proceeds-flow mapping for asset_sale_event.
+# Each entry: (target_norm_kind, proceeds_flow_kind, proceeds_flow_conditions).
+# Resolved to a deal-specific norm_id via <deal_id>_<kind> at projection time.
+_ASSET_SALE_PROCEEDS_FLOWS = [
+    (
+        "builder_source_retained_asset_sale_proceeds",
+        "retained_after_sweep",
+        "Net Cash Proceeds from asset sales subject to mandatory prepayment under "
+        "Section 2.10(c) flow into clause (f) of the Cumulative Amount when retained "
+        "per the leverage-based sweep tier exemptions or below de minimis thresholds.",
+    ),
+    (
+        "builder_source_declined_asset_sale",
+        "declined_lender_payment",
+        "Asset Sale proceeds offered to lenders under Section 2.10(c) but rejected "
+        "(Declined Proceeds per Section 2.10(f)) flow back into the Cumulative "
+        "Amount as Retained Declined Proceeds via clause (f).",
+    ),
+]
+
+
+def _project_proceeds_flows(driver, db_name: str, deal_id: str,
+                             report: ProjectionReport) -> None:
+    """Emit event_provides_proceeds_to_norm edges from asset_sale_event to
+    each receiver norm projected for this deal. Skips entries whose target
+    norm wasn't projected (e.g., v3 builder_basket lacks the corresponding
+    has_*_source flag).
+
+    Hardcoded mapping for pilot scope; replaced by extraction-driven flows
+    when extraction questions surface proceeds-flow attributes directly.
+    """
+    inserted = 0
+    for kind, flow_kind, conditions in _ASSET_SALE_PROCEEDS_FLOWS:
+        target_nid = f"{deal_id}_{kind}"
+        q = f"""
+match
+    $e isa event_class, has event_class_id "asset_sale_event";
+    $n isa norm, has norm_id {_tq_string(target_nid)};
+insert
+    (proceeds_event: $e, proceeds_target_norm: $n) isa event_provides_proceeds_to_norm,
+        has proceeds_flow_kind {_tq_string(flow_kind)},
+        has proceeds_flow_conditions {_tq_string(conditions)};
+"""
+        try:
+            _execute_write(driver, db_name, q)
+            inserted += 1
+        except Exception as exc:  # noqa: BLE001
+            # Common: target norm not projected (v3 lacks the source flag).
+            # Quiet warning, not an error.
+            report.warnings.append(
+                f"proceeds_flow edge skipped (asset_sale_event -> {target_nid}): {str(exc)[:160]}"
+            )
+    if inserted:
+        logger.info("Projected %d event_provides_proceeds_to_norm edges", inserted)
 
 
 def _project_reallocations(driver, db_name: str, deal_id: str,

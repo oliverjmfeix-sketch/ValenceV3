@@ -1262,6 +1262,16 @@ attribute reallocation_mechanism,
  value string;
 attribute reduction_direction,
  value string;
+attribute event_class_id,
+ value string;
+attribute event_class_label,
+ value string;
+attribute event_class_description,
+ value string;
+attribute proceeds_flow_kind,
+ value string;
+attribute proceeds_flow_conditions,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2371,6 +2381,7 @@ entity norm,
   owns source_section,
   owns source_text,
   plays defeats:defeated,
+  plays event_provides_proceeds_to_norm:proceeds_target_norm,
   plays norm_binds_subject:norm,
   plays norm_contributes_to_capacity:contributor,
   plays norm_contributes_to_capacity:pool,
@@ -2449,6 +2460,11 @@ entity condition_builder_spec,
 entity classification_field_config,
   owns classification_field_name @key,
   owns relevant_dimensions;
+entity event_class,
+  owns event_class_description,
+  owns event_class_id @key,
+  owns event_class_label,
+  plays event_provides_proceeds_to_norm:proceeds_event;
 relation provision_has_exclusion,
   sub provision_has_extracted_entity,
   relates exclusion as extracted,
@@ -2749,6 +2765,11 @@ relation norm_reallocates_capacity_from,
   relates reallocation_source,
   owns reallocation_mechanism,
   owns reduction_direction;
+relation event_provides_proceeds_to_norm,
+  relates proceeds_event,
+  relates proceeds_target_norm,
+  owns proceeds_flow_conditions,
+  owns proceeds_flow_kind;
 fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;

@@ -61,6 +61,7 @@ SHARED_SEEDS: list[SeedFile] = [
     SeedFile("state_predicates_seed.tql", "state_predicate"),
     SeedFile("segment_types_seed.tql", "document_segment_type"),
     SeedFile("gold_questions_seed.tql", "gold_question"),
+    SeedFile("event_classes_seed.tql", "event_class"),
 ]
 
 # Seeds loaded only into the extraction database.

@@ -341,6 +341,42 @@ norm plays norm_reallocates_capacity_from:reallocation_source;
 attribute reallocation_mechanism, value string;   # shares_pool | separate_pool | fungible_substitution
 attribute reduction_direction, value string;      # bidirectional | receiver_only | source_only
 
+# ─── Phase B — cross-covenant proceeds-flow (event-class layer) ─────────────────
+# Some norms receive proceeds from agreement-level events that span multiple
+# covenants (asset sales hit Article II prepay + 6.05 + 6.06 builder source f).
+# Modeling as event-to-norm captures this: the event class is categorical and
+# deal-agnostic; the receiving norm is deal-specific.
+#
+# Pilot scope: asset_sale_event only. Other event classes (debt_issuance_event,
+# equity_issuance_event, qualified_ipo_event, subsidiary_designation_event)
+# added when consumers need them.
+#
+# Pilot defers `event_governed_by_norm`: the source-side asset-sale norms
+# (sweep tiers, de minimis, 6.05(z) carve-out) are not yet authored in GT.
+# Once those land, governance edges complete the chain. See known-gaps.
+entity event_class,
+    owns event_class_id @key,
+    owns event_class_label,
+    owns event_class_description;
+
+attribute event_class_id, value string;
+attribute event_class_label, value string;
+attribute event_class_description, value string;
+
+# Disambiguated role names — `event` is already used by event_targets_party /
+# event_targets_instrument; reusing it here would invite Pattern #14 inference
+# traps. Up-front disambiguation per role-collision discipline.
+relation event_provides_proceeds_to_norm,
+    relates proceeds_event,
+    relates proceeds_target_norm,
+    owns proceeds_flow_kind,
+    owns proceeds_flow_conditions;
+event_class plays event_provides_proceeds_to_norm:proceeds_event;
+norm plays event_provides_proceeds_to_norm:proceeds_target_norm;
+
+attribute proceeds_flow_kind, value string;        # retained_after_sweep | declined_lender_payment | excluded_below_threshold
+attribute proceeds_flow_conditions, value string;  # free-text for pilot; structured tree post-pilot
+
 # Part 5 — typed segment membership. Projection (Prompt 07) emits one edge
 # per (norm, document_segment_type) pair. Harness joins over this relation
 # to count norms per segment, replacing the source_section prefix match.
