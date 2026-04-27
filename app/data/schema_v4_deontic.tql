@@ -226,10 +226,15 @@ entity norm,
     owns cap_uses_greater_of,
     owns computed_from_sources,
     owns floor_value,                   # optional minimum; e.g., CNI source floor at 0
+    owns growth_start_anchor,           # Phase B: when capacity starts accumulating (closing_date_fiscal_quarter_start | not_applicable | ...)
+    owns reference_period_kind,         # Phase B: time window the source measures (cumulative_since_anchor | ltm_at_test_date | point_in_time | not_applicable)
     owns source_text,
     owns source_section,
     owns source_page,
     owns confidence;
+
+attribute growth_start_anchor, value string;
+attribute reference_period_kind, value string;
 
 relation norm_binds_subject,
     relates norm,

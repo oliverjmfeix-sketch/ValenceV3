@@ -155,6 +155,55 @@ def _execute_write(driver, db_name: str, tql: str) -> None:
         raise
 
 
+# Phase B — temporal anchor defaults by norm_kind.
+# Builder-related kinds describe the Cumulative Amount and its sub-sources;
+# they accumulate from closing-date fiscal-quarter-start. Ratio-gated kinds
+# measure leverage at a test date (LTM). Everything else: not_applicable.
+# Imported by load_ground_truth.py so YAML and projection share the same
+# default surface.
+_BUILDER_TEMPORAL_KINDS = frozenset({
+    "builder_usage_permission",
+    "builder_usage_rdp_permission",
+    "builder_basket_aggregate",
+    "builder_source_starter",
+    "builder_source_three_test_aggregate",
+    "builder_source_cni",
+    "builder_source_ecf",
+    "builder_source_ebitda_fc",
+    "builder_source_ebitda_component",
+    "builder_source_fixed_charges_component",
+    "builder_source_declined_ecf",
+    "builder_source_declined_asset_sale",
+    "builder_source_sale_leaseback",
+    "builder_source_retained_asset_sale_proceeds",
+    "builder_source_joint_venture_returns",
+    "builder_source_unsub_redesignation_fmv",
+    "builder_source_receivables_royalty_license",
+    "builder_source_investment_returns",
+    "builder_source_deferred_revenues",
+    "builder_source_other",
+    "builder_source_netting",
+})
+
+_LTM_TEST_DATE_KINDS = frozenset({
+    "ratio_rp_basket_permission",
+})
+
+
+def _temporal_for_norm_kind(norm_kind: str) -> tuple[str, str]:
+    """Return (growth_start_anchor, reference_period_kind) defaults for a norm_kind.
+
+    Builder-related kinds get the Cumulative Amount temporal anchor (cumulative
+    since closing-date fiscal-quarter-start). Ratio-gated kinds use LTM at
+    test date. All other kinds default to not_applicable.
+    """
+    if norm_kind in _BUILDER_TEMPORAL_KINDS:
+        return ("closing_date_fiscal_quarter_start", "cumulative_since_anchor")
+    if norm_kind in _LTM_TEST_DATE_KINDS:
+        return ("not_applicable", "ltm_at_test_date")
+    return ("not_applicable", "not_applicable")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Graph reads: mappings, specs, v3 entities
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -489,12 +538,18 @@ def project_entity(driver, db_name: str, entity: V3Entity,
     source_text = attrs.get("source_text") or ""
     confidence = attrs.get("confidence")
 
+    # Phase B temporal anchors — default not_applicable; builder_usage_permission
+    # (the Cumulative Amount root) gets cumulative_since_anchor + closing_date_fiscal_quarter_start.
+    growth_anchor, ref_period = _temporal_for_norm_kind(mapping.target_norm_kind)
+
     owns = [
         f'has norm_id {_tq_string(nid)}',
         f'has norm_kind {_tq_string(mapping.target_norm_kind)}',
         f'has modality {_tq_string(mapping.target_modality)}',
         f'has capacity_composition {_tq_string(capacity_comp)}',
         f'has action_scope {_tq_string(mapping.default_action_scope_kind)}',
+        f'has growth_start_anchor {_tq_string(growth_anchor)}',
+        f'has reference_period_kind {_tq_string(ref_period)}',
     ]
     if cap_usd is not None:
         owns.append(f"has cap_usd {float(cap_usd)}")
@@ -959,6 +1014,8 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
             'has modality "permission"',
             'has capacity_composition "computed_from_sources"',
             'has action_scope "specific"',
+            'has growth_start_anchor "closing_date_fiscal_quarter_start"',
+            'has reference_period_kind "cumulative_since_anchor"',
         ]
         if parent_text:
             agg_owns.append(f'has source_text {_tq_string(str(parent_text))}')
@@ -1052,12 +1109,15 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
         if cap_grower is not None and cap_grower <= 5.0:
             cap_grower = cap_grower * 100.0
 
+        # Phase B — all builder sub-sources accumulate from closing-date fiscal-quarter-start.
         owns = [
             f'has norm_id {_tq_string(sub_nid)}',
             f'has norm_kind {_tq_string(kind)}',
             'has modality "permission"',
             'has capacity_composition "additive"',
             'has action_scope "specific"',
+            'has growth_start_anchor "closing_date_fiscal_quarter_start"',
+            'has reference_period_kind "cumulative_since_anchor"',
         ]
         if cap_usd is not None:
             owns.append(f"has cap_usd {float(cap_usd)}")
