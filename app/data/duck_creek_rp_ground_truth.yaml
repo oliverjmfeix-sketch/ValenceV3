@@ -203,6 +203,19 @@ norms:
       role: primary
     - question_id: duck_creek_rp_q12
       role: primary
+  # Phase B: receiver-keyed reallocation edges. 6.06(j) source_text confirms
+  # "reallocated amount shall reduce the applicable basket ... on a dollar-for-
+  # dollar basis" — shares_pool + bidirectional for all three sources.
+  reallocates_from:
+    - source_norm_id: 6e76ed06_general_rdp_basket_permission
+      reallocation_mechanism: shares_pool
+      reduction_direction: bidirectional
+    - source_norm_id: 6e76ed06_builder_usage_rdp_permission
+      reallocation_mechanism: shares_pool
+      reduction_direction: bidirectional
+    - source_norm_id: 6e76ed06_general_investment_basket_permission
+      reallocation_mechanism: shares_pool
+      reduction_direction: bidirectional
   condition: null
 
 - norm_id: 6e76ed06_holdco_overhead_basket_permission
@@ -622,8 +635,8 @@ norms:
       role: reallocation_source
     - question_id: duck_creek_rp_q12
       role: reallocation_source
-  # Reallocates into 6.06(j) via norm_contributes_to_capacity edge
-  reallocates_to: 6e76ed06_general_rp_basket_permission
+  # Phase B: reallocation edge migrated to receiver-keyed reallocates_from on
+  # 6e76ed06_general_rp_basket_permission. Use norm_reallocates_capacity_from.
   condition: null
 
 # § 6.09(a) tailored sub-baskets (A)–(H) — distinct RDP permissions. Per Q3
@@ -654,7 +667,8 @@ norms:
       role: reallocation_source
     - question_id: duck_creek_rp_q4
       role: reallocation_source
-  reallocates_to: 6e76ed06_general_rp_basket_permission
+  # Phase B: reallocation edge migrated to receiver-keyed reallocates_from on
+  # 6e76ed06_general_rp_basket_permission. Use norm_reallocates_capacity_from.
   condition: null
 
 - norm_id: 6e76ed06_permitted_refinancing_rdp_permission
@@ -798,7 +812,8 @@ norms:
       role: reallocation_source
     - question_id: duck_creek_rp_q12
       role: reallocation_source
-  reallocates_to: 6e76ed06_general_rp_basket_permission
+  # Phase B: reallocation edge migrated to receiver-keyed reallocates_from on
+  # 6e76ed06_general_rp_basket_permission. Use norm_reallocates_capacity_from.
   condition: null
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -544,6 +544,41 @@ insert
             logger.warning("carryback edge skipped for %s: %s", nid, str(e)[:120])
 
 
+def link_reallocates_from(driver, norm: dict) -> None:
+    """Phase B — receiver-keyed reallocation edges.
+
+    YAML shape on the receiver norm:
+        reallocates_from:
+          - source_norm_id: <id>
+            reallocation_mechanism: shares_pool | separate_pool | fungible_substitution
+            reduction_direction: bidirectional | receiver_only | source_only
+
+    Emits one norm_reallocates_capacity_from edge per source.
+    """
+    nid = norm["norm_id"]
+    blocks = norm.get("reallocates_from") or []
+    for blk in blocks:
+        src_id = blk.get("source_norm_id")
+        if not src_id:
+            logger.warning("reallocates_from entry on %s missing source_norm_id; skipped", nid)
+            continue
+        mech = blk.get("reallocation_mechanism") or "shares_pool"
+        direction = blk.get("reduction_direction") or "bidirectional"
+        q = f"""
+match
+    $rec isa norm, has norm_id {_tq_string(nid)};
+    $src isa norm, has norm_id {_tq_string(src_id)};
+insert
+    (reallocation_receiver: $rec, reallocation_source: $src) isa norm_reallocates_capacity_from,
+        has reallocation_mechanism {_tq_string(mech)},
+        has reduction_direction {_tq_string(direction)};
+"""
+        try:
+            execute_write(driver, TARGET_DB, q)
+        except Exception as e:
+            logger.warning("reallocates_from edge skipped for %s ← %s: %s", nid, src_id, str(e)[:160])
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 
@@ -675,6 +710,9 @@ def main() -> int:
         logger.info("linking carryforward/carryback")
         for n in norms:
             link_carryforward_carryback(driver, n)
+        logger.info("linking reallocates_from")
+        for n in norms:
+            link_reallocates_from(driver, n)
 
         # Phase 6: defeaters (Prompt 13 / Commit 0 backfill)
         defeaters = gt.get("defeaters", []) or []
@@ -698,6 +736,7 @@ def main() -> int:
                     "norm_scopes_instrument",
                     "norm_serves_question", "norm_contributes_to_capacity",
                     "norm_provides_carryforward_to", "norm_provides_carryback_to",
+                    "norm_reallocates_capacity_from",
                     "gold_question", "state_predicate",
                     "defeater", "defeats", "defeater_has_condition"):
             try:

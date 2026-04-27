@@ -1258,6 +1258,10 @@ attribute growth_start_anchor,
  value string;
 attribute reference_period_kind,
  value string;
+attribute reallocation_mechanism,
+ value string;
+attribute reduction_direction,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2379,6 +2383,8 @@ entity norm,
   plays norm_provides_carryback_to:carryback_source,
   plays norm_provides_carryforward_to:carryforward_recipient,
   plays norm_provides_carryforward_to:carryforward_source,
+  plays norm_reallocates_capacity_from:reallocation_receiver,
+  plays norm_reallocates_capacity_from:reallocation_source,
   plays norm_scopes_action:norm,
   plays norm_scopes_instrument:norm,
   plays norm_scopes_object:norm,
@@ -2738,6 +2744,11 @@ relation builder_spec_uses_predicate,
   relates predicate,
   owns child_index,
   owns predicate_slot;
+relation norm_reallocates_capacity_from,
+  relates reallocation_receiver,
+  relates reallocation_source,
+  owns reallocation_mechanism,
+  owns reduction_direction;
 fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;

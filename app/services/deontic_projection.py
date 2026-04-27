@@ -1463,7 +1463,92 @@ def project_deal(driver, db_name: str, deal_id: str, dry_run: bool = False) -> P
         project_entity(driver, db_name, entity, mapping, specs, instrument_labels,
                        report, dry_run)
 
+    # Phase B — project v3 basket_reallocates_to instances into v4
+    # norm_reallocates_capacity_from. Defensive: emits zero edges if v3 has no
+    # reallocation data (current state for Duck Creek 2026-04-27).
+    if not dry_run:
+        _project_reallocations(driver, db_name, deal_id, report)
+
     return report
+
+
+def _project_reallocations(driver, db_name: str, deal_id: str,
+                            report: ProjectionReport) -> None:
+    """Read v3 basket_reallocates_to instances, emit v4 norm_reallocates_capacity_from.
+
+    Pre-flight verified zero v3 reallocation instances on Duck Creek as of
+    2026-04-27 — function is a defensive hook for when extraction starts
+    capturing the data. Maps v3 attributes to v4 enum values:
+      - is_bidirectional + reduces_source_basket → reduction_direction
+      - reduction_is_dollar_for_dollar → reallocation_mechanism
+    """
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        # Read v3 reallocation edges. Pattern #14: links form for attribute access.
+        q = """
+match
+    $r isa basket_reallocates_to,
+        links (source_basket: $src, target_basket: $tgt);
+    $src has basket_id $sid;
+    $tgt has basket_id $tid;
+    try { $r has is_bidirectional $bidir; };
+    try { $r has reduction_is_dollar_for_dollar $d4d; };
+select $sid, $tid, $bidir, $d4d;
+"""
+        try:
+            result = tx.query(q).resolve()
+            rows = list(result.as_concept_rows())
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(f"basket_reallocates_to query failed: {str(exc)[:160]}")
+            rows = []
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not rows:
+        # Expected on Duck Creek 2026-04-27 — nothing to log loudly.
+        return
+
+    for row in rows:
+        sid = _attr_or_none(row, "sid")
+        tid = _attr_or_none(row, "tid")
+        bidir = _attr_or_none(row, "bidir")
+        d4d = _attr_or_none(row, "d4d")
+        if not sid or not tid:
+            continue
+
+        # Map v3 booleans to v4 enums. Defaults conservative.
+        mech = "shares_pool" if d4d else "separate_pool"
+        direction = "bidirectional" if bidir else "receiver_only"
+
+        # v3 basket_id is the source-side projection norm_id (basket extraction
+        # projects with deal_id_basket_id pattern, but for the pilot the v4
+        # norm_id is <deal_id>_<categorical_kind>; resolve via norm_extracted_from).
+        # Simplest path: look up the projected norm_id by walking norm_extracted_from
+        # back to the basket.
+        edge_q = f"""
+match
+    $src_basket has basket_id {_tq_string(sid)};
+    $tgt_basket has basket_id {_tq_string(tid)};
+    $src_norm isa norm;
+    $tgt_norm isa norm;
+    (norm: $src_norm, fact: $src_basket) isa norm_extracted_from;
+    (norm: $tgt_norm, fact: $tgt_basket) isa norm_extracted_from;
+insert
+    (reallocation_receiver: $tgt_norm, reallocation_source: $src_norm)
+        isa norm_reallocates_capacity_from,
+        has reallocation_mechanism {_tq_string(mech)},
+        has reduction_direction {_tq_string(direction)};
+"""
+        try:
+            _execute_write(driver, db_name, edge_q)
+        except Exception as exc:  # noqa: BLE001
+            report.warnings.append(
+                f"reallocation edge insert failed for {sid} → {tid}: {str(exc)[:160]}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

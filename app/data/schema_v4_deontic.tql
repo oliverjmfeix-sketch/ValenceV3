@@ -321,6 +321,26 @@ norm plays norm_provides_carryforward_to:carryforward_recipient;
 norm plays norm_provides_carryback_to:carryback_source;
 norm plays norm_provides_carryback_to:carryback_recipient;
 
+# ─── Phase B — reallocation relations ───────────────────────────────────────────
+# Reallocation has different semantics than capacity contribution:
+# `norm_contributes_to_capacity` adds to a parent's capacity formula via
+# aggregation; reallocation transfers capacity from one separately-capped
+# basket to another, where using the receiver typically reduces source
+# availability (or has another binding interaction).
+#
+# Role names disambiguated up-front (reallocation_receiver / reallocation_source)
+# to avoid Pattern #14 / inference traps from generic role names like `source`.
+relation norm_reallocates_capacity_from,
+    relates reallocation_receiver,
+    relates reallocation_source,
+    owns reallocation_mechanism,
+    owns reduction_direction;
+norm plays norm_reallocates_capacity_from:reallocation_receiver;
+norm plays norm_reallocates_capacity_from:reallocation_source;
+
+attribute reallocation_mechanism, value string;   # shares_pool | separate_pool | fungible_substitution
+attribute reduction_direction, value string;      # bidirectional | receiver_only | source_only
+
 # Part 5 — typed segment membership. Projection (Prompt 07) emits one edge
 # per (norm, document_segment_type) pair. Harness joins over this relation
 # to count norms per segment, replacing the source_section prefix match.
