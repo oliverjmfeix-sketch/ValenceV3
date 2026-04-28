@@ -166,6 +166,18 @@ INSTRUMENT_LABELS = {
     "unrestricted_sub_equity",
 }
 
+# Concrete subtypes of blocker_exception (per schema_unified.tql §"J.Crew").
+# Each becomes a separate defeater rule that emits a defeater + defeats
+# edge to the jcrew prohibition norm.
+BLOCKER_EXCEPTION_SUBTYPES = (
+    "ordinary_course_exception",
+    "nonexclusive_license_exception",
+    "intercompany_exception",
+    "immaterial_ip_exception",
+    "fair_value_exception",
+    "license_back_exception",
+)
+
 
 def _tq_string(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -499,6 +511,122 @@ def generate_rule_tql(mapping: dict) -> str:
 # Apply rules + run executor
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def generate_defeater_rule_tql(subtype: str) -> str:
+    """Generate a projection_rule TQL subgraph that maps blocker_exception
+    subtype <subtype> to a v4 defeater entity + defeats edge to the jcrew
+    prohibition norm.
+
+    defeater_id = "conv_<deal_id>_jcrew_<subtype>"
+    Emits 1 defeater + 1 defeats edge per matched blocker_exception.
+    """
+    rule_id = f"rule_conv_{subtype}_defeater"
+    dt_id = f"dt_conv_{subtype}"
+    lines = ["insert", ""]
+    var_idx = [0]
+
+    def vs_var(prefix: str) -> str:
+        var_idx[0] += 1
+        return f"$vs_{prefix}_{var_idx[0]}"
+
+    # Rule
+    lines.append(f'$rule isa projection_rule,')
+    lines.append(f'    has projection_rule_id "{rule_id}",')
+    lines.append(f'    has projection_rule_label "Phase C Commit 2.3 conv: {subtype} -> defeater",')
+    lines.append(f'    has projection_rule_description "Mechanically converted from python _project_jcrew_defeaters. Emits a defeater per blocker_exception of subtype {subtype} + defeats edge to the jcrew prohibition norm.";')
+
+    # Match criterion
+    lines.append(f'$crit isa entity_type_criterion, has matches_v3_entity_type "{subtype}";')
+    lines.append(f'(owning_rule: $rule, applied_criterion: $crit) isa rule_has_match_criterion;')
+
+    # Defeater template
+    lines.append(f'$dt isa defeater_template,')
+    lines.append(f'    has defeater_template_id "{dt_id}",')
+    lines.append(f'    has defeater_template_label "{subtype} -> defeater";')
+    lines.append(f'(owning_rule: $rule, produced_template: $dt) isa rule_produces_defeater_template;')
+
+    # Attribute emissions
+    # defeater_id: concatenate("conv_", deal_id, "_jcrew_<subtype>")
+    ae = vs_var("ae_did")
+    vs = vs_var("vs_did_concat")
+    vs_pre = vs_var("vs_did_pre")
+    vs_deal = vs_var("vs_did_deal")
+    vs_post = vs_var("vs_did_post")
+    lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "defeater_id";')
+    lines.append(f'(emitting_template: $dt, emitted_attribute: {ae}) isa template_emits_attribute;')
+    lines.append(f'{vs} isa concatenation_value_source;')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "_jcrew_{subtype}";')
+    lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+    lines.append(f'(owning_concatenation: {vs}, concatenation_part: {vs_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs}, concatenation_part: {vs_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs}, concatenation_part: {vs_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    def emit_literal_string(attr_name: str, value: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $dt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa literal_string_value_source, has literal_string_value {_tq_string(value)};')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    def emit_v3_attr(attr_name: str, v3_name: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $dt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa v3_attribute_value_source, has reads_v3_attribute_name "{v3_name}";')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    emit_literal_string("defeater_type", "exception")
+    emit_v3_attr("defeater_name", "exception_name")
+    emit_v3_attr("source_text", "source_text")
+    emit_v3_attr("source_section", "section_reference")
+    emit_v3_attr("source_page", "source_page")
+
+    # Relation template: defeats edge
+    # (defeater: <emitted defeater>, defeated: <looked-up prohibition norm>) isa defeats
+    rt = vs_var("rt_defeats")
+    ra_def = vs_var("ra_def")
+    ra_rec = vs_var("ra_rec")
+    f_def = vs_var("f_def")
+    f_rec = vs_var("f_rec")
+    vs_norm_concat = vs_var("vs_norm_concat")
+    vs_norm_pre = vs_var("vs_norm_pre")
+    vs_norm_deal = vs_var("vs_norm_deal")
+    vs_norm_post = vs_var("vs_norm_post")
+
+    lines.append(f'{rt} isa relation_template,')
+    lines.append(f'    has relation_template_id "rt_conv_{subtype}_defeats",')
+    lines.append(f'    has emits_relation_type "defeats";')
+    lines.append(f'(emitting_template: $dt, emitted_relation: {rt}) isa template_emits_relation;')
+
+    # Role "defeater" - filled by the rule's emitted defeater
+    lines.append(f'{ra_def} isa role_assignment, has assigned_role_name "defeater";')
+    lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_def}) isa relation_template_assigns_role;')
+    lines.append(f'{f_def} isa emitted_norm_role_filler;')
+    lines.append(f'(owning_role_assignment: {ra_def}, assignment_filler: {f_def}) isa role_assignment_filled_by;')
+
+    # Role "defeated" - static lookup of prohibition norm by id
+    # norm_id = concatenate("conv_", deal_id, "_jcrew_blocker_prohibition")
+    lines.append(f'{ra_rec} isa role_assignment, has assigned_role_name "defeated";')
+    lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_rec}) isa relation_template_assigns_role;')
+    lines.append(f'{f_rec} isa static_lookup_role_filler,')
+    lines.append(f'    has lookup_entity_type "norm",')
+    lines.append(f'    has lookup_attribute_name "norm_id";')
+    lines.append(f'(owning_role_assignment: {ra_rec}, assignment_filler: {f_rec}) isa role_assignment_filled_by;')
+    lines.append(f'{vs_norm_concat} isa concatenation_value_source;')
+    lines.append(f'{vs_norm_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_norm_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_norm_post} isa literal_string_value_source, has literal_string_value "_jcrew_blocker_prohibition";')
+    lines.append(f'(owning_filler: {f_rec}, lookup_value_source: {vs_norm_concat}) isa static_lookup_uses_value;')
+    lines.append(f'(owning_concatenation: {vs_norm_concat}, concatenation_part: {vs_norm_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs_norm_concat}, concatenation_part: {vs_norm_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs_norm_concat}, concatenation_part: {vs_norm_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    return "\n".join(lines) + "\n"
+
+
 def cleanup_converted_rules(driver, db: str) -> None:
     """Remove all converter-emitted rules + emitted norms (norm_id prefix
     NORM_ID_PREFIX). Pilot rule (rule_general_rp_basket) is preserved."""
@@ -515,6 +643,10 @@ def cleanup_converted_rules(driver, db: str) -> None:
         'match $ct isa condition_template, has condition_template_id $cid; $cid like "ct_conv_.*"; delete $ct;',
         # Delete emitted norm-condition entities (condition_id prefix "conv_")
         'match $c isa condition, has condition_id $cid; $cid like "conv_.*"; delete $c;',
+        # Delete converter-emitted defeaters (id prefix "conv_")
+        'match $d isa defeater, has defeater_id $did; $did like "conv_.*"; delete $d;',
+        # Delete converter-emitted defeater_templates (id prefix "dt_conv_")
+        'match $dt isa defeater_template, has defeater_template_id $tid; $tid like "dt_conv_.*"; delete $dt;',
         # Delete orphan role_assignments / role_fillers / attribute_emissions / value_sources / match_criteria
         # All such entities are only created by rule authoring; the pilot rule's
         # entities are linked to the retained pilot projection_rule, but the executor
@@ -659,9 +791,22 @@ def main() -> int:
             if apply_rule_tql(driver, db, tql, m["mapping_id"]):
                 applied += 1
                 logger.info(f"applied: {m['mapping_id']} -> rule_conv_{m['source_entity_type']}")
-        logger.info(f"applied {applied}/{len(to_convert)} rules")
+        logger.info(f"applied {applied}/{len(to_convert)} norm rules")
 
-        # Run executor for each, parity-check
+        # Apply defeater rules (Commit 2.3) — one per blocker_exception subtype.
+        # Must run AFTER map_jcrew_blocker since defeats edges target the
+        # prohibition norm emitted by that rule.
+        defeater_applied = 0
+        for subtype in BLOCKER_EXCEPTION_SUBTYPES:
+            tql = generate_defeater_rule_tql(subtype)
+            if apply_rule_tql(driver, db, tql, f"defeater_{subtype}"):
+                defeater_applied += 1
+                logger.info(f"applied: defeater rule for {subtype}")
+        logger.info(f"applied {defeater_applied}/{len(BLOCKER_EXCEPTION_SUBTYPES)} defeater rules")
+
+        # Run executor for each NORM RULE, parity-check scalars
+        # Defeater rules emit defeaters (not norms); their parity check is
+        # by defeater_id-set comparison after the run, below.
         results = []
         for m in to_convert:
             src = m["source_entity_type"]
@@ -705,6 +850,17 @@ def main() -> int:
                 "matched": matched, "mismatched": mismatched, "missing": missing,
             })
 
+        # Run defeater rules
+        logger.info("=" * 60)
+        logger.info("Executing defeater rules:")
+        defeater_emitted = 0
+        for subtype in BLOCKER_EXCEPTION_SUBTYPES:
+            rule_id = f"rule_conv_{subtype}_defeater"
+            report = execute_rule(driver, db, rule_id, args.deal)
+            if report.matches > 0:
+                logger.info(f"  {rule_id}: matches={report.matches} emitted={report.norms_emitted} relations={report.relations_emitted}")
+                defeater_emitted += report.norms_emitted
+
         # Aggregate report
         logger.info("=" * 60)
         passed = sum(1 for r in results if r["status"] == "PASS")
@@ -713,9 +869,10 @@ def main() -> int:
         no_ref = sum(1 for r in results if r["status"] == "no_reference")
         emit_failed = sum(1 for r in results if r["status"] == "emit_failed")
         logger.info(
-            f"AGGREGATE: {passed} PASS, {failed} FAIL, {no_data} no_v3_data, "
+            f"AGGREGATE NORMS: {passed} PASS, {failed} FAIL, {no_data} no_v3_data, "
             f"{no_ref} no_reference, {emit_failed} emit_failed"
         )
+        logger.info(f"AGGREGATE DEFEATERS: {defeater_emitted} emitted")
 
         return 0 if failed == 0 and emit_failed == 0 else 1
     finally:

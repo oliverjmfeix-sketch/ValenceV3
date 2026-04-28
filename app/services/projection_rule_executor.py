@@ -140,18 +140,22 @@ def load_match_v3_entity_type(driver, db_name: str, rule_id: str) -> str | None:
     return None
 
 
-def load_attribute_emissions(driver, db_name: str, rule_id: str) -> list[tuple[str, str]]:
+def load_attribute_emissions(driver, db_name: str, rule_id: str,
+                               template_kind: str = "norm_template") -> list[tuple[str, str]]:
     """Read every (attribute_name, value_source_id) pair the rule emits.
-    Returns list of tuples: (emitted_attribute_name, value_source_iid).
-    The iid is used to walk the value_source subgraph at resolution time.
+    template_kind: "norm_template" or "defeater_template".
     """
     pairs: list[tuple[str, str]] = []
+    rule_produces = (
+        "rule_produces_norm_template" if template_kind == "norm_template"
+        else "rule_produces_defeater_template"
+    )
     tx = driver.transaction(db_name, TransactionType.READ)
     try:
         q = (
             f'match\n'
             f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
-            f'    (owning_rule: $r, produced_template: $nt) isa rule_produces_norm_template;\n'
+            f'    (owning_rule: $r, produced_template: $nt) isa {rule_produces};\n'
             f'    (emitting_template: $nt, emitted_attribute: $ae) isa template_emits_attribute;\n'
             f'    $ae has emitted_attribute_name $name;\n'
             f'    (owning_emission: $ae, source_value: $vs) isa attribute_emission_uses_value;\n'
@@ -328,51 +332,82 @@ def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorConte
 
 def fetch_v3_entity_attrs(driver, db_name: str, entity_type: str, deal_id: str) -> list[dict]:
     """Find v3 entities of the given type for the given deal and return
-    their attributes as Python dicts."""
-    matches: list[dict] = []
-    tx = driver.transaction(db_name, TransactionType.READ)
-    try:
-        q = (
-            f'match\n'
-            f'    $d isa deal, has deal_id "{deal_id}";\n'
-            f'    (deal: $d, provision: $p) isa deal_has_provision;\n'
-            f'    (provision: $p, extracted: $b) isa provision_has_extracted_entity;\n'
-            f'    $b isa {entity_type}, has $attr;\n'
-            f'select $b, $attr;\n'
-        )
+    their attributes as Python dicts.
+
+    Tries two paths:
+    (1) Direct: deal -> deal_has_provision -> provision -> provision_has_extracted_entity -> entity
+        (catches rp_baskets, rdp_baskets, blockers, etc.)
+    (2) Nested: provision_has_extracted_entity -> parent -> entity_has_child -> entity
+        (catches blocker_exception, basket sub-entities, etc.)
+
+    Falls back to (2) if (1) returns nothing.
+    """
+    def collect(query: str) -> dict[str, dict]:
+        entity_attrs: dict[str, dict] = {}
+        tx = driver.transaction(db_name, TransactionType.READ)
         try:
-            result = tx.query(q).resolve()
-            entity_attrs: dict[str, dict] = {}  # iid -> attrs
-            for row in result.as_concept_rows():
-                bid = row.get("b").get_iid()
-                attr = row.get("attr").as_attribute()
-                attr_label = attr.get_type().get_label()
-                attr_value = attr.get_value()
-                if bid not in entity_attrs:
-                    entity_attrs[bid] = {"_iid": bid}
-                entity_attrs[bid][attr_label] = attr_value
-            matches = list(entity_attrs.values())
-        except Exception as exc:
-            logger.warning(f"fetch_v3 for {entity_type} failed: {str(exc).splitlines()[0][:120]}")
-    finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
-    return matches
+            try:
+                result = tx.query(query).resolve()
+                for row in result.as_concept_rows():
+                    bid = row.get("b").get_iid()
+                    attr = row.get("attr").as_attribute()
+                    attr_label = attr.get_type().get_label()
+                    attr_value = attr.get_value()
+                    if bid not in entity_attrs:
+                        entity_attrs[bid] = {"_iid": bid}
+                    entity_attrs[bid][attr_label] = attr_value
+            except Exception as exc:
+                logger.debug(f"fetch_v3 collect: {str(exc).splitlines()[0][:80]}")
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:
+                pass
+        return entity_attrs
+
+    # (1) Direct path
+    q1 = (
+        f'match\n'
+        f'    $d isa deal, has deal_id "{deal_id}";\n'
+        f'    (deal: $d, provision: $p) isa deal_has_provision;\n'
+        f'    (provision: $p, extracted: $b) isa provision_has_extracted_entity;\n'
+        f'    $b isa {entity_type}, has $attr;\n'
+        f'select $b, $attr;\n'
+    )
+    entities = collect(q1)
+    if entities:
+        return list(entities.values())
+
+    # (2) Nested path: parent -> entity_has_child -> entity
+    q2 = (
+        f'match\n'
+        f'    $d isa deal, has deal_id "{deal_id}";\n'
+        f'    (deal: $d, provision: $p) isa deal_has_provision;\n'
+        f'    (provision: $p, extracted: $parent) isa provision_has_extracted_entity;\n'
+        f'    (parent: $parent, child: $b) isa entity_has_child;\n'
+        f'    $b isa {entity_type}, has $attr;\n'
+        f'select $b, $attr;\n'
+    )
+    entities = collect(q2)
+    return list(entities.values())
 
 
-def load_relation_templates(driver, db_name: str, rule_id: str) -> list[dict]:
-    """Read each relation_template the rule's norm_template emits.
-    Returns list of dicts: {iid, relation_type}."""
+def load_relation_templates(driver, db_name: str, rule_id: str,
+                             template_kind: str = "norm_template") -> list[dict]:
+    """Read each relation_template the rule's template emits.
+    template_kind: "norm_template" or "defeater_template"."""
     templates: list[dict] = []
+    rule_produces = (
+        "rule_produces_norm_template" if template_kind == "norm_template"
+        else "rule_produces_defeater_template"
+    )
     tx = driver.transaction(db_name, TransactionType.READ)
     try:
         q = (
             f'match\n'
             f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
-            f'    (owning_rule: $r, produced_template: $nt) isa rule_produces_norm_template;\n'
+            f'    (owning_rule: $r, produced_template: $nt) isa {rule_produces};\n'
             f'    (emitting_template: $nt, emitted_relation: $rt) isa template_emits_relation;\n'
             f'    $rt has emits_relation_type $rtype;\n'
             f'select $rt, $rtype;\n'
@@ -430,22 +465,26 @@ def load_role_assignments(driver, db_name: str, rt_iid: str) -> list[dict]:
 
 
 def resolve_filler(driver, db_name: str, filler_iid: str, filler_type: str,
-                    emitted_norm_id: str, ctx: ExecutorContext,
-                    role_name: str = "") -> dict | None:
+                    emitted_entity_id: str, ctx: ExecutorContext,
+                    role_name: str = "",
+                    emitted_entity_type: str = "norm",
+                    emitted_id_attr: str = "norm_id") -> dict | None:
     """Resolve a role_filler to a TypeQL match clause.
 
     Returns {"match_clause": "<tql line>", "var_name": "$x"}.
     The caller composes match clauses + insert into a final write query.
+
+    For emitted_norm_role_filler: matches the entity emitted by THIS rule
+    (by emitted_entity_type + id_attr). The schema's role_filler subtype
+    name is historical; semantically it refers to "the entity emitted by
+    the parent template" regardless of whether that's a norm or defeater.
     """
-    # Variable name combines role + iid for uniqueness across two fillers
-    # under the same relation_template (last 8 chars of iid alone collides
-    # when fillers are created in sequence).
     iid_clean = filler_iid.replace("0x", "").replace(" ", "")
     var_name = f"$f_{role_name}_{iid_clean[-12:]}" if role_name else f"$f_{iid_clean[-12:]}"
     if filler_type == "emitted_norm_role_filler":
         return {
             "var_name": var_name,
-            "match_clause": f'{var_name} isa norm, has norm_id "{emitted_norm_id}";',
+            "match_clause": f'{var_name} isa {emitted_entity_type}, has {emitted_id_attr} "{emitted_entity_id}";',
         }
     if filler_type == "static_lookup_role_filler":
         lookup_entity = _read_attr_value(driver, db_name, filler_iid, "lookup_entity_type")
@@ -807,12 +846,19 @@ def emit_root_condition(driver, db_name: str, rule_id: str, emitted_norm_id: str
 
 
 def emit_relation_templates(driver, db_name: str, rule_id: str,
-                             emitted_norm_id: str, ctx: ExecutorContext,
-                             report: ExecutionReport) -> int:
-    """For each relation_template the rule emits, build a match-insert
-    query that creates the v4 relation. Returns count of relations
-    successfully emitted."""
-    templates = load_relation_templates(driver, db_name, rule_id)
+                             emitted_entity_id: str, ctx: ExecutorContext,
+                             report: ExecutionReport,
+                             emitted_entity_type: str = "norm",
+                             emitted_id_attr: str = "norm_id",
+                             template_kind: str = "norm_template") -> int:
+    """For each relation_template the rule's template emits, build a
+    match-insert query that creates the v4 relation. Returns count of
+    relations successfully emitted.
+
+    template_kind: "norm_template" or "defeater_template" — controls which
+    rule_produces_* relation is walked.
+    """
+    templates = load_relation_templates(driver, db_name, rule_id, template_kind=template_kind)
     emitted = 0
     for rt in templates:
         assignments = load_role_assignments(driver, db_name, rt["iid"])
@@ -827,7 +873,9 @@ def emit_relation_templates(driver, db_name: str, rule_id: str,
             try:
                 resolved = resolve_filler(
                     driver, db_name, ra["filler_iid"], ra["filler_type"],
-                    emitted_norm_id, ctx, role_name=ra["role_name"],
+                    emitted_entity_id, ctx, role_name=ra["role_name"],
+                    emitted_entity_type=emitted_entity_type,
+                    emitted_id_attr=emitted_id_attr,
                 )
             except NotImplementedError as exc:
                 report.warnings.append(f"relation {rt['relation_type']}: {exc}")
@@ -862,10 +910,15 @@ def emit_relation_templates(driver, db_name: str, rule_id: str,
     return emitted
 
 
-def emit_norm(driver, db_name: str, attrs: dict[str, Any], dry_run: bool = False) -> bool:
-    """Emit a single norm with the resolved attributes."""
-    if not attrs.get("norm_id"):
-        logger.warning("emit_norm: missing norm_id; skipping")
+def emit_entity(driver, db_name: str, entity_type: str, id_attr: str,
+                attrs: dict[str, Any], dry_run: bool = False) -> bool:
+    """Emit a single entity (norm or defeater) with resolved attributes.
+
+    entity_type: "norm" or "defeater"
+    id_attr: "norm_id" or "defeater_id"
+    """
+    if not attrs.get(id_attr):
+        logger.warning(f"emit_entity({entity_type}): missing {id_attr}; skipping")
         return False
     owns_clauses = []
     for name, value in attrs.items():
@@ -874,8 +927,9 @@ def emit_norm(driver, db_name: str, attrs: dict[str, Any], dry_run: bool = False
         try:
             owns_clauses.append(f"has {name} {_tq_literal(value)}")
         except ValueError as exc:
-            logger.warning(f"emit_norm: skipping {name}: {exc}")
-    insert_q = f"insert $n isa norm, {', '.join(owns_clauses)};"
+            logger.warning(f"emit_entity: skipping {name}: {exc}")
+    var_letter = entity_type[0]  # $n for norm, $d for defeater
+    insert_q = f"insert ${var_letter} isa {entity_type}, {', '.join(owns_clauses)};"
 
     if dry_run:
         logger.info(f"[dry-run] {insert_q}")
@@ -889,8 +943,13 @@ def emit_norm(driver, db_name: str, attrs: dict[str, Any], dry_run: bool = False
     except Exception as exc:
         if wtx.is_open():
             wtx.close()
-        logger.error(f"emit_norm failed for {attrs.get('norm_id')}: {str(exc).splitlines()[0][:200]}")
+        logger.error(f"emit_entity failed for {entity_type} {attrs.get(id_attr)}: {str(exc).splitlines()[0][:200]}")
         return False
+
+
+def emit_norm(driver, db_name: str, attrs: dict[str, Any], dry_run: bool = False) -> bool:
+    """Backwards-compatible alias for emit_entity('norm', 'norm_id', ...)."""
+    return emit_entity(driver, db_name, "norm", "norm_id", attrs, dry_run)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -908,15 +967,28 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
         return report
     logger.info(f"rule {rule_id}: matches v3 type {entity_type}")
 
-    emissions = load_attribute_emissions(driver, db_name, rule_id)
-    if not emissions:
-        report.errors.append("no attribute_emissions found on norm_template")
-        return report
-    logger.info(f"rule {rule_id}: {len(emissions)} attribute emissions")
-
     matches = fetch_v3_entity_attrs(driver, db_name, entity_type, deal_id)
     report.matches = len(matches)
     logger.info(f"rule {rule_id}: matched {len(matches)} v3 entities")
+
+    # Determine template kind: norm or defeater. A rule produces one or
+    # the other (not both). Try norm first; fall back to defeater.
+    norm_emissions = load_attribute_emissions(driver, db_name, rule_id, "norm_template")
+    defeater_emissions = load_attribute_emissions(driver, db_name, rule_id, "defeater_template")
+    if norm_emissions:
+        emissions = norm_emissions
+        template_kind = "norm_template"
+        entity_type_emit = "norm"
+        id_attr = "norm_id"
+    elif defeater_emissions:
+        emissions = defeater_emissions
+        template_kind = "defeater_template"
+        entity_type_emit = "defeater"
+        id_attr = "defeater_id"
+    else:
+        report.errors.append("no attribute_emissions found on any template")
+        return report
+    logger.info(f"rule {rule_id}: {len(emissions)} {entity_type_emit} attribute emissions")
 
     for v3_attrs in matches:
         ctx = ExecutorContext(deal_id=deal_id, v3_attrs=v3_attrs)
@@ -931,16 +1003,21 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
                 report.warnings.append(f"resolve {attr_name}: {str(exc).splitlines()[0][:120]}")
                 resolved[attr_name] = None
 
-        if emit_norm(driver, db_name, resolved, dry_run=dry_run):
+        if emit_entity(driver, db_name, entity_type_emit, id_attr, resolved, dry_run=dry_run):
             report.norms_emitted += 1
-            if not dry_run and resolved.get("norm_id"):
-                # Emit relation templates (scope edges)
+            if not dry_run and resolved.get(id_attr):
+                # Emit relation templates (scope edges, defeats edge, etc.)
                 report.relations_emitted += emit_relation_templates(
-                    driver, db_name, rule_id, resolved["norm_id"], ctx, report,
+                    driver, db_name, rule_id, resolved[id_attr], ctx, report,
+                    emitted_entity_type=entity_type_emit,
+                    emitted_id_attr=id_attr,
+                    template_kind=template_kind,
                 )
-                # Emit root condition tree if authored
-                emit_root_condition(
-                    driver, db_name, rule_id, resolved["norm_id"], ctx, report,
-                )
+                # Emit root condition tree (norms only — python projection
+                # doesn't emit defeater_has_condition for jcrew defeaters)
+                if template_kind == "norm_template":
+                    emit_root_condition(
+                        driver, db_name, rule_id, resolved[id_attr], ctx, report,
+                    )
 
     return report
