@@ -627,6 +627,413 @@ def generate_defeater_rule_tql(subtype: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+# Builder sub-source config — mirrors _BUILDER_SUB_SOURCES in
+# deontic_projection.py exactly. Each entry: (flag_attr, norm_kind,
+# cap_usd_attr, cap_grower_attr, cap_grower_ref, aggregates_into,
+# disambiguator). aggregates_into: "parent" or "b_aggregate".
+# disambiguator suffixed onto norm_id when norm_kind collides
+# (builder_source_other has two flags both mapping to it).
+BUILDER_SUB_SOURCES = [
+    ("has_starter_amount_source", "builder_source_starter",
+        "starter_dollar_amount", "starter_ebitda_pct",
+        "consolidated_ebitda_ltm", "parent", None),
+    ("has_cni_source", "builder_source_cni",
+        None, "cni_percentage", "consolidated_net_income",
+        "b_aggregate", None),
+    ("has_ecf_source", "builder_source_ecf",
+        None, None, "excess_cash_flow", "b_aggregate", None),
+    ("has_ebitda_fc_source", "builder_source_ebitda_fc",
+        None, "ebitda_fc_multiplier", "consolidated_ebitda_ltm",
+        "b_aggregate", None),
+    ("has_equity_proceeds_source", "builder_source_other",
+        None, "equity_proceeds_pct", "equity_proceeds_usd",
+        "parent", "equity_proceeds"),
+    ("has_asset_proceeds_source", "builder_source_retained_asset_sale_proceeds",
+        None, None, None, "parent", None),
+    ("has_investment_returns_source", "builder_source_investment_returns",
+        None, None, None, "parent", None),
+    ("has_debt_conversion_source", "builder_source_other",
+        None, None, None, "parent", "debt_conversion"),
+]
+
+# Inner-test flags for the b_aggregate (greatest_of) emission
+B_AGGREGATE_INNER_FLAGS = ("has_cni_source", "has_ecf_source", "has_ebitda_fc_source")
+
+# Subject roles, action labels, object label inherited by every builder
+# sub-source + b_aggregate norm. Mirrors the python projection's
+# _project_builder_sub_sources scope emission.
+BUILDER_SUBJECT_ROLES = ("borrower", "loan_party")
+BUILDER_ACTION_LABELS = ("make_dividend_payment", "repurchase_equity",
+                         "pay_subordinated_debt", "make_investment")
+BUILDER_OBJECT_LABEL = "cash"
+
+
+def generate_b_aggregate_rule_tql() -> str:
+    """Generate the b_aggregate intermediate norm rule.
+    Match: builder_basket WHERE any of has_cni_source, has_ecf_source,
+    has_ebitda_fc_source is true (match_criterion_group with combinator=or).
+    Emit: builder_source_three_test_aggregate norm + scope edges +
+    contributes_to parent (greatest_of, child_index 0).
+    """
+    rule_id = "rule_conv_builder_b_aggregate"
+    nt_id = "nt_conv_builder_b_aggregate"
+    target_kind = "builder_source_three_test_aggregate"
+
+    lines = ["insert", ""]
+    var_idx = [0]
+
+    def vs_var(prefix: str) -> str:
+        var_idx[0] += 1
+        return f"$bav_{prefix}_{var_idx[0]}"
+
+    lines.append(f'$rule isa projection_rule,')
+    lines.append(f'    has projection_rule_id "{rule_id}",')
+    lines.append(f'    has projection_rule_label "Phase C Commit 2.4 builder b_aggregate intermediate";')
+
+    # Match: builder_basket
+    lines.append(f'$crit_type isa entity_type_criterion, has matches_v3_entity_type "builder_basket";')
+    lines.append(f'(owning_rule: $rule, applied_criterion: $crit_type) isa rule_has_match_criterion;')
+
+    # Match group: OR of three has_*_source flags
+    lines.append(f'$crit_grp isa match_criterion_group, has group_combinator "or";')
+    lines.append(f'(owning_rule: $rule, applied_criterion: $crit_grp) isa rule_has_match_criterion;')
+    for i, flag in enumerate(B_AGGREGATE_INNER_FLAGS):
+        crit = vs_var(f"crit_{flag}")
+        vs = vs_var(f"vs_true_{flag}")
+        lines.append(f'{crit} isa attribute_value_criterion,')
+        lines.append(f'    has checks_v3_attribute_name "{flag}",')
+        lines.append(f'    has comparison_operator "equals";')
+        lines.append(f'(parent_group: $crit_grp, member_criterion: {crit}) isa criterion_group_has_member;')
+        lines.append(f'{vs} isa literal_boolean_value_source, has literal_boolean_value true;')
+        lines.append(f'(owning_criterion: {crit}, comparison_value_source: {vs}) isa criterion_uses_comparison_value;')
+
+    # Norm template
+    lines.append(f'$nt isa norm_template,')
+    lines.append(f'    has norm_template_id "{nt_id}",')
+    lines.append(f'    has norm_template_label "{target_kind}";')
+    lines.append(f'(owning_rule: $rule, produced_template: $nt) isa rule_produces_norm_template;')
+
+    # Attribute emissions
+    def emit_literal_string(attr_name: str, value: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $nt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa literal_string_value_source, has literal_string_value {_tq_string(value)};')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    def emit_v3_attr(attr_name: str, v3_name: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $nt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa v3_attribute_value_source, has reads_v3_attribute_name "{v3_name}";')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    # norm_id: concat("conv_", deal_id, "_<target_kind>")
+    ae_id = vs_var("ae_id")
+    vs_id = vs_var("vs_id")
+    vs_pre = vs_var("vs_pre")
+    vs_deal = vs_var("vs_deal")
+    vs_post = vs_var("vs_post")
+    lines.append(f'{ae_id} isa attribute_emission, has emitted_attribute_name "norm_id";')
+    lines.append(f'(emitting_template: $nt, emitted_attribute: {ae_id}) isa template_emits_attribute;')
+    lines.append(f'{vs_id} isa concatenation_value_source;')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "_{target_kind}";')
+    lines.append(f'(owning_emission: {ae_id}, source_value: {vs_id}) isa attribute_emission_uses_value;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    emit_literal_string("norm_kind", target_kind)
+    emit_literal_string("modality", "permission")
+    emit_literal_string("capacity_composition", "computed_from_sources")
+    emit_literal_string("action_scope", "specific")
+    emit_literal_string("growth_start_anchor", "closing_date_fiscal_quarter_start")
+    emit_literal_string("reference_period_kind", "cumulative_since_anchor")
+    emit_v3_attr("source_text", "source_text")
+    emit_v3_attr("source_section", "section_reference")
+    emit_v3_attr("source_page", "source_page")
+
+    # Scope edges (4 actions, 1 object, 2 subjects)
+    def emit_relation_template(rel_type: str, other_role_name: str,
+                                other_lookup_type: str, other_lookup_attr: str,
+                                lookup_value: str, suffix: str) -> None:
+        rt = vs_var(f"rt_{suffix}")
+        ra_norm = vs_var(f"ra_norm_{suffix}")
+        ra_other = vs_var(f"ra_other_{suffix}")
+        f_norm = vs_var(f"f_norm_{suffix}")
+        f_other = vs_var(f"f_other_{suffix}")
+        v_other = vs_var(f"v_other_{suffix}")
+        lines.append(f'{rt} isa relation_template,')
+        lines.append(f'    has relation_template_id "rt_conv_b_aggregate_{rel_type}_{lookup_value}",')
+        lines.append(f'    has emits_relation_type "{rel_type}";')
+        lines.append(f'(emitting_template: $nt, emitted_relation: {rt}) isa template_emits_relation;')
+        lines.append(f'{ra_norm} isa role_assignment, has assigned_role_name "norm";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_norm}) isa relation_template_assigns_role;')
+        lines.append(f'{f_norm} isa emitted_norm_role_filler;')
+        lines.append(f'(owning_role_assignment: {ra_norm}, assignment_filler: {f_norm}) isa role_assignment_filled_by;')
+        lines.append(f'{ra_other} isa role_assignment, has assigned_role_name "{other_role_name}";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_other}) isa relation_template_assigns_role;')
+        lines.append(f'{f_other} isa static_lookup_role_filler,')
+        lines.append(f'    has lookup_entity_type "{other_lookup_type}",')
+        lines.append(f'    has lookup_attribute_name "{other_lookup_attr}";')
+        lines.append(f'(owning_role_assignment: {ra_other}, assignment_filler: {f_other}) isa role_assignment_filled_by;')
+        lines.append(f'{v_other} isa literal_string_value_source, has literal_string_value {_tq_string(lookup_value)};')
+        lines.append(f'(owning_filler: {f_other}, lookup_value_source: {v_other}) isa static_lookup_uses_value;')
+
+    for role in BUILDER_SUBJECT_ROLES:
+        emit_relation_template("norm_binds_subject", "subject", "party", "party_role", role, f"subj_{role}")
+    for action in BUILDER_ACTION_LABELS:
+        emit_relation_template("norm_scopes_action", "action", "action_class", "action_class_label", action, f"act_{action}")
+    emit_relation_template("norm_scopes_object", "object", "object_class", "object_class_label", BUILDER_OBJECT_LABEL, "obj_cash")
+
+    # contributes_to parent (greatest_of, child_index 0)
+    # Pool norm_id = "conv_" + deal_id + "_builder_usage_permission"
+    rt_c = vs_var("rt_c")
+    ra_contrib = vs_var("ra_contrib")
+    ra_pool = vs_var("ra_pool")
+    f_contrib = vs_var("f_contrib")
+    f_pool = vs_var("f_pool")
+    vs_pool_concat = vs_var("vs_pool_concat")
+    vs_pool_pre = vs_var("vs_pool_pre")
+    vs_pool_deal = vs_var("vs_pool_deal")
+    vs_pool_post = vs_var("vs_pool_post")
+    ae_agg_fn = vs_var("ae_agg_fn")
+    vs_agg_fn = vs_var("vs_agg_fn")
+    ae_agg_dir = vs_var("ae_agg_dir")
+    vs_agg_dir = vs_var("vs_agg_dir")
+    ae_idx = vs_var("ae_idx")
+    vs_idx = vs_var("vs_idx")
+
+    lines.append(f'{rt_c} isa relation_template,')
+    lines.append(f'    has relation_template_id "rt_conv_b_aggregate_contributes_to",')
+    lines.append(f'    has emits_relation_type "norm_contributes_to_capacity";')
+    lines.append(f'(emitting_template: $nt, emitted_relation: {rt_c}) isa template_emits_relation;')
+    lines.append(f'{ra_contrib} isa role_assignment, has assigned_role_name "contributor";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_role_assignment: {ra_contrib}) isa relation_template_assigns_role;')
+    lines.append(f'{f_contrib} isa emitted_norm_role_filler;')
+    lines.append(f'(owning_role_assignment: {ra_contrib}, assignment_filler: {f_contrib}) isa role_assignment_filled_by;')
+    lines.append(f'{ra_pool} isa role_assignment, has assigned_role_name "pool";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_role_assignment: {ra_pool}) isa relation_template_assigns_role;')
+    lines.append(f'{f_pool} isa static_lookup_role_filler,')
+    lines.append(f'    has lookup_entity_type "norm",')
+    lines.append(f'    has lookup_attribute_name "norm_id";')
+    lines.append(f'(owning_role_assignment: {ra_pool}, assignment_filler: {f_pool}) isa role_assignment_filled_by;')
+    lines.append(f'{vs_pool_concat} isa concatenation_value_source;')
+    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pool_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_pool_post} isa literal_string_value_source, has literal_string_value "_builder_usage_permission";')
+    lines.append(f'(owning_filler: {f_pool}, lookup_value_source: {vs_pool_concat}) isa static_lookup_uses_value;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    # Edge attributes
+    lines.append(f'{ae_agg_fn} isa attribute_emission, has emitted_attribute_name "aggregation_function";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_agg_fn}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_agg_fn} isa literal_string_value_source, has literal_string_value "greatest_of";')
+    lines.append(f'(owning_emission: {ae_agg_fn}, source_value: {vs_agg_fn}) isa attribute_emission_uses_value;')
+    lines.append(f'{ae_agg_dir} isa attribute_emission, has emitted_attribute_name "aggregation_direction";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_agg_dir}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_agg_dir} isa literal_string_value_source, has literal_string_value "add";')
+    lines.append(f'(owning_emission: {ae_agg_dir}, source_value: {vs_agg_dir}) isa attribute_emission_uses_value;')
+    lines.append(f'{ae_idx} isa attribute_emission, has emitted_attribute_name "child_index";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_idx}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_idx} isa literal_long_value_source, has literal_long_value 0;')
+    lines.append(f'(owning_emission: {ae_idx}, source_value: {vs_idx}) isa attribute_emission_uses_value;')
+
+    return "\n".join(lines) + "\n"
+
+
+def generate_builder_sub_source_rule_tql(spec: tuple, child_index: int) -> str:
+    """Generate a sub-source rule per BUILDER_SUB_SOURCES entry.
+    spec: (flag_attr, norm_kind, cap_usd_attr, cap_grower_attr, cap_grower_ref, aggregates_into, disambiguator)
+    child_index: position in the contributes_to ordering.
+    """
+    flag, kind, cap_usd_attr, cap_grower_attr, grower_ref, aggregates_into, disamb = spec
+    rule_suffix = f"{kind}_{disamb}" if disamb else kind
+    rule_id = f"rule_conv_builder_{rule_suffix}"
+    nt_id = f"nt_conv_builder_{rule_suffix}"
+    norm_id_suffix = f"_{kind}_{disamb}" if disamb else f"_{kind}"
+    pool_kind = (
+        "builder_source_three_test_aggregate" if aggregates_into == "b_aggregate"
+        else "builder_usage_permission"
+    )
+    # Per python projection (deontic_projection.py:1195): sub-sources
+    # contributing into b_aggregate use greatest_of; those contributing
+    # directly to parent use sum.
+    agg_fn = "greatest_of" if aggregates_into == "b_aggregate" else "sum"
+
+    lines = ["insert", ""]
+    var_idx = [0]
+
+    def vs_var(prefix: str) -> str:
+        var_idx[0] += 1
+        return f"$bv_{prefix}_{var_idx[0]}"
+
+    label_suffix = f" ({disamb})" if disamb else ""
+    lines.append(f'$rule isa projection_rule,')
+    lines.append(f'    has projection_rule_id "{rule_id}",')
+    lines.append(f'    has projection_rule_label "Phase C Commit 2.4 builder sub-source: {kind}{label_suffix}";')
+
+    # Match: builder_basket WHERE flag = true
+    lines.append(f'$crit_type isa entity_type_criterion, has matches_v3_entity_type "builder_basket";')
+    lines.append(f'(owning_rule: $rule, applied_criterion: $crit_type) isa rule_has_match_criterion;')
+    crit_flag = vs_var("crit_flag")
+    vs_true = vs_var("vs_true")
+    lines.append(f'{crit_flag} isa attribute_value_criterion,')
+    lines.append(f'    has checks_v3_attribute_name "{flag}",')
+    lines.append(f'    has comparison_operator "equals";')
+    lines.append(f'(owning_rule: $rule, applied_criterion: {crit_flag}) isa rule_has_match_criterion;')
+    lines.append(f'{vs_true} isa literal_boolean_value_source, has literal_boolean_value true;')
+    lines.append(f'(owning_criterion: {crit_flag}, comparison_value_source: {vs_true}) isa criterion_uses_comparison_value;')
+
+    # Norm template
+    lines.append(f'$nt isa norm_template,')
+    lines.append(f'    has norm_template_id "{nt_id}",')
+    lines.append(f'    has norm_template_label "{kind}";')
+    lines.append(f'(owning_rule: $rule, produced_template: $nt) isa rule_produces_norm_template;')
+
+    def emit_literal_string(attr_name: str, value: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $nt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa literal_string_value_source, has literal_string_value {_tq_string(value)};')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    def emit_v3_attr(attr_name: str, v3_name: str) -> None:
+        ae = vs_var(f"ae_{attr_name}")
+        vs = vs_var(f"vs_{attr_name}")
+        lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "{attr_name}";')
+        lines.append(f'(emitting_template: $nt, emitted_attribute: {ae}) isa template_emits_attribute;')
+        lines.append(f'{vs} isa v3_attribute_value_source, has reads_v3_attribute_name "{v3_name}";')
+        lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
+
+    # norm_id: concat("conv_", deal_id, "_<kind>[_<disamb>]")
+    ae_id = vs_var("ae_id")
+    vs_id = vs_var("vs_id")
+    vs_pre = vs_var("vs_pre")
+    vs_deal = vs_var("vs_deal")
+    vs_post = vs_var("vs_post")
+    lines.append(f'{ae_id} isa attribute_emission, has emitted_attribute_name "norm_id";')
+    lines.append(f'(emitting_template: $nt, emitted_attribute: {ae_id}) isa template_emits_attribute;')
+    lines.append(f'{vs_id} isa concatenation_value_source;')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "{norm_id_suffix}";')
+    lines.append(f'(owning_emission: {ae_id}, source_value: {vs_id}) isa attribute_emission_uses_value;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs_id}, concatenation_part: {vs_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    emit_literal_string("norm_kind", kind)
+    emit_literal_string("modality", "permission")
+    emit_literal_string("capacity_composition", "additive")
+    emit_literal_string("action_scope", "specific")
+    emit_literal_string("growth_start_anchor", "closing_date_fiscal_quarter_start")
+    emit_literal_string("reference_period_kind", "cumulative_since_anchor")
+    emit_v3_attr("source_text", "source_text")
+    emit_v3_attr("source_section", "section_reference")
+    emit_v3_attr("source_page", "source_page")
+    if cap_usd_attr:
+        emit_v3_attr("cap_usd", cap_usd_attr)
+    if cap_grower_attr:
+        emit_v3_attr("cap_grower_pct", cap_grower_attr)
+    if grower_ref:
+        emit_literal_string("cap_grower_reference", grower_ref)
+
+    # Scope edges: 4 actions, 1 object, 2 subjects
+    def emit_scope(rel_type: str, role_name: str, lookup_type: str,
+                    lookup_attr: str, lookup_value: str, suffix: str) -> None:
+        rt = vs_var(f"rt_{suffix}")
+        ra_norm = vs_var(f"ra_norm_{suffix}")
+        ra_other = vs_var(f"ra_other_{suffix}")
+        f_norm = vs_var(f"f_norm_{suffix}")
+        f_other = vs_var(f"f_other_{suffix}")
+        v_other = vs_var(f"v_other_{suffix}")
+        lines.append(f'{rt} isa relation_template,')
+        lines.append(f'    has relation_template_id "rt_conv_{rule_suffix}_{rel_type}_{lookup_value}",')
+        lines.append(f'    has emits_relation_type "{rel_type}";')
+        lines.append(f'(emitting_template: $nt, emitted_relation: {rt}) isa template_emits_relation;')
+        lines.append(f'{ra_norm} isa role_assignment, has assigned_role_name "norm";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_norm}) isa relation_template_assigns_role;')
+        lines.append(f'{f_norm} isa emitted_norm_role_filler;')
+        lines.append(f'(owning_role_assignment: {ra_norm}, assignment_filler: {f_norm}) isa role_assignment_filled_by;')
+        lines.append(f'{ra_other} isa role_assignment, has assigned_role_name "{role_name}";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_other}) isa relation_template_assigns_role;')
+        lines.append(f'{f_other} isa static_lookup_role_filler,')
+        lines.append(f'    has lookup_entity_type "{lookup_type}",')
+        lines.append(f'    has lookup_attribute_name "{lookup_attr}";')
+        lines.append(f'(owning_role_assignment: {ra_other}, assignment_filler: {f_other}) isa role_assignment_filled_by;')
+        lines.append(f'{v_other} isa literal_string_value_source, has literal_string_value {_tq_string(lookup_value)};')
+        lines.append(f'(owning_filler: {f_other}, lookup_value_source: {v_other}) isa static_lookup_uses_value;')
+
+    for role in BUILDER_SUBJECT_ROLES:
+        emit_scope("norm_binds_subject", "subject", "party", "party_role", role, f"subj_{role}")
+    for action in BUILDER_ACTION_LABELS:
+        emit_scope("norm_scopes_action", "action", "action_class", "action_class_label", action, f"act_{action}")
+    emit_scope("norm_scopes_object", "object", "object_class", "object_class_label", BUILDER_OBJECT_LABEL, "obj_cash")
+
+    # contributes_to (sum, child_index per python projection's ordering)
+    rt_c = vs_var("rt_c")
+    ra_contrib = vs_var("ra_contrib")
+    ra_pool = vs_var("ra_pool")
+    f_contrib = vs_var("f_contrib")
+    f_pool = vs_var("f_pool")
+    vs_pool_concat = vs_var("vs_pool_concat")
+    vs_pool_pre = vs_var("vs_pool_pre")
+    vs_pool_deal = vs_var("vs_pool_deal")
+    vs_pool_post = vs_var("vs_pool_post")
+    ae_agg_fn = vs_var("ae_agg_fn")
+    vs_agg_fn = vs_var("vs_agg_fn")
+    ae_agg_dir = vs_var("ae_agg_dir")
+    vs_agg_dir = vs_var("vs_agg_dir")
+    ae_idx = vs_var("ae_idx")
+    vs_idx = vs_var("vs_idx")
+
+    lines.append(f'{rt_c} isa relation_template,')
+    lines.append(f'    has relation_template_id "rt_conv_{rule_suffix}_contributes_to",')
+    lines.append(f'    has emits_relation_type "norm_contributes_to_capacity";')
+    lines.append(f'(emitting_template: $nt, emitted_relation: {rt_c}) isa template_emits_relation;')
+    lines.append(f'{ra_contrib} isa role_assignment, has assigned_role_name "contributor";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_role_assignment: {ra_contrib}) isa relation_template_assigns_role;')
+    lines.append(f'{f_contrib} isa emitted_norm_role_filler;')
+    lines.append(f'(owning_role_assignment: {ra_contrib}, assignment_filler: {f_contrib}) isa role_assignment_filled_by;')
+    lines.append(f'{ra_pool} isa role_assignment, has assigned_role_name "pool";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_role_assignment: {ra_pool}) isa relation_template_assigns_role;')
+    lines.append(f'{f_pool} isa static_lookup_role_filler,')
+    lines.append(f'    has lookup_entity_type "norm",')
+    lines.append(f'    has lookup_attribute_name "norm_id";')
+    lines.append(f'(owning_role_assignment: {ra_pool}, assignment_filler: {f_pool}) isa role_assignment_filled_by;')
+    lines.append(f'{vs_pool_concat} isa concatenation_value_source;')
+    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pool_deal} isa deal_id_value_source;')
+    lines.append(f'{vs_pool_post} isa literal_string_value_source, has literal_string_value "_{pool_kind}";')
+    lines.append(f'(owning_filler: {f_pool}, lookup_value_source: {vs_pool_concat}) isa static_lookup_uses_value;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_pre}) isa concatenation_has_ordered_part, has sequence_index 0;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_deal}) isa concatenation_has_ordered_part, has sequence_index 1;')
+    lines.append(f'(owning_concatenation: {vs_pool_concat}, concatenation_part: {vs_pool_post}) isa concatenation_has_ordered_part, has sequence_index 2;')
+
+    lines.append(f'{ae_agg_fn} isa attribute_emission, has emitted_attribute_name "aggregation_function";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_agg_fn}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_agg_fn} isa literal_string_value_source, has literal_string_value "{agg_fn}";')
+    lines.append(f'(owning_emission: {ae_agg_fn}, source_value: {vs_agg_fn}) isa attribute_emission_uses_value;')
+    lines.append(f'{ae_agg_dir} isa attribute_emission, has emitted_attribute_name "aggregation_direction";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_agg_dir}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_agg_dir} isa literal_string_value_source, has literal_string_value "add";')
+    lines.append(f'(owning_emission: {ae_agg_dir}, source_value: {vs_agg_dir}) isa attribute_emission_uses_value;')
+    lines.append(f'{ae_idx} isa attribute_emission, has emitted_attribute_name "child_index";')
+    lines.append(f'(owning_relation_template: {rt_c}, emitted_edge_attribute: {ae_idx}) isa relation_template_emits_edge_attribute;')
+    lines.append(f'{vs_idx} isa literal_long_value_source, has literal_long_value {child_index};')
+    lines.append(f'(owning_emission: {ae_idx}, source_value: {vs_idx}) isa attribute_emission_uses_value;')
+
+    return "\n".join(lines) + "\n"
+
+
 def cleanup_converted_rules(driver, db: str) -> None:
     """Remove all converter-emitted rules + emitted norms (norm_id prefix
     NORM_ID_PREFIX). Pilot rule (rule_general_rp_basket) is preserved."""
@@ -804,6 +1211,24 @@ def main() -> int:
                 logger.info(f"applied: defeater rule for {subtype}")
         logger.info(f"applied {defeater_applied}/{len(BLOCKER_EXCEPTION_SUBTYPES)} defeater rules")
 
+        # Apply b_aggregate rule + 8 builder sub-source rules (Commit 2.4).
+        # Order matters: b_aggregate must be applied before sub-sources whose
+        # contributes_to references it.
+        builder_applied = 0
+        if apply_rule_tql(driver, db, generate_b_aggregate_rule_tql(), "b_aggregate"):
+            builder_applied += 1
+            logger.info("applied: b_aggregate rule")
+        for idx, spec in enumerate(BUILDER_SUB_SOURCES):
+            child_idx = idx + 1  # parent's child_index 0 is taken by b_aggregate
+            tql = generate_builder_sub_source_rule_tql(spec, child_idx)
+            kind = spec[1]
+            disamb = spec[6]
+            label = f"{kind}_{disamb}" if disamb else kind
+            if apply_rule_tql(driver, db, tql, f"builder_sub_{label}"):
+                builder_applied += 1
+                logger.info(f"applied: builder sub-source rule for {label}")
+        logger.info(f"applied {builder_applied}/{1 + len(BUILDER_SUB_SOURCES)} builder rules")
+
         # Run executor for each NORM RULE, parity-check scalars
         # Defeater rules emit defeaters (not norms); their parity check is
         # by defeater_id-set comparison after the run, below.
@@ -850,6 +1275,22 @@ def main() -> int:
                 "matched": matched, "mismatched": mismatched, "missing": missing,
             })
 
+        # Run b_aggregate + builder sub-source rules (Commit 2.4)
+        # b_aggregate must run BEFORE sub-sources that contributes_to it.
+        logger.info("=" * 60)
+        logger.info("Executing builder rules:")
+        builder_emitted = 0
+        b_agg_report = execute_rule(driver, db, "rule_conv_builder_b_aggregate", args.deal)
+        logger.info(f"  rule_conv_builder_b_aggregate: matches={b_agg_report.matches} emitted={b_agg_report.norms_emitted} relations={b_agg_report.relations_emitted}")
+        builder_emitted += b_agg_report.norms_emitted
+        for spec in BUILDER_SUB_SOURCES:
+            kind = spec[1]; disamb = spec[6]
+            rule_suffix = f"{kind}_{disamb}" if disamb else kind
+            rule_id = f"rule_conv_builder_{rule_suffix}"
+            report = execute_rule(driver, db, rule_id, args.deal)
+            logger.info(f"  {rule_id}: matches={report.matches} emitted={report.norms_emitted} relations={report.relations_emitted}")
+            builder_emitted += report.norms_emitted
+
         # Run defeater rules
         logger.info("=" * 60)
         logger.info("Executing defeater rules:")
@@ -872,6 +1313,7 @@ def main() -> int:
             f"AGGREGATE NORMS: {passed} PASS, {failed} FAIL, {no_data} no_v3_data, "
             f"{no_ref} no_reference, {emit_failed} emit_failed"
         )
+        logger.info(f"AGGREGATE BUILDER: {builder_emitted} norms emitted (b_agg + sub-sources)")
         logger.info(f"AGGREGATE DEFEATERS: {defeater_emitted} emitted")
 
         return 0 if failed == 0 and emit_failed == 0 else 1

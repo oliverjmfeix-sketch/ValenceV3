@@ -18,7 +18,7 @@ Architecture (per docs/v4_phase_c_design.md):
 Value source dispatch table (Commit 1.5 supports):
   literal_string_value_source       -> literal_string_value
   literal_double_value_source       -> literal_double_value
-  literal_integer_value_source      -> literal_integer_value
+  literal_long_value_source      -> literal_long_value
   literal_boolean_value_source      -> literal_boolean_value
   v3_attribute_value_source         -> attrs[reads_v3_attribute_name]
   deal_id_value_source              -> deal_id from context
@@ -114,8 +114,9 @@ def load_rules(driver, db_name: str) -> list[dict]:
 
 
 def load_match_v3_entity_type(driver, db_name: str, rule_id: str) -> str | None:
-    """Read the rule's entity_type_criterion (assumes simple single-type
-    match for Commit 1.5; expanded in future commits)."""
+    """Read the rule's entity_type_criterion. Used as the primary table
+    in fetch_v3_entity_attrs; additional attribute_value criteria are
+    applied as a post-fetch filter (see load_attribute_filters)."""
     tx = driver.transaction(db_name, TransactionType.READ)
     try:
         q = (
@@ -138,6 +139,135 @@ def load_match_v3_entity_type(driver, db_name: str, rule_id: str) -> str | None:
         except Exception:
             pass
     return None
+
+
+def load_attribute_filters(driver, db_name: str, rule_id: str) -> list[dict]:
+    """Read the rule's attribute_value_criterion entries.
+
+    Two cases:
+    (a) Top-level attribute_value_criterion: applied as AND filter.
+    (b) match_criterion_group with combinator='or': all attribute_value
+        criteria under it are OR'd together; the group is then ANDed
+        with other top-level criteria.
+
+    Returns a list of filter groups: each is {"combinator": "and"|"or",
+    "filters": [{"attr": str, "op": str, "value": <python>}]}.
+    Top-level attribute_value criteria are returned as a single AND group.
+    """
+    groups: list[dict] = []
+
+    # (a) Top-level attribute_value_criterion
+    tx = driver.transaction(db_name, TransactionType.READ)
+    top_level: list[dict] = []
+    try:
+        q = (
+            f'match\n'
+            f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
+            f'    (owning_rule: $r, applied_criterion: $c) isa rule_has_match_criterion;\n'
+            f'    $c isa attribute_value_criterion,\n'
+            f'        has checks_v3_attribute_name $name,\n'
+            f'        has comparison_operator $op;\n'
+            f'    (owning_criterion: $c, comparison_value_source: $vs) isa criterion_uses_comparison_value;\n'
+            f'select $name, $op, $vs;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            ctx = ExecutorContext(deal_id="", v3_attrs={})  # not used for literals
+            for row in r.as_concept_rows():
+                vs_iid = row.get("vs").get_iid()
+                top_level.append({
+                    "attr": row.get("name").as_attribute().get_value(),
+                    "op": row.get("op").as_attribute().get_value(),
+                    "value": resolve_value_source(driver, db_name, vs_iid, ctx),
+                })
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    if top_level:
+        groups.append({"combinator": "and", "filters": top_level})
+
+    # (b) match_criterion_group (OR groups under the rule)
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
+            f'    (owning_rule: $r, applied_criterion: $g) isa rule_has_match_criterion;\n'
+            f'    $g isa match_criterion_group, has group_combinator $cmb;\n'
+            f'    (parent_group: $g, member_criterion: $c) isa criterion_group_has_member;\n'
+            f'    $c isa attribute_value_criterion,\n'
+            f'        has checks_v3_attribute_name $name,\n'
+            f'        has comparison_operator $op;\n'
+            f'    (owning_criterion: $c, comparison_value_source: $vs) isa criterion_uses_comparison_value;\n'
+            f'select $g, $cmb, $name, $op, $vs;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            by_group: dict[str, dict] = {}
+            ctx = ExecutorContext(deal_id="", v3_attrs={})
+            for row in r.as_concept_rows():
+                g_iid = row.get("g").get_iid()
+                cmb = row.get("cmb").as_attribute().get_value()
+                vs_iid = row.get("vs").get_iid()
+                if g_iid not in by_group:
+                    by_group[g_iid] = {"combinator": cmb, "filters": []}
+                by_group[g_iid]["filters"].append({
+                    "attr": row.get("name").as_attribute().get_value(),
+                    "op": row.get("op").as_attribute().get_value(),
+                    "value": resolve_value_source(driver, db_name, vs_iid, ctx),
+                })
+            groups.extend(by_group.values())
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    return groups
+
+
+def _eval_filter(v3_attrs: dict, f: dict) -> bool:
+    """Evaluate one attribute_value filter against a v3 entity's attrs."""
+    actual = v3_attrs.get(f["attr"])
+    op = f["op"]
+    value = f["value"]
+    if op == "equals":
+        return actual == value
+    if op == "not_equals":
+        return actual != value
+    if op == "greater_than":
+        return actual is not None and value is not None and actual > value
+    if op == "less_than":
+        return actual is not None and value is not None and actual < value
+    if op == "greater_or_equal":
+        return actual is not None and value is not None and actual >= value
+    if op == "less_or_equal":
+        return actual is not None and value is not None and actual <= value
+    if op == "in":
+        return actual in (value or [])
+    return False
+
+
+def matches_filters(v3_attrs: dict, groups: list[dict]) -> bool:
+    """Evaluate all filter groups (AND across groups; combinator within
+    each group). Returns True if all groups satisfied."""
+    for g in groups:
+        results = [_eval_filter(v3_attrs, f) for f in g["filters"]]
+        if g["combinator"] == "or":
+            if not any(results):
+                return False
+        else:  # and (default)
+            if not all(results):
+                return False
+    return True
 
 
 def load_attribute_emissions(driver, db_name: str, rule_id: str,
@@ -210,8 +340,8 @@ def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext
         return _read_attr_value(driver, db_name, vs_iid, "literal_string_value")
     if type_label == "literal_double_value_source":
         return _read_attr_value(driver, db_name, vs_iid, "literal_double_value")
-    if type_label == "literal_integer_value_source":
-        return _read_attr_value(driver, db_name, vs_iid, "literal_integer_value")
+    if type_label == "literal_long_value_source":
+        return _read_attr_value(driver, db_name, vs_iid, "literal_long_value")
     if type_label == "literal_boolean_value_source":
         return _read_attr_value(driver, db_name, vs_iid, "literal_boolean_value")
     if type_label == "deal_id_value_source":
@@ -845,6 +975,41 @@ def emit_root_condition(driver, db_name: str, rule_id: str, emitted_norm_id: str
         return False
 
 
+def load_relation_edge_attributes(driver, db_name: str, rt_iid: str,
+                                    ctx: ExecutorContext) -> list[tuple[str, Any]]:
+    """Read edge attributes for a relation_template via
+    relation_template_emits_edge_attribute. Returns list of
+    (attribute_name, resolved_value)."""
+    result: list[tuple[str, Any]] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $rt iid {rt_iid};\n'
+            f'    (owning_relation_template: $rt, emitted_edge_attribute: $ae) isa relation_template_emits_edge_attribute;\n'
+            f'    $ae has emitted_attribute_name $name;\n'
+            f'    (owning_emission: $ae, source_value: $vs) isa attribute_emission_uses_value;\n'
+            f'select $name, $vs;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            for row in r.as_concept_rows():
+                attr_name = row.get("name").as_attribute().get_value()
+                vs_iid = row.get("vs").get_iid()
+                value = resolve_value_source(driver, db_name, vs_iid, ctx)
+                if value is not None:
+                    result.append((attr_name, value))
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return result
+
+
 def emit_relation_templates(driver, db_name: str, rule_id: str,
                              emitted_entity_id: str, ctx: ExecutorContext,
                              report: ExecutionReport,
@@ -889,8 +1054,20 @@ def emit_relation_templates(driver, db_name: str, rule_id: str,
         if skip:
             continue
 
+        # Resolve edge attributes (if any)
+        edge_attrs = load_relation_edge_attributes(driver, db_name, rt["iid"], ctx)
+        edge_attr_clauses = []
+        for attr_name, value in edge_attrs:
+            try:
+                edge_attr_clauses.append(f"has {attr_name} {_tq_literal(value)}")
+            except ValueError as exc:
+                report.warnings.append(f"edge attr {attr_name}: {exc}")
+
         match_q = "match\n  " + "\n  ".join(match_lines)
-        insert_q = f"insert ({', '.join(role_bindings)}) isa {rt['relation_type']};"
+        insert_clauses = [f"({', '.join(role_bindings)}) isa {rt['relation_type']}"]
+        if edge_attr_clauses:
+            insert_clauses[0] += ",\n    " + ",\n    ".join(edge_attr_clauses)
+        insert_q = f"insert {insert_clauses[0]};"
         full_q = f"{match_q}\n{insert_q}"
 
         wtx = driver.transaction(db_name, TransactionType.WRITE)
@@ -968,6 +1145,13 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
     logger.info(f"rule {rule_id}: matches v3 type {entity_type}")
 
     matches = fetch_v3_entity_attrs(driver, db_name, entity_type, deal_id)
+    # Apply attribute_value_criterion filters (Commit 2.4)
+    filter_groups = load_attribute_filters(driver, db_name, rule_id)
+    if filter_groups:
+        before = len(matches)
+        matches = [m for m in matches if matches_filters(m, filter_groups)]
+        if before != len(matches):
+            logger.info(f"rule {rule_id}: filtered {before} -> {len(matches)} v3 entities")
     report.matches = len(matches)
     logger.info(f"rule {rule_id}: matched {len(matches)} v3 entities")
 
