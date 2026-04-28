@@ -691,3 +691,407 @@ holdco_overhead_basket owns cleaned_by_phase_c_commit_0;
 equity_award_basket owns cleaned_by_phase_c_commit_0;
 general_investment_basket owns cleaned_by_phase_c_commit_0;
 general_rdp_basket owns cleaned_by_phase_c_commit_0;
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE C — PROJECTION RULES AS GRAPH SSoT (Commit 1)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Schema for typed graph entities representing v3-to-v4 projection rules.
+# All domain content lives as typed graph entities + attributes; Python at
+# projection time performs typed dispatch on enum-valued attributes by
+# mechanical mapping.
+#
+# Reference: docs/v4_phase_c_design.md
+#
+# Role-name discipline (Pattern #15 from Phase B): every role is qualified
+# with a relation-specific prefix. No generic "source", "target", "parent",
+# "child" roles — each is "<relation_specific>_source", etc.
+#
+# Schema organization:
+#   §C.1  Top-level: projection_rule
+#   §C.2  Match criteria + composition
+#   §C.3  Value sources + composition
+#   §C.4  Norm templates + attribute emission
+#   §C.5  Relation templates + role assignment + role fillers
+#   §C.6  Condition templates + predicate specifiers
+#   §C.7  Defeater templates
+#   §C.8  Provenance: produced_by_rule
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── §C.1 Top-level: projection_rule ────────────────────────────────────────────
+
+attribute projection_rule_id, value string;
+attribute projection_rule_label, value string;
+attribute projection_rule_description, value string;
+
+entity projection_rule,
+    owns projection_rule_id @key,
+    owns projection_rule_label,
+    owns projection_rule_description;
+
+
+# ─── §C.2 Match criteria + composition ──────────────────────────────────────────
+
+# Concrete subtypes describe what kind of v3 entity the rule applies to.
+# A rule with multiple top-level criteria has implicit AND semantics; for
+# explicit AND/OR within a rule, use match_criterion_group.
+
+attribute matches_v3_entity_type, value string;
+attribute matches_v3_subtype, value string;
+attribute checks_v3_attribute_name, value string;
+attribute comparison_operator, value string;     # equals | in | greater_than | less_than | greater_or_equal | less_or_equal | not_equals
+attribute existence_check, value string;          # exists | not_exists
+attribute matches_via_v3_relation_type, value string;
+attribute matches_via_v3_role, value string;
+attribute group_combinator, value string;         # and | or
+
+entity match_criterion @abstract;
+
+entity entity_type_criterion sub match_criterion,
+    owns matches_v3_entity_type;
+
+entity subtype_criterion sub match_criterion,
+    owns matches_v3_subtype;
+
+entity attribute_value_criterion sub match_criterion,
+    owns checks_v3_attribute_name,
+    owns comparison_operator;
+
+entity attribute_existence_criterion sub match_criterion,
+    owns checks_v3_attribute_name,
+    owns existence_check;
+
+entity linked_via_relation_criterion sub match_criterion,
+    owns matches_via_v3_relation_type,
+    owns matches_via_v3_role;
+
+entity match_criterion_group sub match_criterion,
+    owns group_combinator;
+
+# A rule has match criteria (zero or more; implicit AND across top-level criteria)
+relation rule_has_match_criterion,
+    relates owning_rule,
+    relates applied_criterion;
+projection_rule plays rule_has_match_criterion:owning_rule;
+match_criterion plays rule_has_match_criterion:applied_criterion;
+
+# A criterion group has ordered member criteria (and/or composition)
+relation criterion_group_has_member,
+    relates parent_group,
+    relates member_criterion;
+match_criterion_group plays criterion_group_has_member:parent_group;
+match_criterion plays criterion_group_has_member:member_criterion;
+
+# linked_via_relation_criterion references another criterion (sub-pattern
+# the linked v3 entity must satisfy)
+relation criterion_requires_linked_match,
+    relates parent_criterion,
+    relates linked_criterion;
+linked_via_relation_criterion plays criterion_requires_linked_match:parent_criterion;
+match_criterion plays criterion_requires_linked_match:linked_criterion;
+
+# attribute_value_criterion's comparison value comes from a value_source
+relation criterion_uses_comparison_value,
+    relates owning_criterion,
+    relates comparison_value_source;
+attribute_value_criterion plays criterion_uses_comparison_value:owning_criterion;
+# value_source plays this role (declared after value_source defined below)
+
+
+# ─── §C.3 Value sources + composition ───────────────────────────────────────────
+#
+# Whenever a value is needed (criterion comparison, emitted attribute, edge
+# attribute, role-filler lookup), it is reached via a value_source. Concrete
+# subtypes typed by source kind (literal, v3 attribute lookup, deal_id,
+# composition).
+
+attribute literal_string_value, value string;
+attribute literal_double_value, value double;
+attribute literal_long_value, value integer;
+attribute literal_boolean_value, value boolean;
+attribute reads_v3_attribute_name, value string;
+attribute arithmetic_operator, value string;     # add | subtract | multiply | divide
+attribute sequence_index, value integer;
+
+entity value_source @abstract;
+
+entity literal_string_value_source sub value_source,
+    owns literal_string_value;
+entity literal_double_value_source sub value_source,
+    owns literal_double_value;
+entity literal_long_value_source sub value_source,
+    owns literal_long_value;
+entity literal_boolean_value_source sub value_source,
+    owns literal_boolean_value;
+
+entity v3_attribute_value_source sub value_source,
+    owns reads_v3_attribute_name;
+
+entity deal_id_value_source sub value_source;
+
+entity concatenation_value_source sub value_source;
+
+entity arithmetic_value_source sub value_source,
+    owns arithmetic_operator;
+
+entity conditional_value_source sub value_source;
+
+entity produced_norm_id_value_source sub value_source;
+
+# Now declare the value_source role for criterion_uses_comparison_value
+value_source plays criterion_uses_comparison_value:comparison_value_source;
+
+# v3_attribute_value_source can have a fallback default
+relation value_source_has_default,
+    relates primary_source,
+    relates default_source;
+v3_attribute_value_source plays value_source_has_default:primary_source;
+value_source plays value_source_has_default:default_source;
+
+# concatenation has ordered children
+relation concatenation_has_ordered_part,
+    relates owning_concatenation,
+    relates concatenation_part,
+    owns sequence_index;
+concatenation_value_source plays concatenation_has_ordered_part:owning_concatenation;
+value_source plays concatenation_has_ordered_part:concatenation_part;
+
+# arithmetic has two operands (two relations rather than one with positional roles)
+relation arithmetic_has_left_operand,
+    relates owning_expression,
+    relates left_operand;
+arithmetic_value_source plays arithmetic_has_left_operand:owning_expression;
+value_source plays arithmetic_has_left_operand:left_operand;
+
+relation arithmetic_has_right_operand,
+    relates owning_expression,
+    relates right_operand;
+arithmetic_value_source plays arithmetic_has_right_operand:owning_expression;
+value_source plays arithmetic_has_right_operand:right_operand;
+
+# conditional has test + two branches (3 relations, distinct roles)
+relation conditional_has_test,
+    relates owning_conditional,
+    relates test_value_source;
+conditional_value_source plays conditional_has_test:owning_conditional;
+value_source plays conditional_has_test:test_value_source;
+
+relation conditional_has_then_branch,
+    relates owning_conditional,
+    relates then_value_source;
+conditional_value_source plays conditional_has_then_branch:owning_conditional;
+value_source plays conditional_has_then_branch:then_value_source;
+
+relation conditional_has_else_branch,
+    relates owning_conditional,
+    relates else_value_source;
+conditional_value_source plays conditional_has_else_branch:owning_conditional;
+value_source plays conditional_has_else_branch:else_value_source;
+
+
+# ─── §C.4 Norm templates + attribute emission ───────────────────────────────────
+
+attribute norm_template_id, value string;
+attribute norm_template_label, value string;
+attribute emitted_attribute_name, value string;
+
+entity norm_template,
+    owns norm_template_id @key,
+    owns norm_template_label;
+
+entity attribute_emission,
+    owns emitted_attribute_name;
+
+# A rule produces zero or more norm templates
+relation rule_produces_norm_template,
+    relates owning_rule,
+    relates produced_template;
+projection_rule plays rule_produces_norm_template:owning_rule;
+norm_template plays rule_produces_norm_template:produced_template;
+
+# A norm template emits zero or more attributes via attribute_emission
+relation template_emits_attribute,
+    relates emitting_template,
+    relates emitted_attribute;
+norm_template plays template_emits_attribute:emitting_template;
+attribute_emission plays template_emits_attribute:emitted_attribute;
+
+# An attribute_emission resolves its value via a value_source
+relation attribute_emission_uses_value,
+    relates owning_emission,
+    relates source_value;
+attribute_emission plays attribute_emission_uses_value:owning_emission;
+value_source plays attribute_emission_uses_value:source_value;
+
+
+# ─── §C.5 Relation templates + role assignment + role fillers ───────────────────
+
+attribute relation_template_id, value string;
+attribute emits_relation_type, value string;
+attribute assigned_role_name, value string;
+attribute lookup_entity_type, value string;
+attribute lookup_attribute_name, value string;
+
+entity relation_template,
+    owns relation_template_id @key,
+    owns emits_relation_type;
+
+entity role_assignment,
+    owns assigned_role_name;
+
+entity role_filler @abstract;
+
+# (a) The norm being emitted by the parent template fills the role
+entity emitted_norm_role_filler sub role_filler;
+
+# (b) Static lookup of an existing entity by attribute value
+entity static_lookup_role_filler sub role_filler,
+    owns lookup_entity_type,
+    owns lookup_attribute_name;
+
+# (c) Cross-rule reference to another rule's emitted norm
+entity produced_norm_role_filler sub role_filler;
+
+# A norm or defeater template emits zero or more relation templates
+relation template_emits_relation,
+    relates emitting_template,
+    relates emitted_relation;
+norm_template plays template_emits_relation:emitting_template;
+relation_template plays template_emits_relation:emitted_relation;
+
+# A relation template assigns roles via role_assignment
+relation relation_template_assigns_role,
+    relates owning_relation_template,
+    relates emitted_role_assignment;
+relation_template plays relation_template_assigns_role:owning_relation_template;
+role_assignment plays relation_template_assigns_role:emitted_role_assignment;
+
+# A role assignment specifies its filler
+relation role_assignment_filled_by,
+    relates owning_role_assignment,
+    relates assignment_filler;
+role_assignment plays role_assignment_filled_by:owning_role_assignment;
+role_filler plays role_assignment_filled_by:assignment_filler;
+
+# static_lookup_role_filler uses a value_source for the lookup value
+relation static_lookup_uses_value,
+    relates owning_filler,
+    relates lookup_value_source;
+static_lookup_role_filler plays static_lookup_uses_value:owning_filler;
+value_source plays static_lookup_uses_value:lookup_value_source;
+
+# produced_norm_role_filler references another template
+relation produced_norm_filler_references_template,
+    relates referencing_filler,
+    relates referenced_template;
+produced_norm_role_filler plays produced_norm_filler_references_template:referencing_filler;
+norm_template plays produced_norm_filler_references_template:referenced_template;
+
+# produced_norm_id_value_source references another template (for value path)
+relation produced_norm_reference,
+    relates referencing_source,
+    relates referenced_template;
+produced_norm_id_value_source plays produced_norm_reference:referencing_source;
+norm_template plays produced_norm_reference:referenced_template;
+
+# Edge attributes on emitted relations reuse attribute_emission
+relation relation_template_emits_edge_attribute,
+    relates owning_relation_template,
+    relates emitted_edge_attribute;
+relation_template plays relation_template_emits_edge_attribute:owning_relation_template;
+attribute_emission plays relation_template_emits_edge_attribute:emitted_edge_attribute;
+
+
+# ─── §C.6 Condition templates + predicate specifiers ────────────────────────────
+
+attribute condition_template_id, value string;
+attribute target_topology, value string;     # atomic | or | and (resolved at emit time)
+attribute target_operator, value string;     # atomic | or | and
+attribute specifies_predicate_id, value string;
+attribute child_template_index, value integer;
+
+entity condition_template,
+    owns condition_template_id @key,
+    owns target_topology,
+    owns target_operator;
+
+entity predicate_specifier,
+    owns specifies_predicate_id;
+
+# A norm or defeater template emits at most one root condition template
+relation template_emits_root_condition,
+    relates emitting_template,
+    relates root_condition;
+norm_template plays template_emits_root_condition:emitting_template;
+condition_template plays template_emits_root_condition:root_condition;
+
+# An atomic condition template references a predicate_specifier (shared
+# across condition templates referencing the same predicate)
+relation atomic_condition_references_predicate,
+    relates owning_condition_template,
+    relates referenced_specifier;
+condition_template plays atomic_condition_references_predicate:owning_condition_template;
+predicate_specifier plays atomic_condition_references_predicate:referenced_specifier;
+
+# A predicate_specifier may resolve dynamically via a value_source (when
+# threshold/operator come from v3)
+relation predicate_specifier_uses_value,
+    relates owning_specifier,
+    relates dynamic_value_source;
+predicate_specifier plays predicate_specifier_uses_value:owning_specifier;
+value_source plays predicate_specifier_uses_value:dynamic_value_source;
+
+# Compound condition templates have ordered children
+relation condition_template_has_child,
+    relates parent_condition,
+    relates child_condition,
+    owns child_template_index;
+condition_template plays condition_template_has_child:parent_condition;
+condition_template plays condition_template_has_child:child_condition;
+
+
+# ─── §C.7 Defeater templates ────────────────────────────────────────────────────
+#
+# Defeater templates participate in template_emits_attribute,
+# template_emits_relation, and template_emits_root_condition relations
+# (generic role names — no defeater-specific roles).
+
+attribute defeater_template_id, value string;
+attribute defeater_template_label, value string;
+
+entity defeater_template,
+    owns defeater_template_id @key,
+    owns defeater_template_label;
+
+# A rule produces zero or more defeater templates
+relation rule_produces_defeater_template,
+    relates owning_rule,
+    relates produced_template;
+projection_rule plays rule_produces_defeater_template:owning_rule;
+defeater_template plays rule_produces_defeater_template:produced_template;
+
+# Defeater templates also play emitting_template in shared relations
+defeater_template plays template_emits_attribute:emitting_template;
+defeater_template plays template_emits_relation:emitting_template;
+defeater_template plays template_emits_root_condition:emitting_template;
+
+
+# ─── §C.8 Provenance: produced_by_rule ──────────────────────────────────────────
+#
+# Every emitted v4 entity tracks its source rule and triggering v3 entity.
+# Audit query: "why does this norm have this kind?" -> walk produced_by_rule.
+
+relation produced_by_rule,
+    relates produced_entity,
+    relates owning_rule,
+    relates triggering_v3_entity;
+norm plays produced_by_rule:produced_entity;
+defeater plays produced_by_rule:produced_entity;
+condition plays produced_by_rule:produced_entity;
+projection_rule plays produced_by_rule:owning_rule;
+# triggering_v3_entity is filled by whichever v3 entity triggered the rule;
+# concrete v3 entity types add `plays produced_by_rule:triggering_v3_entity`
+# in their own type declarations (added in Commit 1.5+ as rules are authored).

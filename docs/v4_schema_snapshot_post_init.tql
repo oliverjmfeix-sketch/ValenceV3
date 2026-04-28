@@ -1274,6 +1274,70 @@ attribute proceeds_flow_conditions,
  value string;
 attribute cleaned_by_phase_c_commit_0,
  value boolean;
+attribute projection_rule_id,
+ value string;
+attribute projection_rule_label,
+ value string;
+attribute projection_rule_description,
+ value string;
+attribute matches_v3_entity_type,
+ value string;
+attribute matches_v3_subtype,
+ value string;
+attribute checks_v3_attribute_name,
+ value string;
+attribute existence_check,
+ value string;
+attribute matches_via_v3_relation_type,
+ value string;
+attribute matches_via_v3_role,
+ value string;
+attribute group_combinator,
+ value string;
+attribute literal_string_value,
+ value string;
+attribute literal_double_value,
+ value double;
+attribute literal_long_value,
+ value integer;
+attribute literal_boolean_value,
+ value boolean;
+attribute reads_v3_attribute_name,
+ value string;
+attribute arithmetic_operator,
+ value string;
+attribute sequence_index,
+ value integer;
+attribute norm_template_id,
+ value string;
+attribute norm_template_label,
+ value string;
+attribute emitted_attribute_name,
+ value string;
+attribute relation_template_id,
+ value string;
+attribute emits_relation_type,
+ value string;
+attribute assigned_role_name,
+ value string;
+attribute lookup_entity_type,
+ value string;
+attribute lookup_attribute_name,
+ value string;
+attribute condition_template_id,
+ value string;
+attribute target_topology,
+ value string;
+attribute target_operator,
+ value string;
+attribute specifies_predicate_id,
+ value string;
+attribute child_template_index,
+ value integer;
+attribute defeater_template_id,
+ value string;
+attribute defeater_template_label,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2370,7 +2434,8 @@ entity condition,
   plays condition_has_child:parent,
   plays condition_references_predicate:condition,
   plays defeater_has_condition:root,
-  plays norm_has_condition:root;
+  plays norm_has_condition:root,
+  plays produced_by_rule:produced_entity;
 entity norm,
   owns action_scope,
   owns cap_grower_pct,
@@ -2408,7 +2473,8 @@ entity norm,
   plays norm_scopes_action:norm,
   plays norm_scopes_instrument:norm,
   plays norm_scopes_object:norm,
-  plays norm_serves_question:norm;
+  plays norm_serves_question:norm,
+  plays produced_by_rule:produced_entity;
 entity violation_consequent,
   owns source_page,
   owns source_section,
@@ -2428,7 +2494,8 @@ entity defeater,
   owns source_section,
   owns source_text,
   plays defeater_has_condition:defeater,
-  plays defeats:defeater;
+  plays defeats:defeater,
+  plays produced_by_rule:produced_entity;
 entity event_instance,
   owns action_class_label,
   owns consolidated_ebitda_ltm,
@@ -2474,6 +2541,143 @@ entity event_class,
   owns event_class_id @key,
   owns event_class_label,
   plays event_provides_proceeds_to_norm:proceeds_event;
+entity projection_rule,
+  owns projection_rule_description,
+  owns projection_rule_id @key,
+  owns projection_rule_label,
+  plays produced_by_rule:owning_rule,
+  plays rule_has_match_criterion:owning_rule,
+  plays rule_produces_defeater_template:owning_rule,
+  plays rule_produces_norm_template:owning_rule;
+entity match_criterion @abstract,
+  plays criterion_group_has_member:member_criterion,
+  plays criterion_requires_linked_match:linked_criterion,
+  plays rule_has_match_criterion:applied_criterion;
+entity entity_type_criterion,
+  sub match_criterion,
+  owns matches_v3_entity_type;
+entity subtype_criterion,
+  sub match_criterion,
+  owns matches_v3_subtype;
+entity attribute_value_criterion,
+  sub match_criterion,
+  owns checks_v3_attribute_name,
+  owns comparison_operator,
+  plays criterion_uses_comparison_value:owning_criterion;
+entity attribute_existence_criterion,
+  sub match_criterion,
+  owns checks_v3_attribute_name,
+  owns existence_check;
+entity linked_via_relation_criterion,
+  sub match_criterion,
+  owns matches_via_v3_relation_type,
+  owns matches_via_v3_role,
+  plays criterion_requires_linked_match:parent_criterion;
+entity match_criterion_group,
+  sub match_criterion,
+  owns group_combinator,
+  plays criterion_group_has_member:parent_group;
+entity value_source @abstract,
+  plays arithmetic_has_left_operand:left_operand,
+  plays arithmetic_has_right_operand:right_operand,
+  plays attribute_emission_uses_value:source_value,
+  plays concatenation_has_ordered_part:concatenation_part,
+  plays conditional_has_else_branch:else_value_source,
+  plays conditional_has_test:test_value_source,
+  plays conditional_has_then_branch:then_value_source,
+  plays criterion_uses_comparison_value:comparison_value_source,
+  plays predicate_specifier_uses_value:dynamic_value_source,
+  plays static_lookup_uses_value:lookup_value_source,
+  plays value_source_has_default:default_source;
+entity literal_string_value_source,
+  sub value_source,
+  owns literal_string_value;
+entity literal_double_value_source,
+  sub value_source,
+  owns literal_double_value;
+entity literal_long_value_source,
+  sub value_source,
+  owns literal_long_value;
+entity literal_boolean_value_source,
+  sub value_source,
+  owns literal_boolean_value;
+entity v3_attribute_value_source,
+  sub value_source,
+  owns reads_v3_attribute_name,
+  plays value_source_has_default:primary_source;
+entity deal_id_value_source,
+  sub value_source;
+entity concatenation_value_source,
+  sub value_source,
+  plays concatenation_has_ordered_part:owning_concatenation;
+entity arithmetic_value_source,
+  sub value_source,
+  owns arithmetic_operator,
+  plays arithmetic_has_left_operand:owning_expression,
+  plays arithmetic_has_right_operand:owning_expression;
+entity conditional_value_source,
+  sub value_source,
+  plays conditional_has_else_branch:owning_conditional,
+  plays conditional_has_test:owning_conditional,
+  plays conditional_has_then_branch:owning_conditional;
+entity produced_norm_id_value_source,
+  sub value_source,
+  plays produced_norm_reference:referencing_source;
+entity norm_template,
+  owns norm_template_id @key,
+  owns norm_template_label,
+  plays produced_norm_filler_references_template:referenced_template,
+  plays produced_norm_reference:referenced_template,
+  plays rule_produces_norm_template:produced_template,
+  plays template_emits_attribute:emitting_template,
+  plays template_emits_relation:emitting_template,
+  plays template_emits_root_condition:emitting_template;
+entity attribute_emission,
+  owns emitted_attribute_name,
+  plays attribute_emission_uses_value:owning_emission,
+  plays relation_template_emits_edge_attribute:emitted_edge_attribute,
+  plays template_emits_attribute:emitted_attribute;
+entity relation_template,
+  owns emits_relation_type,
+  owns relation_template_id @key,
+  plays relation_template_assigns_role:owning_relation_template,
+  plays relation_template_emits_edge_attribute:owning_relation_template,
+  plays template_emits_relation:emitted_relation;
+entity role_assignment,
+  owns assigned_role_name,
+  plays relation_template_assigns_role:emitted_role_assignment,
+  plays role_assignment_filled_by:owning_role_assignment;
+entity role_filler @abstract,
+  plays role_assignment_filled_by:assignment_filler;
+entity emitted_norm_role_filler,
+  sub role_filler;
+entity static_lookup_role_filler,
+  sub role_filler,
+  owns lookup_attribute_name,
+  owns lookup_entity_type,
+  plays static_lookup_uses_value:owning_filler;
+entity produced_norm_role_filler,
+  sub role_filler,
+  plays produced_norm_filler_references_template:referencing_filler;
+entity condition_template,
+  owns condition_template_id @key,
+  owns target_operator,
+  owns target_topology,
+  plays atomic_condition_references_predicate:owning_condition_template,
+  plays condition_template_has_child:child_condition,
+  plays condition_template_has_child:parent_condition,
+  plays template_emits_root_condition:root_condition;
+entity predicate_specifier,
+  owns specifies_predicate_id,
+  plays atomic_condition_references_predicate:referenced_specifier,
+  plays predicate_specifier_uses_value:owning_specifier;
+entity defeater_template,
+  owns defeater_template_id @key,
+  owns defeater_template_label,
+  plays rule_produces_defeater_template:produced_template,
+  plays template_emits_attribute:emitting_template,
+  plays template_emits_relation:emitting_template,
+  plays template_emits_root_condition:emitting_template;
 relation provision_has_exclusion,
   sub provision_has_extracted_entity,
   relates exclusion as extracted,
@@ -2779,6 +2983,90 @@ relation event_provides_proceeds_to_norm,
   relates proceeds_target_norm,
   owns proceeds_flow_conditions,
   owns proceeds_flow_kind;
+relation rule_has_match_criterion,
+  relates applied_criterion,
+  relates owning_rule;
+relation criterion_group_has_member,
+  relates member_criterion,
+  relates parent_group;
+relation criterion_requires_linked_match,
+  relates linked_criterion,
+  relates parent_criterion;
+relation criterion_uses_comparison_value,
+  relates comparison_value_source,
+  relates owning_criterion;
+relation value_source_has_default,
+  relates default_source,
+  relates primary_source;
+relation concatenation_has_ordered_part,
+  relates concatenation_part,
+  relates owning_concatenation,
+  owns sequence_index;
+relation arithmetic_has_left_operand,
+  relates left_operand,
+  relates owning_expression;
+relation arithmetic_has_right_operand,
+  relates owning_expression,
+  relates right_operand;
+relation conditional_has_test,
+  relates owning_conditional,
+  relates test_value_source;
+relation conditional_has_then_branch,
+  relates owning_conditional,
+  relates then_value_source;
+relation conditional_has_else_branch,
+  relates else_value_source,
+  relates owning_conditional;
+relation rule_produces_norm_template,
+  relates owning_rule,
+  relates produced_template;
+relation template_emits_attribute,
+  relates emitted_attribute,
+  relates emitting_template;
+relation attribute_emission_uses_value,
+  relates owning_emission,
+  relates source_value;
+relation template_emits_relation,
+  relates emitted_relation,
+  relates emitting_template;
+relation relation_template_assigns_role,
+  relates emitted_role_assignment,
+  relates owning_relation_template;
+relation role_assignment_filled_by,
+  relates assignment_filler,
+  relates owning_role_assignment;
+relation static_lookup_uses_value,
+  relates lookup_value_source,
+  relates owning_filler;
+relation produced_norm_filler_references_template,
+  relates referenced_template,
+  relates referencing_filler;
+relation produced_norm_reference,
+  relates referenced_template,
+  relates referencing_source;
+relation relation_template_emits_edge_attribute,
+  relates emitted_edge_attribute,
+  relates owning_relation_template;
+relation template_emits_root_condition,
+  relates emitting_template,
+  relates root_condition;
+relation atomic_condition_references_predicate,
+  relates owning_condition_template,
+  relates referenced_specifier;
+relation predicate_specifier_uses_value,
+  relates dynamic_value_source,
+  relates owning_specifier;
+relation condition_template_has_child,
+  relates child_condition,
+  relates parent_condition,
+  owns child_template_index;
+relation rule_produces_defeater_template,
+  relates owning_rule,
+  relates produced_template;
+relation produced_by_rule,
+  relates owning_rule,
+  relates produced_entity,
+  relates triggering_v3_entity;
 fun predicate_holds($pred: state_predicate, $ws: event_instance) -> boolean:
     match
         $pred has state_predicate_label $pl;
