@@ -165,12 +165,31 @@ migrations cheaper as the schema evolves.
 
 ## Gate verdict
 
+### Initial (Commit 3) — 2026-04-28T14:12 UTC
+
 | Gate | Result | Status |
 |---|---|---|
 | Structural diff = zero | 6 only-python scope edges (general_rp_basket) | **fail** (localized cause + clear fix path) |
 | Benchmark ≤ 10× | 10.07–10.72× across 3 runs | **fail** (marginal; 0.07× over) |
 | Scope cliff inventory | 1 proceeds_flow only; clear decision pending | **documented** |
 | Harness baseline preserved | A1/A5/A6 pass; A4 counts match | **pass** |
+
+### After Commit 3.1 — 2026-04-28T14:35 UTC
+
+Commit 3.1 dropped the converter's `PILOT_SOURCE_TYPE` skip and authored
+`rule_conv_general_rp_basket` with full scope-edge / condition templates.
+The pilot rule (`rule_general_rp_basket`) was deleted from valence_v4
+via `cleanup_converted_rules`. Re-running parallel_run:
+
+| Gate | Result | Status |
+|---|---|---|
+| Structural diff = zero | 0 only_python / 0 only_rule_based across all 12 sections | **PASS** ✓ |
+| Benchmark ≤ 10× | 10.26× | **fail** (still marginal; 3.2 next) |
+| Scope cliff inventory | unchanged (1 proceeds_flow) | **documented** |
+| Harness baseline preserved | A1/A5/A6 pass; A4 missing=45 spurious=6 mismatched=0 | **pass** |
+
+Now only the benchmark gate remains. Commit 3.2 (executor transaction
+reuse) is next; 3.3 (orphan sweep) follows for hygiene.
 
 **Recommendation:** Do not start Commit 4 until both gates close.
 Commit 3.x patches in order:

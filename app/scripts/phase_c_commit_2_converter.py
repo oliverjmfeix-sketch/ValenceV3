@@ -21,13 +21,15 @@ Pre-flight:
     The converter will skip it (already authored) to avoid double-emission.
 
 Output:
-  - All 14 new projection_rules in valence_v4 (15 mappings minus pilot)
+  - All 15 new projection_rules in valence_v4 (Commit 3.1: pilot
+    rule retired; converter now authors rule_conv_general_rp_basket too)
   - Per-rule report: scalars matched / mismatched / missing
   - Aggregate report: rules-passing / rules-failing the parity check
   - Schema gaps flagged on rules whose scalar parity fails
 
 Idempotent: re-running drops all converted rules (norm_id prefix "conv_")
-and rebuilds. The pilot rule is preserved across runs.
+and rebuilds. Commit 3.1 retired the pilot rule; the converter now
+authors all 15 mappings including general_rp_basket.
 
 Usage:
   py -m app.scripts.phase_c_commit_2_converter --deal 6e76ed06
@@ -150,8 +152,8 @@ def temporal_for(kind: str) -> tuple[str, str]:
 # Norm_id prefix for converter-emitted norms (collision avoidance vs python projection)
 NORM_ID_PREFIX = "conv_"
 
-# Pilot rule's source_entity_type — skipped during conversion
-PILOT_SOURCE_TYPE = "general_rp_basket"
+# (Pilot retired in Commit 3.1; converter authors rule_conv_general_rp_basket
+# directly via the standard mapping flow.)
 
 # Concrete subtypes of instrument_class. Object labels in this set are
 # scoped via norm_scopes_instrument; all others via norm_scopes_object.
@@ -1035,13 +1037,20 @@ def generate_builder_sub_source_rule_tql(spec: tuple, child_index: int) -> str:
 
 
 def cleanup_converted_rules(driver, db: str) -> None:
-    """Remove all converter-emitted rules + emitted norms (norm_id prefix
-    NORM_ID_PREFIX). Pilot rule (rule_general_rp_basket) is preserved."""
+    """Remove converter-emitted rules + emitted norms (norm_id prefix
+    NORM_ID_PREFIX). Commit 3.1: also deletes the retired pilot rule
+    (rule_general_rp_basket) and its pilot_*-prefixed output if any
+    is left over from prior pilot script runs.
+    """
     queries = [
         # Delete converter-emitted norms
         f'match $n isa norm, has norm_id $nid; $nid like "{NORM_ID_PREFIX}.*"; delete $n;',
+        # Delete pilot output (Commit 3.1 retirement; no-op once cleared)
+        'match $n isa norm, has norm_id $nid; $nid like "pilot_.*"; delete $n;',
         # Delete converter-emitted projection_rules (id prefix "rule_conv_")
         'match $r isa projection_rule, has projection_rule_id $rid; $rid like "rule_conv_.*"; delete $r;',
+        # Delete the retired pilot rule (Commit 3.1)
+        'match $r isa projection_rule, has projection_rule_id "rule_general_rp_basket"; delete $r;',
         # Delete converter-emitted norm_templates (id prefix "nt_conv_")
         'match $t isa norm_template, has norm_template_id $tid; $tid like "nt_conv_.*"; delete $t;',
         # Delete converter-emitted relation_templates (id prefix "rt_conv_")
@@ -1054,19 +1063,12 @@ def cleanup_converted_rules(driver, db: str) -> None:
         'match $d isa defeater, has defeater_id $did; $did like "conv_.*"; delete $d;',
         # Delete converter-emitted defeater_templates (id prefix "dt_conv_")
         'match $dt isa defeater_template, has defeater_template_id $tid; $tid like "dt_conv_.*"; delete $dt;',
-        # Delete orphan role_assignments / role_fillers / attribute_emissions / value_sources / match_criteria
-        # All such entities are only created by rule authoring; the pilot rule's
-        # entities are linked to the retained pilot projection_rule, but the executor
-        # walks from rule -> templates -> emissions, so orphans are unreachable.
-        # However, sweep-deleting orphans is dangerous if pilot is also retained.
-        # For now we only sweep entity types whose @key is namespaced by "conv_"
-        # or where the entity itself can be matched orphan-style by parents.
-        #
         # Orphan attribute_emission/value_source/match_criterion/role_assignment/
-        # role_filler entities accumulate. They don't break correctness (executor
-        # walks from rule each run; templates are recreated with fresh iids each
-        # rule load). Sweeping them safely requires knowing which ones belong to
-        # the pilot rule vs orphans — deferred.
+        # role_filler entities accumulate across re-runs. Not load-bearing for
+        # rule execution (the executor walks top-down from rules; orphans have
+        # no inbound from any current rule). Hygiene sweep planned as Commit
+        # 3.3 — see docs/v4_phase_c_commit_3/README.md for the planned
+        # transitive-reachability sweep.
     ]
     for q in queries:
         wtx = driver.transaction(db, TransactionType.WRITE)
@@ -1081,20 +1083,10 @@ def cleanup_converted_rules(driver, db: str) -> None:
         except Exception:
             pass
 
-    # Orphaned attribute_emissions / value_sources / match_criteria from
-    # converter rules are harder to target precisely (no shared @key).
-    # Pragmatic: delete ALL such entities EXCEPT those tied to the pilot
-    # rule. Implementation: walk from each non-pilot projection_rule (none
-    # remain after the delete above), so any orphan ae/vs/crit must be from
-    # converter cleanup that didn't fully cascade. Sweep-delete is safe
-    # while pilot is the only retained rule, since attribute_emissions/
-    # value_sources/match_criteria are only created by rule authoring; the
-    # pilot rule's are linked to its retained projection_rule.
-    #
-    # ACTUALLY: pilot rule's emissions/sources/criteria are still in the
-    # graph and needed. We must NOT sweep-delete them. Skip orphan cleanup
-    # for now — orphans accumulate across re-runs but don't affect
-    # correctness (executor reads emissions per-rule via template walks).
+    # Orphan emissions / value_sources / criteria / role_assignments / fillers
+    # from prior converter runs accumulate. See docs/v4_phase_c_commit_3/
+    # README.md "Aside — orphan accumulation" for sizing. Not load-bearing
+    # for correctness or benchmark. Hygiene sweep planned as Commit 3.3.
 
 
 def apply_rule_tql(driver, db: str, tql: str, mapping_id: str) -> bool:
@@ -1174,12 +1166,13 @@ def main() -> int:
         mappings = load_mappings(driver, db)
         logger.info(f"loaded {len(mappings)} deontic_mappings")
 
-        # Skip the pilot's source entity type to avoid re-authoring
-        to_convert = [m for m in mappings if m["source_entity_type"] != PILOT_SOURCE_TYPE]
-        logger.info(
-            f"converting {len(to_convert)} mappings (skipping pilot's "
-            f"{PILOT_SOURCE_TYPE})"
-        )
+        # Commit 3.1: pilot retired; converter now authors all mappings
+        # including general_rp_basket (rule_conv_general_rp_basket replaces
+        # rule_general_rp_basket). The pilot's residual subgraph in
+        # valence_v4 should be deleted before the first post-3.1 converter
+        # run; subsequent runs are unaffected.
+        to_convert = list(mappings)
+        logger.info(f"converting {len(to_convert)} mappings (no skip post-3.1)")
 
         if args.dry_run:
             logger.info("--dry-run: printing TQL for each mapping; no DB writes")
