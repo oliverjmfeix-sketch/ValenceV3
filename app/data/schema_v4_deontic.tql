@@ -1104,6 +1104,10 @@ norm plays produced_by_rule:produced_entity;
 defeater plays produced_by_rule:produced_entity;
 condition plays produced_by_rule:produced_entity;
 projection_rule plays produced_by_rule:owning_rule;
-# triggering_v3_entity is filled by whichever v3 entity triggered the rule;
-# concrete v3 entity types add `plays produced_by_rule:triggering_v3_entity`
-# in their own type declarations (added in Commit 1.5+ as rules are authored).
+
+# Phase C Commit 2.5 — v3 entity types that play triggering_v3_entity.
+# Declared on abstract parents so all subtypes inherit.
+rp_basket plays produced_by_rule:triggering_v3_entity;
+rdp_basket plays produced_by_rule:triggering_v3_entity;
+jcrew_blocker plays produced_by_rule:triggering_v3_entity;
+blocker_exception plays produced_by_rule:triggering_v3_entity;

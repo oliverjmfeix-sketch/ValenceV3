@@ -1448,6 +1448,7 @@ entity rp_basket @abstract,
   owns source_text,
   plays basket_reallocates_to:source_basket,
   plays basket_reallocates_to:target_basket,
+  plays produced_by_rule:triggering_v3_entity,
   plays provision_has_basket:basket,
   plays shares_capacity_pool:pool_member;
 entity builder_basket,
@@ -1646,6 +1647,7 @@ entity jcrew_blocker,
   plays blocker_has_exception:blocker,
   plays has_amendment_threshold:entity_with_threshold,
   plays norm_extracted_from:fact,
+  plays produced_by_rule:triggering_v3_entity,
   plays provision_has_blocker:blocker;
 entity blocker_exception @abstract,
   owns confidence,
@@ -1655,7 +1657,8 @@ entity blocker_exception @abstract,
   owns section_reference,
   owns source_page,
   owns source_text,
-  plays blocker_has_exception:exception;
+  plays blocker_has_exception:exception,
+  plays produced_by_rule:triggering_v3_entity;
 entity nonexclusive_license_exception,
   sub blocker_exception;
 entity intercompany_exception,
@@ -1736,6 +1739,7 @@ entity rdp_basket @abstract,
   owns source_text,
   plays basket_reallocates_to:source_basket,
   plays basket_reallocates_to:target_basket,
+  plays produced_by_rule:triggering_v3_entity,
   plays provision_has_rdp_basket:rdp_basket;
 entity refinancing_rdp_basket,
   sub rdp_basket,

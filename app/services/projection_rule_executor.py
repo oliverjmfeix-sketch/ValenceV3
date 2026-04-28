@@ -59,6 +59,7 @@ class ExecutionReport:
     norms_emitted: int = 0
     relations_emitted: int = 0
     conditions_emitted: int = 0
+    provenance_emitted: int = 0
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -484,7 +485,10 @@ def fetch_v3_entity_attrs(driver, db_name: str, entity_type: str, deal_id: str) 
                     attr_label = attr.get_type().get_label()
                     attr_value = attr.get_value()
                     if bid not in entity_attrs:
-                        entity_attrs[bid] = {"_iid": bid}
+                        entity_attrs[bid] = {
+                            "_iid": bid,
+                            "_type": row.get("b").get_type().get_label(),
+                        }
                     entity_attrs[bid][attr_label] = attr_value
             except Exception as exc:
                 logger.debug(f"fetch_v3 collect: {str(exc).splitlines()[0][:80]}")
@@ -939,6 +943,49 @@ def emit_condition_subtree(driver, db_name: str, ct_iid: str,
     return cond_id
 
 
+def emit_provenance(driver, db_name: str, rule_id: str,
+                     emitted_entity_type: str, emitted_id_attr: str,
+                     emitted_entity_id: str, v3_entity_iid: str,
+                     v3_entity_type: str,
+                     report: ExecutionReport) -> bool:
+    """Emit a produced_by_rule edge linking the just-emitted v4 entity
+    to the projection_rule and the v3 entity that triggered the match.
+
+    Per Phase C design §C.8: every emitted v4 entity gets a provenance
+    edge for audit. Query: 'why does this norm have this kind?' becomes
+    a graph walk from the entity's produced_by_rule edge.
+    """
+    if not v3_entity_iid or not v3_entity_type:
+        return False
+    # Type constraint on $v required so TypeDB type-inference narrows it
+    # to a type that plays produced_by_rule:triggering_v3_entity. iid
+    # alone doesn't constrain the type at compile time.
+    q = (
+        f'match\n'
+        f'    $e isa {emitted_entity_type}, has {emitted_id_attr} "{emitted_entity_id}";\n'
+        f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
+        f'    $v isa {v3_entity_type}, iid {v3_entity_iid};\n'
+        f'insert (produced_entity: $e, owning_rule: $r, triggering_v3_entity: $v)\n'
+        f'    isa produced_by_rule;\n'
+    )
+    wtx = driver.transaction(db_name, TransactionType.WRITE)
+    try:
+        try:
+            wtx.query(q).resolve()
+            wtx.commit()
+            report.provenance_emitted += 1
+            return True
+        except Exception as exc:
+            if wtx.is_open():
+                wtx.close()
+            report.warnings.append(
+                f"provenance edge for {emitted_entity_id}: {str(exc).splitlines()[0][:120]}"
+            )
+            return False
+    except Exception:
+        return False
+
+
 def emit_root_condition(driver, db_name: str, rule_id: str, emitted_norm_id: str,
                          ctx: ExecutorContext, report: ExecutionReport) -> bool:
     """Walk template_emits_root_condition for the rule and emit the
@@ -1202,6 +1249,15 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
                 if template_kind == "norm_template":
                     emit_root_condition(
                         driver, db_name, rule_id, resolved[id_attr], ctx, report,
+                    )
+                # Emit provenance edge linking emitted entity to rule + v3 source
+                v3_iid = v3_attrs.get("_iid")
+                v3_type = v3_attrs.get("_type")
+                if v3_iid and v3_type:
+                    emit_provenance(
+                        driver, db_name, rule_id,
+                        entity_type_emit, id_attr, resolved[id_attr],
+                        v3_iid, v3_type, report,
                     )
 
     return report
