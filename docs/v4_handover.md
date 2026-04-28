@@ -6,9 +6,12 @@ to read 50+ commits to pick up.
 
 ## Where we are (as of 2026-04-24, post-Phase-A norm-id rename)
 
-**Branch:** `v4-deontic` (local-only, never pushed). Running in worktree
-`C:\Users\olive\ValenceV3\.claude\worktrees\sweet-raman-b5be00` on the
-source machine. **HEAD: `c9ca2df`** plus this handover-update commit.
+**Branch:** `v4-deontic`, mirrored to `origin/v4-deontic` since 2026-04-28
+(loosened from prior "local-only" constraint to enable code review and
+project-knowledge sourcing). Running in worktree
+`C:\Users\olive\ValenceV3\.claude\worktrees\v4-deontic` on the source
+machine. **HEAD: `66044fa`** (Phase B Commit 4 — object scope + verification)
+plus this handover-update commit.
 
 **Pilot state:** all 13 prompts complete. Most recent multi-commit phase
 was Phase A (norm-id rename) which landed 4 commits on top of the pilot
@@ -233,28 +236,41 @@ The snapshot captures only the irreplaceable v3 extraction (deal,
 provision, baskets, blocker, exceptions, sweep_tiers, pathways, and
 all relations wiring them). Projection output regenerates from it.
 
-## Cross-machine continuity (this session's transfer)
+## Cross-machine continuity
 
-**Bundle file in main:** `transfers/v4-deontic_2026-04-24/v4-deontic_20260424_c9ca2df.bundle`
-plus `RESUME.md` with full restoration steps. Commit `7126e99` on
-main pushed to origin.
+### Primary path (since 2026-04-28): clone via origin
 
-To resume on the other machine after `git pull origin main`:
 ```bash
-git fetch transfers/v4-deontic_2026-04-24/v4-deontic_20260424_c9ca2df.bundle v4-deontic:v4-deontic
+git clone https://github.com/oliverjmfeix-sketch/ValenceV3.git
+cd ValenceV3
+git fetch origin v4-deontic
 git switch v4-deontic
 git log --oneline -3   # should show this handover-update commit at HEAD
 ```
 
-Bring across separately (NOT in bundle, NOT in main):
+### Fallback path (no network access): bundle on main
+
+The bundle in `transfers/v4-deontic_2026-04-24/` is the original Phase-A
+transport. **Stale relative to origin/v4-deontic** as of Phase B (4
+commits beyond bundle HEAD). Refresh the bundle before relying on this
+path:
+
+```bash
+git -C ValenceV3 bundle create transfers/v4-deontic_<date>/v4-deontic_<date>_<sha>.bundle v4-deontic
+# commit + push to main; document on receiving machine via RESUME.md
+git fetch transfers/v4-deontic_<date>/v4-deontic_<date>_<sha>.bundle v4-deontic:v4-deontic
+git switch v4-deontic
+```
+
+Bring across separately (NOT in repo, NOT in bundle):
 - `.env` from `C:/Users/olive/ValenceV3/.env` — TypeDB + Anthropic creds
 - Duck Creek PDF if not already on the other machine's OneDrive
 
 ## How to start a new session
 
-1. `cd "C:/Users/olive/ValenceV3/.claude/worktrees/sweet-raman-b5be00"`
-   on the source machine, OR follow the cross-machine restore above
-   if on a fresh box.
+1. `cd "C:/Users/olive/ValenceV3/.claude/worktrees/v4-deontic"` on the
+   source machine, OR follow the cross-machine restore above if on a
+   fresh box.
 2. `git status` to confirm clean working tree on `v4-deontic`
 3. `git log --oneline -5` to confirm latest commits
 4. Read [docs/v4_foundational_rules.md](v4_foundational_rules.md) —
@@ -274,8 +290,10 @@ Bring across separately (NOT in bundle, NOT in main):
 - **No re-extraction.** `valence_v4` extraction is a $12.95 artifact.
 - **TypeDB Cloud only.** `ip654h-0.cluster.typedb.com:80`. `.env` at
   `C:/Users/olive/ValenceV3/.env`.
-- **Branch is local-only on remote.** Bundle in main is the transport;
-  no `refs/heads/v4-deontic` on origin.
+- **Branch lives on `origin/v4-deontic`** (since 2026-04-28). Push freely.
+  **Do NOT merge into `main`** — Railway auto-deploys from main and the
+  v4 schema/code is pre-production. The bundle in `transfers/` on main
+  remains as a no-network-access fallback only.
 - **`py -3.12`** required (not system `py`) — typedb-driver needs
   Python 3.12 on Windows.
 - **Before any TypeQL/TypeDB Python work**, read `typedb-patterns.md`
