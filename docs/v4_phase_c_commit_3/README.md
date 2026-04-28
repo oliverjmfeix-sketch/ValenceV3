@@ -147,13 +147,21 @@ top-down from rules → templates → emissions; orphans have no inbound
 from any current rule). So orphans do not affect the benchmark
 numbers in this script.
 
-**Follow-up patch recommendation (out of scope for Commit 3):** extend
-`cleanup_converted_rules` with a transitive sweep — walk reachable
-entities from each remaining rule, collect their iids, delete
-attribute_emission / value_source / role_assignment / role_filler /
-match_criterion / predicate_specifier instances NOT in the reachable
-set. Should run as the final step of converter cleanup so each
-re-run leaves a clean state.
+**Planned as Commit 3.3** — extend `cleanup_converted_rules` with a
+transitive sweep. Walk reachable entities from each remaining
+projection_rule (top-down via the relations the executor uses), collect
+their iids, then delete `attribute_emission` / `value_source` /
+`role_assignment` / `role_filler` / `match_criterion` /
+`predicate_specifier` instances NOT in the reachable set. Critical:
+walk from EVERY remaining `projection_rule` (including pilot), not just
+`rule_conv_*`, so pilot-rule subgraphs are preserved. Run as the final
+step of converter cleanup so each re-run leaves a clean state.
+
+Not load-bearing for correctness or benchmark — orphans have no inbound
+edge from any current rule, so the executor never traverses them. Worth
+landing for audit clarity (`select all attribute_emission` returns the
+expected ~360 instead of the bloated ~3556) and to make schema
+migrations cheaper as the schema evolves.
 
 ## Gate verdict
 
@@ -166,10 +174,19 @@ re-run leaves a clean state.
 
 **Recommendation:** Do not start Commit 4 until both gates close.
 Commit 3.x patches in order:
-1. Drop `PILOT_SOURCE_TYPE` skip; converter authors
-   `rule_conv_general_rp_basket` with full scope-edge templates.
+
+1. **Commit 3.1 — drop `PILOT_SOURCE_TYPE` skip.** Converter authors
+   `rule_conv_general_rp_basket` with full scope-edge / condition
+   templates. Retire the pilot rule (or keep as Commit 1.5 archive).
    Re-run parallel_run; expect zero structural diff.
-2. Try executor transaction-reuse denormalization (Option 3 above);
-   re-run parallel_run; if ratio drops below 10×, gate closes.
-3. If denormalization not enough, add `compiled_match_query` attribute
-   path (Option 1).
+2. **Commit 3.2 — executor transaction-reuse denormalization.**
+   Cheapest path: open one long-lived READ transaction per rule's full
+   attribute resolution instead of per `_read_attr_value` call. Re-run
+   parallel_run; if benchmark drops below 10×, gate closes. If not, add
+   `compiled_match_query` attribute on `projection_rule` to skip the
+   per-execution match_criterion subgraph walk.
+3. **Commit 3.3 — orphan sweep in converter cleanup.** Hygiene patch
+   to `cleanup_converted_rules` (see "Aside — orphan accumulation"
+   above). Not load-bearing for correctness or benchmark, but worth
+   landing before Commit 4 so the audit baseline going forward
+   reflects only live entities.
