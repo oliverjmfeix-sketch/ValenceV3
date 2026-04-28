@@ -188,8 +188,34 @@ via `cleanup_converted_rules`. Re-running parallel_run:
 | Scope cliff inventory | unchanged (1 proceeds_flow) | **documented** |
 | Harness baseline preserved | A1/A5/A6 pass; A4 missing=45 spurious=6 mismatched=0 | **pass** |
 
-Now only the benchmark gate remains. Commit 3.2 (executor transaction
-reuse) is next; 3.3 (orphan sweep) follows for hygiene.
+### After Commit 3.2 — 2026-04-28T14:53 UTC
+
+Commit 3.2 added a single shared READ transaction across the per-match
+attribute resolution loop in `execute_rule`. `resolve_value_source`,
+`_read_attr_value`, `_resolve_default_fallback`, and
+`_resolve_concatenation` now accept an optional `tx` parameter; nested
+recursive calls share the same transaction. Reduces TypeDB roundtrips
+from ~50 per match to ~1 per match for the value-resolution phase.
+
+Three timed runs:
+
+| Run | python | rule-based | ratio |
+|---|---:|---:|---:|
+| 1 | 20.65s | 171.23s | 8.29× |
+| 2 | 20.91s | 167.00s | 7.99× |
+| 3 | 21.38s | 185.72s | 8.69× |
+
+Average ≈ 8.32×. Comfortably under the 10× gate.
+
+| Gate | Result | Status |
+|---|---|---|
+| Structural diff = zero | unchanged (zero across all sections) | **PASS** ✓ |
+| Benchmark ≤ 10× | 7.99–8.69× across 3 runs | **PASS** ✓ |
+| Scope cliff inventory | unchanged (1 proceeds_flow) | **documented** |
+| Harness baseline preserved | A1/A5/A6 pass; A4 counts unchanged | **pass** |
+
+Both blocking gates now closed. Commit 3.3 (orphan sweep) is the
+remaining hygiene patch before Commit 4.
 
 **Recommendation:** Do not start Commit 4 until both gates close.
 Commit 3.x patches in order:

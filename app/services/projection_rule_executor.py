@@ -90,6 +90,34 @@ def _attr_or_none(row, key: str):
     return concept.as_attribute().get_value()
 
 
+# Commit 3.2 — transaction-reuse helper. Most read functions open their
+# own tx by default, but accept an optional `tx` parameter to reuse a
+# caller's long-lived READ transaction. Significantly reduces tx setup
+# overhead during execute_rule's hot path (~60 reads per rule).
+
+def _open_read(driver, db_name: str, tx=None):
+    """Return (tx, owns_tx). owns_tx is True when the caller should close
+    the tx (we created it); False when reusing a caller-supplied tx.
+    """
+    if tx is not None:
+        try:
+            if tx.is_open():
+                return tx, False
+        except Exception:
+            pass
+    return driver.transaction(db_name, TransactionType.READ), True
+
+
+def _close_if_owned(tx, owns_tx: bool):
+    if not owns_tx or tx is None:
+        return
+    try:
+        if tx.is_open():
+            tx.close()
+    except Exception:
+        pass
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Rule + value-source resolution
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -309,19 +337,23 @@ def load_attribute_emissions(driver, db_name: str, rule_id: str,
     return pairs
 
 
-def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext) -> Any:
+def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext,
+                          tx=None) -> Any:
     """Walk a value_source subgraph and produce a Python value.
 
     Dispatched on the value_source's concrete type. Recursive for
     composition (concatenation, arithmetic, conditional).
+
+    Accepts an optional `tx` (Commit 3.2): a caller-supplied READ
+    transaction reused across many reads. When None, opens its own.
     """
-    tx = driver.transaction(db_name, TransactionType.READ)
+    rtx, owns = _open_read(driver, db_name, tx)
     try:
         # Identify the concrete type. Use isa! for exact-type match (avoids
         # the polymorphic default which would return abstract parents).
         q = f'match $vs iid {vs_iid}, isa! $type; select $type;'
         try:
-            result = tx.query(q).resolve()
+            result = rtx.query(q).resolve()
             row = next(iter(result.as_concept_rows()), None)
             if row is None:
                 return None
@@ -330,34 +362,30 @@ def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext
             logger.warning(f"resolve: type lookup for {vs_iid} failed: {str(exc).splitlines()[0][:100]}")
             return None
     finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
+        _close_if_owned(rtx, owns)
 
-    # Dispatch
+    # Dispatch — pass tx down so nested reads share the same transaction
     if type_label == "literal_string_value_source":
-        return _read_attr_value(driver, db_name, vs_iid, "literal_string_value")
+        return _read_attr_value(driver, db_name, vs_iid, "literal_string_value", tx=tx)
     if type_label == "literal_double_value_source":
-        return _read_attr_value(driver, db_name, vs_iid, "literal_double_value")
+        return _read_attr_value(driver, db_name, vs_iid, "literal_double_value", tx=tx)
     if type_label == "literal_long_value_source":
-        return _read_attr_value(driver, db_name, vs_iid, "literal_long_value")
+        return _read_attr_value(driver, db_name, vs_iid, "literal_long_value", tx=tx)
     if type_label == "literal_boolean_value_source":
-        return _read_attr_value(driver, db_name, vs_iid, "literal_boolean_value")
+        return _read_attr_value(driver, db_name, vs_iid, "literal_boolean_value", tx=tx)
     if type_label == "deal_id_value_source":
         return ctx.deal_id
     if type_label == "v3_attribute_value_source":
-        attr_name = _read_attr_value(driver, db_name, vs_iid, "reads_v3_attribute_name")
+        attr_name = _read_attr_value(driver, db_name, vs_iid, "reads_v3_attribute_name", tx=tx)
         if attr_name is None:
             return None
         v = ctx.v3_attrs.get(attr_name)
         if v is not None:
             return v
         # Fallback: walk value_source_has_default if present
-        return _resolve_default_fallback(driver, db_name, vs_iid, ctx)
+        return _resolve_default_fallback(driver, db_name, vs_iid, ctx, tx=tx)
     if type_label == "concatenation_value_source":
-        return _resolve_concatenation(driver, db_name, vs_iid, ctx)
+        return _resolve_concatenation(driver, db_name, vs_iid, ctx, tx=tx)
     if type_label in (
         "arithmetic_value_source",
         "conditional_value_source",
@@ -370,29 +398,26 @@ def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext
     raise ValueError(f"unknown value_source type: {type_label}")
 
 
-def _read_attr_value(driver, db_name: str, owner_iid: str, attr_name: str):
-    tx = driver.transaction(db_name, TransactionType.READ)
+def _read_attr_value(driver, db_name: str, owner_iid: str, attr_name: str, tx=None):
+    rtx, owns = _open_read(driver, db_name, tx)
     try:
         q = f'match $x iid {owner_iid}, has {attr_name} $v; select $v;'
         try:
-            result = tx.query(q).resolve()
+            result = rtx.query(q).resolve()
             for row in result.as_concept_rows():
                 return row.get("v").as_attribute().get_value()
         except Exception:
             return None
     finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
+        _close_if_owned(rtx, owns)
     return None
 
 
-def _resolve_default_fallback(driver, db_name: str, vs_iid: str, ctx: ExecutorContext) -> Any:
+def _resolve_default_fallback(driver, db_name: str, vs_iid: str, ctx: ExecutorContext,
+                                tx=None) -> Any:
     """If a v3_attribute_value_source has a value_source_has_default edge,
     resolve the default value source. Returns None if no default is wired."""
-    tx = driver.transaction(db_name, TransactionType.READ)
+    rtx, owns = _open_read(driver, db_name, tx)
     try:
         q = (
             f'match\n'
@@ -401,7 +426,7 @@ def _resolve_default_fallback(driver, db_name: str, vs_iid: str, ctx: ExecutorCo
             f'select $default;\n'
         )
         try:
-            result = tx.query(q).resolve()
+            result = rtx.query(q).resolve()
             row = next(iter(result.as_concept_rows()), None)
             if row is None:
                 return None
@@ -409,19 +434,16 @@ def _resolve_default_fallback(driver, db_name: str, vs_iid: str, ctx: ExecutorCo
         except Exception:
             return None
     finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
-    return resolve_value_source(driver, db_name, default_iid, ctx)
+        _close_if_owned(rtx, owns)
+    return resolve_value_source(driver, db_name, default_iid, ctx, tx=tx)
 
 
-def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorContext) -> str:
+def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorContext,
+                            tx=None) -> str:
     """Walk concatenation_has_ordered_part edges in sequence_index order
     and concatenate resolved parts."""
     parts: list[tuple[int, str]] = []
-    tx = driver.transaction(db_name, TransactionType.READ)
+    rtx, owns = _open_read(driver, db_name, tx)
     try:
         q = (
             f'match\n'
@@ -431,7 +453,7 @@ def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorConte
             f'select $p, $idx;\n'
         )
         try:
-            result = tx.query(q).resolve()
+            result = rtx.query(q).resolve()
             for row in result.as_concept_rows():
                 idx = row.get("idx").as_attribute().get_value()
                 part_iid = row.get("p").get_iid()
@@ -440,16 +462,12 @@ def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorConte
             logger.warning(f"resolve_concat for {vs_iid} failed: {str(exc).splitlines()[0][:120]}")
             return ""
     finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
+        _close_if_owned(rtx, owns)
 
     parts.sort(key=lambda t: t[0])
     resolved = []
     for _, part_iid in parts:
-        part_value = resolve_value_source(driver, db_name, part_iid, ctx)
+        part_value = resolve_value_source(driver, db_name, part_iid, ctx, tx=tx)
         if part_value is None:
             resolved.append("")
         else:
@@ -1221,18 +1239,32 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
         return report
     logger.info(f"rule {rule_id}: {len(emissions)} {entity_type_emit} attribute emissions")
 
+    # Commit 3.2 — open one long-lived READ tx for the per-match attribute
+    # resolution loop. Reused across resolve_value_source / _read_attr_value /
+    # nested concatenation/default-fallback walks. Reduces tx setup overhead
+    # from ~50/match to ~1/match.
     for v3_attrs in matches:
         ctx = ExecutorContext(deal_id=deal_id, v3_attrs=v3_attrs)
         resolved: dict[str, Any] = {}
-        for attr_name, vs_iid in emissions:
+        shared_rtx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            for attr_name, vs_iid in emissions:
+                try:
+                    resolved[attr_name] = resolve_value_source(
+                        driver, db_name, vs_iid, ctx, tx=shared_rtx,
+                    )
+                except NotImplementedError as exc:
+                    report.errors.append(f"resolve {attr_name}: {exc}")
+                    resolved[attr_name] = None
+                except Exception as exc:
+                    report.warnings.append(f"resolve {attr_name}: {str(exc).splitlines()[0][:120]}")
+                    resolved[attr_name] = None
+        finally:
             try:
-                resolved[attr_name] = resolve_value_source(driver, db_name, vs_iid, ctx)
-            except NotImplementedError as exc:
-                report.errors.append(f"resolve {attr_name}: {exc}")
-                resolved[attr_name] = None
-            except Exception as exc:
-                report.warnings.append(f"resolve {attr_name}: {str(exc).splitlines()[0][:120]}")
-                resolved[attr_name] = None
+                if shared_rtx.is_open():
+                    shared_rtx.close()
+            except Exception:
+                pass
 
         if emit_entity(driver, db_name, entity_type_emit, id_attr, resolved, dry_run=dry_run):
             report.norms_emitted += 1
