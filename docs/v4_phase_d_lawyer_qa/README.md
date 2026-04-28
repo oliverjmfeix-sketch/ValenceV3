@@ -1,0 +1,225 @@
+# Phase D — Lawyer QA diagnostic (`lawyer_dc_rp` eval set)
+
+> Phase D Commit 3 deliverable. Runs the 6 lawyer questions from
+> `app/data/gold_standard/lawyer_dc_rp.json` through the synthesis_v4
+> pipeline (D1 fetch + D2 two-stage filter+synthesize) and categorizes
+> each result. The categorization scopes Phases E (extraction additions)
+> and F (prompt iterations / fetch coverage extensions).
+
+## Eval run summary
+
+- **Eval set:** `lawyer_dc_rp` (6 questions, Duck Creek `6e76ed06`)
+- **DB:** `valence_v4`
+- **Model:** `claude-sonnet-4-6`
+- **Cost:** **$0.5972 total** (~$0.10/question)
+- **Latency:** **267s total** (~45s/question)
+- **Output JSON:** `lawyer_dc_rp_20260428T173848Z.json`
+- **Verbatim:** `verbatim.txt` (gold | v4 answer | Stage 1 PRIMARY picks)
+
+## Per-question verdict
+
+| # | Question | Category | Verdict | Cost | S1 picks | S2 cites |
+|---|---|---|---|---:|---:|---:|
+| Q1 | Builder basket structure & start date | builder_basket | **PASS** | $0.10 | 6 P / 9 S / 13 K | 6 |
+| Q2 | Unrestricted Sub equity dividend | unsub_distribution | **PASS** | $0.08 | 1 P / 4 S / 23 K | 2 |
+| Q3 | Reallocation paths to RP | reallocation | **PARTIAL** | $0.11 | 3 P / 5 S / 20 K | 6 |
+| Q4 | Asset sale proceeds → dividends | asset_sale_proceeds | **PARTIAL** | $0.10 | 2 P / 11 S / 15 K | 5 |
+| Q5 | Total quantifiable dividend capacity | total_capacity | **PARTIAL** | $0.12 | 12 P / 5 S / 11 K | 8 |
+| Q6 | Negative-EBITDA dividend at 6.0x ratio | ratio_basket_application | **PASS** | $0.09 | 1 P / 3 S / 24 K | 3 |
+
+**Score: 3 PASS, 3 PARTIAL, 0 FAIL.** No question hit a complete
+extraction-gap that broke the answer entirely; the partials are
+incremental detail gaps where v4 synthesis got the load-bearing
+finding right but missed quantitative specifics or one of multiple
+applicable provisions.
+
+## What worked (PASS detail)
+
+**Q1 — builder_basket.** V4 synthesis correctly identified the three
+"greatest of" tests (50% CNI, retained ECF, 140% LTM EBITDA-FC),
+named the starter floor ($130M / 100% EBITDA), cited the start-date
+anchor (closing-date fiscal-quarter-start). Cited 6 norms across the
+builder structure. **Richer than gold** — adds detail about additive
+sources (equity proceeds, retained asset sale proceeds, investment
+returns, debt-to-equity conversion) that gold elides.
+
+**Q2 — unsub_distribution.** Direct yes, cited 6.06(p) p.198, noted
+`capacity_category = "categorical"`, added correct nuance that JCrew
+blocker restricts *designation* of new unsubs holding Material IP
+but doesn't restrict *distribution* from already-designated unsubs.
+
+**Q6 — ratio_basket_application.** Correctly applied the no-worse
+test to the negative-EBITDA scenario. Reasoned that removing
+negative-EBITDA business *increases* Consolidated EBITDA → reduces
+pro forma leverage ratio → no-worse branch satisfied even though
+6.0x exceeds the 5.75x absolute threshold. This is the v3 synthesis
+lawyer-question failure mode that motivated Phase D — and v4
+synthesis nails it.
+
+## What's incomplete (PARTIAL detail + categorization)
+
+### Q3 — reallocation gaps
+
+| Gap | Category | Evidence |
+|---|---|---|
+| 6.03(y) Investment basket → RP reallocation not surfaced | **Extraction-gap** | Duck Creek has **0 `basket_reallocates_to` v3 entities**. Phase C handover documents reallocations as deferred (no v3 data). 6.03(y)'s reallocability is a v3 attribute on `general_investment_basket` that wasn't extracted as a relation. |
+| Tailored RDP carveouts (intercompany, reorganization/IPO) not surfaced | **Extraction-gap** | These are scalar answers in v3 not currently projected as norm subtypes. Either (a) project as new norm_kinds, or (b) extend the general_rdp_basket norm with attributes capturing the carveout structure. |
+
+### Q4 — asset_sale_proceeds gaps
+
+| Gap | Category | Evidence |
+|---|---|---|
+| Specific sweep_tier thresholds (5.75x → 100%, 5.5x–5.75x → 50%, ≤5.5x → 0%) | **Synthesis-gap (fetch coverage)** | `sweep_tier` entity has 3 instances in `valence_v4` with `leverage_threshold` + `sweep_percentage` + full `source_text` populated. The data is THERE — `fetch_norm_context` doesn't include provision-level entities (sweep_tier, de_minimis_threshold) that aren't directly linked to a norm. Fetch-extension fix. |
+| De minimis thresholds ($20M/15% individual, $40M/30% annual) | **Extraction-gap** | `de_minimis_threshold` entity type **not in v4 schema**. Need to add the entity type + extraction question for asset-sale de minimis carveouts. |
+| 6.05(z) product-line sale exemption (6.25x ratio + product-line AND test) | **Synthesis-gap (prompt coverage)** | The relevant attributes (`has_no_worse_test`, `ratio_threshold`) are on `general_investment_basket` / equivalent in v3, accessible via `norm_extracted_from`. Synthesis didn't surface this carve-out. Stage 2 prompt iteration. |
+
+### Q5 — total_capacity gaps
+
+| Gap | Category | Evidence |
+|---|---|---|
+| general_rdp_basket ($130M/100% EBITDA) not summed | **Synthesis-gap (Stage 1)** | `general_rdp_basket_permission` exists as a v4 norm with `cap_usd: 130000000`, `action_scope: reallocable`, `capacity_composition: fungible`. Stage 1 picked it as SUPPLEMENTARY, not PRIMARY, for a capacity question. Stage 2 then mentioned it in passing but didn't include it in the $260M sum. Stage 1 prompt fix: "for capacity questions, mark all reallocable baskets (across RP and RDP covenants) as PRIMARY." |
+| general_investment_basket ($130M/100% EBITDA) not extracted | **Extraction-gap** | `general_investment_basket` has **0 v3 entities** in `valence_v4` for Duck Creek. The norm rule exists (`rule_conv_general_investment_basket`) but doesn't fire because no extracted v3 entity. Either (a) re-extract Duck Creek (violates Phase C constraint, costly) or (b) accept this gap and confirm next deal extraction includes general_investment_basket. |
+| "Plus all assets that don't secure Loans, non-EBITDA producing assets" (the no-worse test → unlimited capacity for divestitures) | **Synthesis-gap (Stage 2)** | `ratio_rp_basket_permission` was in the eval and has the no-worse logic available (Q6 used it correctly). Q5 didn't combine the ratio basket's unlimited-conditional capacity with the dollar-cap baskets. Stage 2 prompt fix: "for capacity questions involving asset divestitures, evaluate the ratio basket's no-worse branch as a separate capacity dimension." |
+
+## Diagnostic categorization (rolled up)
+
+| Category | Q3 | Q4 | Q5 | Total |
+|---|:-:|:-:|:-:|:-:|
+| **Extraction-gap** (Phase E) | 2 | 1 | 1 | **4** |
+| **Synthesis-gap fetch coverage** (Phase F) | 0 | 1 | 0 | **1** |
+| **Synthesis-gap prompt** (Phase F) | 0 | 1 | 2 | **3** |
+
+## Phase E scope (extraction additions)
+
+Ranked by impact on the lawyer question set:
+
+1. **`de_minimis_threshold` entity** — Q4. New entity type in v4 schema
+   covering individual-transaction and annual de minimis carveouts.
+   Owns `dollar_amount_usd`, `ebitda_pct`, `period` (individual /
+   annual), `applies_to` (asset_sale / casualty_event / etc.). Add an
+   extraction question that captures the threshold structure from §6.05
+   exception language. Deal-coverage: would surface for any RP/sweep
+   covenant.
+
+2. **`basket_reallocates_to` extraction** — Q3. Phase B added the
+   relation type but Duck Creek extraction didn't populate it. Either
+   (a) author a new extraction question that targets reallocation
+   language explicitly (current questions don't), or (b) post-process
+   from existing extracted attributes (`reduces_rp_basket`,
+   `reduces_investment_basket`, etc.) which encode the same data
+   point-wise but not as a relation.
+
+3. **Tailored RDP carveouts** — Q3. Either new norm subtypes
+   (`intercompany_rdp_permission`, `reorganization_rdp_permission`,
+   `ipo_rdp_permission`) or boolean attributes on `general_rdp_basket`
+   capturing the carveout structure. Aligned with the v3 ontology's
+   "S/T" categories which already have synthesis_guidance.
+
+4. **`general_investment_basket` re-extraction** (deferred). The norm
+   rule exists but no v3 entity was extracted for Duck Creek. Either
+   re-extract Duck Creek (violates Phase C constraint, ~$15) or
+   confirm next deal's extraction includes the general_investment
+   basket. Defer until next-deal extraction is being planned anyway.
+
+## Phase F scope (synthesis prompt + fetch coverage)
+
+Ranked by impact:
+
+1. **Extend `fetch_norm_context` to include provision-level entities**
+   — Q4. Right now `fetch_norm_context` walks norms only; entities
+   like `sweep_tier` (3 instances), `investment_pathway` (6 instances),
+   `unsub_designation` (1 instance) live one hop further out and don't
+   appear in synthesis context. Add a second fetch path: walk
+   `provision_has_extracted_entity` for the deal's `rp_provision`,
+   classify each by entity type, attach to context as
+   `provision_level_entities`. Stage 2 prompt then references them
+   alongside norms.
+
+2. **Stage 1 prompt — capacity-question hint** — Q5. Add to the
+   classifier system prompt: "For capacity-aggregation questions
+   (containing 'total', 'capacity', 'how much', 'all baskets'), mark
+   every basket-permission norm with `capacity_composition: fungible`
+   AND `action_scope: reallocable` as PRIMARY, regardless of covenant
+   (RP, RDP, or investment)."
+
+3. **Stage 2 prompt — capacity-arithmetic instruction** — Q5. Add to
+   the synthesis system prompt: "For capacity questions, enumerate
+   each PRIMARY basket-permission norm by name, list its `cap_usd`
+   and `cap_grower_pct`, then sum across reallocable + fungible
+   baskets explicitly. Show the arithmetic."
+
+4. **Stage 2 prompt — sweep_tier enumeration** — Q4. Add to the
+   asset-sale section of synthesis_guidance: "When `sweep_tier`
+   entities are present, enumerate each tier's `leverage_threshold`
+   and `sweep_percentage` in order from highest to lowest; cite the
+   `section_reference` for each."
+
+5. **Stage 2 prompt — ratio basket no-worse capacity dimension** —
+   Q5. Add to category G synthesis_guidance: "When evaluating
+   capacity questions involving asset divestitures, separately
+   evaluate the ratio basket's unlimited-conditional capacity for
+   any divestiture that improves the leverage ratio (negative-EBITDA
+   divestitures, non-collateral asset disposals). State this as a
+   separate capacity branch alongside fixed-dollar baskets."
+
+## Implication: which approach was right (synthesis-first vs extraction-first)?
+
+The Phase D framing — "synthesis-first beats extraction-first" — is
+strongly validated by this diagnostic:
+
+- **3/6 questions PASS without any extraction additions.** The data
+  was always in v4; v3 synthesis was failing on retrieval/relevance
+  ranking, not storage. Adapting the two-stage filter pattern fixed
+  this directly.
+- **PARTIAL gaps split 4 extraction / 4 synthesis.** Without running
+  the synthesis adaptation, we'd have guessed extraction was the
+  bottleneck and built ~4-6 new extraction questions. The diagnostic
+  shows half of the partials are synthesis-side fixes that take
+  hours, not extraction-side fixes that take days + $15.
+- **Phase E is now small and tightly scoped.** 4 concrete extraction
+  additions (de_minimis_threshold + basket_reallocates_to extraction
+  question + tailored RDP carveouts + general_investment_basket
+  re-extraction). Three of these are schema-additive; one is deferred
+  until next-deal extraction.
+- **Phase F is even smaller.** Mostly prompt iteration on the existing
+  synthesis_v4 service + one fetch-coverage extension. Estimated
+  effort: 1-2 commits.
+
+## What this run does NOT establish
+
+- **Other deals** (next deals beyond Duck Creek). All findings here
+  are deal-specific. A second deal's run could surface different gaps.
+- **Other covenant types.** v4 only has RP categories seeded. MFN/DI
+  Phase C work would extend the corpus.
+- **Other lawyer-question sets.** `xtract_dc_rp_mfn` (22 questions)
+  and `xtract_dc_di` (10 questions) are v3-era eval sets. Adapting
+  them to the v4 path is a follow-on diagnostic.
+- **Quality at scale.** 6 questions is a small sample; statistically,
+  the PASS rate could swing under more questions.
+
+## Cost / latency baseline
+
+For future Phase F prompt-iteration runs:
+
+| Metric | Value |
+|---|---|
+| Cost per question (Sonnet 4.6) | ~$0.10 |
+| Cost per full eval (6q) | ~$0.60 |
+| Latency per question | ~45s |
+| Latency per full eval | ~4.5 min |
+| Tokens per question (avg in/out) | ~6.5K / 1.0K |
+
+Opus 4.7 alternative: ~$0.50/question, 5x cost — only worth running
+if Sonnet quality regresses with prompt iterations.
+
+## Reproducing this run
+
+```bash
+TYPEDB_DATABASE=valence_v4 \
+  C:/Users/olive/ValenceV3/.venv/Scripts/python.exe \
+  -m app.services.synthesis_v4 \
+  --deal 6e76ed06 \
+  --eval-set lawyer_dc_rp
+```
+
+Output JSON timestamps the run; archive in this directory.

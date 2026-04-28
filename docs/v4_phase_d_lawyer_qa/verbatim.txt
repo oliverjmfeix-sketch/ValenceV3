@@ -1,0 +1,214 @@
+Phase D — Lawyer QA verbatim (gold | v4 answer | Stage 1 PRIMARY)
+================================================================================
+eval_set:       lawyer_dc_rp
+deal_id:        6e76ed06
+db:             valence_v4
+model:          claude-sonnet-4-6
+total_cost_usd: $0.5972
+total_latency:  267.4s for 6 questions
+
+================================================================================
+## duck_creek_q1 (builder_basket)  —  $0.0959, 46.9s
+   Stage 1: 6 primary / 5 supp / 17 skip
+   Stage 2: 6 citations
+
+### QUESTION
+What test is the build-up basket or available amount basket based on and when does the basket start growing?
+
+### GOLD
+The Cumulative Amount is based on the greatest of three tests: (1) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter), (2) Excess Cash Flow not required to be applied to prepay Term Loans or any other debt (such amount cannot be less than $0 for any fiscal year), (3) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges. All tests start growing from the first day of the fiscal quarter in which the Closing Date occurs.
+
+### V4 ANSWER
+The Cumulative Amount (build-up basket) is not a single-ratio test but a multi-source structure with a 'greatest of' earnings core: the basket selects the largest of (i) 50% of cumulative Consolidated Net Income, (ii) the Available Retained ECF Amount (cumulative Excess Cash Flow not required to prepay Term Loans under Section 2.10(f)), or (iii) 140% of LTM Consolidated EBITDA, and then adds to that result a starter amount equal to the greater of $130,000,000 or 100% of LTM Consolidated EBITDA, plus 100% of equity proceeds, retained asset sale proceeds, investment returns, and debt-to-equity conversion amounts [Definition of Cumulative Amount, p. 32]. The basket begins growing from the first day of the fiscal quarter in which the Closing Date occurs [Definition of Cumulative Amount, p. 32]. Capacity is reduced dollar-for-dollar by RP, RDP, and investment usage, and the same basket is shared with the RDP builder basket (subject to intercreditor/subordination restrictions) [Section 6.09(a)(A), p. 199].
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_builder_usage_permission
+    rationale: Core builder basket norm defining the Cumulative Amount and its usage
+  - 6e76ed06_builder_source_three_test_aggregate
+    rationale: Defines the three-test aggregate structure central to builder basket growth
+  - 6e76ed06_builder_source_starter
+    rationale: Defines starter amount — directly answers when basket starts growing
+  - 6e76ed06_builder_source_cni
+    rationale: CNI-based test directly answers what test the basket is based on
+  - 6e76ed06_builder_source_ecf
+    rationale: ECF-based test directly answers what test the basket is based on
+  - 6e76ed06_builder_source_ebitda_fc
+    rationale: EBITDA-FC test directly answers what test the basket is based on
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_builder_usage_permission [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_source_starter [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_source_cni [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_source_ecf [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_source_ebitda_fc [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_rdp_basket_permission [6.09(a)(A), p.199]
+
+### STAGE 2 REASONING (conclusion)
+The Cumulative Amount basket uses a 'greatest of' three-way earnings/cash-flow test (50% CNI vs. Available Retained ECF vs. 140% LTM EBITDA) as its core income-driven component, plus a fixed/grower starter amount and additive equity/asset/return sources, and begins accruing from the first day of the fiscal quarter in which the Closing Date occurs.
+
+================================================================================
+## duck_creek_q2 (unsub_distribution)  —  $0.0791, 32.1s
+   Stage 1: 1 primary / 4 supp / 23 skip
+   Stage 2: 2 citations
+
+### QUESTION
+Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?
+
+### GOLD
+Yes, under 6.06(p) the Borrower can dividend shares of Equity Interest or any assets of an Unrestricted Subsidiary.
+
+### V4 ANSWER
+Yes. Section 6.06(p) [p. 198] expressly and categorically permits 'the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof.' This permission is unconditional — the extracted data confirms it is categorical (is_categorical = true, capacity_category = 'categorical') and requires no valid designation condition, no dollar cap, and no leverage ratio test. No defeaters apply to this norm. Note that the J.Crew blocker [Section 'Definition of Unrestricted Subsidiary', p. 89] restricts designation of new Unrestricted Subsidiaries that hold Material Intellectual Property, but does not affect the right to distribute equity of an already-designated Unrestricted Subsidiary under 6.06(p).
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_unrestricted_sub_equity_distribution_permission
+    rationale: Directly permits distribution of Unrestricted Subsidiary equity interests by dividend
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_unrestricted_sub_equity_distribution_permission [6.06(p), p.198]
+  - 6e76ed06_jcrew_blocker_prohibition [Definition of Unrestricted Subsidiary, p.89]
+
+### STAGE 2 REASONING (conclusion)
+Yes — Section 6.06(p) contains a categorical, uncapped permission for the Borrower to distribute (by dividend or otherwise) equity interests of Unrestricted Subsidiaries, with no leverage test, dollar cap, or other condition applicable.
+
+================================================================================
+## duck_creek_q3 (reallocation)  —  $0.1113, 44.6s
+   Stage 1: 3 primary / 13 supp / 12 skip
+   Stage 2: 6 citations
+
+### QUESTION
+Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?
+
+### GOLD
+Yes, under 6.06(j) amount available for Restricted Debt Payment under 6.09(a) and amounts available for Investments under 6.03(y) can be reallocated to the making of Dividends. 6.09(a) includes the greater of $130,000,000 and 100% of Consolidated EBITDA. 6.09(a) also includes other more tailored baskets available for Restricted Debt Payments which may or may not be available for reallocation, including intercompany debt payments and payments in connection with a reorganization or IPO.
+
+### V4 ANSWER
+Yes, there are two key reallocation paths. First, the general RDP basket under Section 6.09(a)(I) (greater of $130M and 100% Consolidated EBITDA) is fungible with the general RP basket under Section 6.06(j) (same sizing) — both have action_scope='reallocable' and share a single capacity pool, so capacity not used for debt prepayments can be used for restricted payments/dividends [Section 6.06(j), p.196; Section 6.09(a)(I), p.200]. Second, the Cumulative Amount (builder basket, Definition of Cumulative Amount, p.32) is a shared pool reduced by RP usage, RDP usage, and investment usage alike — meaning investment returns (builder_source_investment_returns), retained asset-sale proceeds (builder_source_retained_asset_sale_proceeds), and equity proceeds (builder_source_other_equity_proceeds) all build capacity in the same pool available for dividends; conversely, investments or RDP payments drawn from the builder basket reduce what is available for restricted payments [Section 6.09(a)(A), p.199; Definition of Cumulative Amount, p.32]. No standalone investment basket with a direct one-way reallocation link to the RP covenant (separate from the builder basket mechanics) is present in the extracted data.
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_builder_usage_permission
+    rationale: Builder basket is reallocable to RPs/dividends — directly answers question.
+  - 6e76ed06_general_rp_basket_permission
+    rationale: Reallocable RP basket with cap directly answers reallocation question.
+  - 6e76ed06_general_rdp_basket_permission
+    rationale: Reallocable debt prepayment basket directly answers reallocation question.
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_general_rp_basket_permission [6.06(j), p.196]
+  - 6e76ed06_general_rdp_basket_permission [6.09(a)(I), p.200]
+  - 6e76ed06_builder_usage_permission [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_rdp_basket_permission [6.09(a)(A), p.199]
+  - 6e76ed06_builder_source_investment_returns [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_source_retained_asset_sale_proceeds [Definition of Cumulative Amount, p.32]
+
+### STAGE 2 REASONING (conclusion)
+Yes — there are two primary reallocation paths: (a) the general RDP basket (Section 6.09(a)(I)) shares a fungible $130M/100% EBITDA pool with the general RP basket (Section 6.06(j)), and (b) the Cumulative Amount/builder basket is a single shared pool drawn down by RP, RDP, and investment usage alike, with investment returns and retained asset-sale proceeds feeding back into that same pool.
+
+================================================================================
+## duck_creek_q4 (asset_sale_proceeds)  —  $0.0982, 46.6s
+   Stage 1: 2 primary / 11 supp / 15 skip
+   Stage 2: 5 citations
+
+### QUESTION
+Can any asset sale proceeds be used to make dividends?
+
+### GOLD
+Yes, Retained Asset Sale Proceeds build the Cumulative Amount which consists of proceeds from: Net Cash Proceeds from asset sales not subject to prepayment on account of Section 2.10(c)(iv), permitting proceeds from any Asset Sale using the unlimited basket 6.05(z) if such Asset Sale is a sale of a product line and the pro forma First Lien Net Leverage Ratio is 6.25x or less or if such test is no worse pro forma. Also includes asset sale proceeds not swept when First Lien Net Leverage Ratio is 5.75x or less (50% of proceeds) or 5.50x or less (100% of proceeds). Also includes Net Cash Proceeds from non-collateral assets, ordinary course asset sales, asset sales from non-ratio baskets, casualty events, and proceeds from collateral assets below de minimis thresholds of $20M/15% EBITDA individual and $40M/30% EBITDA annual.
+
+### V4 ANSWER
+Yes. Retained asset sale proceeds (those not required to be applied to mandatory prepayment under Section 2.10(c) due to leverage-based sweep tier exemptions or de minimis thresholds) flow into the Cumulative Amount builder basket as a dedicated additive source and, once accumulated there, may be used to make dividend payments [Definition of Cumulative Amount, p.32; builder_source_retained_asset_sale_proceeds, child_index 6]. Separately and independently, dividends may also be made using the general RP basket (greater of $130,000,000 or 100% of Consolidated EBITDA for the most recently ended Test Period) [Section 6.06(j), p.196], or on an unlimited basis if First Lien Leverage Ratio is ≤5.75x (or no worse than the prior test period) on a pro forma basis [Section 6.06(o), p.198], or by distributing assets (including proceeds thereof) of an Unrestricted Subsidiary [Section 6.06(p), p.198] — none of which require asset sale proceeds as a funding source.
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_builder_usage_permission
+    rationale: Builder basket permits dividends; asset sale proceeds feed into it.
+  - 6e76ed06_builder_source_retained_asset_sale_proceeds
+    rationale: Directly captures asset sale proceeds as builder basket sub-source for dividends.
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_builder_source_retained_asset_sale_proceeds [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_usage_permission [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_general_rp_basket_permission [6.06(j), p.196]
+  - 6e76ed06_ratio_rp_basket_permission [6.06(o), p.198]
+  - 6e76ed06_unrestricted_sub_equity_distribution_permission [6.06(p), p.198]
+
+### STAGE 2 REASONING (conclusion)
+Yes, asset sale proceeds that are retained (i.e., not required to be swept under the mandatory prepayment provisions) accumulate in the Cumulative Amount builder basket and can be used to make dividends under that basket. Additionally, dividends may be made under the general RP basket, ratio basket, or unrestricted subsidiary distribution basket without any direct asset-sale-proceeds nexus.
+
+================================================================================
+## duck_creek_q5 (total_capacity)  —  $0.1211, 52.4s
+   Stage 1: 12 primary / 5 supp / 11 skip
+   Stage 2: 8 citations
+
+### QUESTION
+Determine the total amount of quantifiable dividend capacity.
+
+### GOLD
+$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. RP starter: $130m/100% EBITDA. General RP basket: $130m/100% EBITDA. General prepayment of debt basket: $130m/100% EBITDA. General investment basket: $130m/100% EBITDA.
+
+### V4 ANSWER
+The total quantifiable fixed-dollar dividend capacity floor is $260,000,000, comprising two independent general_purpose baskets: (1) the Section 6.06(j) general RP basket at the greater of $130,000,000 or 100% of LTM Consolidated EBITDA [6e76ed06_general_rp_basket_permission, Section 6.06(j), p.196]; and (2) the Cumulative Amount (builder basket) with a fixed starter floor of the greater of $130,000,000 or 100% of LTM Consolidated EBITDA [6e76ed06_builder_usage_permission / 6e76ed06_builder_source_starter, Definition of Cumulative Amount, p.32] — the builder basket's additional formula-based sources (50% cumulative CNI, retained ECF, 140% LTM EBITDA, 100% equity proceeds, retained asset sale proceeds, investment returns, and debt conversion proceeds) are additive but variable and not quantifiable without current financials. Separately, the restricted-purpose management equity basket provides the greater of $20,000,000 per annum or 15% of LTM Consolidated EBITDA for management equity repurchases only [6e76ed06_management_equity_basket_permission, Section 6.06(b), p.195]. The ratio basket (Section 6.06(o)) is unlimited in amount if First Lien Leverage Ratio ≤ 5.75x or the no-worse test is satisfied, and categorical baskets (tax distributions, HoldCo overhead, equity award cashless exercises, unrestricted subsidiary distributions) are not dollar-capped.
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_builder_usage_permission
+    rationale: Core builder basket permitting dividends; directly sets builder capacity.
+  - 6e76ed06_general_rp_basket_permission
+    rationale: Quantifiable cap ($130M/100% EBITDA) for dividend capacity.
+  - 6e76ed06_management_equity_basket_permission
+    rationale: Quantifiable cap ($20M/15%) for equity repurchase dividends.
+  - 6e76ed06_builder_source_three_test_aggregate
+    rationale: Aggregates CNI/ECF/EBITDA sub-sources feeding builder basket.
+  - 6e76ed06_builder_source_starter
+    rationale: Starter amount ($130M/100%) directly quantifies builder basket.
+  - 6e76ed06_builder_source_cni
+    rationale: 50% CNI component of builder basket capacity.
+  - 6e76ed06_builder_source_ecf
+    rationale: ECF component feeds builder basket capacity calculation.
+  - 6e76ed06_builder_source_ebitda_fc
+    rationale: 140% EBITDA component feeds builder basket capacity.
+  - 6e76ed06_builder_source_other_equity_proceeds
+    rationale: Equity proceeds add to builder basket dividend capacity.
+  - 6e76ed06_builder_source_retained_asset_sale_proceeds
+    rationale: Retained asset sale proceeds add to builder basket capacity.
+  - 6e76ed06_builder_source_investment_returns
+    rationale: Investment returns add to builder basket dividend capacity.
+  - 6e76ed06_builder_source_other_debt_conversion
+    rationale: Debt conversion proceeds add to builder basket capacity.
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_general_rp_basket_permission [6.06(j), p.196]
+  - 6e76ed06_builder_source_starter [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_builder_usage_permission [Definition of Cumulative Amount, p.32]
+  - 6e76ed06_management_equity_basket_permission [6.06(b), p.195]
+  - 6e76ed06_ratio_rp_basket_permission [6.06(o), p.198]
+  - 6e76ed06_tax_distribution_basket_permission [6.06(c), p.196]
+  - 6e76ed06_holdco_overhead_basket_permission [6.06(k), p.197]
+  - 6e76ed06_unrestricted_sub_equity_distribution_permission [6.06(p), p.198]
+
+### STAGE 2 REASONING (conclusion)
+The total quantifiable fixed-dollar dividend capacity floor across general_purpose baskets is $260,000,000 ($130M general RP basket + $130M builder basket starter); variable formula components (CNI, ECF, EBITDA growers, equity proceeds) and unlimited/categorical baskets are not dollar-quantifiable without current financial data.
+
+================================================================================
+## duck_creek_q6 (ratio_basket_application)  —  $0.0916, 44.9s
+   Stage 1: 1 primary / 3 supp / 24 skip
+   Stage 2: 3 citations
+
+### QUESTION
+If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?
+
+### GOLD
+Yes, because the Ratio RP basket 6.06(o) permits such transaction as long as the First Lien Net Leverage Ratio, even if above 5.75x, is no worse.
+
+### V4 ANSWER
+Yes, the Borrower can dividend the $200m asset/business division to shareholders at a 6.0x First Lien Net Leverage Ratio, using the ratio-based RP basket under Section 6.06(o) [p.198]. That basket permits unlimited dividends (including of business divisions) provided that, on a Pro Forma Basis, the First Lien Leverage Ratio does not exceed the GREATER OF (x) 5.75x or (y) the pre-transaction First Lien Leverage Ratio — meaning a no-worse test applies as an alternative to the 5.75x absolute threshold. Because the divested business has negative EBITDA, removing it from the consolidated group increases Consolidated EBITDA (the denominator), reducing the pro forma leverage ratio below the current 6.0x pre-transaction level — the no-worse branch of the OR condition is therefore satisfied even though 6.0x exceeds 5.75x. In addition, the general RP basket under Section 6.06(j) [p.196] provides a separate, unconditional dollar capacity of the greater of $130m or 100% of LTM Consolidated EBITDA (which, depending on overall EBITDA levels, may be insufficient to cover the full $200m value standing alone, making the ratio basket the primary pathway).
+
+### STAGE 1 PRIMARY (norms picked as load-bearing for synthesis)
+  - 6e76ed06_ratio_rp_basket_permission
+    rationale: Directly governs unlimited dividends conditioned on First Lien Leverage Ratio test.
+
+### STAGE 2 CITATIONS
+  - 6e76ed06_ratio_rp_basket_permission [6.06(o), p.198]
+  - 6e76ed06_general_rp_basket_permission [6.06(j), p.196]
+  - 6e76ed06_unrestricted_sub_equity_distribution_permission [6.06(p), p.198]
+
+### STAGE 2 REASONING (conclusion)
+The Borrower can dividend the $200m business division to shareholders at 6.0x First Lien Net Leverage Ratio using the ratio basket under Section 6.06(o), because the no-worse test is satisfied: removing a negative-EBITDA business improves the pro forma leverage ratio below the current 6.0x pre-transaction level.
