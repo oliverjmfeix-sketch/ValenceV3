@@ -1494,8 +1494,9 @@ Return ONLY the JSON array."""
 # =============================================================================
 #
 # The actual normalization logic lives in app/services/v3_data_normalization.py
-# so the one-time fixup script in app/scripts/phase_c_commit_0b_fixup.py can
-# reuse it without pulling in anthropic SDK as a transitive import.
+# so it stays decoupled from extraction.py's anthropic SDK dependency.
+# (Originally also reused by app/scripts/phase_c_commit_0b_fixup.py — that
+# one-time fixup script ran once on 2026-04 and was deleted in Commit 5.)
 
 from app.services.v3_data_normalization import _normalize_v3_data  # noqa: F401, E402
 

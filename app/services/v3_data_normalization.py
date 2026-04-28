@@ -1,10 +1,12 @@
 """
 Phase C — v3 data normalization.
 
-Heuristics that compensate for v3 extraction inconsistency. Lives in its
-own module (decoupled from extraction.py's Anthropic SDK dependency) so
-the one-time fixup script in app/scripts/phase_c_commit_0b_fixup.py can
-reuse the function without pulling in anthropic.
+Heuristics that compensate for v3 extraction inconsistency. Lives in
+its own module (decoupled from extraction.py's Anthropic SDK
+dependency). Originally also imported by the one-time fixup script
+phase_c_commit_0b_fixup.py — that script ran once on 2026-04 and was
+deleted in Commit 5; the module remains because extraction.py still
+imports `_normalize_v3_data` for live normalization.
 
 Currently handles scale coercion (fraction -> percentage) for grower-pct
 family attributes. Phase D's extraction prompt updates aim to make these

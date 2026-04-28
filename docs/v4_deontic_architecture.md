@@ -558,38 +558,171 @@ Prompt 07 added four data points to v3 extraction output that enable projection 
 
 Dollar / EBITDA caps alone are NOT partial applicability (they are capacity, not condition). The extraction prompt includes per-option definitions and disambiguation rules per Rule 4.2.
 
-### 4.12 Projection infrastructure (declarative mappings)
+### 4.12 Projection infrastructure (`projection_rule` + executor)
 
-The projection engine (Prompt 07 Part 3, `app/services/deontic_projection.py`) reads `deontic_mapping` rows from TypeDB and applies them mechanically. One mapping row per v3 entity type declares:
+> **Phase C Commit 4 (2026-04-28):** the projection layer is now a graph-native
+> rule corpus + a typed-dispatch interpreter. The legacy python projection
+> (`app/services/deontic_projection.py`) was deleted; the legacy
+> `deontic_mapping` schema entities are retained as archive lookup data
+> (consumed by harness A5 + the converter) but no longer drive emission.
+> The full design spec lives at [docs/v4_phase_c_design.md](v4_phase_c_design.md).
 
-- `source_entity_type` — v3 type name (`builder_basket`, `ratio_basket`, …)
-- `target_norm_kind`, `target_modality` — v4 norm fields
-- `default_subject_role` — comma-separated `party_role` list (extracted baskets may override per-instance later)
-- `default_action_scope_kind` — `specific` / `general` / `reallocable`
-- `condition_builder_spec_ref` — the `condition_builder_name` to invoke for this mapping, or `"none"` for unconditional
+Projection is a graph traversal: every v3-to-v4 mapping is a typed
+`projection_rule` subgraph in TypeDB. The executor
+(`app/services/projection_rule_executor.py`) walks each rule top-down via
+24 entity types and 27 relations, resolving attribute values from value
+sources (literals, v3 attribute reads, concatenations) and emitting
+v4 entities + relations.
 
-Paired `mapping_targets_action` / `mapping_targets_object` relations connect each mapping to primitive singletons from §4.3 / §4.4. Defaults; the basket's extracted `object_class_multiselect` additionally populates `norm_scopes_object` / `norm_scopes_instrument` edges per-instance at projection time.
+**Rule subgraph shape** (per Phase C design §3):
 
-**Condition builder specs** name reusable condition-tree shapes (§4.6 `condition_topology` values). A spec declares `condition_operator_root` and references participating state_predicates via `builder_spec_uses_predicate(predicate_slot, child_index)`. For per-threshold ratio predicates (e.g., `first_lien_net_leverage_at_or_below` at threshold 5.75, 6.00, 6.25 across different baskets), the spec references the predicate by **label only** — the projection engine resolves to the specific `state_predicate` instance using the basket's extracted ratio_threshold via `construct_state_predicate_id(label, threshold, op, ref)`. Boolean and reference-based predicates (single canonical instance) are materialized directly in the spec→predicate seed.
+- `projection_rule` — the rule entity. Owns id/label/description; reaches
+  match criteria + emitted templates via relations.
+- `match_criterion` (5 subtypes) — `entity_type_criterion`,
+  `subtype_criterion`, `attribute_value_criterion`,
+  `attribute_existence_criterion`, `linked_via_relation_criterion`. Plus
+  `match_criterion_group` for explicit AND/OR composition.
+- `value_source` (10 subtypes) — `literal_string_value_source`,
+  `literal_double_value_source`, `literal_long_value_source`,
+  `literal_boolean_value_source`, `v3_attribute_value_source`,
+  `deal_id_value_source`, `concatenation_value_source`,
+  `arithmetic_value_source`, `conditional_value_source`,
+  `produced_norm_id_value_source`. Compose via
+  `concatenation_has_ordered_part`, `value_source_has_default`,
+  `arithmetic_has_left/right_operand`, `conditional_has_test/then/else`.
+- `norm_template` / `defeater_template` — describe what the rule emits.
+  Reach `attribute_emission` entries via `template_emits_attribute`,
+  `relation_template` entries via `template_emits_relation`,
+  `condition_template` via `template_emits_root_condition`.
+- `relation_template` — emits one v4 relation per match. Reaches
+  `role_assignment` via `relation_template_assigns_role`.
+- `role_assignment` + `role_filler` (3 subtypes:
+  `emitted_norm_role_filler`, `static_lookup_role_filler`,
+  `produced_norm_role_filler`) — fill role slots on the emitted relation.
+- `condition_template` + `predicate_specifier` — describe the condition
+  tree. Predicates resolve dynamically via `predicate_specifier_uses_value`
+  for ratio thresholds (replacing the legacy
+  `condition_builder_spec` + label-and-threshold lookup).
 
-**Projection-time contract:**
+**Rule execution contract** (per match: 1 v3 entity → 1+ v4 entities):
 
-1. Read v3 entities for deal → polymorphic fetch under `rp_basket` + `jcrew_blocker`
-2. For each v3 entity, look up its `deontic_mapping` via `source_entity_type`
-3. Construct norm: modality / norm_kind / scope from mapping; cap_usd / cap_grower_pct / source_text / source_section / source_page from entity attributes; capacity_composition from extracted field
-4. Emit `norm_scopes_action` edges per `mapping_targets_action`
-5. Emit `norm_scopes_object` / `norm_scopes_instrument` edges per `mapping_targets_object` + basket's extracted `object_class_multiselect`
-6. Emit `norm_binds_subject` edges per `default_subject_role`
-7. If `condition_builder_spec_ref != "none"` AND basket's `partial_applicability == true`: look up spec, construct condition tree, emit `norm_has_condition` + `condition_has_child` + `condition_references_predicate` edges
-8. Emit `norm_extracted_from:fact` edge linking norm to the v3 entity
+1. `execute_rule(rule_id, deal_id)` — load match criteria, fetch v3
+   entities matching them.
+2. For each match, resolve all attribute emissions to literal Python
+   values via `resolve_value_source`. Insert one `norm` (or `defeater`).
+3. Walk `template_emits_relation` — for each, fill role assignments
+   and insert the relation (subject/action/object/instrument scope edges,
+   `norm_contributes_to_capacity`, `defeats`, etc.).
+4. Walk `template_emits_root_condition` — recursively emit the
+   condition tree (root + children, predicate references).
+5. Insert `produced_by_rule` provenance edge: `(produced_entity,
+   owning_rule, triggering_v3_entity)`.
+6. For norms emitted by primary mapping rules (not sub-source builder
+   rules), also insert `norm_extracted_from:fact` to anchor the norm
+   to its v3 source. Sub-source builder norms skip this edge — they
+   share a v3 entity (the parent `builder_basket`) and the harness's
+   A5 rule-selection check expects only the primary norm to claim it.
 
-No per-entity-type branches in projection code. Adding a new extractable v3 entity type is one `plays norm_extracted_from:fact` line in schema §4.10 plus one `deontic_mapping` row in the projection seed. See §8 for the end-to-end REFACTOR path.
+**Project-deal orchestration** (`projection_rule_executor.project_deal`):
+
+1. `clear_v4_projection_for_deal(deal_id)` — wipe prior v4 output
+   (norms, defeaters, conditions) by `nid contains deal_id`.
+2. `list_rule_ids` + `order_rule_ids` — discover all
+   `projection_rule` entities in the database, order them so dependent
+   rules run after their producers (b_aggregate before sub-sources;
+   defeater rules after the jcrew_blocker rule emits its prohibition
+   norm).
+3. For each rule_id, `execute_rule(rule_id, deal_id)`.
+4. `emit_asset_sale_proceeds_flows(deal_id)` — load
+   `app/data/asset_sale_proceeds_seed.tql` and substitute `<deal_id>`
+   to emit `event_provides_proceeds_to_norm` edges. This is a Rule 5.2
+   concession (see `docs/v4_known_gaps.md`); the executor's fetch path
+   doesn't currently reach `event_class` entities, so a TQL seed +
+   templated loader stands in until the schema gains a
+   `static_event_source_criterion`.
+
+**Adding a new mapping** (post-Phase-C):
+
+1. Author a new `projection_rule` subgraph directly in TypeQL — match
+   criterion (e.g., `entity_type_criterion: "<new_v3_type>"`),
+   norm_template with attribute emissions, relation templates for
+   scope edges, optional condition_template.
+2. Run `python -m app.services.projection_rule_executor --deal <id>`.
+3. Verify with `python -m app.services.validation_harness --deal <id>`.
+
+The mechanical converter (`app/scripts/phase_c_commit_2_converter.py`)
+remains available for re-authoring the entire RP rule corpus from the
+`deontic_mapping` archive seed; it's still useful for fresh-DB seeding
+or wholesale rule edits.
 
 ### 4.13 What is intentionally NOT in the deontic schema
 
 - No `synthesis_guidance` attribute. The category-level guidance strings on `ontology_category` remain for v3 compatibility but are ignored by v4 (Rule 2.1).
 - No flattened boolean attributes of the form `requires_no_eod` or `requires_ratio_below_X` on norms (Rule 2.4). All such content is in the `condition` tree.
 - No hardcoded norm_id generator logic. norm_id is `{provision_id}:{modality}:{action_class_label}:{index}` deterministically computed in the projection layer.
+
+### 4.14 Projection rule corpus (post-Phase-C)
+
+The current rule corpus authoring is mechanical: every `projection_rule`
+in `valence_v4` is generated by `app/scripts/phase_c_commit_2_converter.py`
+from the `deontic_mapping` + `condition_builder_spec` archive seed
+(`app/data/rp_deontic_mappings.tql` + `rp_condition_builders.tql`),
+plus three converter-internal generators for builder + defeater rules
+that don't have a 1:1 mapping row.
+
+**Corpus inventory** (Duck Creek deal `6e76ed06`, post-Commit 4):
+
+| Rule kind | Rule ID prefix | Count | Generator | What it emits per match |
+|---|---|---:|---|---|
+| Mapping-derived | `rule_conv_<entity_type>` | 14 | `generate_rule_tql(mapping)` | 1 norm + scope edges + optional condition tree (per `condition_builder_spec_ref`) |
+| Builder aggregate | `rule_conv_builder_b_aggregate` | 1 | `generate_b_aggregate_rule_tql()` | 1 `builder_source_three_test_aggregate` norm + `norm_contributes_to_capacity` to `builder_usage_permission` |
+| Builder sub-source | `rule_conv_builder_builder_source_*` | 8 | `generate_builder_sub_source_rule_tql(spec, child_idx)` | 1 sub-source norm (cni / ecf / ebitda_fc / starter / etc.) + `norm_contributes_to_capacity` to b_aggregate or `builder_usage_permission` |
+| Defeater | `rule_conv_*_exception_defeater` | 6 | `generate_defeater_rule_tql(subtype)` | 1 defeater + `defeats` edge to the jcrew_blocker prohibition norm + 1 condition for the exception predicate |
+| Hygiene sweep | (n/a; runs at end of converter `main()`) | — | `sweep_orphans` | Top-down BFS from every projection_rule; deletes attribute_emission / value_source / role_assignment / role_filler / match_criterion / predicate_specifier instances not reachable from any current rule |
+
+Total: **30 projection_rules** + ~150 norm/defeater/relation templates +
+~360 attribute emissions + ~700 value_sources + ~300 role_assignments +
+~300 role_fillers + ~40 match criteria + 2 active predicate_specifiers.
+
+**Why the pilot rule is gone.** Commit 1.5 hand-authored a single rule
+(`rule_general_rp_basket`) as a schema-expressibility proof. It coexisted
+with python projection via a `pilot_*` norm_id prefix until Commit 3.1,
+which dropped the converter's `PILOT_SOURCE_TYPE` skip. The converter
+now authors `rule_conv_general_rp_basket` with full scope + condition
+templates, and `cleanup_converted_rules` deletes any leftover
+`rule_general_rp_basket` projection_rule in `valence_v4` (idempotent).
+The hand-authored TQL was deleted in Commit 5.
+
+**Why the `conv_` prefix is gone.** Commit 3.x authored norm_ids with a
+`conv_` prefix to keep python projection's no-prefix output and
+rule-based output coexisting in `valence_v4` for parity verification.
+Commit 4 deleted python projection, so the prefix collision-avoidance
+is no longer needed: the converter's `NORM_ID_PREFIX = ""` now emits
+canonical `<deal_id>_<kind>` ids matching the harness + ground-truth
+YAML format.
+
+**Operational entry points** (post-Phase-C):
+
+```bash
+# Fresh-DB seeding — re-author the rule corpus from deontic_mapping archive
+TYPEDB_DATABASE=valence_v4 python -m app.scripts.phase_c_commit_2_converter \
+  --deal 6e76ed06
+
+# Per-deal projection — clear deal output, run all 30 rules, emit
+# proceeds-flow seed
+TYPEDB_DATABASE=valence_v4 python -m app.services.projection_rule_executor \
+  --deal 6e76ed06
+
+# Validation harness — verify A1=pass, A4 missing=45 spurious=6
+# mismatched=0, A5=pass (rule_selection accuracy=1.0), A6=pass
+TYPEDB_DATABASE=valence_v4 python -m app.services.validation_harness \
+  --deal 6e76ed06
+```
+
+Phase C migration commits (`0a` through `5`) are landed on
+`origin/v4-deontic`. The full per-commit ledger lives in
+[docs/v4_phase_c_handover.md](v4_phase_c_handover.md) and
+[docs/v4_phase_c_commit_3/README.md](v4_phase_c_commit_3/README.md).
 
 ---
 
