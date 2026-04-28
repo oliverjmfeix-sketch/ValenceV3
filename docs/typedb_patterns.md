@@ -1,5 +1,16 @@
 # TypeDB 3.x patterns + known gotchas
 
+> **Phase C note (2026-04-28):** examples below cite
+> `app/services/deontic_projection.py` as the python-side caller. That
+> file was deleted in Phase C Commit 4; the rule-based emission in
+> `app/services/projection_rule_executor.py` follows the same patterns.
+> Two additional gotchas surfaced during Phase C — empty-exception
+> errors on `$r (role: $x) isa relation` (use `$r isa relation, links
+> (role: $x)` instead) and non-cascading delete for relations where the
+> deleted entity plays a non-owner role. Both documented in
+> [v4_phase_c_handover.md](v4_phase_c_handover.md) §"Known
+> schema-state gotchas".
+
 Short-form reference for pilot-learned syntax pitfalls and their
 workarounds. Consult this before writing new TypeQL to avoid
 re-discovering the traps below.

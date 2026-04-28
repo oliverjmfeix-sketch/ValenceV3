@@ -1,5 +1,14 @@
 # v4 Deontic Pilot — Handover
 
+> **Phase B-era doc (2026-04-24).** Phase C completed 2026-04-28 with
+> 17 commits landing on `origin/v4-deontic` (HEAD `d730da1`). Python
+> projection (`deontic_projection.py`) is gone; rule-based emission via
+> `app/services/projection_rule_executor.py` is the only path. **For
+> current state and Phase D entry points see**
+> [docs/v4_phase_c_handover.md](v4_phase_c_handover.md). The content
+> below is preserved as Phase B context — primitive layer, function
+> library, and Phase B commits remain accurate.
+
 Short-form summary for a fresh session continuing the work. Authoritative
 detail lives in the docs listed below; this page exists so you don't have
 to read 50+ commits to pick up.
@@ -31,8 +40,11 @@ until the RP pilot passes its acceptance test (Rule 7.1).
   [docs/v4_deontic_architecture.md](v4_deontic_architecture.md)
 - **Schema:** [app/data/schema_v4_deontic.tql](../app/data/schema_v4_deontic.tql)
 - **Function library:** 6 files in `app/data/deontic_*_functions.tql`
-- **Projection engine:** [app/services/deontic_projection.py](../app/services/deontic_projection.py)
-  Phase A: emits categorical norm_ids + kinds.
+- **Projection engine (post-Phase-C):** [app/services/projection_rule_executor.py](../app/services/projection_rule_executor.py)
+  Typed-dispatch interpreter over `projection_rule` subgraphs in TypeDB.
+  Run via `python -m app.services.projection_rule_executor --deal <id>`.
+  (Phase B's `deontic_projection.py` was deleted in Phase C Commit 4;
+  see [v4_phase_c_handover.md](v4_phase_c_handover.md).)
 - **Classification harness:** [app/services/classification_measurement.py](../app/services/classification_measurement.py)
 - **Validation harness:** [app/services/validation_harness.py](../app/services/validation_harness.py)
   Includes A6 graph-state invariant assertions.
@@ -227,7 +239,13 @@ py -3.12 -m app.scripts.init_schema_v4
 py -3.12 -m app.scripts.restore_extraction_snapshot --deal 6e76ed06
 
 # 3. Regenerate projection output (norms, conditions, defeaters, etc.)
-py -3.12 -m app.services.deontic_projection --deal 6e76ed06
+# Phase C update: rule-based projection. Use Python 3.11 (.venv), not 3.12.
+TYPEDB_DATABASE=valence_v4 \
+  C:/Users/olive/ValenceV3/.venv/Scripts/python.exe \
+  -m app.scripts.phase_c_commit_2_converter --deal 6e76ed06
+TYPEDB_DATABASE=valence_v4 \
+  C:/Users/olive/ValenceV3/.venv/Scripts/python.exe \
+  -m app.services.projection_rule_executor --deal 6e76ed06
 
 # 4. Sanity-check: the verify query above should report the expected counts.
 ```

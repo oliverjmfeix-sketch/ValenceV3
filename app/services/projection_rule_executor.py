@@ -1360,12 +1360,60 @@ def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
     specific deal via norm_id substring match (catches both legacy
     no-prefix python output and any conv_/pilot_-prefixed legacy output).
 
+    TypeDB 3.x cascade caveat: deleting a norm does NOT auto-delete
+    relations where the norm plays a non-owner role (produced_by_rule's
+    produced_entity, norm_extracted_from's norm, event_provides_proceeds_to_norm's
+    proceeds_target_norm). We delete those relations explicitly BEFORE
+    deleting the norms; otherwise dangling-role relations accumulate
+    across re-runs.
+
     Returns counts of what was removed per type.
     """
     counts = {"norms": 0, "conditions": 0, "defeaters": 0}
     nid_pattern = deal_id
 
     clear_queries = [
+        # Explicit relation cleanup first — these don't cascade when the
+        # norm/defeater/condition is deleted in TypeDB 3.x. The `links`
+        # syntax is required for binding a relation variable to a role
+        # pattern in 3.x; the older `$r (role: $x) isa relation` form
+        # parses but raises empty TypeDBDriverException at execution.
+        ("produced_by_rule_for_norms", f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+              $r isa produced_by_rule, links (produced_entity: $n);
+            delete $r;
+        '''),
+        ("produced_by_rule_for_defeaters", f'''
+            match
+              $d isa defeater, has defeater_id $did;
+              $did contains "{nid_pattern}";
+              $r isa produced_by_rule, links (produced_entity: $d);
+            delete $r;
+        '''),
+        ("produced_by_rule_for_conditions", f'''
+            match
+              $c isa condition, has condition_id $cid;
+              $cid contains "{nid_pattern}";
+              $r isa produced_by_rule, links (produced_entity: $c);
+            delete $r;
+        '''),
+        ("norm_extracted_from", f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+              $r isa norm_extracted_from, links (norm: $n);
+            delete $r;
+        '''),
+        ("event_provides_proceeds_to_norm", f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+              $r isa event_provides_proceeds_to_norm, links (proceeds_target_norm: $n);
+            delete $r;
+        '''),
+        # Now the entity deletes.
         ("conditions", f'''
             match
               $c isa condition, has condition_id $cid;
@@ -1506,26 +1554,53 @@ def emit_asset_sale_proceeds_flows(driver, db_name: str, deal_id: str) -> int:
     if current:
         blocks.append("\n".join(current))
 
-    inserted = 0
+    # Count actual inserted edges by querying before/after. TypeDB 3.x
+    # match-insert silently no-ops when the match returns 0 rows (no
+    # exception raised), so per-block exception counting would over-report.
+    def _count_proceeds_edges(driver, db_name) -> int:
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            try:
+                r = tx.query(
+                    'match $r isa event_provides_proceeds_to_norm; select $r;'
+                ).resolve()
+                return len(list(r.as_concept_rows()))
+            except Exception:
+                return 0
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:
+                pass
+
+    before = _count_proceeds_edges(driver, db_name)
+    attempted = 0
     for block in blocks:
         if "match" not in block or "insert" not in block:
             continue
         rendered = block.replace("<deal_id>", deal_id)
+        attempted += 1
         wtx = driver.transaction(db_name, TransactionType.WRITE)
         try:
             wtx.query(rendered).resolve()
             wtx.commit()
-            inserted += 1
         except Exception as exc:  # noqa: BLE001
             if wtx.is_open():
                 wtx.close()
-            # Common: target norm not present (its rule didn't emit
-            # because the v3 entity lacks the source flag). Quiet warning.
             logger.warning(
-                "asset_sale_proceeds_seed: block skipped (likely target norm not "
-                "projected for deal %s): %s",
-                deal_id, str(exc).splitlines()[0][:160],
+                "asset_sale_proceeds_seed: block raised exception (rare; "
+                "match-no-rows is silent): %s",
+                str(exc).splitlines()[0][:160],
             )
+    after = _count_proceeds_edges(driver, db_name)
+    inserted = max(0, after - before)
+    if attempted and inserted < attempted:
+        logger.info(
+            "asset_sale_proceeds_seed: %d/%d blocks emitted (others skipped — "
+            "target norm not present for this deal)",
+            inserted, attempted,
+        )
     return inserted
 
 

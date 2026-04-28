@@ -1,5 +1,15 @@
 # Phase B — Data model additions (revised)
 
+> **Phase B plan (historical).** Phase B Commits 1–4 landed; Phase C
+> completed 2026-04-28. `deontic_projection.py` referenced throughout
+> this doc was deleted in Phase C Commit 4 — equivalent emission now
+> goes through `projection_rule_executor.py` via templated rules
+> + the `asset_sale_proceeds_seed.tql` Rule 5.2 concession. Reallocation
+> emission was a no-op for Duck Creek and is deferred to a future commit
+> (see [v4_known_gaps.md](v4_known_gaps.md) "Reallocation projection
+> rule"). Original plan preserved as historical record; CLI invocation
+> examples below are stale.
+
 > Revised against worktree state after pre-execution review found 6
 > errors in the original plan. See `docs/v4_phase_b_plan_review_notes.md`
 > for the diagnosis. Original plan structure preserved; corrections

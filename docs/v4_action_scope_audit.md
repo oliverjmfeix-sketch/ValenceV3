@@ -1,5 +1,12 @@
 # v4 Audit — `action_scope` Semantics for Capacity Contributions
 
+> **Phase B-era doc (2026-04-24).** References `deontic_projection.py`
+> emit behavior. Phase C completed 2026-04-28; `deontic_projection.py`
+> was deleted in Commit 4. Equivalent emission now happens in
+> `projection_rule_executor.py` via `rule_conv_builder_*` rules' relation
+> templates. Audit conclusions remain accurate; the `action_scope`
+> attribute and its values are unchanged.
+
 Date: 2026-04-24
 Scope: pre-Prompt-10 diagnostic on how `action_scope` should be populated
 for capacity-contribution norms (builder sub-sources + analogues).

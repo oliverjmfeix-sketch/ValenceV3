@@ -1,5 +1,13 @@
 # Phase C design — projection rules as graph SSoT
 
+> **Phase C complete (2026-04-28).** All 17 commits in the structure
+> below landed on `origin/v4-deontic`. The "Commit structure" §
+> describes intended scope; actual outcomes (some commits split into
+> 3.x patches, two Rule 5.2 concessions documented post-Commit-4)
+> live in [docs/v4_phase_c_handover.md](v4_phase_c_handover.md). This
+> design doc remains the architectural reference for the
+> projection_rule schema; the executor + corpus realize it.
+
 ## Purpose
 
 Designs the v4 schema for projection rules. Resolves what entities,
