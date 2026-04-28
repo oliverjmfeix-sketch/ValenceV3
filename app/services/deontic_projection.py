@@ -520,16 +520,15 @@ def project_entity(driver, db_name: str, entity: V3Entity,
     nid = _make_norm_id(entity, mapping)
     attrs = entity.attrs
 
+    # Phase C Commit 0a: scale coercion moved to extraction.py post-processing
+    # (_normalize_v3_data). Reading values is now uniform — fraction/percentage
+    # ambiguity is resolved at extraction time, not here.
+    # Attribute-name spread (basket_amount_usd vs annual_cap_usd) is a v3
+    # structural property per entity type, properly modeled by Phase C
+    # projection_rule schema (v3_attribute_value_source per rule). Until the
+    # mechanical converter runs (Phase C Commit 2), the chained-OR remains.
     cap_usd = attrs.get("cap_usd") or attrs.get("basket_amount_usd") or attrs.get("annual_cap_usd")
     cap_grower = attrs.get("cap_grower_pct") or attrs.get("basket_grower_pct") or attrs.get("annual_cap_pct_ebitda")
-    # Scale coercion: v3 stores basket_grower_pct as fractions (1.0 for
-    # 100% of EBITDA, 0.15 for 15%). GT authors percentages (100.0, 15.0).
-    # Covenant grower-pct values span 1–200% (0.01–2.00 in fraction form);
-    # legitimate percentage values are ≥ 5.0, so value ≤ 5.0 reliably
-    # identifies fractions needing 100× up-scaling. Same heuristic as
-    # _project_builder_sub_sources (Prompt 08 Fix 5).
-    if cap_grower is not None and cap_grower <= 5.0:
-        cap_grower = cap_grower * 100.0
     cap_uses_greater_of = attrs.get("cap_uses_greater_of")
     capacity_comp = attrs.get("capacity_composition") or "additive"       # reasonable default
     cap_agg = attrs.get("capacity_aggregation_function") or "n_a"
@@ -1104,10 +1103,8 @@ def _project_builder_sub_sources(driver, db_name: str, parent_nid: str,
             sub_nid = f"{deal_id}_{kind}"
         cap_usd = attrs.get(cap_usd_attr) if cap_usd_attr else None
         cap_grower = attrs.get(cap_grower_attr) if cap_grower_attr else None
-        # cap_grower_pct is stored as percentage (0–100), but v3 extraction
-        # stores some as fractions (e.g., 0.5 for 50%, 1.4 for 140%). Scale up.
-        if cap_grower is not None and cap_grower <= 5.0:
-            cap_grower = cap_grower * 100.0
+        # Phase C Commit 0a: scale coercion moved to extraction.py
+        # post-processing. Values arrive here already in percentage form.
 
         # Phase B — all builder sub-sources accumulate from closing-date fiscal-quarter-start.
         owns = [
