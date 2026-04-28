@@ -58,6 +58,7 @@ class ExecutionReport:
     matches: int = 0
     norms_emitted: int = 0
     relations_emitted: int = 0
+    conditions_emitted: int = 0
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -498,6 +499,313 @@ def _lookup_static_value_source_iid(driver, db_name: str, filler_iid: str) -> st
     return None
 
 
+def load_root_condition_template(driver, db_name: str, rule_id: str) -> str | None:
+    """Return the root condition_template iid for a rule's norm_template,
+    or None if no condition is authored."""
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
+            f'    (owning_rule: $r, produced_template: $nt) isa rule_produces_norm_template;\n'
+            f'    (emitting_template: $nt, root_condition: $ct) isa template_emits_root_condition;\n'
+            f'select $ct;\n'
+        )
+        try:
+            result = tx.query(q).resolve()
+            for row in result.as_concept_rows():
+                return row.get("ct").get_iid()
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return None
+
+
+def load_condition_template(driver, db_name: str, ct_iid: str) -> dict | None:
+    """Read condition_template attrs + its predicate_specifier (if atomic)
+    + ordered children (if compound)."""
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $ct iid {ct_iid}, has target_topology $topo, has target_operator $op;\n'
+            f'select $topo, $op;\n'
+        )
+        topo = op = None
+        try:
+            r = tx.query(q).resolve()
+            row = next(iter(r.as_concept_rows()), None)
+            if row:
+                topo = row.get("topo").as_attribute().get_value()
+                op = row.get("op").as_attribute().get_value()
+        except Exception:
+            return None
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Fetch predicate_specifier (for atomic conditions)
+    spec_iid = None
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $ct iid {ct_iid};\n'
+            f'    (owning_condition_template: $ct, referenced_specifier: $spec) isa atomic_condition_references_predicate;\n'
+            f'select $spec;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            row = next(iter(r.as_concept_rows()), None)
+            if row:
+                spec_iid = row.get("spec").get_iid()
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Fetch ordered children (for compound conditions)
+    children: list[tuple[int, str]] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $parent iid {ct_iid};\n'
+            f'    $r isa condition_template_has_child, links (parent_condition: $parent, child_condition: $child);\n'
+            f'    $r has child_template_index $idx;\n'
+            f'select $child, $idx;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            for row in r.as_concept_rows():
+                children.append((
+                    row.get("idx").as_attribute().get_value(),
+                    row.get("child").get_iid(),
+                ))
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    children.sort(key=lambda t: t[0])
+
+    return {"iid": ct_iid, "topology": topo, "operator": op,
+            "spec_iid": spec_iid, "child_iids": [c[1] for c in children]}
+
+
+def resolve_predicate_id(driver, db_name: str, spec_iid: str, ctx: ExecutorContext) -> str | None:
+    """Construct the state_predicate_id for an atomic condition's
+    predicate_specifier. Two cases:
+      - No predicate_specifier_uses_value edge: specifies_predicate_id is
+        the full composite id (canonical predicate).
+      - With predicate_specifier_uses_value: specifies_predicate_id is the
+        label; combine with resolved value source + specifies_operator +
+        specifies_reference_label via construct_state_predicate_id.
+    """
+    label = _read_attr_value(driver, db_name, spec_iid, "specifies_predicate_id")
+    if label is None:
+        return None
+    op = _read_attr_value(driver, db_name, spec_iid, "specifies_operator")
+    ref = _read_attr_value(driver, db_name, spec_iid, "specifies_reference_label")
+
+    # Look for dynamic value source
+    tx = driver.transaction(db_name, TransactionType.READ)
+    dyn_iid = None
+    try:
+        q = (
+            f'match\n'
+            f'    $spec iid {spec_iid};\n'
+            f'    (owning_specifier: $spec, dynamic_value_source: $vs) isa predicate_specifier_uses_value;\n'
+            f'select $vs;\n'
+        )
+        try:
+            r = tx.query(q).resolve()
+            row = next(iter(r.as_concept_rows()), None)
+            if row:
+                dyn_iid = row.get("vs").get_iid()
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    if dyn_iid is None:
+        # Canonical case — label IS the full composite id
+        return label
+
+    # Dynamic case — construct composite id
+    threshold = resolve_value_source(driver, db_name, dyn_iid, ctx)
+    if threshold is None:
+        return None
+    from app.services.predicate_id import construct_state_predicate_id
+    return construct_state_predicate_id(
+        label=label,
+        threshold_value_double=float(threshold),
+        operator_comparison=op,
+        reference_predicate_label=ref,
+    )
+
+
+def emit_condition_subtree(driver, db_name: str, ct_iid: str,
+                            norm_id: str, parent_cond_id: str | None,
+                            ctx: ExecutorContext,
+                            report: ExecutionReport,
+                            path_suffix: str = "root") -> str | None:
+    """Recursively emit condition entities for a condition_template subtree.
+
+    Returns the condition_id of the emitted root condition (for the parent
+    to wire condition_has_child or norm_has_condition).
+    """
+    tpl = load_condition_template(driver, db_name, ct_iid)
+    if tpl is None:
+        return None
+
+    cond_id = f"{norm_id}__cond_{path_suffix}"
+
+    # Insert the condition entity
+    # Schema: condition owns condition_id, condition_operator, condition_topology
+    # condition_topology populated on root only; internal nodes have only operator.
+    if path_suffix == "root":
+        cond_q = (
+            f'insert $c isa condition,\n'
+            f'    has condition_id "{cond_id}",\n'
+            f'    has condition_topology "{tpl["topology"]}",\n'
+            f'    has condition_operator "{tpl["operator"]}";\n'
+        )
+    else:
+        cond_q = (
+            f'insert $c isa condition,\n'
+            f'    has condition_id "{cond_id}",\n'
+            f'    has condition_operator "{tpl["operator"]}";\n'
+        )
+    wtx = driver.transaction(db_name, TransactionType.WRITE)
+    try:
+        try:
+            wtx.query(cond_q).resolve()
+            wtx.commit()
+            report.conditions_emitted += 1
+        except Exception as exc:
+            if wtx.is_open():
+                wtx.close()
+            report.warnings.append(f"emit condition {cond_id}: {str(exc).splitlines()[0][:120]}")
+            return None
+    except Exception:
+        return None
+
+    # If atomic, wire condition_references_predicate to the resolved predicate
+    if tpl["operator"] == "atomic" and tpl["spec_iid"]:
+        pred_id = resolve_predicate_id(driver, db_name, tpl["spec_iid"], ctx)
+        if pred_id:
+            link_q = (
+                f'match\n'
+                f'    $c isa condition, has condition_id "{cond_id}";\n'
+                f'    $p isa state_predicate, has state_predicate_id "{pred_id}";\n'
+                f'insert (condition: $c, predicate: $p) isa condition_references_predicate;\n'
+            )
+            wtx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                try:
+                    wtx.query(link_q).resolve()
+                    wtx.commit()
+                except Exception as exc:
+                    if wtx.is_open():
+                        wtx.close()
+                    report.warnings.append(f"link {cond_id} to predicate {pred_id}: {str(exc).splitlines()[0][:120]}")
+            except Exception:
+                pass
+
+    # Recurse for compound — emit children + condition_has_child edges
+    for idx, child_iid in enumerate(tpl["child_iids"]):
+        child_id = emit_condition_subtree(
+            driver, db_name, child_iid, norm_id, cond_id, ctx, report,
+            path_suffix=f"{path_suffix}_{idx}",
+        )
+        if child_id:
+            child_link_q = (
+                f'match\n'
+                f'    $parent isa condition, has condition_id "{cond_id}";\n'
+                f'    $child isa condition, has condition_id "{child_id}";\n'
+                f'insert (parent_condition: $parent, child_condition: $child)\n'
+                f'    isa condition_template_has_child, has child_template_index {idx};\n'
+            )
+            # NOTE: actual relation in schema is `condition_has_child` not
+            # condition_template_has_child. Fix below.
+            child_link_q = (
+                f'match\n'
+                f'    $parent isa condition, has condition_id "{cond_id}";\n'
+                f'    $child isa condition, has condition_id "{child_id}";\n'
+                f'insert (parent: $parent, child: $child) isa condition_has_child,\n'
+                f'    has child_index {idx};\n'
+            )
+            wtx = driver.transaction(db_name, TransactionType.WRITE)
+            try:
+                try:
+                    wtx.query(child_link_q).resolve()
+                    wtx.commit()
+                except Exception as exc:
+                    if wtx.is_open():
+                        wtx.close()
+                    report.warnings.append(f"link child {child_id} to {cond_id}: {str(exc).splitlines()[0][:120]}")
+            except Exception:
+                pass
+
+    return cond_id
+
+
+def emit_root_condition(driver, db_name: str, rule_id: str, emitted_norm_id: str,
+                         ctx: ExecutorContext, report: ExecutionReport) -> bool:
+    """Walk template_emits_root_condition for the rule and emit the
+    full condition tree + norm_has_condition edge."""
+    root_iid = load_root_condition_template(driver, db_name, rule_id)
+    if root_iid is None:
+        return False
+
+    root_cond_id = emit_condition_subtree(
+        driver, db_name, root_iid, emitted_norm_id, None, ctx, report,
+    )
+    if root_cond_id is None:
+        return False
+
+    # Wire norm_has_condition
+    link_q = (
+        f'match\n'
+        f'    $n isa norm, has norm_id "{emitted_norm_id}";\n'
+        f'    $c isa condition, has condition_id "{root_cond_id}";\n'
+        f'insert (norm: $n, root: $c) isa norm_has_condition;\n'
+    )
+    wtx = driver.transaction(db_name, TransactionType.WRITE)
+    try:
+        try:
+            wtx.query(link_q).resolve()
+            wtx.commit()
+            return True
+        except Exception as exc:
+            if wtx.is_open():
+                wtx.close()
+            report.warnings.append(f"norm_has_condition link for {emitted_norm_id}: {str(exc).splitlines()[0][:120]}")
+            return False
+    except Exception:
+        return False
+
+
 def emit_relation_templates(driver, db_name: str, rule_id: str,
                              emitted_norm_id: str, ctx: ExecutorContext,
                              report: ExecutionReport) -> int:
@@ -625,9 +933,13 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
 
         if emit_norm(driver, db_name, resolved, dry_run=dry_run):
             report.norms_emitted += 1
-            # Emit relation templates (scope edges, etc.) if any
             if not dry_run and resolved.get("norm_id"):
+                # Emit relation templates (scope edges)
                 report.relations_emitted += emit_relation_templates(
+                    driver, db_name, rule_id, resolved["norm_id"], ctx, report,
+                )
+                # Emit root condition tree if authored
+                emit_root_condition(
                     driver, db_name, rule_id, resolved["norm_id"], ctx, report,
                 )
 

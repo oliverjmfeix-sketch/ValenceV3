@@ -441,6 +441,57 @@ def generate_rule_tql(mapping: dict) -> str:
         else:
             emit_relation_template("norm_scopes_object", "object", "object_class", "object_class_label", obj_label)
 
+    # ─── Condition templates (Commit 2.2) ──────────────────────────────────
+    # The python projection emits conditions only when the existing graph
+    # state actually carries them. Audit shows only ratio_basket ->
+    # ratio_rp_basket_permission has a condition tree currently. So we
+    # author a condition_template ONLY for that mapping. ratio_rdp_basket
+    # and jcrew_blocker have condition_builder_spec_refs but the existing
+    # python projection skips condition emission for them — we mirror that
+    # behavior to preserve byte-identical parity.
+    cb_ref = mapping.get("condition_builder_spec_ref", "none")
+    if src == "ratio_basket" and cb_ref == "ratio_with_no_worse":
+        # Root: or_of_atomics
+        # Child 0 (atomic, dynamic): first_lien_net_leverage_at_or_below at v3 ratio_threshold
+        # Child 1 (atomic, canonical): pro_forma_no_worse|||first_lien_net_leverage
+        ct_root = vs_var("ct_root")
+        ct_c0 = vs_var("ct_c0")
+        ct_c1 = vs_var("ct_c1")
+        spec_c0 = vs_var("spec_c0")
+        spec_c1 = vs_var("spec_c1")
+        vs_thresh = vs_var("vs_thresh")
+
+        lines.append(f'{ct_root} isa condition_template,')
+        lines.append(f'    has condition_template_id "ct_conv_{src}_root",')
+        lines.append(f'    has target_topology "or_of_atomics",')
+        lines.append(f'    has target_operator "or";')
+        lines.append(f'(emitting_template: $nt, root_condition: {ct_root}) isa template_emits_root_condition;')
+
+        # Child 0 — dynamic threshold atomic
+        lines.append(f'{ct_c0} isa condition_template,')
+        lines.append(f'    has condition_template_id "ct_conv_{src}_c0",')
+        lines.append(f'    has target_topology "atomic",')
+        lines.append(f'    has target_operator "atomic";')
+        lines.append(f'(parent_condition: {ct_root}, child_condition: {ct_c0})')
+        lines.append(f'    isa condition_template_has_child, has child_template_index 0;')
+        lines.append(f'{spec_c0} isa predicate_specifier,')
+        lines.append(f'    has specifies_predicate_id "first_lien_net_leverage_at_or_below",')
+        lines.append(f'    has specifies_operator "at_or_below";')
+        lines.append(f'(owning_condition_template: {ct_c0}, referenced_specifier: {spec_c0}) isa atomic_condition_references_predicate;')
+        lines.append(f'{vs_thresh} isa v3_attribute_value_source, has reads_v3_attribute_name "ratio_threshold";')
+        lines.append(f'(owning_specifier: {spec_c0}, dynamic_value_source: {vs_thresh}) isa predicate_specifier_uses_value;')
+
+        # Child 1 — canonical atomic
+        lines.append(f'{ct_c1} isa condition_template,')
+        lines.append(f'    has condition_template_id "ct_conv_{src}_c1",')
+        lines.append(f'    has target_topology "atomic",')
+        lines.append(f'    has target_operator "atomic";')
+        lines.append(f'(parent_condition: {ct_root}, child_condition: {ct_c1})')
+        lines.append(f'    isa condition_template_has_child, has child_template_index 1;')
+        lines.append(f'{spec_c1} isa predicate_specifier,')
+        lines.append(f'    has specifies_predicate_id "pro_forma_no_worse|||first_lien_net_leverage";')
+        lines.append(f'(owning_condition_template: {ct_c1}, referenced_specifier: {spec_c1}) isa atomic_condition_references_predicate;')
+
     return "\n".join(lines) + "\n"
 
 
@@ -460,6 +511,10 @@ def cleanup_converted_rules(driver, db: str) -> None:
         'match $t isa norm_template, has norm_template_id $tid; $tid like "nt_conv_.*"; delete $t;',
         # Delete converter-emitted relation_templates (id prefix "rt_conv_")
         'match $rt isa relation_template, has relation_template_id $rid; $rid like "rt_conv_.*"; delete $rt;',
+        # Delete converter-emitted condition_templates (id prefix "ct_conv_")
+        'match $ct isa condition_template, has condition_template_id $cid; $cid like "ct_conv_.*"; delete $ct;',
+        # Delete emitted norm-condition entities (condition_id prefix "conv_")
+        'match $c isa condition, has condition_id $cid; $cid like "conv_.*"; delete $c;',
         # Delete orphan role_assignments / role_fillers / attribute_emissions / value_sources / match_criteria
         # All such entities are only created by rule authoring; the pilot rule's
         # entities are linked to the retained pilot projection_rule, but the executor

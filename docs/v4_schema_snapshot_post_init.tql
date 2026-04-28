@@ -1338,6 +1338,10 @@ attribute defeater_template_id,
  value string;
 attribute defeater_template_label,
  value string;
+attribute specifies_operator,
+ value string;
+attribute specifies_reference_label,
+ value string;
 entity deal,
   owns borrower_name,
   owns created_at,
@@ -2668,7 +2672,9 @@ entity condition_template,
   plays condition_template_has_child:parent_condition,
   plays template_emits_root_condition:root_condition;
 entity predicate_specifier,
+  owns specifies_operator,
   owns specifies_predicate_id,
+  owns specifies_reference_label,
   plays atomic_condition_references_predicate:referenced_specifier,
   plays predicate_specifier_uses_value:owning_specifier;
 entity defeater_template,

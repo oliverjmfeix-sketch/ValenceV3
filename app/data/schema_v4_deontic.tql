@@ -1018,8 +1018,20 @@ entity condition_template,
     owns target_topology,
     owns target_operator;
 
+# Dynamic predicate construction: when a predicate_specifier has a
+# dynamic_value_source (via predicate_specifier_uses_value), the executor
+# constructs the composite state_predicate_id by feeding (specifies_predicate_id,
+# dynamic_value_source resolved value, specifies_operator, specifies_reference_label)
+# into the canonical construct_state_predicate_id() function. For canonical
+# predicates (no dynamic value source), specifies_predicate_id is treated as
+# the full composite id directly.
+attribute specifies_operator, value string;            # e.g., "at_or_below" — comparison_operator part of composite id
+attribute specifies_reference_label, value string;      # e.g., "first_lien_net_leverage" — reference_predicate_label
+
 entity predicate_specifier,
-    owns specifies_predicate_id;
+    owns specifies_predicate_id,
+    owns specifies_operator,
+    owns specifies_reference_label;
 
 # A norm or defeater template emits at most one root condition template
 relation template_emits_root_condition,
