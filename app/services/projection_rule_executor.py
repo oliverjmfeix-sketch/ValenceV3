@@ -57,6 +57,7 @@ class ExecutionReport:
     rule_id: str
     matches: int = 0
     norms_emitted: int = 0
+    relations_emitted: int = 0
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -361,6 +362,198 @@ def fetch_v3_entity_attrs(driver, db_name: str, entity_type: str, deal_id: str) 
     return matches
 
 
+def load_relation_templates(driver, db_name: str, rule_id: str) -> list[dict]:
+    """Read each relation_template the rule's norm_template emits.
+    Returns list of dicts: {iid, relation_type}."""
+    templates: list[dict] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $r isa projection_rule, has projection_rule_id "{rule_id}";\n'
+            f'    (owning_rule: $r, produced_template: $nt) isa rule_produces_norm_template;\n'
+            f'    (emitting_template: $nt, emitted_relation: $rt) isa template_emits_relation;\n'
+            f'    $rt has emits_relation_type $rtype;\n'
+            f'select $rt, $rtype;\n'
+        )
+        try:
+            result = tx.query(q).resolve()
+            for row in result.as_concept_rows():
+                templates.append({
+                    "iid": row.get("rt").get_iid(),
+                    "relation_type": row.get("rtype").as_attribute().get_value(),
+                })
+        except Exception as exc:
+            logger.debug(f"load_relation_templates {rule_id}: {str(exc).splitlines()[0][:80]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return templates
+
+
+def load_role_assignments(driver, db_name: str, rt_iid: str) -> list[dict]:
+    """Read each role_assignment under a relation_template + its filler info."""
+    assignments: list[dict] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $rt iid {rt_iid};\n'
+            f'    (owning_relation_template: $rt, emitted_role_assignment: $ra) isa relation_template_assigns_role;\n'
+            f'    $ra has assigned_role_name $rn;\n'
+            f'    (owning_role_assignment: $ra, assignment_filler: $f) isa role_assignment_filled_by;\n'
+            f'    $f isa! $f_type;\n'
+            f'select $ra, $rn, $f, $f_type;\n'
+        )
+        try:
+            result = tx.query(q).resolve()
+            for row in result.as_concept_rows():
+                assignments.append({
+                    "ra_iid": row.get("ra").get_iid(),
+                    "role_name": row.get("rn").as_attribute().get_value(),
+                    "filler_iid": row.get("f").get_iid(),
+                    "filler_type": row.get("f_type").get_label(),
+                })
+        except Exception as exc:
+            logger.debug(f"load_role_assignments {rt_iid}: {str(exc).splitlines()[0][:80]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return assignments
+
+
+def resolve_filler(driver, db_name: str, filler_iid: str, filler_type: str,
+                    emitted_norm_id: str, ctx: ExecutorContext,
+                    role_name: str = "") -> dict | None:
+    """Resolve a role_filler to a TypeQL match clause.
+
+    Returns {"match_clause": "<tql line>", "var_name": "$x"}.
+    The caller composes match clauses + insert into a final write query.
+    """
+    # Variable name combines role + iid for uniqueness across two fillers
+    # under the same relation_template (last 8 chars of iid alone collides
+    # when fillers are created in sequence).
+    iid_clean = filler_iid.replace("0x", "").replace(" ", "")
+    var_name = f"$f_{role_name}_{iid_clean[-12:]}" if role_name else f"$f_{iid_clean[-12:]}"
+    if filler_type == "emitted_norm_role_filler":
+        return {
+            "var_name": var_name,
+            "match_clause": f'{var_name} isa norm, has norm_id "{emitted_norm_id}";',
+        }
+    if filler_type == "static_lookup_role_filler":
+        lookup_entity = _read_attr_value(driver, db_name, filler_iid, "lookup_entity_type")
+        lookup_attr = _read_attr_value(driver, db_name, filler_iid, "lookup_attribute_name")
+        if not lookup_entity or not lookup_attr:
+            logger.warning(f"static_lookup_role_filler {filler_iid} missing lookup_entity_type or lookup_attribute_name")
+            return None
+        # Walk static_lookup_uses_value to get the target value
+        value_iid = _lookup_static_value_source_iid(driver, db_name, filler_iid)
+        if value_iid is None:
+            logger.warning(f"static_lookup_role_filler {filler_iid} has no value source")
+            return None
+        value = resolve_value_source(driver, db_name, value_iid, ctx)
+        if value is None:
+            return None
+        return {
+            "var_name": var_name,
+            "match_clause": f'{var_name} isa {lookup_entity}, has {lookup_attr} {_tq_literal(value)};',
+        }
+    if filler_type == "produced_norm_role_filler":
+        # Cross-rule reference; resolve target template's emitted norm_id
+        # via produced_norm_filler_references_template. Defer to subsequent
+        # commit (Commit 2.4 builder sub-source rules need this).
+        raise NotImplementedError(
+            "produced_norm_role_filler not yet supported — Commit 2.4 will add cross-rule reference resolution"
+        )
+    raise ValueError(f"unknown role_filler type: {filler_type}")
+
+
+def _lookup_static_value_source_iid(driver, db_name: str, filler_iid: str) -> str | None:
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $f iid {filler_iid};\n'
+            f'    (owning_filler: $f, lookup_value_source: $vs) isa static_lookup_uses_value;\n'
+            f'select $vs;\n'
+        )
+        try:
+            result = tx.query(q).resolve()
+            for row in result.as_concept_rows():
+                return row.get("vs").get_iid()
+        except Exception:
+            return None
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return None
+
+
+def emit_relation_templates(driver, db_name: str, rule_id: str,
+                             emitted_norm_id: str, ctx: ExecutorContext,
+                             report: ExecutionReport) -> int:
+    """For each relation_template the rule emits, build a match-insert
+    query that creates the v4 relation. Returns count of relations
+    successfully emitted."""
+    templates = load_relation_templates(driver, db_name, rule_id)
+    emitted = 0
+    for rt in templates:
+        assignments = load_role_assignments(driver, db_name, rt["iid"])
+        if not assignments:
+            report.warnings.append(f"relation_template {rt['relation_type']} has no role_assignments")
+            continue
+
+        match_lines = []
+        role_bindings = []
+        skip = False
+        for ra in assignments:
+            try:
+                resolved = resolve_filler(
+                    driver, db_name, ra["filler_iid"], ra["filler_type"],
+                    emitted_norm_id, ctx, role_name=ra["role_name"],
+                )
+            except NotImplementedError as exc:
+                report.warnings.append(f"relation {rt['relation_type']}: {exc}")
+                skip = True
+                break
+            if resolved is None:
+                skip = True
+                break
+            match_lines.append(resolved["match_clause"])
+            role_bindings.append(f'{ra["role_name"]}: {resolved["var_name"]}')
+        if skip:
+            continue
+
+        match_q = "match\n  " + "\n  ".join(match_lines)
+        insert_q = f"insert ({', '.join(role_bindings)}) isa {rt['relation_type']};"
+        full_q = f"{match_q}\n{insert_q}"
+
+        wtx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            try:
+                wtx.query(full_q).resolve()
+                wtx.commit()
+                emitted += 1
+            except Exception as exc:
+                if wtx.is_open():
+                    wtx.close()
+                report.warnings.append(
+                    f"emit relation {rt['relation_type']}: {str(exc).splitlines()[0][:120]}"
+                )
+        except Exception:
+            pass
+    return emitted
+
+
 def emit_norm(driver, db_name: str, attrs: dict[str, Any], dry_run: bool = False) -> bool:
     """Emit a single norm with the resolved attributes."""
     if not attrs.get("norm_id"):
@@ -432,5 +625,10 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
 
         if emit_norm(driver, db_name, resolved, dry_run=dry_run):
             report.norms_emitted += 1
+            # Emit relation templates (scope edges, etc.) if any
+            if not dry_run and resolved.get("norm_id"):
+                report.relations_emitted += emit_relation_templates(
+                    driver, db_name, rule_id, resolved["norm_id"], ctx, report,
+                )
 
     return report

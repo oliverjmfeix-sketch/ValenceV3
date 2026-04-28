@@ -153,6 +153,19 @@ NORM_ID_PREFIX = "conv_"
 # Pilot rule's source_entity_type — skipped during conversion
 PILOT_SOURCE_TYPE = "general_rp_basket"
 
+# Concrete subtypes of instrument_class. Object labels in this set are
+# scoped via norm_scopes_instrument; all others via norm_scopes_object.
+# Mirrors load_instrument_labels in load_ground_truth.py / the python
+# projection's instrument_labels set.
+INSTRUMENT_LABELS = {
+    "equity_interest",
+    "holdco_equity",
+    "material_intellectual_property",
+    "restricted_sub_equity",
+    "subordinated_debt_instrument",
+    "unrestricted_sub_equity",
+}
+
 
 def _tq_string(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -171,7 +184,9 @@ def connect():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def load_mappings(driver, db: str) -> list[dict]:
-    """Read all deontic_mapping entries with their primary attributes."""
+    """Read all deontic_mapping entries with their primary attributes
+    plus action / object labels via mapping_targets_action and
+    mapping_targets_object."""
     mappings: list[dict] = []
     tx = driver.transaction(db, TransactionType.READ)
     try:
@@ -198,9 +213,64 @@ select $mid, $src, $tnk, $mod, $subj, $scope, $cb;
                     "default_subject_role": row.get("subj").as_attribute().get_value(),
                     "default_action_scope_kind": row.get("scope").as_attribute().get_value(),
                     "condition_builder_spec_ref": row.get("cb").as_attribute().get_value(),
+                    "action_labels": [],
+                    "object_labels": [],
                 })
         except Exception as exc:
             logger.error(f"load_mappings failed: {str(exc).splitlines()[0][:200]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Read action labels
+    by_id = {m["mapping_id"]: m for m in mappings}
+    tx = driver.transaction(db, TransactionType.READ)
+    try:
+        q = """
+match
+    $m isa deontic_mapping, has mapping_id $mid;
+    (mapping: $m, action: $a) isa mapping_targets_action;
+    $a has action_class_label $al;
+select $mid, $al;
+"""
+        try:
+            r = tx.query(q).resolve()
+            for row in r.as_concept_rows():
+                mid = row.get("mid").as_attribute().get_value()
+                al = row.get("al").as_attribute().get_value()
+                if mid in by_id:
+                    by_id[mid]["action_labels"].append(al)
+        except Exception:
+            pass
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    # Read object labels
+    tx = driver.transaction(db, TransactionType.READ)
+    try:
+        q = """
+match
+    $m isa deontic_mapping, has mapping_id $mid;
+    (mapping: $m, object: $o) isa mapping_targets_object;
+    $o has object_class_label $ol;
+select $mid, $ol;
+"""
+        try:
+            r = tx.query(q).resolve()
+            for row in r.as_concept_rows():
+                mid = row.get("mid").as_attribute().get_value()
+                ol = row.get("ol").as_attribute().get_value()
+                if mid in by_id:
+                    by_id[mid]["object_labels"].append(ol)
+        except Exception:
+            pass
     finally:
         try:
             if tx.is_open():
@@ -320,6 +390,57 @@ def generate_rule_tql(mapping: dict) -> str:
     emit_v3_attr("cap_uses_greater_of", "cap_uses_greater_of")
     emit_v3_attr("confidence", "confidence")
 
+    # ─── Relation templates (Commit 2.1) ───────────────────────────────────
+    # Per python projection's bind_norm_scope: emit one relation per subject_role,
+    # one per action_label, one per object_label. Object labels dispatched by
+    # instrument_class membership.
+
+    def emit_relation_template(rel_type: str, other_role_name: str,
+                                other_lookup_type: str, other_lookup_attr: str,
+                                lookup_value: str) -> None:
+        rt = vs_var(f"rt_{rel_type}")
+        ra_norm = vs_var(f"ra_norm_{rel_type}")
+        ra_other = vs_var(f"ra_other_{rel_type}")
+        f_norm = vs_var(f"f_norm_{rel_type}")
+        f_other = vs_var(f"f_other_{rel_type}")
+        v_other = vs_var(f"v_other_{rel_type}")
+        rt_id = f"rt_conv_{src}_{rel_type}_{lookup_value}"
+
+        lines.append(f'{rt} isa relation_template,')
+        lines.append(f'    has relation_template_id "{rt_id}",')
+        lines.append(f'    has emits_relation_type "{rel_type}";')
+        lines.append(f'(emitting_template: $nt, emitted_relation: {rt}) isa template_emits_relation;')
+
+        # Role assignment for the norm role (filled by the rule's emitted norm)
+        lines.append(f'{ra_norm} isa role_assignment, has assigned_role_name "norm";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_norm}) isa relation_template_assigns_role;')
+        lines.append(f'{f_norm} isa emitted_norm_role_filler;')
+        lines.append(f'(owning_role_assignment: {ra_norm}, assignment_filler: {f_norm}) isa role_assignment_filled_by;')
+
+        # Role assignment for the other role (static lookup)
+        lines.append(f'{ra_other} isa role_assignment, has assigned_role_name "{other_role_name}";')
+        lines.append(f'(owning_relation_template: {rt}, emitted_role_assignment: {ra_other}) isa relation_template_assigns_role;')
+        lines.append(f'{f_other} isa static_lookup_role_filler,')
+        lines.append(f'    has lookup_entity_type "{other_lookup_type}",')
+        lines.append(f'    has lookup_attribute_name "{other_lookup_attr}";')
+        lines.append(f'(owning_role_assignment: {ra_other}, assignment_filler: {f_other}) isa role_assignment_filled_by;')
+        lines.append(f'{v_other} isa literal_string_value_source, has literal_string_value {_tq_string(lookup_value)};')
+        lines.append(f'(owning_filler: {f_other}, lookup_value_source: {v_other}) isa static_lookup_uses_value;')
+
+    # subject_role is comma-separated in the deontic_mapping
+    subject_roles = [r.strip() for r in mapping["default_subject_role"].split(",") if r.strip()]
+    for role in subject_roles:
+        emit_relation_template("norm_binds_subject", "subject", "party", "party_role", role)
+
+    for action_label in mapping.get("action_labels", []):
+        emit_relation_template("norm_scopes_action", "action", "action_class", "action_class_label", action_label)
+
+    for obj_label in mapping.get("object_labels", []):
+        if obj_label in INSTRUMENT_LABELS:
+            emit_relation_template("norm_scopes_instrument", "instrument", "instrument_class", "instrument_class_label", obj_label)
+        else:
+            emit_relation_template("norm_scopes_object", "object", "object_class", "object_class_label", obj_label)
+
     return "\n".join(lines) + "\n"
 
 
@@ -337,6 +458,21 @@ def cleanup_converted_rules(driver, db: str) -> None:
         'match $r isa projection_rule, has projection_rule_id $rid; $rid like "rule_conv_.*"; delete $r;',
         # Delete converter-emitted norm_templates (id prefix "nt_conv_")
         'match $t isa norm_template, has norm_template_id $tid; $tid like "nt_conv_.*"; delete $t;',
+        # Delete converter-emitted relation_templates (id prefix "rt_conv_")
+        'match $rt isa relation_template, has relation_template_id $rid; $rid like "rt_conv_.*"; delete $rt;',
+        # Delete orphan role_assignments / role_fillers / attribute_emissions / value_sources / match_criteria
+        # All such entities are only created by rule authoring; the pilot rule's
+        # entities are linked to the retained pilot projection_rule, but the executor
+        # walks from rule -> templates -> emissions, so orphans are unreachable.
+        # However, sweep-deleting orphans is dangerous if pilot is also retained.
+        # For now we only sweep entity types whose @key is namespaced by "conv_"
+        # or where the entity itself can be matched orphan-style by parents.
+        #
+        # Orphan attribute_emission/value_source/match_criterion/role_assignment/
+        # role_filler entities accumulate. They don't break correctness (executor
+        # walks from rule each run; templates are recreated with fresh iids each
+        # rule load). Sweeping them safely requires knowing which ones belong to
+        # the pilot rule vs orphans — deferred.
     ]
     for q in queries:
         wtx = driver.transaction(db, TransactionType.WRITE)
