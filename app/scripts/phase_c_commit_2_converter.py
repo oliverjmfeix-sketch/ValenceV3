@@ -53,7 +53,9 @@ if _main_env.exists():
 load_dotenv(REPO_ROOT / ".env", override=False)
 
 from app.config import settings  # noqa: E402
-from app.services.projection_rule_executor import execute_rule, fetch_v3_entity_attrs  # noqa: E402
+# Commit 4: execute_rule + fetch_v3_entity_attrs are no longer used by
+# the converter (parity check removed). Rule execution is project_deal's
+# job in app/services/projection_rule_executor.py.
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
 
 logging.basicConfig(
@@ -149,8 +151,12 @@ def temporal_for(kind: str) -> tuple[str, str]:
     return ("not_applicable", "not_applicable")
 
 
-# Norm_id prefix for converter-emitted norms (collision avoidance vs python projection)
-NORM_ID_PREFIX = "conv_"
+# Norm_id prefix for converter-emitted norms.
+# Phase C Commit 4: dropped from "conv_" to "" — the python projection
+# is deleted, so collision avoidance is no longer required and the
+# emitted norm_ids match the canonical <deal_id>_<kind> format used
+# by the harness and ground-truth YAML.
+NORM_ID_PREFIX = ""
 
 # (Pilot retired in Commit 3.1; converter authors rule_conv_general_rp_basket
 # directly via the standard mapping flow.)
@@ -556,7 +562,7 @@ def generate_defeater_rule_tql(subtype: str) -> str:
     lines.append(f'{ae} isa attribute_emission, has emitted_attribute_name "defeater_id";')
     lines.append(f'(emitting_template: $dt, emitted_attribute: {ae}) isa template_emits_attribute;')
     lines.append(f'{vs} isa concatenation_value_source;')
-    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_deal} isa deal_id_value_source;')
     lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "_jcrew_{subtype}";')
     lines.append(f'(owning_emission: {ae}, source_value: {vs}) isa attribute_emission_uses_value;')
@@ -618,7 +624,7 @@ def generate_defeater_rule_tql(subtype: str) -> str:
     lines.append(f'    has lookup_attribute_name "norm_id";')
     lines.append(f'(owning_role_assignment: {ra_rec}, assignment_filler: {f_rec}) isa role_assignment_filled_by;')
     lines.append(f'{vs_norm_concat} isa concatenation_value_source;')
-    lines.append(f'{vs_norm_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_norm_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_norm_deal} isa deal_id_value_source;')
     lines.append(f'{vs_norm_post} isa literal_string_value_source, has literal_string_value "_jcrew_blocker_prohibition";')
     lines.append(f'(owning_filler: {f_rec}, lookup_value_source: {vs_norm_concat}) isa static_lookup_uses_value;')
@@ -741,7 +747,7 @@ def generate_b_aggregate_rule_tql() -> str:
     lines.append(f'{ae_id} isa attribute_emission, has emitted_attribute_name "norm_id";')
     lines.append(f'(emitting_template: $nt, emitted_attribute: {ae_id}) isa template_emits_attribute;')
     lines.append(f'{vs_id} isa concatenation_value_source;')
-    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_deal} isa deal_id_value_source;')
     lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "_{target_kind}";')
     lines.append(f'(owning_emission: {ae_id}, source_value: {vs_id}) isa attribute_emission_uses_value;')
@@ -825,7 +831,7 @@ def generate_b_aggregate_rule_tql() -> str:
     lines.append(f'    has lookup_attribute_name "norm_id";')
     lines.append(f'(owning_role_assignment: {ra_pool}, assignment_filler: {f_pool}) isa role_assignment_filled_by;')
     lines.append(f'{vs_pool_concat} isa concatenation_value_source;')
-    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_pool_deal} isa deal_id_value_source;')
     lines.append(f'{vs_pool_post} isa literal_string_value_source, has literal_string_value "_builder_usage_permission";')
     lines.append(f'(owning_filler: {f_pool}, lookup_value_source: {vs_pool_concat}) isa static_lookup_uses_value;')
@@ -924,7 +930,7 @@ def generate_builder_sub_source_rule_tql(spec: tuple, child_index: int) -> str:
     lines.append(f'{ae_id} isa attribute_emission, has emitted_attribute_name "norm_id";')
     lines.append(f'(emitting_template: $nt, emitted_attribute: {ae_id}) isa template_emits_attribute;')
     lines.append(f'{vs_id} isa concatenation_value_source;')
-    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_deal} isa deal_id_value_source;')
     lines.append(f'{vs_post} isa literal_string_value_source, has literal_string_value "{norm_id_suffix}";')
     lines.append(f'(owning_emission: {ae_id}, source_value: {vs_id}) isa attribute_emission_uses_value;')
@@ -1012,7 +1018,7 @@ def generate_builder_sub_source_rule_tql(spec: tuple, child_index: int) -> str:
     lines.append(f'    has lookup_attribute_name "norm_id";')
     lines.append(f'(owning_role_assignment: {ra_pool}, assignment_filler: {f_pool}) isa role_assignment_filled_by;')
     lines.append(f'{vs_pool_concat} isa concatenation_value_source;')
-    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "conv_";')
+    lines.append(f'{vs_pool_pre} isa literal_string_value_source, has literal_string_value "{NORM_ID_PREFIX}";')
     lines.append(f'{vs_pool_deal} isa deal_id_value_source;')
     lines.append(f'{vs_pool_post} isa literal_string_value_source, has literal_string_value "_{pool_kind}";')
     lines.append(f'(owning_filler: {f_pool}, lookup_value_source: {vs_pool_concat}) isa static_lookup_uses_value;')
@@ -1037,15 +1043,18 @@ def generate_builder_sub_source_rule_tql(spec: tuple, child_index: int) -> str:
 
 
 def cleanup_converted_rules(driver, db: str) -> None:
-    """Remove converter-emitted rules + emitted norms (norm_id prefix
-    NORM_ID_PREFIX). Commit 3.1: also deletes the retired pilot rule
-    (rule_general_rp_basket) and its pilot_*-prefixed output if any
-    is left over from prior pilot script runs.
+    """Remove converter-authored rule subgraph entities (rule_conv_*,
+    nt_conv_*, rt_conv_*, ct_conv_*, dt_conv_*). Commit 4: per-deal
+    output (norms, defeaters, conditions) is no longer prefixed and
+    cleanup of those is now project_deal's responsibility via
+    clear_v4_projection_for_deal — NOT done here.
+
+    Also deletes the retired pilot rule (rule_general_rp_basket) and
+    any leftover pilot_*-prefixed norm output, both idempotent no-ops
+    once cleared.
     """
     queries = [
-        # Delete converter-emitted norms
-        f'match $n isa norm, has norm_id $nid; $nid like "{NORM_ID_PREFIX}.*"; delete $n;',
-        # Delete pilot output (Commit 3.1 retirement; no-op once cleared)
+        # Delete legacy pilot output (Commit 3.1 retirement; no-op once cleared)
         'match $n isa norm, has norm_id $nid; $nid like "pilot_.*"; delete $n;',
         # Delete converter-emitted projection_rules (id prefix "rule_conv_")
         'match $r isa projection_rule, has projection_rule_id $rid; $rid like "rule_conv_.*"; delete $r;',
@@ -1057,18 +1066,10 @@ def cleanup_converted_rules(driver, db: str) -> None:
         'match $rt isa relation_template, has relation_template_id $rid; $rid like "rt_conv_.*"; delete $rt;',
         # Delete converter-emitted condition_templates (id prefix "ct_conv_")
         'match $ct isa condition_template, has condition_template_id $cid; $cid like "ct_conv_.*"; delete $ct;',
-        # Delete emitted norm-condition entities (condition_id prefix "conv_")
-        'match $c isa condition, has condition_id $cid; $cid like "conv_.*"; delete $c;',
-        # Delete converter-emitted defeaters (id prefix "conv_")
-        'match $d isa defeater, has defeater_id $did; $did like "conv_.*"; delete $d;',
         # Delete converter-emitted defeater_templates (id prefix "dt_conv_")
         'match $dt isa defeater_template, has defeater_template_id $tid; $tid like "dt_conv_.*"; delete $dt;',
-        # Orphan attribute_emission/value_source/match_criterion/role_assignment/
-        # role_filler entities accumulate across re-runs. Not load-bearing for
-        # rule execution (the executor walks top-down from rules; orphans have
-        # no inbound from any current rule). Hygiene sweep planned as Commit
-        # 3.3 — see docs/v4_phase_c_commit_3/README.md for the planned
-        # transitive-reachability sweep.
+        # Note: per-deal norm/defeater/condition output is wiped by
+        # clear_v4_projection_for_deal (called from project_deal), not here.
     ]
     for q in queries:
         wtx = driver.transaction(db, TransactionType.WRITE)
@@ -1304,44 +1305,10 @@ def apply_rule_tql(driver, db: str, tql: str, mapping_id: str) -> bool:
         return False
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Parity check
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def fetch_norm_scalars(driver, db: str, norm_id: str) -> dict:
-    attrs = {}
-    tx = driver.transaction(db, TransactionType.READ)
-    try:
-        q = f'match $n isa norm, has norm_id "{norm_id}"; $n has $a; select $a;'
-        try:
-            r = tx.query(q).resolve()
-            for row in r.as_concept_rows():
-                a = row.get("a").as_attribute()
-                attrs[a.get_type().get_label()] = a.get_value()
-        except Exception:
-            pass
-    finally:
-        try:
-            if tx.is_open():
-                tx.close()
-        except Exception:
-            pass
-    return attrs
-
-
-def diff_scalars(reference: dict, candidate: dict, ignore: set[str]) -> tuple[list[str], list[str], list[str]]:
-    matched, mismatched, missing = [], [], []
-    for k, v_ref in reference.items():
-        if k in ignore:
-            continue
-        v_cand = candidate.get(k)
-        if v_cand is None:
-            missing.append(f"{k} (ref={v_ref!r})")
-        elif v_ref != v_cand:
-            mismatched.append(f"{k}: ref={v_ref!r} cand={v_cand!r}")
-        else:
-            matched.append(k)
-    return matched, mismatched, missing
+# Commit 4: parity-check helpers (fetch_norm_scalars, diff_scalars) removed;
+# they compared rule-based output against python projection's output, which
+# is deleted. Rule execution + verification is now project_deal + the
+# validation harness.
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1421,92 +1388,10 @@ def main() -> int:
                 logger.info(f"applied: builder sub-source rule for {label}")
         logger.info(f"applied {builder_applied}/{1 + len(BUILDER_SUB_SOURCES)} builder rules")
 
-        # Run executor for each NORM RULE, parity-check scalars
-        # Defeater rules emit defeaters (not norms); their parity check is
-        # by defeater_id-set comparison after the run, below.
-        results = []
-        for m in to_convert:
-            src = m["source_entity_type"]
-            tnk = m["target_norm_kind"]
-            rule_id = f"rule_conv_{src}"
-
-            # Quick pre-check: does the deal have any v3 entities of this type?
-            v3_matches = fetch_v3_entity_attrs(driver, db, src, args.deal)
-            if not v3_matches:
-                logger.info(f"  {rule_id}: 0 v3 entities — skipping parity check")
-                results.append({"rule_id": rule_id, "status": "no_v3_data"})
-                continue
-
-            report = execute_rule(driver, db, rule_id, args.deal)
-            if report.norms_emitted == 0:
-                logger.error(f"  {rule_id}: emit failed")
-                for err in report.errors[:3]:
-                    logger.error(f"    {err}")
-                results.append({"rule_id": rule_id, "status": "emit_failed", "errors": report.errors})
-                continue
-
-            # Parity-check: candidate vs reference
-            ref_id = f"{args.deal}_{tnk}"
-            cand_id = f"{NORM_ID_PREFIX}{args.deal}_{tnk}"
-            ref = fetch_norm_scalars(driver, db, ref_id)
-            cand = fetch_norm_scalars(driver, db, cand_id)
-            if not ref:
-                logger.warning(f"  {rule_id}: reference {ref_id} not present (rule has no python output to compare)")
-                results.append({"rule_id": rule_id, "status": "no_reference"})
-                continue
-
-            matched, mismatched, missing = diff_scalars(ref, cand, ignore={"norm_id"})
-            status = "PASS" if not mismatched and not missing else "FAIL"
-            logger.info(f"  {rule_id}: {status} ({len(matched)} matched, {len(mismatched)} mismatched, {len(missing)} missing)")
-            for m in mismatched[:3]:
-                logger.warning(f"    mismatch: {m}")
-            for m in missing[:3]:
-                logger.warning(f"    missing: {m}")
-            results.append({
-                "rule_id": rule_id, "status": status,
-                "matched": matched, "mismatched": mismatched, "missing": missing,
-            })
-
-        # Run b_aggregate + builder sub-source rules (Commit 2.4)
-        # b_aggregate must run BEFORE sub-sources that contributes_to it.
-        logger.info("=" * 60)
-        logger.info("Executing builder rules:")
-        builder_emitted = 0
-        b_agg_report = execute_rule(driver, db, "rule_conv_builder_b_aggregate", args.deal)
-        logger.info(f"  rule_conv_builder_b_aggregate: matches={b_agg_report.matches} emitted={b_agg_report.norms_emitted} relations={b_agg_report.relations_emitted}")
-        builder_emitted += b_agg_report.norms_emitted
-        for spec in BUILDER_SUB_SOURCES:
-            kind = spec[1]; disamb = spec[6]
-            rule_suffix = f"{kind}_{disamb}" if disamb else kind
-            rule_id = f"rule_conv_builder_{rule_suffix}"
-            report = execute_rule(driver, db, rule_id, args.deal)
-            logger.info(f"  {rule_id}: matches={report.matches} emitted={report.norms_emitted} relations={report.relations_emitted}")
-            builder_emitted += report.norms_emitted
-
-        # Run defeater rules
-        logger.info("=" * 60)
-        logger.info("Executing defeater rules:")
-        defeater_emitted = 0
-        for subtype in BLOCKER_EXCEPTION_SUBTYPES:
-            rule_id = f"rule_conv_{subtype}_defeater"
-            report = execute_rule(driver, db, rule_id, args.deal)
-            if report.matches > 0:
-                logger.info(f"  {rule_id}: matches={report.matches} emitted={report.norms_emitted} relations={report.relations_emitted}")
-                defeater_emitted += report.norms_emitted
-
-        # Aggregate report
-        logger.info("=" * 60)
-        passed = sum(1 for r in results if r["status"] == "PASS")
-        failed = sum(1 for r in results if r["status"] == "FAIL")
-        no_data = sum(1 for r in results if r["status"] == "no_v3_data")
-        no_ref = sum(1 for r in results if r["status"] == "no_reference")
-        emit_failed = sum(1 for r in results if r["status"] == "emit_failed")
-        logger.info(
-            f"AGGREGATE NORMS: {passed} PASS, {failed} FAIL, {no_data} no_v3_data, "
-            f"{no_ref} no_reference, {emit_failed} emit_failed"
-        )
-        logger.info(f"AGGREGATE BUILDER: {builder_emitted} norms emitted (b_agg + sub-sources)")
-        logger.info(f"AGGREGATE DEFEATERS: {defeater_emitted} emitted")
+        # Commit 4: parity check removed. The python projection that this
+        # check compared against is deleted; rule execution is now project_deal's
+        # job in app/services/projection_rule_executor.py.
+        # Converter's job is: cleanup -> author rule subgraphs -> sweep orphans.
 
         # Commit 3.3 — orphan sweep. After this run authored its generation
         # of rules + subgraphs, anything left over from prior runs becomes
@@ -1516,7 +1401,7 @@ def main() -> int:
         logger.info("=" * 60)
         sweep_orphans(driver, db)
 
-        return 0 if failed == 0 and emit_failed == 0 else 1
+        return 0
     finally:
         driver.close()
 

@@ -18,9 +18,9 @@ Works by:
     4. Executing pure inserts first (entities) then match-inserts
        (relations) — each in its own WRITE transaction
 
-After restore, run deontic_projection + harness to verify full
-round-trip: projection output should regenerate identically from
-restored v3 extraction.
+After restore, run `python -m app.services.projection_rule_executor
+--deal <id>` + harness to verify full round-trip: projection output
+should regenerate identically from restored v3 extraction.
 """
 from __future__ import annotations
 

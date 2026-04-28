@@ -28,7 +28,7 @@ Scope of the snapshot:
 
 Intentionally NOT in the snapshot:
     * v4 projection output (norms, conditions, defeaters, scope edges) —
-      regenerable via `deontic_projection --deal <id>`
+      regenerable via `python -m app.services.projection_rule_executor --deal <id>`
     * Per-deal party instances — regenerable via seed
     * Schema / functions / seed data — regenerable via init_schema_v4
     * provision_has_answer relations (216 scalar Q&A answers) — not

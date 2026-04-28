@@ -1,10 +1,21 @@
-# Phase C Commit 3 — parallel run + benchmark gate
+# Phase C Commit 3 — parallel run + benchmark gate (frozen archive)
+
+> **Phase C Commit 4 note:** the script that produced this directory's
+> artifacts (`app/scripts/phase_c_commit_3_parallel_run.py`) was
+> deleted in Commit 4 along with `app/services/deontic_projection.py`.
+> This README and the canonical
+> `parallel_run_20260428T151156Z.json` are kept as a frozen archive of
+> the Commit 3.x migration's gate verdicts. The migration sequence,
+> code references, and "How to run" instructions below are historical
+> — do not try to re-execute them. Going forward, run rule-based
+> projection via `python -m app.services.projection_rule_executor
+> --deal <id>` and verify with `python -m app.services.validation_harness`.
 
 Verifies full structural parity between python projection and rule-based
 projection on Duck Creek deal `6e76ed06`, and benchmarks runtime, before
 Commit 4 deletes the python helpers.
 
-## How to run
+## How to run (HISTORICAL — script removed in Commit 4)
 
 ```bash
 cd C:/Users/olive/ValenceV3/.claude/worktrees/v4-deontic

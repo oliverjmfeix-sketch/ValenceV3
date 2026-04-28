@@ -62,7 +62,7 @@ load_dotenv(REPO_ROOT / ".env", override=False)
 import yaml  # noqa: E402
 
 from app.config import settings  # noqa: E402
-from app.services.deontic_projection import _temporal_for_norm_kind  # noqa: E402
+from app.services.projection_utils import temporal_defaults_for_norm_kind  # noqa: E402
 from app.services.predicate_id import construct_state_predicate_id  # noqa: E402
 from app.services.seed_loader import load_seeds  # noqa: E402
 from typedb.driver import TypeDB, Credentials, DriverOptions, TransactionType  # noqa: E402
@@ -263,8 +263,9 @@ def insert_norm(driver, norm: dict) -> None:
     # Phase B temporal anchors — YAML override > norm_kind default > not_applicable.
     # Schema is optional; default chosen so queries can ask the attribute and
     # get a deterministic value instead of null/missing. Defaults shared with
-    # deontic_projection.py via _temporal_for_norm_kind.
-    default_growth, default_ref = _temporal_for_norm_kind(norm.get("norm_kind") or "")
+    # the rule-based projection via temporal_defaults_for_norm_kind in
+    # projection_utils.
+    default_growth, default_ref = temporal_defaults_for_norm_kind(norm.get("norm_kind") or "")
     growth = norm.get("growth_start_anchor") or default_growth
     ref = norm.get("reference_period_kind") or default_ref
     attrs.append(f'has growth_start_anchor {_tq_string(str(growth))}')

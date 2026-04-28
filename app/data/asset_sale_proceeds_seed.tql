@@ -1,0 +1,37 @@
+# Phase C Commit 4 — proceeds-flow templated seed.
+#
+# Moved from deontic_projection.py:_ASSET_SALE_PROCEEDS_FLOWS as part
+# of the python-projection deletion. Each block emits one
+# event_provides_proceeds_to_norm edge from the deal-agnostic
+# asset_sale_event entity to a deal-specific receiver norm.
+#
+# Substitution: <deal_id> is replaced at load time by
+# emit_asset_sale_proceeds_flows() in projection_rule_executor.py.
+#
+# Rule 5.2 concession (see docs/v4_known_gaps.md). The proceeds_flow
+# source is event_class (deal-agnostic seed entity), which the
+# executor's deal-scoped fetch path doesn't currently reach. Until
+# the executor gains deal-agnostic event_class matching OR a
+# static_event_source_criterion subtype lands, this lives as
+# templated seed data.
+
+# (1) Asset sale proceeds retained after sweep — flow into clause (f)
+# of the Cumulative Amount.
+match
+  $e isa event_class, has event_class_id "asset_sale_event";
+  $n isa norm, has norm_id "<deal_id>_builder_source_retained_asset_sale_proceeds";
+insert
+  (proceeds_event: $e, proceeds_target_norm: $n) isa event_provides_proceeds_to_norm,
+    has proceeds_flow_kind "retained_after_sweep",
+    has proceeds_flow_conditions "Net Cash Proceeds from asset sales subject to mandatory prepayment under Section 2.10(c) flow into clause (f) of the Cumulative Amount when retained per the leverage-based sweep tier exemptions or below de minimis thresholds.";
+
+# (2) Declined Proceeds — Asset Sale proceeds offered to lenders but
+# rejected, flowing back into the Cumulative Amount as Retained
+# Declined Proceeds via clause (f).
+match
+  $e isa event_class, has event_class_id "asset_sale_event";
+  $n isa norm, has norm_id "<deal_id>_builder_source_declined_asset_sale";
+insert
+  (proceeds_event: $e, proceeds_target_norm: $n) isa event_provides_proceeds_to_norm,
+    has proceeds_flow_kind "declined_lender_payment",
+    has proceeds_flow_conditions "Asset Sale proceeds offered to lenders under Section 2.10(c) but rejected (Declined Proceeds per Section 2.10(f)) flow back into the Cumulative Amount as Retained Declined Proceeds via clause (f).";

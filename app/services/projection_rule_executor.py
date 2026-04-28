@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from typedb.driver import TransactionType
@@ -992,7 +993,6 @@ def emit_provenance(driver, db_name: str, rule_id: str,
             wtx.query(q).resolve()
             wtx.commit()
             report.provenance_emitted += 1
-            return True
         except Exception as exc:
             if wtx.is_open():
                 wtx.close()
@@ -1002,6 +1002,47 @@ def emit_provenance(driver, db_name: str, rule_id: str,
             return False
     except Exception:
         return False
+
+    # Phase C Commit 4: also emit norm_extracted_from for the v4 norm
+    # case (defeaters don't carry this edge — schema only declares
+    # `norm plays norm_extracted_from:norm`). The validation harness's
+    # A5 rule-selection check queries this relation; without it, A5
+    # falls back to "n/a (projection not run)" and we lose visibility.
+    #
+    # Mirror python projection's contract: norm_extracted_from anchors
+    # the PRIMARY norm-per-v3-entity to its source v3 entity (mapping
+    # rules only). Sub-source builder norms (each emitted from the same
+    # builder_basket via b_aggregate or builder_source_* rules) do NOT
+    # claim the v3 entity — A5 would mis-classify them as wrong rule
+    # selection. python projection's _project_builder_sub_sources
+    # likewise emits no norm_extracted_from for sub-source norms.
+    SUB_SOURCE_RULE_PREFIX = "rule_conv_builder_builder_source_"
+    B_AGGREGATE_RULE = "rule_conv_builder_b_aggregate"
+    is_sub_source = (
+        rule_id.startswith(SUB_SOURCE_RULE_PREFIX) or rule_id == B_AGGREGATE_RULE
+    )
+    if emitted_entity_type == "norm" and not is_sub_source:
+        q2 = (
+            f'match\n'
+            f'    $n isa norm, has norm_id "{emitted_entity_id}";\n'
+            f'    $v isa {v3_entity_type}, iid {v3_entity_iid};\n'
+            f'insert (norm: $n, fact: $v) isa norm_extracted_from;\n'
+        )
+        wtx2 = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            try:
+                wtx2.query(q2).resolve()
+                wtx2.commit()
+            except Exception as exc:
+                if wtx2.is_open():
+                    wtx2.close()
+                report.warnings.append(
+                    f"norm_extracted_from for {emitted_entity_id}: {str(exc).splitlines()[0][:120]}"
+                )
+        except Exception:
+            pass
+
+    return True
 
 
 def emit_root_condition(driver, db_name: str, rule_id: str, emitted_norm_id: str,
@@ -1293,3 +1334,309 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
                     )
 
     return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase C Commit 4 — orchestration: clear, list, order, project_deal
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Moved from app/services/deontic_projection.py + app/scripts/
+# phase_c_commit_3_parallel_run.py as part of the python-projection
+# deletion. project_deal is the new top-level entry point: wipes prior
+# v4 output for the deal, then walks every projection_rule and emits
+# norms / defeaters / conditions / scope edges via the typed-dispatch
+# interpreter above.
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+ASSET_SALE_PROCEEDS_SEED = REPO_ROOT / "app" / "data" / "asset_sale_proceeds_seed.tql"
+
+
+def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
+    """Remove existing v4 projection output for a deal before re-projecting.
+
+    Preserves v3 extracted entities (rp_basket, jcrew_blocker, etc.) — those
+    are the $12.95 extraction artifact and must NOT be dropped. Only v4 norms,
+    conditions, defeaters, and their relations are cleared, scoped to the
+    specific deal via norm_id substring match (catches both legacy
+    no-prefix python output and any conv_/pilot_-prefixed legacy output).
+
+    Returns counts of what was removed per type.
+    """
+    counts = {"norms": 0, "conditions": 0, "defeaters": 0}
+    nid_pattern = deal_id
+
+    clear_queries = [
+        ("conditions", f'''
+            match
+              $c isa condition, has condition_id $cid;
+              $cid contains "{nid_pattern}";
+            delete $c;
+        '''),
+        ("norms", f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+            delete $n;
+        '''),
+        ("defeaters", f'''
+            match
+              $d isa defeater, has defeater_id $did;
+              $did contains "{nid_pattern}";
+            delete $d;
+        '''),
+    ]
+    for label, q in clear_queries:
+        wtx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            wtx.query(q).resolve()
+            wtx.commit()
+        except Exception as exc:  # noqa: BLE001
+            if wtx.is_open():
+                wtx.close()
+            msg = str(exc)
+            if "INF2" in msg or "not found" in msg:
+                logger.debug("clear/%s skipped (type not in schema): %s", label, msg[:120])
+            else:
+                logger.warning("clear/%s failed: %s", label, msg[:200])
+
+    # Post-clear inventory (for reporting)
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        r = tx.query(
+            f'match $n isa norm, has norm_id $nid; $nid contains "{nid_pattern}"; select $n;'
+        ).resolve()
+        counts["norms_remaining"] = len(list(r.as_concept_rows()))
+    except Exception:
+        counts["norms_remaining"] = -1
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return counts
+
+
+def list_rule_ids(driver, db_name: str) -> list[str]:
+    """All projection_rule IDs currently in the database."""
+    ids: list[str] = []
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        try:
+            r = tx.query(
+                'match $r isa projection_rule, has projection_rule_id $rid; '
+                'select $rid;'
+            ).resolve()
+            for row in r.as_concept_rows():
+                ids.append(row.get("rid").as_attribute().get_value())
+        except Exception as exc:
+            logger.error(f"list_rule_ids: {str(exc).splitlines()[0][:200]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return ids
+
+
+def order_rule_ids(rule_ids: list[str]) -> list[str]:
+    """Return rule IDs in execution order:
+      1. Mapping-derived rules (basket-level — entity_type, blocker, etc.)
+      2. b_aggregate (rule_conv_builder_b_aggregate) — must run before
+         sub-sources whose contributes_to references it
+      3. Builder sub-source rules (rule_conv_builder_builder_source_*)
+      4. Defeater rules (rule_conv_*_defeater) — must run after the
+         jcrew_blocker rule emits its prohibition norm
+    """
+    mapping = []
+    b_agg = []
+    sub_source = []
+    defeaters = []
+    other = []
+    for rid in rule_ids:
+        if rid == "rule_conv_builder_b_aggregate":
+            b_agg.append(rid)
+        elif rid.startswith("rule_conv_builder_builder_source_"):
+            sub_source.append(rid)
+        elif rid.endswith("_defeater"):
+            defeaters.append(rid)
+        elif rid.startswith("rule_conv_"):
+            mapping.append(rid)
+        else:
+            # Unrecognized prefix — append at end so it doesn't break the
+            # builder ordering. Reachable when a future rule kind lands.
+            other.append(rid)
+    return mapping + b_agg + sub_source + defeaters + other
+
+
+def emit_asset_sale_proceeds_flows(driver, db_name: str, deal_id: str) -> int:
+    """Load app/data/asset_sale_proceeds_seed.tql and emit one
+    event_provides_proceeds_to_norm edge per record, substituting
+    <deal_id> in target norm_ids.
+
+    Rule 5.2 concession (see docs/v4_known_gaps.md). The proceeds_flow
+    source is the deal-agnostic event_class entity, which the
+    executor's deal-scoped fetch path doesn't currently reach.
+
+    Returns the count of edges successfully inserted.
+    """
+    if not ASSET_SALE_PROCEEDS_SEED.exists():
+        logger.warning(
+            "asset_sale_proceeds_seed.tql not found at %s; skipping",
+            ASSET_SALE_PROCEEDS_SEED,
+        )
+        return 0
+
+    seed_text = ASSET_SALE_PROCEEDS_SEED.read_text(encoding="utf-8")
+    # The seed file contains multiple match-insert blocks separated by
+    # blank lines; each block ends with `;` after the insert. Split on
+    # `;\n` boundaries that precede a top-level `match` keyword.
+    blocks = []
+    current: list[str] = []
+    for line in seed_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            if current:
+                # End of block if we hit a blank line and the block is non-empty
+                blocks.append("\n".join(current))
+                current = []
+            continue
+        current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+
+    inserted = 0
+    for block in blocks:
+        if "match" not in block or "insert" not in block:
+            continue
+        rendered = block.replace("<deal_id>", deal_id)
+        wtx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            wtx.query(rendered).resolve()
+            wtx.commit()
+            inserted += 1
+        except Exception as exc:  # noqa: BLE001
+            if wtx.is_open():
+                wtx.close()
+            # Common: target norm not present (its rule didn't emit
+            # because the v3 entity lacks the source flag). Quiet warning.
+            logger.warning(
+                "asset_sale_proceeds_seed: block skipped (likely target norm not "
+                "projected for deal %s): %s",
+                deal_id, str(exc).splitlines()[0][:160],
+            )
+    return inserted
+
+
+def project_deal(driver, db_name: str, deal_id: str,
+                  dry_run: bool = False) -> ExecutionReport:
+    """Project all v3 entities for a deal into v4 norms via rule-based
+    emission. Replaces deontic_projection.project_deal as part of
+    Phase C Commit 4.
+
+    Steps:
+      1. Wipe prior v4 output for the deal (idempotent re-runs)
+      2. Walk every projection_rule in dependency order, emit via
+         execute_rule
+      3. Load the asset_sale_proceeds seed (Rule 5.2 concession)
+      4. Return aggregate ExecutionReport
+
+    Use dry_run=True to skip writes.
+    """
+    if not dry_run:
+        cleared = clear_v4_projection_for_deal(driver, db_name, deal_id)
+        logger.info("project_deal: cleared prior v4 output for deal %s: %s",
+                    deal_id, cleared)
+
+    rule_ids = order_rule_ids(list_rule_ids(driver, db_name))
+    logger.info("project_deal: executing %d projection_rules", len(rule_ids))
+
+    aggregate = ExecutionReport(rule_id="<aggregate>")
+    for rid in rule_ids:
+        report = execute_rule(driver, db_name, rid, deal_id, dry_run=dry_run)
+        aggregate.matches += report.matches
+        aggregate.norms_emitted += report.norms_emitted
+        aggregate.relations_emitted += report.relations_emitted
+        aggregate.conditions_emitted += report.conditions_emitted
+        aggregate.provenance_emitted += report.provenance_emitted
+        aggregate.errors.extend(report.errors)
+        aggregate.warnings.extend(report.warnings)
+
+    if not dry_run:
+        proceeds = emit_asset_sale_proceeds_flows(driver, db_name, deal_id)
+        if proceeds:
+            logger.info(
+                "project_deal: emitted %d event_provides_proceeds_to_norm "
+                "edges from seed", proceeds,
+            )
+
+    logger.info(
+        "project_deal: aggregate matches=%d norms_emitted=%d relations_emitted=%d "
+        "conditions_emitted=%d provenance_emitted=%d",
+        aggregate.matches, aggregate.norms_emitted, aggregate.relations_emitted,
+        aggregate.conditions_emitted, aggregate.provenance_emitted,
+    )
+    return aggregate
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLI
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _connect():
+    """Open a TypeDB driver using the standard .env config."""
+    import os
+    from dotenv import load_dotenv
+    from typedb.driver import TypeDB, Credentials, DriverOptions
+
+    main_env = Path("C:/Users/olive/ValenceV3/.env")
+    if main_env.exists():
+        load_dotenv(main_env, override=False)
+    load_dotenv(REPO_ROOT / ".env", override=False)
+
+    address = os.environ.get("TYPEDB_ADDRESS")
+    username = os.environ.get("TYPEDB_USERNAME")
+    password = os.environ.get("TYPEDB_PASSWORD")
+    return TypeDB.driver(address, Credentials(username, password), DriverOptions())
+
+
+def main() -> int:
+    import argparse
+    import os
+    parser = argparse.ArgumentParser(
+        description="Project a deal's v3 entities into v4 norms via rule-based "
+                    "emission (Phase C Commit 4)."
+    )
+    parser.add_argument("--deal", required=True, help="deal_id to project")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="resolve attribute values without writing")
+    args = parser.parse_args()
+
+    db = os.environ.get("TYPEDB_DATABASE", "valence_v4")
+    if db != "valence_v4":
+        logger.error("TYPEDB_DATABASE must be 'valence_v4' (got %r)", db)
+        return 2
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-7s  %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    driver = _connect()
+    try:
+        report = project_deal(driver, db, args.deal, dry_run=args.dry_run)
+        if report.errors:
+            logger.error("project_deal completed with %d errors:", len(report.errors))
+            for err in report.errors[:10]:
+                logger.error("  %s", err)
+            return 1
+        return 0
+    finally:
+        driver.close()
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

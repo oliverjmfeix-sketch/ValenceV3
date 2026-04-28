@@ -358,3 +358,96 @@ Q5 wants a calculated $520m figure (evaluator output); Q6 returns
 INCONCLUSIVE because of insufficient world-state input. Both are out
 of Phase B scope. **Trigger to revisit:** post-Phase-D synthesis work
 or world-state-input formalization (a follow-on Phase B+1 item).
+
+## TQL-seed-based proceeds-flow emission (Rule 5.2 concession)
+
+The asset_sale_event proceeds-flow edges
+(`event_provides_proceeds_to_norm`) are emitted from a templated TQL
+seed file (`app/data/asset_sale_proceeds_seed.tql`) loaded per-deal by
+`emit_asset_sale_proceeds_flows` in
+`app/services/projection_rule_executor.py`, rather than from a
+projection_rule subgraph.
+
+This is a pragmatic concession against Rule 5.2 (all v4 emission via
+projection_rule). The proceeds_flow source is the deal-agnostic
+`event_class` entity (`asset_sale_event`); the executor's fetch path
+currently requires `(deal: $d, provision: $p) isa deal_has_provision`
+to find v3 entities, which `event_class` doesn't satisfy. Authoring a
+projection_rule for event-source emission requires either extending
+`fetch_v3_entity_attrs` to handle deal-agnostic event_class queries
+OR adding a new `static_event_source_criterion` subtype to the
+`match_criterion` schema. Neither is justified for the current
+2-edge surface.
+
+**Containment discipline:**
+
+- Seed file is data, not code. No python emission logic ships in
+  Commit 4 or later.
+- `emit_asset_sale_proceeds_flows()` in `projection_rule_executor.py`
+  is a thin templated-loader (~50 lines): read seed, substitute
+  `<deal_id>`, execute insert. Not a "python projection helper" — no
+  rule logic lives here.
+- Any new proceeds-flow encoding (new event_class, new flow kind)
+  goes into the seed file as data, not into python code.
+
+**Revisit trigger:** replace the seed loader with a projection_rule
+when either:
+
+- `fetch_v3_entity_attrs` gains a code path for deal-agnostic
+  `event_class` entities (would let `entity_type_criterion` match
+  `event_class` via deal-agnostic query), OR
+- A new `static_event_source_criterion` subtype lands in the schema
+  (would let event-source rules match against seeded `event_class`
+  instances directly without the `deal_has_provision` walk).
+
+**Current scope:** ~50 lines (templated loader) + 2 records in the
+seed file. Replaces the deleted `_project_proceeds_flows` (~50 lines
+in `deontic_projection.py`).
+
+## No automated benchmark coverage post-Commit-4
+
+The `phase_c_commit_3_parallel_run.py` script was deleted as part of
+Commit 4. It was the only automated rule-based-vs-python benchmark
+during the Phase C migration. Post-deletion:
+
+- Validation harness (A1–A6) checks **correctness** only — norm
+  scalars, scope edges, GT round-trip, graph invariants, modality
+  coverage. None of these gates check executor wall-clock time.
+- No tracked baseline for `project_deal` runtime exists. A regression
+  that, e.g., adds 5× to per-rule cost would not be caught
+  automatically; it would surface as user-perceived slowness during
+  manual extraction or Q&A runs.
+
+If executor performance becomes a concern (e.g., when scaling beyond
+the 30-rule corpus, or adding deals with more matched v3 entities per
+rule), reintroduce a slim benchmark utility. Reference: the
+`phase_c_commit_3_parallel_run.py` script in git history at SHA
+`b1abc72` (its Phase B / benchmark sections are the natural template).
+
+**Revisit trigger:** any user-reported slowness, OR doubling of the
+rule corpus, OR per-deal v3 entity count growing >10×.
+
+This is intentional — the harness is not load-bearing for performance,
+and we accept dropping perf coverage in favor of a cleaner codebase.
+
+## Reallocation projection rule (deferred from Commit 4)
+
+`_project_reallocations` in `deontic_projection.py` queried v3
+`basket_reallocates_to` relations and emitted
+`norm_reallocates_capacity_from` edges with attributes
+(`reallocation_mechanism`, `reduction_direction`). Function was deleted
+in Commit 4 since Duck Creek has zero `basket_reallocates_to` v3
+entities; the path was a no-op.
+
+If a future deal extracts `basket_reallocates_to` v3 relations,
+rule-based emission requires extending `match_criterion` to support
+v3-relation matching (currently it handles only `entity_type` and
+`attribute_value` criteria). The schema gap:
+
+- Need a new `relation_match_criterion` subtype that matches v3
+  entities standing in a specific v3 relation role.
+- Need executor support for relation-traversal during `fetch_v3_entity_attrs`.
+
+**Revisit trigger:** first deal with non-empty `basket_reallocates_to`
+v3 data, OR explicit decision to re-author Duck Creek with reallocation
+edges in v3 extraction.
