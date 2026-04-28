@@ -214,7 +214,11 @@ def resolve_value_source(driver, db_name: str, vs_iid: str, ctx: ExecutorContext
         attr_name = _read_attr_value(driver, db_name, vs_iid, "reads_v3_attribute_name")
         if attr_name is None:
             return None
-        return ctx.v3_attrs.get(attr_name)
+        v = ctx.v3_attrs.get(attr_name)
+        if v is not None:
+            return v
+        # Fallback: walk value_source_has_default if present
+        return _resolve_default_fallback(driver, db_name, vs_iid, ctx)
     if type_label == "concatenation_value_source":
         return _resolve_concatenation(driver, db_name, vs_iid, ctx)
     if type_label in (
@@ -246,6 +250,34 @@ def _read_attr_value(driver, db_name: str, owner_iid: str, attr_name: str):
         except Exception:
             pass
     return None
+
+
+def _resolve_default_fallback(driver, db_name: str, vs_iid: str, ctx: ExecutorContext) -> Any:
+    """If a v3_attribute_value_source has a value_source_has_default edge,
+    resolve the default value source. Returns None if no default is wired."""
+    tx = driver.transaction(db_name, TransactionType.READ)
+    try:
+        q = (
+            f'match\n'
+            f'    $primary iid {vs_iid};\n'
+            f'    (primary_source: $primary, default_source: $default) isa value_source_has_default;\n'
+            f'select $default;\n'
+        )
+        try:
+            result = tx.query(q).resolve()
+            row = next(iter(result.as_concept_rows()), None)
+            if row is None:
+                return None
+            default_iid = row.get("default").get_iid()
+        except Exception:
+            return None
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return resolve_value_source(driver, db_name, default_iid, ctx)
 
 
 def _resolve_concatenation(driver, db_name: str, vs_iid: str, ctx: ExecutorContext) -> str:
