@@ -1,0 +1,32 @@
+[
+  {
+    "basket_id": "6e76ed06_rp_general_rp_basket",
+    "attribute": "basket_grower_pct",
+    "value": 1.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_management_equity_basket",
+    "attribute": "annual_cap_pct_ebitda",
+    "value": 0.15
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "starter_ebitda_pct",
+    "value": 1.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "cni_percentage",
+    "value": 0.5
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "ebitda_fc_multiplier",
+    "value": 1.4
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "equity_proceeds_pct",
+    "value": 1.0
+  }
+]

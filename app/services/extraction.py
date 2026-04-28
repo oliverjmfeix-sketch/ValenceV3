@@ -1222,9 +1222,12 @@ Return ONLY the JSON array."""
         # downstream consumers (projection, evaluation) see canonical
         # values. Heuristics that previously lived in deontic_projection.py
         # now run once at extraction time.
-        normalized = _normalize_v3_data(deal_id)
-        if normalized:
-            logger.info(f"Normalized {normalized} v3 attribute values post-extraction")
+        rewrites_count, modified_baskets = _normalize_v3_data(deal_id)
+        if rewrites_count:
+            logger.info(
+                f"Normalized {rewrites_count} v3 attribute values post-extraction "
+                f"({len(modified_baskets)} baskets touched)"
+            )
 
         # ── STEP 4: Build and return result ─────────────────────────────
         extraction_time = time.time() - start_time
@@ -1489,127 +1492,12 @@ Return ONLY the JSON array."""
 # =============================================================================
 # POST-EXTRACTION NORMALIZATION (Phase C Commit 0a)
 # =============================================================================
+#
+# The actual normalization logic lives in app/services/v3_data_normalization.py
+# so the one-time fixup script in app/scripts/phase_c_commit_0b_fixup.py can
+# reuse it without pulling in anthropic SDK as a transitive import.
 
-# Attributes that v3 extraction sometimes returns as fractions (0.15) and
-# sometimes as percentages (15.0). Real covenant grower-pct values span
-# 1-200% (0.01-2.00 in fraction form); legitimate percentages are >= 5.0,
-# so a value <= 5.0 reliably identifies a fraction needing 100x up-scale.
-# Documented in v4 Phase C design as the canonical Phase D-eventually-
-# obsolete fix-up: prompt revisions in Phase D should make extraction emit
-# percentages directly, at which point this normalization becomes a no-op
-# and can be removed.
-_SCALE_COERCION_ATTRS = (
-    "basket_grower_pct",       # general_rp_basket, general_investment_basket, general_rdp_basket
-    "annual_cap_pct_ebitda",   # management_equity_basket
-    "starter_ebitda_pct",      # builder_basket
-    "cni_percentage",          # builder_basket
-    "ebitda_fc_multiplier",    # builder_basket
-    "equity_proceeds_pct",     # builder_basket
-)
-
-# Threshold below which a value is interpreted as a fraction needing scaling.
-_FRACTION_THRESHOLD = 5.0
-
-
-def _normalize_v3_data(deal_id: str) -> int:
-    """Walk v3 entities for the deal and apply data-quality normalization.
-
-    Currently handles scale coercion (fraction -> percentage) for
-    grower-pct family attributes. Returns the count of attribute values
-    rewritten.
-
-    Idempotent: re-running on already-normalized data is a no-op (values
-    >= _FRACTION_THRESHOLD are skipped).
-
-    Phase C Commit 0a: this function lives in extraction.py so future
-    extractions auto-normalize. Phase C Commit 0b calls the same function
-    via a one-time fixup script against existing valence_v4 data.
-    """
-    from typedb.driver import TransactionType
-    from app.services.typedb_client import typedb_client
-
-    rewrites = 0
-    db = typedb_client.database
-    driver = typedb_client.driver
-    if driver is None:
-        logger.warning("typedb driver unavailable; skipping post-extraction normalization")
-        return 0
-
-    for attr_name in _SCALE_COERCION_ATTRS:
-        # Read fractional values for this attr scoped to the deal.
-        # Path: deal -> deal_has_provision -> provision -> provision_has_basket -> basket
-        rtx = driver.transaction(db, TransactionType.READ)
-        rows: list[tuple[str, float]] = []
-        try:
-            q = (
-                f'match\n'
-                f'    $d isa deal, has deal_id "{deal_id}";\n'
-                f'    (deal: $d, provision: $p) isa deal_has_provision;\n'
-                f'    (provision: $p, basket: $b) isa provision_has_basket;\n'
-                f'    $b has basket_id $bid;\n'
-                f'    $b has {attr_name} $v;\n'
-                f'    $v < {_FRACTION_THRESHOLD};\n'
-                f'select $bid, $v;\n'
-            )
-            try:
-                result = rtx.query(q).resolve()
-                rows = [
-                    (
-                        r.get("bid").as_attribute().get_value(),
-                        r.get("v").as_attribute().get_value(),
-                    )
-                    for r in result.as_concept_rows()
-                ]
-            except Exception as exc:
-                # Common: attribute type not in schema (covenant not yet
-                # extracted, etc.). Quiet skip.
-                logger.debug(f"normalize: skip {attr_name} ({str(exc).splitlines()[0][:80]})")
-                rows = []
-        finally:
-            try:
-                if rtx.is_open():
-                    rtx.close()
-            except Exception:
-                pass
-
-        if not rows:
-            continue
-
-        # Rewrite. Two queries per fix in one WRITE transaction:
-        # (1) match-delete the old has-edge
-        # (2) match-insert the new value
-        # Per TypeDB 3.x convention (cf. app/data/rp_mapping_kind_fixes.tql).
-        wtx = driver.transaction(db, TransactionType.WRITE)
-        try:
-            for bid, old_v in rows:
-                new_v = old_v * 100.0
-                delete_q = (
-                    f'match\n'
-                    f'    $b has basket_id "{bid}", has {attr_name} $old;\n'
-                    f'    $old == {old_v};\n'
-                    f'delete has $old of $b;\n'
-                )
-                insert_q = (
-                    f'match\n'
-                    f'    $b has basket_id "{bid}";\n'
-                    f'insert $b has {attr_name} {new_v};\n'
-                )
-                try:
-                    wtx.query(delete_q).resolve()
-                    wtx.query(insert_q).resolve()
-                    rewrites += 1
-                    logger.debug(f"normalized {attr_name} on {bid}: {old_v} -> {new_v}")
-                except Exception as exc:
-                    logger.warning(
-                        f"normalize {bid}.{attr_name} {old_v}->{new_v} failed: {str(exc).splitlines()[0][:120]}"
-                    )
-            wtx.commit()
-        except Exception:
-            if wtx.is_open():
-                wtx.close()
-            raise
-
-    return rewrites
+from app.services.v3_data_normalization import _normalize_v3_data  # noqa: F401, E402
 
 
 # =============================================================================

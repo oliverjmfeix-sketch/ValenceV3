@@ -668,3 +668,26 @@ attribute relevant_dimensions, value string;   # "D1,D2,D3,D4,D5,D6" or subset
 entity classification_field_config,
     owns classification_field_name @key,
     owns relevant_dimensions;
+
+
+# ─── Phase C Commit 0b — fixup audit marker ─────────────────────────────────────
+# Each v3 basket entity modified by the one-time scale-coercion fixup
+# (Phase C Commit 0b) is marked with this attribute. Audit trail only:
+# read paths don't depend on it; the marker tells you "this entity was
+# touched by the fixup" if you ever need to reason about historical data.
+#
+# Declared on the specific rp/rdp subtypes that the Duck Creek pilot's
+# fixup touched (3 of them: builder_basket, general_rp_basket,
+# management_equity_basket). Other rp_basket subtypes don't own the
+# marker — but they were never modified by the fixup either, so the
+# audit semantics hold. Future deals with different basket touch sets
+# can extend ownership as needed.
+attribute cleaned_by_phase_c_commit_0, value boolean;
+
+builder_basket owns cleaned_by_phase_c_commit_0;
+general_rp_basket owns cleaned_by_phase_c_commit_0;
+management_equity_basket owns cleaned_by_phase_c_commit_0;
+holdco_overhead_basket owns cleaned_by_phase_c_commit_0;
+equity_award_basket owns cleaned_by_phase_c_commit_0;
+general_investment_basket owns cleaned_by_phase_c_commit_0;
+general_rdp_basket owns cleaned_by_phase_c_commit_0;

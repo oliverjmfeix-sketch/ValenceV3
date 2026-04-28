@@ -1,0 +1,37 @@
+[
+  {
+    "basket_id": "6e76ed06_rp_general_rp_basket",
+    "attribute": "basket_grower_pct",
+    "value": 100.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_general_rdp_basket",
+    "attribute": "basket_grower_pct",
+    "value": 1.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_management_equity_basket",
+    "attribute": "annual_cap_pct_ebitda",
+    "value": 15.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "starter_ebitda_pct",
+    "value": 100.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "cni_percentage",
+    "value": 50.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "ebitda_fc_multiplier",
+    "value": 140.0
+  },
+  {
+    "basket_id": "6e76ed06_rp_builder_basket",
+    "attribute": "equity_proceeds_pct",
+    "value": 100.0
+  }
+]
