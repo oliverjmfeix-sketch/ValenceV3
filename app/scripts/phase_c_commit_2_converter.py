@@ -1083,10 +1083,209 @@ def cleanup_converted_rules(driver, db: str) -> None:
         except Exception:
             pass
 
-    # Orphan emissions / value_sources / criteria / role_assignments / fillers
-    # from prior converter runs accumulate. See docs/v4_phase_c_commit_3/
-    # README.md "Aside — orphan accumulation" for sizing. Not load-bearing
-    # for correctness or benchmark. Hygiene sweep planned as Commit 3.3.
+    # NOTE on orphan sweep (Commit 3.3): the sweep is NOT called here.
+    # cleanup_converted_rules runs BEFORE authoring re-creates the rules,
+    # so at this point reachable={} and the sweep would delete every
+    # rule-subgraph entity. The sweep is invoked from main() at the END
+    # of the converter run, after authoring has populated the current
+    # generation of rules + templates + emissions. See sweep_orphans()
+    # below for the implementation.
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Commit 3.3 — orphan sweep
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Relations that connect projection_rule subgraph entities. The orphan
+# sweep walks each relation in the forward direction (parent role -> child
+# role) starting from projection_rule iids. Anything not reached after a
+# full BFS is orphan and safe to delete.
+#
+# The relations enumerated below match what the executor traverses during
+# rule execution. Adding a new relation that connects rule subgraph
+# entities means adding it here OR risking false-positive orphan
+# deletion. The sweep IS conservative: missing a relation costs us
+# accidental deletion of live entities, which is unacceptable. Adding a
+# relation that doesn't exist is harmless.
+
+# parent type, parent role name, child role name, relation type
+_RULE_SUBGRAPH_EDGES = (
+    # rule -> templates
+    ("projection_rule", "owning_rule", "produced_template", "rule_produces_norm_template"),
+    ("projection_rule", "owning_rule", "produced_template", "rule_produces_defeater_template"),
+    # rule -> match_criterion
+    ("projection_rule", "owning_rule", "applied_criterion", "rule_has_match_criterion"),
+    # criterion_group -> member criterion (recursive: groups of groups)
+    ("match_criterion_group", "parent_group", "member_criterion", "criterion_group_has_member"),
+    # linked criterion (from linked_via_relation_criterion to its sub-criterion)
+    ("linked_via_relation_criterion", "parent_criterion", "linked_criterion", "criterion_requires_linked_match"),
+    # criterion -> value_source (comparison)
+    ("attribute_value_criterion", "owning_criterion", "comparison_value_source", "criterion_uses_comparison_value"),
+    # template -> attribute_emission
+    ("norm_template", "emitting_template", "emitted_attribute", "template_emits_attribute"),
+    ("defeater_template", "emitting_template", "emitted_attribute", "template_emits_attribute"),
+    # template -> relation_template
+    ("norm_template", "emitting_template", "emitted_relation", "template_emits_relation"),
+    ("defeater_template", "emitting_template", "emitted_relation", "template_emits_relation"),
+    # template -> condition_template (root)
+    ("norm_template", "emitting_template", "root_condition", "template_emits_root_condition"),
+    ("defeater_template", "emitting_template", "root_condition", "template_emits_root_condition"),
+    # condition_template -> condition_template (recursive children)
+    ("condition_template", "parent_condition", "child_condition", "condition_template_has_child"),
+    # condition_template -> predicate_specifier
+    ("condition_template", "owning_condition_template", "referenced_specifier", "atomic_condition_references_predicate"),
+    # predicate_specifier -> value_source (dynamic)
+    ("predicate_specifier", "owning_specifier", "dynamic_value_source", "predicate_specifier_uses_value"),
+    # relation_template -> role_assignment
+    ("relation_template", "owning_relation_template", "emitted_role_assignment", "relation_template_assigns_role"),
+    # relation_template -> attribute_emission (edge attrs)
+    ("relation_template", "owning_relation_template", "emitted_edge_attribute", "relation_template_emits_edge_attribute"),
+    # role_assignment -> role_filler
+    ("role_assignment", "owning_role_assignment", "assignment_filler", "role_assignment_filled_by"),
+    # role_filler (static) -> value_source
+    ("static_lookup_role_filler", "owning_filler", "lookup_value_source", "static_lookup_uses_value"),
+    # attribute_emission -> value_source
+    ("attribute_emission", "owning_emission", "source_value", "attribute_emission_uses_value"),
+    # value_source -> value_source (composition)
+    ("concatenation_value_source", "owning_concatenation", "concatenation_part", "concatenation_has_ordered_part"),
+    ("v3_attribute_value_source", "primary_source", "default_source", "value_source_has_default"),
+    ("arithmetic_value_source", "owning_expression", "left_operand", "arithmetic_has_left_operand"),
+    ("arithmetic_value_source", "owning_expression", "right_operand", "arithmetic_has_right_operand"),
+    ("conditional_value_source", "owning_conditional", "test_value_source", "conditional_has_test"),
+    ("conditional_value_source", "owning_conditional", "then_value_source", "conditional_has_then_branch"),
+    ("conditional_value_source", "owning_conditional", "else_value_source", "conditional_has_else_branch"),
+)
+
+# Types whose orphan instances we sweep. Each must be reachable from a
+# projection_rule via _RULE_SUBGRAPH_EDGES. NOT included: norm_template,
+# defeater_template, relation_template, condition_template — those are
+# already targeted by the prefix-based deletes in cleanup_converted_rules
+# (their @key has a recognizable conv_ prefix), so an orphan-walk here
+# would be redundant.
+_ORPHAN_PRONE_TYPES = (
+    "match_criterion",
+    "attribute_emission",
+    "role_assignment",
+    "role_filler",
+    "value_source",
+    "predicate_specifier",
+)
+
+
+def _collect_pairs(driver, db: str, query: str, parent_var: str,
+                   child_var: str) -> set[tuple[str, str]]:
+    """Run a match query, return {(parent_iid, child_iid)} pairs."""
+    pairs: set[tuple[str, str]] = set()
+    tx = driver.transaction(db, TransactionType.READ)
+    try:
+        try:
+            r = tx.query(query).resolve()
+            for row in r.as_concept_rows():
+                pairs.add((row.get(parent_var).get_iid(), row.get(child_var).get_iid()))
+        except Exception as exc:
+            logger.debug(f"_collect_pairs failed: {str(exc).splitlines()[0][:120]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return pairs
+
+
+def _collect_iids_of_type(driver, db: str, type_name: str) -> set[str]:
+    """All iids of instances of a (concrete or abstract) type, polymorphic."""
+    iids: set[str] = set()
+    tx = driver.transaction(db, TransactionType.READ)
+    try:
+        try:
+            r = tx.query(f'match $x isa {type_name}; select $x;').resolve()
+            for row in r.as_concept_rows():
+                iids.add(row.get("x").get_iid())
+        except Exception as exc:
+            logger.debug(f"_collect_iids({type_name}) failed: {str(exc).splitlines()[0][:120]}")
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+    return iids
+
+
+def sweep_orphans(driver, db: str) -> dict[str, int]:
+    """Walk reachable iids top-down from every projection_rule, then
+    delete instances of orphan-prone types not in the reachable set.
+
+    Idempotent: running on a clean graph is a no-op (all entities are
+    reachable; nothing deleted).
+
+    Returns counts deleted per type.
+    """
+    logger.info("orphan-sweep: starting")
+
+    # Step 1: pull every relation tuple in _RULE_SUBGRAPH_EDGES once.
+    # Build a `forward` adjacency: dict[parent_iid -> set[child_iid]] keyed
+    # by relation. We don't care about parent type beyond seeding from rules.
+    forward: dict[str, set[str]] = {}  # parent_iid -> set[child_iid]
+    for parent_type, parent_role, child_role, relation in _RULE_SUBGRAPH_EDGES:
+        q = (
+            f'match ({parent_role}: $p, {child_role}: $c) isa {relation}; '
+            f'select $p, $c;'
+        )
+        pairs = _collect_pairs(driver, db, q, "p", "c")
+        for p_iid, c_iid in pairs:
+            forward.setdefault(p_iid, set()).add(c_iid)
+
+    # Step 2: BFS from every projection_rule
+    rule_iids = _collect_iids_of_type(driver, db, "projection_rule")
+    logger.info(f"orphan-sweep: found {len(rule_iids)} projection_rules")
+
+    reachable: set[str] = set()
+    queue = list(rule_iids)
+    while queue:
+        current = queue.pop()
+        if current in reachable:
+            continue
+        reachable.add(current)
+        for child in forward.get(current, ()):
+            if child not in reachable:
+                queue.append(child)
+    logger.info(f"orphan-sweep: BFS reached {len(reachable)} entities")
+
+    # Step 3: for each orphan-prone type, find total iids minus reachable
+    # = orphans. Delete each orphan in one shared write transaction.
+    counts: dict[str, int] = {}
+    for type_name in _ORPHAN_PRONE_TYPES:
+        all_iids = _collect_iids_of_type(driver, db, type_name)
+        orphans = all_iids - reachable
+        counts[type_name] = len(orphans)
+        if not orphans:
+            logger.info(f"orphan-sweep: {type_name:24s} clean (0 orphans of {len(all_iids)} total)")
+            continue
+        logger.info(
+            f"orphan-sweep: {type_name:24s} deleting {len(orphans)} orphans "
+            f"(of {len(all_iids)} total)"
+        )
+        # Batch deletes within one write tx to amortize tx setup cost.
+        wtx = driver.transaction(db, TransactionType.WRITE)
+        try:
+            try:
+                for iid in orphans:
+                    wtx.query(f'match $x iid {iid}; delete $x;').resolve()
+                wtx.commit()
+            except Exception as exc:
+                logger.warning(
+                    f"orphan-sweep: batch-delete for {type_name} failed: "
+                    f"{str(exc).splitlines()[0][:160]}"
+                )
+                if wtx.is_open():
+                    wtx.close()
+        except Exception:
+            pass
+
+    logger.info(f"orphan-sweep: done {counts}")
+    return counts
 
 
 def apply_rule_tql(driver, db: str, tql: str, mapping_id: str) -> bool:
@@ -1308,6 +1507,14 @@ def main() -> int:
         )
         logger.info(f"AGGREGATE BUILDER: {builder_emitted} norms emitted (b_agg + sub-sources)")
         logger.info(f"AGGREGATE DEFEATERS: {defeater_emitted} emitted")
+
+        # Commit 3.3 — orphan sweep. After this run authored its generation
+        # of rules + subgraphs, anything left over from prior runs becomes
+        # truly disconnected. Walk reachable iids top-down from every
+        # remaining projection_rule and delete the rest. Idempotent: once
+        # all orphans are gone, subsequent sweeps are no-ops.
+        logger.info("=" * 60)
+        sweep_orphans(driver, db)
 
         return 0 if failed == 0 and emit_failed == 0 else 1
     finally:

@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "20260428T145327Z",
+  "timestamp_utc": "20260428T151156Z",
   "deal_id": "6e76ed06",
   "summary": {
     "norms": {
@@ -81,9 +81,9 @@
     "norm_provides_carryback_to": 0
   },
   "benchmark": {
-    "python_seconds": 21.378858000040054,
-    "rule_based_seconds": 185.7240450999234,
-    "ratio": 8.687276238028028,
+    "python_seconds": 21.96400579996407,
+    "rule_based_seconds": 167.35240519978106,
+    "ratio": 7.61939359896066,
     "threshold_x": 10.0,
     "passed": true
   },
@@ -97,7 +97,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 7.063
+      "elapsed_s": 7.339
     },
     {
       "rule_id": "rule_conv_general_rp_basket",
@@ -108,7 +108,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 6.066
+      "elapsed_s": 6.207
     },
     {
       "rule_id": "rule_conv_ratio_basket",
@@ -119,7 +119,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 7.938
+      "elapsed_s": 8.155
     },
     {
       "rule_id": "rule_conv_management_equity_basket",
@@ -130,7 +130,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.357
+      "elapsed_s": 5.672
     },
     {
       "rule_id": "rule_conv_tax_distribution_basket",
@@ -141,7 +141,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.165
+      "elapsed_s": 4.279
     },
     {
       "rule_id": "rule_conv_holdco_overhead_basket",
@@ -152,7 +152,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.186
+      "elapsed_s": 4.378
     },
     {
       "rule_id": "rule_conv_equity_award_basket",
@@ -163,7 +163,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.699
+      "elapsed_s": 5.004
     },
     {
       "rule_id": "rule_conv_unsub_distribution_basket",
@@ -174,7 +174,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.121
+      "elapsed_s": 4.265
     },
     {
       "rule_id": "rule_conv_general_investment_basket",
@@ -185,7 +185,7 @@
       "provenance_emitted": 0,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 0.819
+      "elapsed_s": 0.452
     },
     {
       "rule_id": "rule_conv_general_rdp_basket",
@@ -196,7 +196,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.592
+      "elapsed_s": 5.742
     },
     {
       "rule_id": "rule_conv_ratio_rdp_basket",
@@ -207,7 +207,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.39
+      "elapsed_s": 5.739
     },
     {
       "rule_id": "rule_conv_builder_rdp_basket",
@@ -218,7 +218,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.248
+      "elapsed_s": 5.46
     },
     {
       "rule_id": "rule_conv_refinancing_rdp_basket",
@@ -229,7 +229,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.262
+      "elapsed_s": 5.304
     },
     {
       "rule_id": "rule_conv_equity_funded_rdp_basket",
@@ -240,7 +240,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 5.544
+      "elapsed_s": 5.408
     },
     {
       "rule_id": "rule_conv_jcrew_blocker",
@@ -251,7 +251,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 6.479
+      "elapsed_s": 5.412
     },
     {
       "rule_id": "rule_conv_builder_b_aggregate",
@@ -262,7 +262,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 10.111
+      "elapsed_s": 8.374
     },
     {
       "rule_id": "rule_conv_builder_builder_source_starter",
@@ -273,7 +273,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.644
+      "elapsed_s": 8.174
     },
     {
       "rule_id": "rule_conv_builder_builder_source_cni",
@@ -284,7 +284,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.545
+      "elapsed_s": 8.16
     },
     {
       "rule_id": "rule_conv_builder_builder_source_ecf",
@@ -295,7 +295,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.802
+      "elapsed_s": 8.255
     },
     {
       "rule_id": "rule_conv_builder_builder_source_ebitda_fc",
@@ -306,7 +306,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.218
+      "elapsed_s": 8.324
     },
     {
       "rule_id": "rule_conv_builder_builder_source_other_equity_proceeds",
@@ -317,7 +317,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 8.329
+      "elapsed_s": 8.224
     },
     {
       "rule_id": "rule_conv_builder_builder_source_retained_asset_sale_proceeds",
@@ -328,7 +328,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 8.997
+      "elapsed_s": 7.95
     },
     {
       "rule_id": "rule_conv_builder_builder_source_investment_returns",
@@ -339,7 +339,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.774
+      "elapsed_s": 8.083
     },
     {
       "rule_id": "rule_conv_builder_builder_source_other_debt_conversion",
@@ -350,7 +350,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 9.535
+      "elapsed_s": 7.865
     },
     {
       "rule_id": "rule_conv_ordinary_course_exception_defeater",
@@ -361,7 +361,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.175
+      "elapsed_s": 2.937
     },
     {
       "rule_id": "rule_conv_nonexclusive_license_exception_defeater",
@@ -372,7 +372,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.587
+      "elapsed_s": 2.966
     },
     {
       "rule_id": "rule_conv_intercompany_exception_defeater",
@@ -383,7 +383,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.501
+      "elapsed_s": 2.97
     },
     {
       "rule_id": "rule_conv_immaterial_ip_exception_defeater",
@@ -394,7 +394,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.099
+      "elapsed_s": 2.915
     },
     {
       "rule_id": "rule_conv_fair_value_exception_defeater",
@@ -405,7 +405,7 @@
       "provenance_emitted": 1,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 4.252
+      "elapsed_s": 2.91
     },
     {
       "rule_id": "rule_conv_license_back_exception_defeater",
@@ -416,7 +416,7 @@
       "provenance_emitted": 0,
       "errors": [],
       "warnings": [],
-      "elapsed_s": 1.226
+      "elapsed_s": 0.429
     }
   ],
   "diff": {

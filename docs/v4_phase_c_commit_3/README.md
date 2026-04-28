@@ -214,8 +214,43 @@ Average ≈ 8.32×. Comfortably under the 10× gate.
 | Scope cliff inventory | unchanged (1 proceeds_flow) | **documented** |
 | Harness baseline preserved | A1/A5/A6 pass; A4 counts unchanged | **pass** |
 
-Both blocking gates now closed. Commit 3.3 (orphan sweep) is the
-remaining hygiene patch before Commit 4.
+### After Commit 3.3 — 2026-04-28T15:11 UTC
+
+Commit 3.3 added `sweep_orphans` to the converter and invokes it at
+the end of `main()` (after the new generation of rules has been
+authored). BFS walks reachable iids top-down from every remaining
+projection_rule across the 26 relations enumerated in
+`_RULE_SUBGRAPH_EDGES`; everything not reached is deleted in one
+write transaction per type.
+
+First-run impact (deletes ~10 generations of accumulated orphans):
+
+| Type | Before | After | Deleted |
+|---|---:|---:|---:|
+| match_criterion | 441 | 42 | 399 |
+| attribute_emission | 4264 | 354 | 3910 |
+| role_assignment | 2912 | 304 | 2608 |
+| role_filler | 2912 | 304 | 2608 |
+| value_source | 7502 | 668 | 6834 |
+| predicate_specifier | 24 | 2 | 22 |
+
+Total: 16,381 entities removed. Subsequent converter runs are
+idempotent (sweep deletes 0 of each type) since the previous run's
+sweep left no orphans behind.
+
+Sweep runtime ≈ 5.5 minutes on first run (per-iid `match X iid Y;
+delete X` query inside one shared write tx). Steady-state cost:
+near-zero (no orphans to delete).
+
+| Gate | Result | Status |
+|---|---|---|
+| Structural diff = zero | unchanged (zero across all sections) | **PASS** ✓ |
+| Benchmark ≤ 10× | 7.62× | **PASS** ✓ |
+| Scope cliff inventory | unchanged (1 proceeds_flow) | **documented** |
+| Harness baseline preserved | A1/A5/A6 pass; A4 missing=45 spurious=6 mismatched=0 | **pass** |
+
+All Commit 3.x patches landed. Both blocking gates closed; orphan
+hygiene clean. Ready for Commit 4 prep.
 
 **Recommendation:** Do not start Commit 4 until both gates close.
 Commit 3.x patches in order:
