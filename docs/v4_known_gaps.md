@@ -517,3 +517,53 @@ questions and duplicate `provision_has_extracted_entity` relations.
 
 **Revisit trigger:** when full re-extraction without `delete_deal()`
 becomes a use case (currently never the case).
+
+## Phase F commit 5 — Phase G prompt-side requirements
+
+The `docs/v4_attribute_conventions.md` document defines 6 conventions.
+Conventions 2 (monetary), 3 (boolean naming), 4 (identifier formats),
+5 (source-text length), and 6 (enum-string vs subtype) are already
+compliant in current data; Commit 5 enforces what TypeDB constraints
+can capture (capacity_effect canonical-value-list comment in schema).
+
+Convention 1 (percentage decimal form, 0.15 = 15%) is non-compliant in
+current data for `cap_grower_pct`, `basket_grower_pct`,
+`annual_cap_pct_ebitda`, and the other attributes in
+`_SCALE_COERCION_ATTRS` of `app/services/v3_data_normalization.py`.
+Existing data has these as percentages (15.0, 100.0) post-normalization;
+the convention says decimal (0.15, 1.00).
+
+Schema-level enforcement (range constraint `<= 1.0` or similar) would
+fail constraint application against existing data and is therefore
+deferred. Phase G prompt-side work has two paths:
+
+- **(a) Update extraction prompts to emit decimal form directly.** The
+  `_normalize_v3_data` function then becomes dead code and is removed.
+  This matches Phase D2's "post-pilot correct fix" (README line 199).
+- **(b) Update conventions to numeric form (15.0 = 15%) instead.** The
+  `_normalize_v3_data` function's existing direction (decimal →
+  numeric) is preserved; cap_grower_pct existing data is already
+  conforming; de_minimis_pct (which is currently decimal) needs
+  re-extraction or one-time data update.
+
+Pick (a) or (b) at Phase G start. Both are valid; (a) aligns with the
+Phase D2 README's stated direction, (b) requires less data churn.
+
+**Revisit trigger:** Phase G extraction prompt iteration begins.
+
+## Phase F commit 5 — schema range constraints deferred
+
+`docs/v4_attribute_conventions.md` Convention 2 (Monetary >= 0.0)
+identified `cap_usd`, `*_de_minimis_usd`, `reallocation_amount_usd`,
+`basket_amount_usd` as candidates for a `>= 0.0` range constraint.
+TypeDB 3.8 supports range constraints on attribute values, but
+Convention 4's identifier-format regex constraints are higher-value
+(catch typos at insert time) and the monetary range is unlikely to
+be violated by extraction (LLM doesn't generate negative dollar
+amounts).
+
+Deferred for pragmatism. Adding range constraints at any point is
+schema-additive and safe (existing data conforms).
+
+**Revisit trigger:** observed cases of negative monetary values from
+extraction or downstream errors traceable to malformed amounts.

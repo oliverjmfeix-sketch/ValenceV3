@@ -345,6 +345,13 @@ attribute basket_type_name, value string;
 attribute provision_type_name, value string;
 attribute mapping_id, value string;
 attribute capacity_category, value string;
+# Phase F commit 5 — canonical value list per docs/v4_attribute_conventions.md.
+# Enum-string convention; ~3 values, low evolution risk.
+# Canonical values: { "additive", "fungible" }
+# - "additive": source's cap becomes additional capacity for the target
+# - "fungible": source and target share a single pool (capacity drawn from
+#               either reduces what's available to the other)
+# Future additions go through a code review that updates this comment.
 attribute capacity_effect, value string;
 
 # ── Investment pathway (J.Crew chain analysis) ────────────────────────────────

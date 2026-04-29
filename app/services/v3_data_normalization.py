@@ -1,5 +1,6 @@
 """
 Phase C — v3 data normalization.
+Phase F commit 5 status: DEPRECATING IN PHASE G.
 
 Heuristics that compensate for v3 extraction inconsistency. Lives in
 its own module (decoupled from extraction.py's Anthropic SDK
@@ -9,9 +10,23 @@ deleted in Commit 5; the module remains because extraction.py still
 imports `_normalize_v3_data` for live normalization.
 
 Currently handles scale coercion (fraction -> percentage) for grower-pct
-family attributes. Phase D's extraction prompt updates aim to make these
-heuristics unnecessary; once extraction emits canonical values directly,
-this module becomes dead code.
+family attributes. Phase F commit 4's percentage convention chose
+decimal form (0.15 = 15%) as canonical; this function does the OPPOSITE
+(converts decimal to percentage form, e.g. 0.15 → 15.0) to match v3
+ground-truth YAML conventions written before the v4 percentage
+convention was settled. This is a Rule 5.2 concession — the function
+exists because extraction prompts produce one form, GT YAML expects
+another, and the v3 query path reads from this module's output.
+
+Phase G prompt-side resolution: extraction prompts for percentage
+attributes will produce decimal form directly (matching the v4
+convention), eliminating the conversion's purpose. At that point this
+function becomes dead code and can be removed.
+
+REVISIT TRIGGER: Phase G extraction prompt updates land. Verify
+extraction emits decimal form for the _SCALE_COERCION_ATTRS list.
+Remove or empty this function with a "removed Phase G commit N"
+comment when the prompts produce canonical decimals.
 """
 from __future__ import annotations
 
