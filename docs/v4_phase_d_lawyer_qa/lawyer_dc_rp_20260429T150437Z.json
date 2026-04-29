@@ -1,0 +1,2886 @@
+{
+  "eval_set": "lawyer_dc_rp",
+  "deal_id": "6e76ed06",
+  "db": "valence_v4",
+  "model": "claude-sonnet-4-6",
+  "total_cost_usd": 0.74826,
+  "total_latency_ms": 291923.4,
+  "questions": [
+    {
+      "question": "What test is the build-up basket or available amount basket based on and when does the basket start growing?",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "both",
+        "matched_categories": [
+          {
+            "id": "G",
+            "name": "Ratio-Based Dividend Basket"
+          },
+          {
+            "id": "F",
+            "name": "Builder Basket / Cumulative Amount"
+          },
+          {
+            "id": "T",
+            "name": "RDP Baskets"
+          },
+          {
+            "id": "I",
+            "name": "Basket Reallocation"
+          },
+          {
+            "id": "N",
+            "name": "Dividend Capacity Calculation"
+          },
+          {
+            "id": "C",
+            "name": "Management Equity Basket"
+          },
+          {
+            "id": "D",
+            "name": "Tax Distribution Basket"
+          },
+          {
+            "id": "DI10",
+            "name": "Cross-Covenant Links"
+          },
+          {
+            "id": "DI12",
+            "name": "Vulnerabilities"
+          },
+          {
+            "id": "DI5",
+            "name": "Permitted Debt Baskets"
+          },
+          {
+            "id": "DI7",
+            "name": "Basket Conditions"
+          },
+          {
+            "id": "E",
+            "name": "Equity Awards"
+          },
+          {
+            "id": "H",
+            "name": "Holding Company Overhead"
+          },
+          {
+            "id": "JC1",
+            "name": "J.Crew Tier 1 - Structural Analysis"
+          },
+          {
+            "id": "L",
+            "name": "Asset Sale Proceeds & Sweeps"
+          },
+          {
+            "id": "M",
+            "name": "Unrestricted Subsidiary Distributions"
+          },
+          {
+            "id": "MFN4",
+            "name": "Sunset & Timing"
+          },
+          {
+            "id": "P",
+            "name": "Unrestricted Subsidiary Distribution Basket"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_g1",
+          "rp_g2",
+          "rp_g3",
+          "rp_g4",
+          "rp_g5",
+          "rp_g6",
+          "rp_g7",
+          "rp_g8",
+          "rp_g9",
+          "rp_g10",
+          "rp_g11",
+          "rp_g12",
+          "rp_f1",
+          "rp_f2",
+          "rp_f3",
+          "rp_f4",
+          "rp_f5",
+          "rp_f6",
+          "rp_f7",
+          "rp_f8",
+          "rp_f9",
+          "rp_f10",
+          "rp_f11",
+          "rp_f12",
+          "rp_f13",
+          "rp_f14",
+          "rp_f15",
+          "rp_f16",
+          "rp_f17",
+          "rp_f18",
+          "rp_f19",
+          "rp_f20",
+          "rp_f21",
+          "rp_f22",
+          "rp_f23",
+          "rp_f24",
+          "rp_f25",
+          "rp_f26",
+          "rp_f27",
+          "rp_f28",
+          "rp_f29",
+          "rp_t1",
+          "rp_t2",
+          "rp_t3",
+          "rp_t4",
+          "rp_t5",
+          "rp_t6",
+          "rp_t7",
+          "rp_t8",
+          "rp_t9",
+          "rp_t10",
+          "rp_t11",
+          "rp_t12",
+          "rp_t13",
+          "rp_t14",
+          "rp_t15",
+          "rp_t16",
+          "rp_t17",
+          "rp_t18",
+          "rp_t19",
+          "rp_t20",
+          "rp_t21",
+          "rp_t22",
+          "rp_t23",
+          "rp_t24",
+          "rp_t25",
+          "rp_t26",
+          "rp_t27",
+          "rp_i1",
+          "rp_i2",
+          "rp_i7",
+          "rp_i8",
+          "rp_i3",
+          "rp_i4",
+          "rp_i5",
+          "rp_i6",
+          "rp_i9",
+          "rp_i10",
+          "rp_i11",
+          "rp_i12",
+          "rp_n1",
+          "rp_n2",
+          "rp_n3",
+          "rp_n4",
+          "rp_n5",
+          "rp_n6",
+          "rp_n0",
+          "rp_c1",
+          "rp_c2",
+          "rp_c3",
+          "rp_c4",
+          "rp_c5",
+          "rp_c6",
+          "rp_c7",
+          "rp_c8",
+          "rp_c9",
+          "rp_d1",
+          "rp_d2",
+          "rp_d3",
+          "rp_d4",
+          "rp_d5",
+          "rp_d6",
+          "di_j1",
+          "di_j2",
+          "di_j3",
+          "di_j4",
+          "di_j5",
+          "di_j6",
+          "di_j7",
+          "di_j8",
+          "di_l1",
+          "di_l2",
+          "di_l3",
+          "di_l4",
+          "di_l5",
+          "di_l6",
+          "di_l7",
+          "di_l8",
+          "di_l9",
+          "di_l10",
+          "di_e_ca_0",
+          "di_e_ca_1",
+          "di_e_rd_0",
+          "di_e_rd_1",
+          "di_e_gb_0",
+          "di_e_gb_1",
+          "di_e_gb_2",
+          "di_e_acq_0",
+          "di_e_acq_1",
+          "di_e_cl_0",
+          "di_e_cl_1",
+          "di_e_pm_0",
+          "di_e_ic_0",
+          "di_e_ic_1",
+          "di_e_ref_0",
+          "di_e_ref_1",
+          "di_e_hdg_0",
+          "di_e_hdg_1",
+          "di_e_lc_0",
+          "di_e_slb_0",
+          "di_e_slb_1",
+          "di_e_fs_0",
+          "di_e_fs_1",
+          "di_e_eo_0",
+          "di_e_wc_0",
+          "di_e_wc_1",
+          "di_e_cd_0",
+          "di_e_cd_1",
+          "di_e_ng_0",
+          "di_e_ng_1",
+          "di_g1",
+          "di_g2",
+          "di_g3",
+          "di_g4",
+          "di_g5",
+          "di_g6",
+          "di_g7",
+          "di_g8",
+          "di_g9",
+          "di_g10",
+          "rp_e1",
+          "rp_e2",
+          "rp_e3",
+          "rp_e4",
+          "rp_e5",
+          "rp_e6",
+          "rp_e7",
+          "rp_e8",
+          "rp_e9",
+          "rp_h1",
+          "rp_h2",
+          "rp_h3",
+          "rp_h4",
+          "rp_h5",
+          "rp_h6",
+          "rp_h7",
+          "rp_h8",
+          "rp_h9",
+          "rp_h10",
+          "rp_h11",
+          "rp_h12",
+          "rp_h13",
+          "rp_h14",
+          "jc_t1_01",
+          "jc_t1_02",
+          "jc_t1_03",
+          "jc_t1_04",
+          "jc_t1_05",
+          "jc_t1_06",
+          "jc_t1_07",
+          "jc_t1_08",
+          "jc_t1_09",
+          "jc_t1_10",
+          "jc_t1_11",
+          "jc_t1_12",
+          "jc_t1_13",
+          "jc_t1_14",
+          "jc_t1_15",
+          "jc_t1_16",
+          "jc_t1_17",
+          "jc_t1_18",
+          "jc_t1_19",
+          "jc_t1_20",
+          "jc_t1_21",
+          "jc_t1_22",
+          "jc_t1_23",
+          "jc_t1_24",
+          "jc_t1_25",
+          "jc_t1_26",
+          "jc_t1_27",
+          "jc_t1_28",
+          "jc_t1_29",
+          "jc_t1_30",
+          "jc_t1_31",
+          "jc_t1_32",
+          "jc_t1_33",
+          "jc_t1_34",
+          "rp_l1",
+          "rp_l2",
+          "rp_l3",
+          "rp_l4",
+          "rp_l5",
+          "rp_l6",
+          "rp_l7",
+          "rp_l8",
+          "rp_l9",
+          "rp_l10",
+          "rp_l11",
+          "rp_l12",
+          "rp_l13",
+          "rp_l14",
+          "rp_l15",
+          "rp_l16",
+          "rp_l17",
+          "rp_l18",
+          "rp_l19",
+          "rp_l20",
+          "rp_l21",
+          "rp_l22",
+          "rp_l23",
+          "rp_m1",
+          "rp_m2",
+          "rp_m3",
+          "rp_m4",
+          "rp_m5",
+          "rp_m6",
+          "rp_m7",
+          "rp_m8",
+          "rp_m9",
+          "rp_m10",
+          "mfn_28",
+          "mfn_29",
+          "mfn_30",
+          "mfn_31",
+          "mfn_32",
+          "mfn_33",
+          "rp_p1",
+          "rp_p2",
+          "rp_p3",
+          "rp_p4",
+          "rp_p5",
+          "rp_p6",
+          "rp_p7"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "General RP basket unrelated to builder/available amount basket structure."
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "General RDP basket unrelated to builder basket structure."
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Management equity basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "PRIMARY",
+            "rationale": "Starter amount is a key component of the builder/available amount basket."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "PRIMARY",
+            "rationale": "CNI sub-source directly feeds into builder basket growth mechanism."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "PRIMARY",
+            "rationale": "EBITDA-based sub-source directly feeds builder basket growth."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "PRIMARY",
+            "rationale": "Equity proceeds sub-source contributes to builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Core builder/available amount basket norm directly answers the question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "PRIMARY",
+            "rationale": "Three-test aggregate is the test on which builder basket is based."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Ratio RP basket is separate from builder basket structure."
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Tax distribution basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Holdco overhead basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity award basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "SKIP",
+            "rationale": "Unrestricted sub distribution unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Ratio RDP basket unrelated to builder basket structure."
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder RDP basket uses builder capacity; supplementary context."
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing RDP basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded RDP basket unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "JCrew blocker prohibition unrelated to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "PRIMARY",
+            "rationale": "ECF sub-source directly feeds builder basket three-test aggregate."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "PRIMARY",
+            "rationale": "Retained asset sale proceeds sub-source contributes to builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "PRIMARY",
+            "rationale": "Investment returns sub-source contributes to builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "PRIMARY",
+            "rationale": "Debt conversion sub-source contributes to builder basket capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "JCrew IP exception unrelated to builder basket question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "IP license exception unrelated to builder basket question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Intercompany transfer exception unrelated to builder basket question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "Immaterial IP exception unrelated to builder basket question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Fair value exception unrelated to builder basket question."
+          }
+        ],
+        "primary_count": 10,
+        "supplementary_count": 1,
+        "skip_count": 17,
+        "input_tokens": 7780,
+        "output_tokens": 1365,
+        "latency_ms": 13667.3,
+        "cost_usd": 0.04381,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"General RP basket unrelated to builder/available amount basket structure.\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"General RDP basket unrelated to builder basket structure.\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Management equity basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"PRIMARY\", \"rationale\": \"Starter amount is a key component of the builder/available amount basket.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"PRIMARY\", \"rationale\": \"CNI sub-source directly feeds into builder basket growth mechanism.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"PRIMARY\", \"rationale\": \"EBITDA-based sub-source directly feeds builder basket growth.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"PRIMARY\", \"rationale\": \"Equity proceeds sub-source contributes to builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Core builder/available amount basket norm directly answers the question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"PRIMARY\", \"rationale\": \"Three-test aggregate is the test on which builder basket is based.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Ratio RP basket is separate from builder basket structure.\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Tax distribution basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Holdco overhead basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity award basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Unrestricted sub distribution unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Ratio RDP basket unrelated to builder basket structure.\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder RDP basket uses builder capacity; supplementary context.\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing RDP basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded RDP basket unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"JCrew blocker prohibition unrelated to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"PRIMARY\", \"rationale\": \"ECF sub-source directly feeds builder basket three-test aggregate.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"PRIMARY\", \"rationale\": \"Retained asset sale proceeds sub-source contributes to builder basket.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"PRIMARY\", \"rationale\": \"Investment returns sub-source contributes to builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"PRIMARY\", \"rationale\": \"Debt conversion sub-source contributes to builder basket capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"JCrew IP exception unrelated to builder basket question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP license exception unrelated to builder basket question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Intercompany transfer exception unrelated to builder basket question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Immaterial IP exception unrelated to builder basket question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Fair value exception unrelated to builder basket question.\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "The question asks what test the Cumulative Amount (build-up/available amount) basket is based on and when it begins to accrue.",
+          "primary_norms_considered": [
+            "6e76ed06_builder_usage_permission",
+            "6e76ed06_builder_source_starter",
+            "6e76ed06_builder_source_cni",
+            "6e76ed06_builder_source_ebitda_fc",
+            "6e76ed06_builder_source_ecf",
+            "6e76ed06_builder_source_other_equity_proceeds",
+            "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "6e76ed06_builder_source_investment_returns",
+            "6e76ed06_builder_source_other_debt_conversion",
+            "6e76ed06_builder_source_three_test_aggregate"
+          ],
+          "analysis": "The Cumulative Amount is a build-up basket composed of multiple additive sources, with the core earnings-based component determined by a 'greatest of' three-test structure. The three-test aggregate (norm 6e76ed06_builder_source_three_test_aggregate) takes the greatest of: (1) 50% of cumulative Consolidated Net Income since the start anchor (6e76ed06_builder_source_cni); (2) the Available Retained ECF Amount \u2014 i.e., cumulative Excess Cash Flow not required to prepay term loans under Section 2.10(f) (6e76ed06_builder_source_ecf); and (3) 140% of LTM Consolidated EBITDA (6e76ed06_builder_source_ebitda_fc). This greatest-of result is then summed (aggregation_function: sum) with additional standalone sources: (a) a starter amount equal to the greater of $130,000,000 and 100% of LTM Consolidated EBITDA (6e76ed06_builder_source_starter); (b) 100% of equity proceeds not otherwise applied (6e76ed06_builder_source_other_equity_proceeds); (c) retained net cash proceeds from asset sales (6e76ed06_builder_source_retained_asset_sale_proceeds); (d) investment returns/dividends received (6e76ed06_builder_source_investment_returns); and (e) amounts from debt-to-equity conversions (6e76ed06_builder_source_other_debt_conversion). All sources share the same growth_start_anchor: 'closing_date_fiscal_quarter_start', confirmed by the start_date_language attribute on the builder_basket entity: 'the first day of the fiscal quarter in which the Closing Date occurs'. The basket is reduced by RP usage, RDP usage, and investment usage (reduced_by_rp_usage, reduced_by_rdp_usage, reduced_by_investment_usage all = true), but is NOT reduced by unrestricted subsidiary designations (reduced_by_designation = false).",
+          "interactions": "The builder basket (6e76ed06_builder_usage_permission) is a general_purpose capacity basket that shares its pool with the builder RDP basket (6e76ed06_builder_rdp_basket_permission / 6e76ed06_builder_source_three_test_aggregate), as confirmed by shares_with_rp_builder = true on the builder_rdp_basket entity. Draws under Section 6.09(a)(A) (restricted debt payments) therefore reduce the same Cumulative Amount available for restricted payments and investments under Section 6.03(x). The proceeds flow from asset sale events feeds into 6e76ed06_builder_source_retained_asset_sale_proceeds for the portion of net cash proceeds retained after the leverage-based sweep tiers.",
+          "conclusion": "The Cumulative Amount basket is based on a 'greatest of' three-test structure (50% CNI vs. retained ECF vs. 140% LTM EBITDA), plus additive starter, equity proceeds, asset sale proceeds, investment returns, and debt conversion sources, and begins accruing on the first day of the fiscal quarter in which the Closing Date occurs."
+        },
+        "answer": "The Cumulative Amount (build-up basket) is defined at the 'Definition of Cumulative Amount' (p. 32) and is based on the sum (without duplication) of several additive sources, the core of which is the **greatest of**: (i) 50% of cumulative Consolidated Net Income, (ii) the Available Retained ECF Amount (cumulative Excess Cash Flow not required to prepay term loans under Section 2.10(f)), and (iii) 140% of LTM Consolidated EBITDA \u2014 with that greatest-of result then added to a starter amount equal to the greater of $130,000,000 and 100% of LTM Consolidated EBITDA, plus 100% of equity proceeds not otherwise applied, retained asset sale proceeds, investment returns, and debt-to-equity conversion amounts [Definition of Cumulative Amount, p. 32]. The basket begins growing on **the first day of the fiscal quarter in which the Closing Date occurs** [Definition of Cumulative Amount, p. 32; builder_basket entity attr: start_date_language]. The Cumulative Amount is reduced dollar-for-dollar by usage under the RP covenant, the restricted debt payment covenant (Section 6.09(a)(A)), and the investment covenant (Section 6.03(x)), but is not reduced by unrestricted subsidiary designations. The builder basket shares its pool with the builder RDP basket under Section 6.09(a)(A) [Section 6.09(a)(A), p. 199].",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "section": "6.09(a)(A)",
+            "page": 199,
+            "quote": "to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount"
+          }
+        ],
+        "input_tokens": 16634,
+        "output_tokens": 1896,
+        "latency_ms": 28055.9,
+        "cost_usd": 0.07834,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"The question asks what test the Cumulative Amount (build-up/available amount) basket is based on and when it begins to accrue.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_builder_usage_permission\",\n      \"6e76ed06_builder_source_starter\",\n      \"6e76ed06_builder_source_cni\",\n      \"6e76ed06_builder_source_ebitda_fc\",\n      \"6e76ed06_builder_source_ecf\",\n      \"6e76ed06_builder_source_other_equity_proceeds\",\n      \"6e76ed06_builder_source_retained_asset_sale_proceeds\",\n      \"6e76ed06_builder_source_investment_returns\",\n      \"6e76ed06_builder_source_other_debt_conversion\",\n      \"6e76ed06_builder_source_three_test_aggregate\"\n    ],\n    \"analysis\": \"The Cumulative Amount is a build-up basket composed of multiple additive sources, with the core earnings-based component determined by a 'greatest of' three-test structure. The three-test aggregate (norm 6e76ed06_builder_source_three_test_aggregate) takes the greatest of: (1) 50% of cumulative Consolidated Net Income since the start anchor (6e76ed06_builder_source_cni); (2) the Available Retained ECF Amount \u2014 i.e., cumulative Excess Cash Flow not required to prepay term loans under Section 2.10(f) (6e76ed06_builder_source_ecf); and (3) 140% of LTM Consolidated EBITDA (6e76ed06_builder_source_ebitda_fc). This greatest-of result is then summed (aggregation_function: sum) with additional standalone sources: (a) a starter amount equal to the greater of $130,000,000 and 100% of LTM Consolidated EBITDA (6e76ed06_builder_source_starter); (b) 100% of equity proceeds not otherwise applied (6e76ed06_builder_source_other_equity_proceeds); (c) retained net cash proceeds from asset sales (6e76ed06_builder_source_retained_asset_sale_proceeds); (d) investment returns/dividends received (6e76ed06_builder_source_investment_returns); and (e) amounts from debt-to-equity conversions (6e76ed06_builder_source_other_debt_conversion). All sources share the same growth_start_anchor: 'closing_date_fiscal_quarter_start', confirmed by the start_date_language attribute on the builder_basket entity: 'the first day of the fiscal quarter in which the Closing Date occurs'. The basket is reduced by RP usage, RDP usage, and investment usage (reduced_by_rp_usage, reduced_by_rdp_usage, reduced_by_investment_usage all = true), but is NOT reduced by unrestricted subsidiary designations (reduced_by_designation = false).\",\n    \"interactions\": \"The builder basket (6e76ed06_builder_usage_permission) is a general_purpose capacity basket that shares its pool with the builder RDP basket (6e76ed06_builder_rdp_basket_permission / 6e76ed06_builder_source_three_test_aggregate), as confirmed by shares_with_rp_builder = true on the builder_rdp_basket entity. Draws under Section 6.09(a)(A) (restricted debt payments) therefore reduce the same Cumulative Amount available for restricted payments and investments under Section 6.03(x). The proceeds flow from asset sale events feeds into 6e76ed06_builder_source_retained_asset_sale_proceeds for the portion of net cash proceeds retained after the leverage-based sweep tiers.\",\n    \"conclusion\": \"The Cumulative Amount basket is based on a 'greatest of' three-test structure (50% CNI vs. retained ECF vs. 140% LTM EBITDA), plus additive starter, equity proceeds, asset sale proceeds, investment returns, and debt conversion sources, and begins accruing on the first day of the fiscal quarter in which the Closing Date occurs.\"\n  },\n  \"answer\": \"The Cumulative Amount (build-up basket) is defined at the 'Definition of Cumulative Amount' (p. 32) and is based on the sum (without duplication) of several additive sources, the core of which is the **greatest of**: (i) 50% of cumulative Consolidated Net Income, (ii) the Available Retained ECF Amount (cumulative Excess Cash Flow not required to prepay term loans under Section 2.10(f)), and (iii) 140% of LTM Consolidated EBITDA \u2014 with that greatest-of result then added to a starter amount equal to the greater of $130,000,000 and 100% of LTM Consolidated EBITDA, plus 100% of equity proceeds not otherwise applied, retained asset sale proceeds, investment returns, and debt-to-equity conversion amounts [Definition of Cumulative Amount, p. 32]. The basket begins growing on **the first day of the fiscal quarter in which the Closing Date occurs** [Definition of Cumulative Amount, p. 32; builder_basket entity attr: start_date_language]. The Cumulative Amount is reduced dollar-for-dollar by usage under the RP covenant, the restricted debt payment covenant (Section 6.09(a)(A)), and the investment covenant (Section 6.03(x)), but is not reduced by unrestricted subsidiary designations. The builder basket shares its pool with the builder RDP basket under Section 6.09(a)(A) [Section 6.09(a)(A), p. 199].\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_builder_usage_permission\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_starter\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_cni\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_ebitda_fc\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_ecf\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_rdp_basket_permission\",\n      \"section\": \"6.09(a)(A)\",\n      \"page\": 199,\n      \"quote\": \"to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 41727.2,
+      "total_cost_usd": 0.12216,
+      "question_id": "duck_creek_q1",
+      "gold_answer": "The Cumulative Amount is based on the greatest of three tests: (1) 50% of cumulative Consolidated Net Income (which amount shall not be less than zero for any fiscal quarter), (2) Excess Cash Flow not required to be applied to prepay Term Loans or any other debt (such amount cannot be less than $0 for any fiscal year), (3) cumulative Consolidated EBITDA minus 140% of cumulative Consolidated Fixed Charges. All tests start growing from the first day of the fiscal quarter in which the Closing Date occurs.",
+      "category": "builder_basket",
+      "requires_entities": [
+        "builder_basket",
+        "starter_amount_source",
+        "cni_source",
+        "ecf_source",
+        "ebitda_fc_source"
+      ]
+    },
+    {
+      "question": "Is the Borrower permitted to dividend the equity it owns in Unrestricted Subsidiaries?",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "rp",
+        "matched_categories": [
+          {
+            "id": "J",
+            "name": "Unrestricted Subsidiaries"
+          },
+          {
+            "id": "P",
+            "name": "Unrestricted Subsidiary Distribution Basket"
+          },
+          {
+            "id": "M",
+            "name": "Unrestricted Subsidiary Distributions"
+          },
+          {
+            "id": "C",
+            "name": "Management Equity Basket"
+          },
+          {
+            "id": "E",
+            "name": "Equity Awards"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_j1",
+          "rp_j2",
+          "rp_j3",
+          "rp_j4",
+          "rp_j5",
+          "rp_p1",
+          "rp_p2",
+          "rp_p3",
+          "rp_p4",
+          "rp_p5",
+          "rp_p6",
+          "rp_p7",
+          "rp_m1",
+          "rp_m2",
+          "rp_m3",
+          "rp_m4",
+          "rp_m5",
+          "rp_m6",
+          "rp_m7",
+          "rp_m8",
+          "rp_m9",
+          "rp_m10",
+          "rp_c1",
+          "rp_c2",
+          "rp_c3",
+          "rp_c4",
+          "rp_c5",
+          "rp_c6",
+          "rp_c7",
+          "rp_c8",
+          "rp_c9",
+          "rp_e1",
+          "rp_e2",
+          "rp_e3",
+          "rp_e4",
+          "rp_e5",
+          "rp_e6",
+          "rp_e7",
+          "rp_e8",
+          "rp_e9"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "General dividend basket; not specific to unrestricted sub equity distributions."
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Subordinated debt payments; unrelated to dividend of unrestricted sub equity."
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Management equity repurchase basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "SKIP",
+            "rationale": "General builder basket; not specific to unrestricted sub equity distributions."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source aggregate; not directly relevant to this question."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Ratio-based dividend basket; not specific to unrestricted sub equity distributions."
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Tax distribution basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Holdco overhead basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SKIP",
+            "rationale": "Stock option repurchase basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Directly permits distribution of unrestricted subsidiary equity interests."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Ratio-based debt payment basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Builder debt payment basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing debt payment basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded debt payment basket; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "Prohibits designating unrestricted subs with material IP; not about dividending equity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not directly relevant to unrestricted sub equity distribution question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends."
+          }
+        ],
+        "primary_count": 1,
+        "supplementary_count": 1,
+        "skip_count": 26,
+        "input_tokens": 7779,
+        "output_tokens": 1516,
+        "latency_ms": 18465.5,
+        "cost_usd": 0.04608,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"General dividend basket; not specific to unrestricted sub equity distributions.\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Subordinated debt payments; unrelated to dividend of unrestricted sub equity.\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Management equity repurchase basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"SKIP\", \"rationale\": \"General builder basket; not specific to unrestricted sub equity distributions.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source aggregate; not directly relevant to this question.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Ratio-based dividend basket; not specific to unrestricted sub equity distributions.\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Tax distribution basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Holdco overhead basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Stock option repurchase basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Directly permits distribution of unrestricted subsidiary equity interests.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Ratio-based debt payment basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Builder debt payment basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing debt payment basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded debt payment basket; unrelated to unrestricted sub equity dividends.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"Prohibits designating unrestricted subs with material IP; not about dividending equity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not directly relevant to unrestricted sub equity distribution question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to JCrew IP blocker; unrelated to unrestricted sub equity dividends.\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "Whether the Borrower is permitted to distribute (by dividend or otherwise) the equity interests it holds in Unrestricted Subsidiaries, and on what basis.",
+          "primary_norms_considered": [
+            "6e76ed06_unrestricted_sub_equity_distribution_permission"
+          ],
+          "analysis": "Section 6.06(p) contains a categorical, express permission allowing the distribution 'by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof.' The extracted norm (6e76ed06_unrestricted_sub_equity_distribution_permission) has modality 'permission', is_categorical = true, and partial_applicability = false, meaning it applies without limitation or condition. The covered objects include equity interests (covers_equity_interests: true), indebtedness (covers_indebtedness: true), assets (covers_assets: true), and proceeds (covers_proceeds: true). No defeaters are listed against this norm. The requires_valid_designation flag is false, meaning the Borrower need not satisfy any additional designation prerequisite at the time of the distribution. The basket also includes noncash distributions at FMV (includes_noncash_at_fmv: true) and distributions can cascade through the structure (distributions_can_cascade: true). Notably, the capacity_category is 'categorical', meaning there is no dollar cap or financial ratio test attached to this specific permission. The basket rebuilds the builder basket (rebuilds_builder_basket: true), so distributions made under it do not reduce the Cumulative Amount. No anti-duplication provision applies (has_anti_duplication: false). The general RP basket (6.06(j)) and ratio basket (6.06(o)) provide additional independent avenues but are not needed given the categorical nature of 6.06(p).",
+          "interactions": "No defeaters override norm 6e76ed06_unrestricted_sub_equity_distribution_permission. The unsub_distribution_basket does not reduce the investment basket and rebuilds the builder basket, so using it does not impair other RP capacity. The J.Crew blocker (jcrew_blocker entity) applies only at the designation stage (covers_designation: true; covers_transfer: false), not to subsequent distributions of equity already held in an Unrestricted Subsidiary. No proceeds-flow mechanics are triggered by an equity dividend of Unrestricted Subsidiary interests.",
+          "conclusion": "Yes \u2014 Section 6.06(p) provides a categorical, uncapped, unconditioned permission for the Borrower to distribute by dividend the equity interests (and other assets or indebtedness) of an Unrestricted Subsidiary, with no dollar cap, no ratio test, and no requirement that the subsidiary have been validly designated at the time of distribution."
+        },
+        "answer": "Yes. Section 6.06(p) [p. 198] expressly and categorically permits the Borrower to distribute 'by dividend or otherwise, shares of Equity Interests of \u2026 an Unrestricted Subsidiary or the proceeds thereof' without any dollar cap, financial ratio condition, or pro forma compliance requirement. The permission also covers indebtedness owed by the Unrestricted Subsidiary and its assets, and applies to non-cash distributions at fair market value. No defeaters or carve-outs override this permission, and using it rebuilds (rather than reduces) the Cumulative Amount builder basket.",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "section": "6.06(p)",
+            "page": 198,
+            "quote": "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof"
+          }
+        ],
+        "input_tokens": 10729,
+        "output_tokens": 946,
+        "latency_ms": 20364.4,
+        "cost_usd": 0.04638,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"Whether the Borrower is permitted to distribute (by dividend or otherwise) the equity interests it holds in Unrestricted Subsidiaries, and on what basis.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_unrestricted_sub_equity_distribution_permission\"\n    ],\n    \"analysis\": \"Section 6.06(p) contains a categorical, express permission allowing the distribution 'by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof.' The extracted norm (6e76ed06_unrestricted_sub_equity_distribution_permission) has modality 'permission', is_categorical = true, and partial_applicability = false, meaning it applies without limitation or condition. The covered objects include equity interests (covers_equity_interests: true), indebtedness (covers_indebtedness: true), assets (covers_assets: true), and proceeds (covers_proceeds: true). No defeaters are listed against this norm. The requires_valid_designation flag is false, meaning the Borrower need not satisfy any additional designation prerequisite at the time of the distribution. The basket also includes noncash distributions at FMV (includes_noncash_at_fmv: true) and distributions can cascade through the structure (distributions_can_cascade: true). Notably, the capacity_category is 'categorical', meaning there is no dollar cap or financial ratio test attached to this specific permission. The basket rebuilds the builder basket (rebuilds_builder_basket: true), so distributions made under it do not reduce the Cumulative Amount. No anti-duplication provision applies (has_anti_duplication: false). The general RP basket (6.06(j)) and ratio basket (6.06(o)) provide additional independent avenues but are not needed given the categorical nature of 6.06(p).\",\n    \"interactions\": \"No defeaters override norm 6e76ed06_unrestricted_sub_equity_distribution_permission. The unsub_distribution_basket does not reduce the investment basket and rebuilds the builder basket, so using it does not impair other RP capacity. The J.Crew blocker (jcrew_blocker entity) applies only at the designation stage (covers_designation: true; covers_transfer: false), not to subsequent distributions of equity already held in an Unrestricted Subsidiary. No proceeds-flow mechanics are triggered by an equity dividend of Unrestricted Subsidiary interests.\",\n    \"conclusion\": \"Yes \u2014 Section 6.06(p) provides a categorical, uncapped, unconditioned permission for the Borrower to distribute by dividend the equity interests (and other assets or indebtedness) of an Unrestricted Subsidiary, with no dollar cap, no ratio test, and no requirement that the subsidiary have been validly designated at the time of distribution.\"\n  },\n  \"answer\": \"Yes. Section 6.06(p) [p. 198] expressly and categorically permits the Borrower to distribute 'by dividend or otherwise, shares of Equity Interests of \u2026 an Unrestricted Subsidiary or the proceeds thereof' without any dollar cap, financial ratio condition, or pro forma compliance requirement. The permission also covers indebtedness owed by the Unrestricted Subsidiary and its assets, and applies to non-cash distributions at fair market value. No defeaters or carve-outs override this permission, and using it rebuilds (rather than reduces) the Cumulative Amount builder basket.\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\",\n      \"section\": \"6.06(p)\",\n      \"page\": 198,\n      \"quote\": \"the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 38833.7,
+      "total_cost_usd": 0.09245,
+      "question_id": "duck_creek_q2",
+      "gold_answer": "Yes, under 6.06(p) the Borrower can dividend shares of Equity Interest or any assets of an Unrestricted Subsidiary.",
+      "category": "unsub_distribution",
+      "requires_entities": [
+        "unsub_distribution_basket",
+        "jcrew_blocker",
+        "unsub_designation",
+        "investment_pathway"
+      ]
+    },
+    {
+      "question": "Are there any investment, prepayment of other debt or other baskets that can be reallocated and used to make restricted payments or dividends?",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "both",
+        "matched_categories": [
+          {
+            "id": "S",
+            "name": "Restricted Debt Payments - General"
+          },
+          {
+            "id": "DI7",
+            "name": "Basket Conditions"
+          },
+          {
+            "id": "DI12",
+            "name": "Vulnerabilities"
+          },
+          {
+            "id": "DI5",
+            "name": "Permitted Debt Baskets"
+          },
+          {
+            "id": "M",
+            "name": "Unrestricted Subsidiary Distributions"
+          },
+          {
+            "id": "DI8",
+            "name": "Reclassification"
+          },
+          {
+            "id": "DI9",
+            "name": "Liens Correlation"
+          },
+          {
+            "id": "I",
+            "name": "Basket Reallocation"
+          },
+          {
+            "id": "N",
+            "name": "Dividend Capacity Calculation"
+          },
+          {
+            "id": "DI10",
+            "name": "Cross-Covenant Links"
+          },
+          {
+            "id": "F",
+            "name": "Builder Basket / Cumulative Amount"
+          },
+          {
+            "id": "JC1",
+            "name": "J.Crew Tier 1 - Structural Analysis"
+          },
+          {
+            "id": "L",
+            "name": "Asset Sale Proceeds & Sweeps"
+          },
+          {
+            "id": "T",
+            "name": "RDP Baskets"
+          },
+          {
+            "id": "B",
+            "name": "Intercompany Dividends"
+          },
+          {
+            "id": "DI1",
+            "name": "DI Core Structure"
+          },
+          {
+            "id": "DI11",
+            "name": "Capacity Calculation"
+          },
+          {
+            "id": "DI2",
+            "name": "Incremental Facility"
+          },
+          {
+            "id": "DI3",
+            "name": "MFN Protection"
+          },
+          {
+            "id": "DI4",
+            "name": "IED & Sidecar"
+          },
+          {
+            "id": "DI6",
+            "name": "Ratio Tests"
+          },
+          {
+            "id": "MFN2",
+            "name": "Facility & Debt Scope"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_s1",
+          "di_g1",
+          "di_g2",
+          "di_g3",
+          "di_g4",
+          "di_g5",
+          "di_g6",
+          "di_g7",
+          "di_g8",
+          "di_g9",
+          "di_g10",
+          "di_l1",
+          "di_l2",
+          "di_l3",
+          "di_l4",
+          "di_l5",
+          "di_l6",
+          "di_l7",
+          "di_l8",
+          "di_l9",
+          "di_l10",
+          "di_e_ca_0",
+          "di_e_ca_1",
+          "di_e_rd_0",
+          "di_e_rd_1",
+          "di_e_gb_0",
+          "di_e_gb_1",
+          "di_e_gb_2",
+          "di_e_acq_0",
+          "di_e_acq_1",
+          "di_e_cl_0",
+          "di_e_cl_1",
+          "di_e_pm_0",
+          "di_e_ic_0",
+          "di_e_ic_1",
+          "di_e_ref_0",
+          "di_e_ref_1",
+          "di_e_hdg_0",
+          "di_e_hdg_1",
+          "di_e_lc_0",
+          "di_e_slb_0",
+          "di_e_slb_1",
+          "di_e_fs_0",
+          "di_e_fs_1",
+          "di_e_eo_0",
+          "di_e_wc_0",
+          "di_e_wc_1",
+          "di_e_cd_0",
+          "di_e_cd_1",
+          "di_e_ng_0",
+          "di_e_ng_1",
+          "rp_m1",
+          "rp_m2",
+          "rp_m3",
+          "rp_m4",
+          "rp_m5",
+          "rp_m6",
+          "rp_m7",
+          "rp_m8",
+          "rp_m9",
+          "rp_m10",
+          "di_h1",
+          "di_h2",
+          "di_h3",
+          "di_h4",
+          "di_h5",
+          "di_h6",
+          "di_h7",
+          "di_h8",
+          "di_i1",
+          "di_i2",
+          "di_i3",
+          "di_i4",
+          "di_i5",
+          "di_i6",
+          "di_i7",
+          "di_i8",
+          "rp_i1",
+          "rp_i2",
+          "rp_i7",
+          "rp_i8",
+          "rp_i3",
+          "rp_i4",
+          "rp_i5",
+          "rp_i6",
+          "rp_i9",
+          "rp_i10",
+          "rp_i11",
+          "rp_i12",
+          "rp_n1",
+          "rp_n2",
+          "rp_n3",
+          "rp_n4",
+          "rp_n5",
+          "rp_n6",
+          "rp_n0",
+          "di_j1",
+          "di_j2",
+          "di_j3",
+          "di_j4",
+          "di_j5",
+          "di_j6",
+          "di_j7",
+          "di_j8",
+          "rp_f1",
+          "rp_f2",
+          "rp_f3",
+          "rp_f4",
+          "rp_f5",
+          "rp_f6",
+          "rp_f7",
+          "rp_f8",
+          "rp_f9",
+          "rp_f10",
+          "rp_f11",
+          "rp_f12",
+          "rp_f13",
+          "rp_f14",
+          "rp_f15",
+          "rp_f16",
+          "rp_f17",
+          "rp_f18",
+          "rp_f19",
+          "rp_f20",
+          "rp_f21",
+          "rp_f22",
+          "rp_f23",
+          "rp_f24",
+          "rp_f25",
+          "rp_f26",
+          "rp_f27",
+          "rp_f28",
+          "rp_f29",
+          "jc_t1_01",
+          "jc_t1_02",
+          "jc_t1_03",
+          "jc_t1_04",
+          "jc_t1_05",
+          "jc_t1_06",
+          "jc_t1_07",
+          "jc_t1_08",
+          "jc_t1_09",
+          "jc_t1_10",
+          "jc_t1_11",
+          "jc_t1_12",
+          "jc_t1_13",
+          "jc_t1_14",
+          "jc_t1_15",
+          "jc_t1_16",
+          "jc_t1_17",
+          "jc_t1_18",
+          "jc_t1_19",
+          "jc_t1_20",
+          "jc_t1_21",
+          "jc_t1_22",
+          "jc_t1_23",
+          "jc_t1_24",
+          "jc_t1_25",
+          "jc_t1_26",
+          "jc_t1_27",
+          "jc_t1_28",
+          "jc_t1_29",
+          "jc_t1_30",
+          "jc_t1_31",
+          "jc_t1_32",
+          "jc_t1_33",
+          "jc_t1_34",
+          "rp_l1",
+          "rp_l2",
+          "rp_l3",
+          "rp_l4",
+          "rp_l5",
+          "rp_l6",
+          "rp_l7",
+          "rp_l8",
+          "rp_l9",
+          "rp_l10",
+          "rp_l11",
+          "rp_l12",
+          "rp_l13",
+          "rp_l14",
+          "rp_l15",
+          "rp_l16",
+          "rp_l17",
+          "rp_l18",
+          "rp_l19",
+          "rp_l20",
+          "rp_l21",
+          "rp_l22",
+          "rp_l23",
+          "rp_t1",
+          "rp_t2",
+          "rp_t3",
+          "rp_t4",
+          "rp_t5",
+          "rp_t6",
+          "rp_t7",
+          "rp_t8",
+          "rp_t9",
+          "rp_t10",
+          "rp_t11",
+          "rp_t12",
+          "rp_t13",
+          "rp_t14",
+          "rp_t15",
+          "rp_t16",
+          "rp_t17",
+          "rp_t18",
+          "rp_t19",
+          "rp_t20",
+          "rp_t21",
+          "rp_t22",
+          "rp_t23",
+          "rp_t24",
+          "rp_t25",
+          "rp_t26",
+          "rp_t27",
+          "rp_b1",
+          "rp_b0",
+          "di_a1",
+          "di_a2",
+          "di_a3",
+          "di_a4",
+          "di_a5",
+          "di_a6",
+          "di_a7",
+          "di_k1",
+          "di_k2",
+          "di_k3",
+          "di_k4",
+          "di_k5",
+          "di_k6",
+          "di_k7",
+          "di_k8",
+          "di_b0",
+          "di_b1",
+          "di_b2",
+          "di_b3",
+          "di_b4",
+          "di_b5",
+          "di_b6",
+          "di_b7",
+          "di_b8",
+          "di_b9",
+          "di_b10",
+          "di_b11",
+          "di_b12",
+          "di_b13",
+          "di_b14",
+          "di_b15",
+          "di_b16",
+          "di_b17",
+          "di_b18",
+          "di_b19",
+          "di_b20",
+          "di_b21",
+          "di_b22",
+          "di_b23",
+          "di_b24",
+          "di_c1",
+          "di_c2",
+          "di_c3",
+          "di_c4",
+          "di_c5",
+          "di_c6",
+          "di_c7",
+          "di_c8",
+          "di_c9",
+          "di_c10",
+          "di_c11",
+          "di_c12",
+          "di_c13",
+          "di_c14",
+          "di_c15",
+          "di_d1",
+          "di_d2",
+          "di_d3",
+          "di_d4",
+          "di_d5",
+          "di_d6",
+          "di_d7",
+          "di_d8",
+          "di_d9",
+          "di_d10",
+          "di_f1",
+          "di_f2",
+          "di_f3",
+          "di_f4",
+          "di_f5",
+          "di_f6",
+          "di_f7",
+          "di_f8",
+          "di_f9",
+          "di_f10",
+          "di_f11",
+          "di_f12",
+          "di_el_leverage_tiers",
+          "mfn_08",
+          "mfn_09",
+          "mfn_10",
+          "mfn_11",
+          "mfn_12",
+          "mfn_13",
+          "mfn_14",
+          "mfn_15",
+          "mfn_16",
+          "mfn_17",
+          "mfn_44"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Reallocable general RP basket directly answers reallocation question."
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Reallocable RDP/prepayment basket directly answers reallocation question."
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Action_scope specific, not reallocable; limited RP context."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Reallocable builder basket covers investments, RDP, and dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Intermediate aggregate sub-source for builder basket computation."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Action_scope specific, ratio-conditional; not a reallocable basket."
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Tax-only specific basket, not reallocable to general dividends."
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Overhead-only specific basket, irrelevant to reallocation question."
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity award repurchase only; not reallocable."
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "SKIP",
+            "rationale": "Unrestricted sub distribution only; not a reallocable basket."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "RDP ratio basket; action_scope specific, not marked reallocable."
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Builder RDP basket action_scope general; feeds reallocable capacity."
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing-specific RDP basket; not reallocable."
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded specific RDP basket; not reallocable."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "IP/unrestricted sub designation; irrelevant to reallocation question."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding reallocable builder basket capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "IP disposition exception; irrelevant to reallocation question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "IP license exception; irrelevant to reallocation question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Intercompany transfer exception; irrelevant to reallocation question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "IP immaterial exception; irrelevant to reallocation question."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Fair value disposition exception; irrelevant to reallocation question."
+          }
+        ],
+        "primary_count": 4,
+        "supplementary_count": 12,
+        "skip_count": 12,
+        "input_tokens": 7789,
+        "output_tokens": 1433,
+        "latency_ms": 15254.4,
+        "cost_usd": 0.04486,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Reallocable general RP basket directly answers reallocation question.\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Reallocable RDP/prepayment basket directly answers reallocation question.\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Action_scope specific, not reallocable; limited RP context.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Reallocable builder basket covers investments, RDP, and dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Intermediate aggregate sub-source for builder basket computation.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Action_scope specific, ratio-conditional; not a reallocable basket.\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Tax-only specific basket, not reallocable to general dividends.\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Overhead-only specific basket, irrelevant to reallocation question.\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity award repurchase only; not reallocable.\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Unrestricted sub distribution only; not a reallocable basket.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"RDP ratio basket; action_scope specific, not marked reallocable.\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Builder RDP basket action_scope general; feeds reallocable capacity.\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing-specific RDP basket; not reallocable.\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded specific RDP basket; not reallocable.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"IP/unrestricted sub designation; irrelevant to reallocation question.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding reallocable builder basket capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP disposition exception; irrelevant to reallocation question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP license exception; irrelevant to reallocation question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Intercompany transfer exception; irrelevant to reallocation question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP immaterial exception; irrelevant to reallocation question.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Fair value disposition exception; irrelevant to reallocation question.\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "The question asks whether any investment, restricted debt prepayment (RDP), or other cross-covenant baskets can be reallocated and used to make restricted payments or dividends.",
+          "primary_norms_considered": [
+            "6e76ed06_general_rp_basket_permission",
+            "6e76ed06_general_rdp_basket_permission",
+            "6e76ed06_builder_usage_permission",
+            "6e76ed06_builder_rdp_basket_permission",
+            "6e76ed06_ratio_rp_basket_permission",
+            "6e76ed06_ratio_rdp_basket_permission"
+          ],
+          "analysis": "Three reallocation pathways are relevant:\n\n1. GENERAL RDP BASKET \u2192 RP: The general RDP basket [Section 6.09(a)(I)] permits prepayments up to the greater of $130M / 100% Consolidated EBITDA. Its action_scope is 'reallocable' and it is classified as general_purpose with additive composition. Separately, the general RP basket [Section 6.06(j)] is also the greater of $130M / 100% Consolidated EBITDA and is marked 'fungible' and 'reallocable'. The data shows these are independent general_purpose baskets (no shares_capacity_pool link between them), meaning the general RDP basket capacity is available for RDPs but is not itself directly reallocated into RP capacity; rather, both draw from independent dollar pools.\n\n2. CUMULATIVE AMOUNT (BUILDER) \u2014 SHARED POOL: The builder basket [Definition of Cumulative Amount, p.32] is the most important reallocation mechanism. The builder_rdp_basket [Section 6.09(a)(A)] explicitly 'shares_with_rp_builder': true \u2014 meaning the Cumulative Amount is a shared pool that is reduced by RP usage, RDP usage, and investment usage (reduced_by_rp_usage=true, reduced_by_rdp_usage=true, reduced_by_investment_usage=true). This means any unused Cumulative Amount capacity can be used for RPs, RDPs, or investments interchangeably, but all three draw from the same pool (no double-counting). The builder basket also accepts investment returns, retained asset sale proceeds, ECF, equity proceeds, and debt conversion proceeds as sources.\n\n3. INVESTMENT BASKET [Section 6.03(y)]: The general investment basket under Section 6.03(y) is sized as the greater of $130M/100% EBITDA PLUS the aggregate total of all amounts available under the RDP basket (Section 6.09(a)). This means RDP capacity feeds into investment basket capacity \u2014 capacity flows from RDP \u2192 investments, but the data does not show a direct path from the investment basket back to RP. Investment pathway 6.03(x) uses the Cumulative Amount directly, linking investments and RPs through that shared pool.\n\n4. RATIO BASKET: The ratio RDP basket [Section 6.09(a)(J)] permits unlimited RDPs if First Lien Leverage Ratio \u2264 5.75x pro forma (with closing-ratio alternative). The ratio RP basket [Section 6.06(o)] permits unlimited dividends at the same 5.75x threshold (or no-worse test). These operate independently at the same leverage test but are not cross-reallocated \u2014 they are concurrent permissions at the same condition.",
+          "interactions": "The Cumulative Amount is the primary cross-covenant shared pool: it is reduced by RP usage, RDP usage, and investment usage alike (builder_basket attrs: reduced_by_rp_usage=true, reduced_by_rdp_usage=true, reduced_by_investment_usage=true; builder_rdp_basket: shares_with_rp_builder=true). The general investment basket under 6.03(y) is explicitly sized to include RDP basket availability as an additive component, meaning RDP capacity indirectly expands investment capacity. Asset sale proceeds not swept flow into the Cumulative Amount (proceeds_flow: retained_after_sweep \u2192 builder_source_retained_asset_sale_proceeds), further linking asset sale economics to RP/RDP/investment capacity.",
+          "conclusion": "Yes \u2014 the Cumulative Amount (builder basket) is a shared fungible pool that can be used interchangeably for restricted payments, restricted debt prepayments, and investments, and the general investment basket under Section 6.03(y) expressly incorporates RDP basket availability as an additive sizing component."
+        },
+        "answer": "Yes, there are meaningful reallocation pathways. First, and most significantly, the Cumulative Amount (builder basket) [Definition of Cumulative Amount, p.32] is a shared general-purpose pool that is drawn down equally by restricted payments, restricted debt prepayments, and investments \u2014 unused capacity in one use can be redirected to another, including dividends, subject to the pool not being exhausted [Section 6.09(a)(A), p.199; shares_with_rp_builder=true]. Second, the general investment basket under Section 6.03(y) is sized as the greater of $130M/100% EBITDA plus the aggregate amounts available under Section 6.09(a) (the RDP basket), meaning RDP capacity directly inflates the investment basket's cap, though this path flows RDP \u2192 investment rather than investment \u2192 RP. Third, the general RP basket [Section 6.06(j), p.196] and general RDP basket [Section 6.09(a)(I), p.200] are each independently sized at the greater of $130M/100% EBITDA and both carry 'reallocable' action_scope, but absent an explicit shares_capacity_pool link in the data, they appear to operate as separate pools rather than a single shared pool. The ratio baskets for both RPs [Section 6.06(o), p.198] and RDPs [Section 6.09(a)(J), p.200] provide unlimited capacity at the same First Lien Leverage Ratio threshold (\u22645.75x pro forma) but are concurrent independent permissions rather than cross-reallocated pools.",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "section": "6.09(a)(A)",
+            "page": 199,
+            "quote": "to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount"
+          },
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "section": "6.06(j)",
+            "page": 196,
+            "quote": "additional Dividends may be made... in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "section": "6.09(a)(I)",
+            "page": 200,
+            "quote": "making prepayments, redemptions, purchases, defeasance or other satisfaction of Indebtedness in a principal amount not to exceed (x) the greater of $130,000,000 and 100% of Consolidated EBITDA"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "section": "6.06(o)",
+            "page": 198,
+            "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio... shall be no greater than the greater of (x) 5.75 to 1.00"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "section": "6.09(a)(J)",
+            "page": 200,
+            "quote": "making prepayments, redemptions, purchases, defeasance or other satisfaction of such Indebtedness, so long as the First Lien Leverage Ratio computed on a Pro Forma Basis... is no greater than the greater of (x) 5.75 to 1.00"
+          }
+        ],
+        "input_tokens": 21133,
+        "output_tokens": 2101,
+        "latency_ms": 41659.8,
+        "cost_usd": 0.09491,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"The question asks whether any investment, restricted debt prepayment (RDP), or other cross-covenant baskets can be reallocated and used to make restricted payments or dividends.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_general_rp_basket_permission\",\n      \"6e76ed06_general_rdp_basket_permission\",\n      \"6e76ed06_builder_usage_permission\",\n      \"6e76ed06_builder_rdp_basket_permission\",\n      \"6e76ed06_ratio_rp_basket_permission\",\n      \"6e76ed06_ratio_rdp_basket_permission\"\n    ],\n    \"analysis\": \"Three reallocation pathways are relevant:\\n\\n1. GENERAL RDP BASKET \u2192 RP: The general RDP basket [Section 6.09(a)(I)] permits prepayments up to the greater of $130M / 100% Consolidated EBITDA. Its action_scope is 'reallocable' and it is classified as general_purpose with additive composition. Separately, the general RP basket [Section 6.06(j)] is also the greater of $130M / 100% Consolidated EBITDA and is marked 'fungible' and 'reallocable'. The data shows these are independent general_purpose baskets (no shares_capacity_pool link between them), meaning the general RDP basket capacity is available for RDPs but is not itself directly reallocated into RP capacity; rather, both draw from independent dollar pools.\\n\\n2. CUMULATIVE AMOUNT (BUILDER) \u2014 SHARED POOL: The builder basket [Definition of Cumulative Amount, p.32] is the most important reallocation mechanism. The builder_rdp_basket [Section 6.09(a)(A)] explicitly 'shares_with_rp_builder': true \u2014 meaning the Cumulative Amount is a shared pool that is reduced by RP usage, RDP usage, and investment usage (reduced_by_rp_usage=true, reduced_by_rdp_usage=true, reduced_by_investment_usage=true). This means any unused Cumulative Amount capacity can be used for RPs, RDPs, or investments interchangeably, but all three draw from the same pool (no double-counting). The builder basket also accepts investment returns, retained asset sale proceeds, ECF, equity proceeds, and debt conversion proceeds as sources.\\n\\n3. INVESTMENT BASKET [Section 6.03(y)]: The general investment basket under Section 6.03(y) is sized as the greater of $130M/100% EBITDA PLUS the aggregate total of all amounts available under the RDP basket (Section 6.09(a)). This means RDP capacity feeds into investment basket capacity \u2014 capacity flows from RDP \u2192 investments, but the data does not show a direct path from the investment basket back to RP. Investment pathway 6.03(x) uses the Cumulative Amount directly, linking investments and RPs through that shared pool.\\n\\n4. RATIO BASKET: The ratio RDP basket [Section 6.09(a)(J)] permits unlimited RDPs if First Lien Leverage Ratio \u2264 5.75x pro forma (with closing-ratio alternative). The ratio RP basket [Section 6.06(o)] permits unlimited dividends at the same 5.75x threshold (or no-worse test). These operate independently at the same leverage test but are not cross-reallocated \u2014 they are concurrent permissions at the same condition.\",\n    \"interactions\": \"The Cumulative Amount is the primary cross-covenant shared pool: it is reduced by RP usage, RDP usage, and investment usage alike (builder_basket attrs: reduced_by_rp_usage=true, reduced_by_rdp_usage=true, reduced_by_investment_usage=true; builder_rdp_basket: shares_with_rp_builder=true). The general investment basket under 6.03(y) is explicitly sized to include RDP basket availability as an additive component, meaning RDP capacity indirectly expands investment capacity. Asset sale proceeds not swept flow into the Cumulative Amount (proceeds_flow: retained_after_sweep \u2192 builder_source_retained_asset_sale_proceeds), further linking asset sale economics to RP/RDP/investment capacity.\",\n    \"conclusion\": \"Yes \u2014 the Cumulative Amount (builder basket) is a shared fungible pool that can be used interchangeably for restricted payments, restricted debt prepayments, and investments, and the general investment basket under Section 6.03(y) expressly incorporates RDP basket availability as an additive sizing component.\"\n  },\n  \"answer\": \"Yes, there are meaningful reallocation pathways. First, and most significantly, the Cumulative Amount (builder basket) [Definition of Cumulative Amount, p.32] is a shared general-purpose pool that is drawn down equally by restricted payments, restricted debt prepayments, and investments \u2014 unused capacity in one use can be redirected to another, including dividends, subject to the pool not being exhausted [Section 6.09(a)(A), p.199; shares_with_rp_builder=true]. Second, the general investment basket under Section 6.03(y) is sized as the greater of $130M/100% EBITDA plus the aggregate amounts available under Section 6.09(a) (the RDP basket), meaning RDP capacity directly inflates the investment basket's cap, though this path flows RDP \u2192 investment rather than investment \u2192 RP. Third, the general RP basket [Section 6.06(j), p.196] and general RDP basket [Section 6.09(a)(I), p.200] are each independently sized at the greater of $130M/100% EBITDA and both carry 'reallocable' action_scope, but absent an explicit shares_capacity_pool link in the data, they appear to operate as separate pools rather than a single shared pool. The ratio baskets for both RPs [Section 6.06(o), p.198] and RDPs [Section 6.09(a)(J), p.200] provide unlimited capacity at the same First Lien Leverage Ratio threshold (\u22645.75x pro forma) but are concurrent independent permissions rather than cross-reallocated pools.\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_builder_usage_permission\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_rdp_basket_permission\",\n      \"section\": \"6.09(a)(A)\",\n      \"page\": 199,\n      \"quote\": \"to the extent not prohibited by any applicable Intercreditor Agreement or any subordination terms applicable to any such Subordinated Indebtedness (including pursuant to a Permitted Refinancing), with the Cumulative Amount\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_general_rp_basket_permission\",\n      \"section\": \"6.06(j)\",\n      \"page\": 196,\n      \"quote\": \"additional Dividends may be made... in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_general_rdp_basket_permission\",\n      \"section\": \"6.09(a)(I)\",\n      \"page\": 200,\n      \"quote\": \"making prepayments, redemptions, purchases, defeasance or other satisfaction of Indebtedness in a principal amount not to exceed (x) the greater of $130,000,000 and 100% of Consolidated EBITDA\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_ratio_rp_basket_permission\",\n      \"section\": \"6.06(o)\",\n      \"page\": 198,\n      \"quote\": \"unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio... shall be no greater than the greater of (x) 5.75 to 1.00\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\",\n      \"section\": \"6.09(a)(J)\",\n      \"page\": 200,\n      \"quote\": \"making prepayments, redemptions, purchases, defeasance or other satisfaction of such Indebtedness, so long as the First Lien Leverage Ratio computed on a Pro Forma Basis... is no greater than the greater of (x) 5.75 to 1.00\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 56919.0,
+      "total_cost_usd": 0.13978,
+      "question_id": "duck_creek_q3",
+      "gold_answer": "Yes, under 6.06(j) amount available for Restricted Debt Payment under 6.09(a) and amounts available for Investments under 6.03(y) can be reallocated to the making of Dividends. 6.09(a) includes the greater of $130,000,000 and 100% of Consolidated EBITDA. 6.09(a) also includes other more tailored baskets available for Restricted Debt Payments which may or may not be available for reallocation, including intercompany debt payments and payments in connection with a reorganization or IPO.",
+      "category": "reallocation",
+      "requires_entities": [
+        "basket_reallocation",
+        "general_rp_basket",
+        "general_rdp_basket"
+      ]
+    },
+    {
+      "question": "Can any asset sale proceeds be used to make dividends?",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "both",
+        "matched_categories": [
+          {
+            "id": "L",
+            "name": "Asset Sale Proceeds & Sweeps"
+          },
+          {
+            "id": "DI10",
+            "name": "Cross-Covenant Links"
+          },
+          {
+            "id": "F",
+            "name": "Builder Basket / Cumulative Amount"
+          },
+          {
+            "id": "B",
+            "name": "Intercompany Dividends"
+          },
+          {
+            "id": "JC1",
+            "name": "J.Crew Tier 1 - Structural Analysis"
+          },
+          {
+            "id": "P",
+            "name": "Unrestricted Subsidiary Distribution Basket"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_l1",
+          "rp_l2",
+          "rp_l3",
+          "rp_l4",
+          "rp_l5",
+          "rp_l6",
+          "rp_l7",
+          "rp_l8",
+          "rp_l9",
+          "rp_l10",
+          "rp_l11",
+          "rp_l12",
+          "rp_l13",
+          "rp_l14",
+          "rp_l15",
+          "rp_l16",
+          "rp_l17",
+          "rp_l18",
+          "rp_l19",
+          "rp_l20",
+          "rp_l21",
+          "rp_l22",
+          "rp_l23",
+          "di_j1",
+          "di_j2",
+          "di_j3",
+          "di_j4",
+          "di_j5",
+          "di_j6",
+          "di_j7",
+          "di_j8",
+          "rp_f1",
+          "rp_f2",
+          "rp_f3",
+          "rp_f4",
+          "rp_f5",
+          "rp_f6",
+          "rp_f7",
+          "rp_f8",
+          "rp_f9",
+          "rp_f10",
+          "rp_f11",
+          "rp_f12",
+          "rp_f13",
+          "rp_f14",
+          "rp_f15",
+          "rp_f16",
+          "rp_f17",
+          "rp_f18",
+          "rp_f19",
+          "rp_f20",
+          "rp_f21",
+          "rp_f22",
+          "rp_f23",
+          "rp_f24",
+          "rp_f25",
+          "rp_f26",
+          "rp_f27",
+          "rp_f28",
+          "rp_f29",
+          "rp_b1",
+          "rp_b0",
+          "jc_t1_01",
+          "jc_t1_02",
+          "jc_t1_03",
+          "jc_t1_04",
+          "jc_t1_05",
+          "jc_t1_06",
+          "jc_t1_07",
+          "jc_t1_08",
+          "jc_t1_09",
+          "jc_t1_10",
+          "jc_t1_11",
+          "jc_t1_12",
+          "jc_t1_13",
+          "jc_t1_14",
+          "jc_t1_15",
+          "jc_t1_16",
+          "jc_t1_17",
+          "jc_t1_18",
+          "jc_t1_19",
+          "jc_t1_20",
+          "jc_t1_21",
+          "jc_t1_22",
+          "jc_t1_23",
+          "jc_t1_24",
+          "jc_t1_25",
+          "jc_t1_26",
+          "jc_t1_27",
+          "jc_t1_28",
+          "jc_t1_29",
+          "jc_t1_30",
+          "jc_t1_31",
+          "jc_t1_32",
+          "jc_t1_33",
+          "jc_t1_34",
+          "rp_p1",
+          "rp_p2",
+          "rp_p3",
+          "rp_p4",
+          "rp_p5",
+          "rp_p6",
+          "rp_p7"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "General dividend basket; reallocable, directly answers dividend capacity question."
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Reallocable basket that may cross-reference dividend capacity indirectly."
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity repurchase only, not dividend payments from asset sale proceeds."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "PRIMARY",
+            "rationale": "Builder sub-source contributing to builder basket covering dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source; feeds three-test aggregate for cumulative amount."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source; feeds three-test aggregate for cumulative amount."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source contributing to cumulative amount for dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Builder basket usage permission directly covers make_dividend_payment."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Aggregates sub-sources feeding into builder basket for dividends."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Ratio-based dividend basket; relevant context but not asset-sale-proceeds specific."
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Tax distributions only; unrelated to asset sale proceeds."
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Overhead payments only; unrelated to asset sale proceeds or dividends."
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity repurchase via stock options only; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Dividend of unrestricted sub assets; tangentially relevant to asset proceeds."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Debt payment basket only; no dividend relevance."
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Debt payment basket only; no dividend relevance."
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing debt payments only; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded debt payments only; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "IP/unrestricted sub designation; unrelated to asset sale proceeds dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding cumulative amount; context for builder basket."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "PRIMARY",
+            "rationale": "Asset sale proceeds directly feed builder basket capacity for dividends."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Investment returns sub-source; context for builder basket capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Other builder sub-source; context for cumulative amount computation."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "Exception to IP designation prohibition; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "IP license exception; unrelated to dividends or asset sale proceeds."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Intercompany transfer exception; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "Immaterial IP disposition exception; unrelated to dividends."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Fair value disposition requirement; unrelated to dividends."
+          }
+        ],
+        "primary_count": 4,
+        "supplementary_count": 10,
+        "skip_count": 14,
+        "input_tokens": 7770,
+        "output_tokens": 1416,
+        "latency_ms": 16922.7,
+        "cost_usd": 0.04455,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"General dividend basket; reallocable, directly answers dividend capacity question.\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Reallocable basket that may cross-reference dividend capacity indirectly.\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity repurchase only, not dividend payments from asset sale proceeds.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"PRIMARY\", \"rationale\": \"Builder sub-source contributing to builder basket covering dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source; feeds three-test aggregate for cumulative amount.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source; feeds three-test aggregate for cumulative amount.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source contributing to cumulative amount for dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Builder basket usage permission directly covers make_dividend_payment.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Aggregates sub-sources feeding into builder basket for dividends.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Ratio-based dividend basket; relevant context but not asset-sale-proceeds specific.\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Tax distributions only; unrelated to asset sale proceeds.\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Overhead payments only; unrelated to asset sale proceeds or dividends.\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity repurchase via stock options only; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Dividend of unrestricted sub assets; tangentially relevant to asset proceeds.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Debt payment basket only; no dividend relevance.\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Debt payment basket only; no dividend relevance.\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing debt payments only; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded debt payments only; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"IP/unrestricted sub designation; unrelated to asset sale proceeds dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding cumulative amount; context for builder basket.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"PRIMARY\", \"rationale\": \"Asset sale proceeds directly feed builder basket capacity for dividends.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Investment returns sub-source; context for builder basket capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Other builder sub-source; context for cumulative amount computation.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Exception to IP designation prohibition; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP license exception; unrelated to dividends or asset sale proceeds.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Intercompany transfer exception; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Immaterial IP disposition exception; unrelated to dividends.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Fair value disposition requirement; unrelated to dividends.\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "The question asks whether asset sale proceeds can be used to fund dividend payments under the restricted payments covenant.",
+          "primary_norms_considered": [
+            "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "6e76ed06_builder_usage_permission",
+            "6e76ed06_general_rp_basket_permission",
+            "6e76ed06_ratio_rp_basket_permission",
+            "6e76ed06_unrestricted_sub_equity_distribution_permission"
+          ],
+          "analysis": "There are two distinct pathways by which asset sale proceeds can fund dividends. First, and most directly, the Cumulative Amount (builder basket) expressly includes a source for retained asset sale proceeds (norm 6e76ed06_builder_source_retained_asset_sale_proceeds), which contributes additively to the builder basket usage permission (6e76ed06_builder_usage_permission). Per the proceeds_flow entry, Net Cash Proceeds from asset sales flow into clause (f) of the Cumulative Amount to the extent they are retained after application of the leverage-based mandatory sweep under Section 2.10(c). The sweep tiers show: 100% of proceeds must prepay term loans if First Lien Leverage Ratio > 5.75x; 50% if between 5.50x and 5.75x; and 0% (no sweep) if \u2264 5.50x. Only the portion not required to be swept enters the Cumulative Amount. Once in the Cumulative Amount, those proceeds can be used for dividends under 6e76ed06_builder_usage_permission. Second, the general RP basket (6e76ed06_general_rp_basket_permission) permits dividends up to the greater of $130M or 100% of Consolidated EBITDA without specifying a funding source restriction \u2014 so asset sale proceeds could fund dividends up to that cap without being earmarked. Third, the ratio basket (6e76ed06_ratio_rp_basket_permission) permits unlimited dividends if First Lien Leverage Ratio \u2264 5.75x (or no worse than pre-transaction), also without funding source restrictions. Fourth, the unrestricted subsidiary distribution basket (6e76ed06_unrestricted_sub_equity_distribution_permission, Section 6.06(p)) expressly permits distribution of 'the proceeds' of assets of an Unrestricted Subsidiary, which could include proceeds from asset sales at the unrestricted subsidiary level.",
+          "interactions": "The retained asset sale proceeds source (6e76ed06_builder_source_retained_asset_sale_proceeds) feeds into the builder basket (6e76ed06_builder_usage_permission) via a sum aggregation at child_index 6. The amount available is reduced by the mandatory sweep \u2014 only proceeds not swept under Section 2.10(c) (based on the three leverage tiers) enter the builder basket. The builder basket capacity is also reduced by prior RP, RDP, and investment usage. The general RP basket and ratio basket are independent and have no source-of-funds restriction. No defeaters override any of these norms.",
+          "conclusion": "Yes, asset sale proceeds can be used to make dividends through multiple pathways: (1) retained asset sale proceeds (after any mandatory sweep) build Cumulative Amount capacity usable for dividends; (2) the general RP basket and ratio basket permit dividends without funding source restrictions; and (3) proceeds of Unrestricted Subsidiary assets may be distributed as dividends categorically under Section 6.06(p)."
+        },
+        "answer": "Yes, asset sale proceeds can be used to make dividends through at least three pathways. First, Net Cash Proceeds from asset sales that are not required to be swept under the mandatory prepayment tiers (Section 2.10(c)) flow into the Cumulative Amount as retained asset sale proceeds, which the builder basket then makes available for dividends [Definition of Cumulative Amount, p. 32; sweep tiers at Definition of Applicable Net Cash Proceeds Percentage]. The sweep is 100% if First Lien Leverage Ratio > 5.75x, 50% if between 5.50x\u20135.75x, and 0% if \u2264 5.50x \u2014 so at or below 5.50x leverage, all asset sale proceeds are retained and may fuel the builder basket. Second, the general RP basket permits dividends up to the greater of $130,000,000 or 100% of Consolidated EBITDA without any restriction on the source of funding [Section 6.06(j), p. 196], so asset sale proceeds could fund dividends within that cap. Third, the ratio basket permits unlimited dividends on a pro forma basis if First Lien Leverage Ratio is \u2264 5.75x (or no worse than pre-transaction) [Section 6.06(o), p. 198], also with no source-of-funds restriction. Additionally, proceeds of assets of an Unrestricted Subsidiary may be distributed as dividends on a categorical basis without dollar limit [Section 6.06(p), p. 198].",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "section": "6.06(j)",
+            "page": 196,
+            "quote": "additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "section": "6.06(o)",
+            "page": 198,
+            "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00"
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "section": "6.06(p)",
+            "page": 198,
+            "quote": "the distribution, by dividend or otherwise, of shares of Equity Interests of...any assets of, an Unrestricted Subsidiary or the proceeds thereof"
+          }
+        ],
+        "input_tokens": 18621,
+        "output_tokens": 1688,
+        "latency_ms": 29695.5,
+        "cost_usd": 0.08118,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"The question asks whether asset sale proceeds can be used to fund dividend payments under the restricted payments covenant.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_builder_source_retained_asset_sale_proceeds\",\n      \"6e76ed06_builder_usage_permission\",\n      \"6e76ed06_general_rp_basket_permission\",\n      \"6e76ed06_ratio_rp_basket_permission\",\n      \"6e76ed06_unrestricted_sub_equity_distribution_permission\"\n    ],\n    \"analysis\": \"There are two distinct pathways by which asset sale proceeds can fund dividends. First, and most directly, the Cumulative Amount (builder basket) expressly includes a source for retained asset sale proceeds (norm 6e76ed06_builder_source_retained_asset_sale_proceeds), which contributes additively to the builder basket usage permission (6e76ed06_builder_usage_permission). Per the proceeds_flow entry, Net Cash Proceeds from asset sales flow into clause (f) of the Cumulative Amount to the extent they are retained after application of the leverage-based mandatory sweep under Section 2.10(c). The sweep tiers show: 100% of proceeds must prepay term loans if First Lien Leverage Ratio > 5.75x; 50% if between 5.50x and 5.75x; and 0% (no sweep) if \u2264 5.50x. Only the portion not required to be swept enters the Cumulative Amount. Once in the Cumulative Amount, those proceeds can be used for dividends under 6e76ed06_builder_usage_permission. Second, the general RP basket (6e76ed06_general_rp_basket_permission) permits dividends up to the greater of $130M or 100% of Consolidated EBITDA without specifying a funding source restriction \u2014 so asset sale proceeds could fund dividends up to that cap without being earmarked. Third, the ratio basket (6e76ed06_ratio_rp_basket_permission) permits unlimited dividends if First Lien Leverage Ratio \u2264 5.75x (or no worse than pre-transaction), also without funding source restrictions. Fourth, the unrestricted subsidiary distribution basket (6e76ed06_unrestricted_sub_equity_distribution_permission, Section 6.06(p)) expressly permits distribution of 'the proceeds' of assets of an Unrestricted Subsidiary, which could include proceeds from asset sales at the unrestricted subsidiary level.\",\n    \"interactions\": \"The retained asset sale proceeds source (6e76ed06_builder_source_retained_asset_sale_proceeds) feeds into the builder basket (6e76ed06_builder_usage_permission) via a sum aggregation at child_index 6. The amount available is reduced by the mandatory sweep \u2014 only proceeds not swept under Section 2.10(c) (based on the three leverage tiers) enter the builder basket. The builder basket capacity is also reduced by prior RP, RDP, and investment usage. The general RP basket and ratio basket are independent and have no source-of-funds restriction. No defeaters override any of these norms.\",\n    \"conclusion\": \"Yes, asset sale proceeds can be used to make dividends through multiple pathways: (1) retained asset sale proceeds (after any mandatory sweep) build Cumulative Amount capacity usable for dividends; (2) the general RP basket and ratio basket permit dividends without funding source restrictions; and (3) proceeds of Unrestricted Subsidiary assets may be distributed as dividends categorically under Section 6.06(p).\"\n  },\n  \"answer\": \"Yes, asset sale proceeds can be used to make dividends through at least three pathways. First, Net Cash Proceeds from asset sales that are not required to be swept under the mandatory prepayment tiers (Section 2.10(c)) flow into the Cumulative Amount as retained asset sale proceeds, which the builder basket then makes available for dividends [Definition of Cumulative Amount, p. 32; sweep tiers at Definition of Applicable Net Cash Proceeds Percentage]. The sweep is 100% if First Lien Leverage Ratio > 5.75x, 50% if between 5.50x\u20135.75x, and 0% if \u2264 5.50x \u2014 so at or below 5.50x leverage, all asset sale proceeds are retained and may fuel the builder basket. Second, the general RP basket permits dividends up to the greater of $130,000,000 or 100% of Consolidated EBITDA without any restriction on the source of funding [Section 6.06(j), p. 196], so asset sale proceeds could fund dividends within that cap. Third, the ratio basket permits unlimited dividends on a pro forma basis if First Lien Leverage Ratio is \u2264 5.75x (or no worse than pre-transaction) [Section 6.06(o), p. 198], also with no source-of-funds restriction. Additionally, proceeds of assets of an Unrestricted Subsidiary may be distributed as dividends on a categorical basis without dollar limit [Section 6.06(p), p. 198].\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_usage_permission\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_general_rp_basket_permission\",\n      \"section\": \"6.06(j)\",\n      \"page\": 196,\n      \"quote\": \"additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_ratio_rp_basket_permission\",\n      \"section\": \"6.06(o)\",\n      \"page\": 198,\n      \"quote\": \"unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\",\n      \"section\": \"6.06(p)\",\n      \"page\": 198,\n      \"quote\": \"the distribution, by dividend or otherwise, of shares of Equity Interests of...any assets of, an Unrestricted Subsidiary or the proceeds thereof\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 46620.7,
+      "total_cost_usd": 0.12573,
+      "question_id": "duck_creek_q4",
+      "gold_answer": "Yes, Retained Asset Sale Proceeds build the Cumulative Amount which consists of proceeds from: Net Cash Proceeds from asset sales not subject to prepayment on account of Section 2.10(c)(iv), permitting proceeds from any Asset Sale using the unlimited basket 6.05(z) if such Asset Sale is a sale of a product line and the pro forma First Lien Net Leverage Ratio is 6.25x or less or if such test is no worse pro forma. Also includes asset sale proceeds not swept when First Lien Net Leverage Ratio is 5.75x or less (50% of proceeds) or 5.50x or less (100% of proceeds). Also includes Net Cash Proceeds from non-collateral assets, ordinary course asset sales, asset sales from non-ratio baskets, casualty events, and proceeds from collateral assets below de minimis thresholds of $20M/15% EBITDA individual and $40M/30% EBITDA annual.",
+      "category": "asset_sale_proceeds",
+      "requires_entities": [
+        "builder_basket",
+        "asset_proceeds_source",
+        "sweep_tier",
+        "de_minimis_threshold"
+      ]
+    },
+    {
+      "question": "Determine the total amount of quantifiable dividend capacity.",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "both",
+        "matched_categories": [
+          {
+            "id": "N",
+            "name": "Dividend Capacity Calculation"
+          },
+          {
+            "id": "DI11",
+            "name": "Capacity Calculation"
+          },
+          {
+            "id": "M",
+            "name": "Unrestricted Subsidiary Distributions"
+          },
+          {
+            "id": "A",
+            "name": "Dividend Restrictions - General Structure"
+          },
+          {
+            "id": "DI6",
+            "name": "Ratio Tests"
+          },
+          {
+            "id": "DI8",
+            "name": "Reclassification"
+          },
+          {
+            "id": "DI9",
+            "name": "Liens Correlation"
+          },
+          {
+            "id": "F",
+            "name": "Builder Basket / Cumulative Amount"
+          },
+          {
+            "id": "G",
+            "name": "Ratio-Based Dividend Basket"
+          },
+          {
+            "id": "I",
+            "name": "Basket Reallocation"
+          },
+          {
+            "id": "T",
+            "name": "RDP Baskets"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_n1",
+          "rp_n2",
+          "rp_n3",
+          "rp_n4",
+          "rp_n5",
+          "rp_n6",
+          "rp_n0",
+          "di_k1",
+          "di_k2",
+          "di_k3",
+          "di_k4",
+          "di_k5",
+          "di_k6",
+          "di_k7",
+          "di_k8",
+          "rp_m1",
+          "rp_m2",
+          "rp_m3",
+          "rp_m4",
+          "rp_m5",
+          "rp_m6",
+          "rp_m7",
+          "rp_m8",
+          "rp_m9",
+          "rp_m10",
+          "rp_a1",
+          "rp_a2",
+          "rp_a3",
+          "di_f1",
+          "di_f2",
+          "di_f3",
+          "di_f4",
+          "di_f5",
+          "di_f6",
+          "di_f7",
+          "di_f8",
+          "di_f9",
+          "di_f10",
+          "di_f11",
+          "di_f12",
+          "di_el_leverage_tiers",
+          "di_h1",
+          "di_h2",
+          "di_h3",
+          "di_h4",
+          "di_h5",
+          "di_h6",
+          "di_h7",
+          "di_h8",
+          "di_i1",
+          "di_i2",
+          "di_i3",
+          "di_i4",
+          "di_i5",
+          "di_i6",
+          "di_i7",
+          "di_i8",
+          "rp_f1",
+          "rp_f2",
+          "rp_f3",
+          "rp_f4",
+          "rp_f5",
+          "rp_f6",
+          "rp_f7",
+          "rp_f8",
+          "rp_f9",
+          "rp_f10",
+          "rp_f11",
+          "rp_f12",
+          "rp_f13",
+          "rp_f14",
+          "rp_f15",
+          "rp_f16",
+          "rp_f17",
+          "rp_f18",
+          "rp_f19",
+          "rp_f20",
+          "rp_f21",
+          "rp_f22",
+          "rp_f23",
+          "rp_f24",
+          "rp_f25",
+          "rp_f26",
+          "rp_f27",
+          "rp_f28",
+          "rp_f29",
+          "rp_g1",
+          "rp_g2",
+          "rp_g3",
+          "rp_g4",
+          "rp_g5",
+          "rp_g6",
+          "rp_g7",
+          "rp_g8",
+          "rp_g9",
+          "rp_g10",
+          "rp_g11",
+          "rp_g12",
+          "rp_i1",
+          "rp_i2",
+          "rp_i7",
+          "rp_i8",
+          "rp_i3",
+          "rp_i4",
+          "rp_i5",
+          "rp_i6",
+          "rp_i9",
+          "rp_i10",
+          "rp_i11",
+          "rp_i12",
+          "rp_t1",
+          "rp_t2",
+          "rp_t3",
+          "rp_t4",
+          "rp_t5",
+          "rp_t6",
+          "rp_t7",
+          "rp_t8",
+          "rp_t9",
+          "rp_t10",
+          "rp_t11",
+          "rp_t12",
+          "rp_t13",
+          "rp_t14",
+          "rp_t15",
+          "rp_t16",
+          "rp_t17",
+          "rp_t18",
+          "rp_t19",
+          "rp_t20",
+          "rp_t21",
+          "rp_t22",
+          "rp_t23",
+          "rp_t24",
+          "rp_t25",
+          "rp_t26",
+          "rp_t27"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Direct dividend capacity basket with quantified cap_usd and reallocable scope."
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Reallocable basket with cap_usd; action_scope=reallocable contributes to aggregate capacity."
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Quantified dividend/equity repurchase basket with cap_usd and cap_grower_pct."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source contributing to builder basket; feeds parent capacity calculation."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source (CNI component) feeding three-test aggregate."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source (EBITDA-FC component) feeding three-test aggregate."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding builder usage permission."
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Builder basket top-level permission; quantifiable dividend capacity component."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Intermediate aggregate of builder sub-sources; feeds builder usage permission."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Unlimited conditional dividend capacity; relevant to total quantifiable capacity question."
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Categorical dividend basket permitting tax distributions; part of total dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Overhead distributions; tangential to dividend capacity aggregation."
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Equity award repurchase basket; limited dividend relevance."
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Dividend permission for unrestricted subsidiary distributions; part of dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "RDP ratio basket; not directly dividend but may inform aggregate via reallocation context."
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder RDP basket; not directly dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing-specific RDP basket; irrelevant to dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded RDP basket; irrelevant to dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "JCrew blocker on unrestricted sub designation; unrelated to dividend capacity."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "ECF builder sub-source feeding three-test aggregate."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding builder usage permission."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding builder usage permission."
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Builder sub-source feeding builder usage permission."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "IP disposition exception; unrelated to dividend capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "IP license exception; unrelated to dividend capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Intercompany transfer exception; unrelated to dividend capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "Immaterial IP exception; unrelated to dividend capacity."
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Fair value disposition exception; unrelated to dividend capacity."
+          }
+        ],
+        "primary_count": 7,
+        "supplementary_count": 13,
+        "skip_count": 8,
+        "input_tokens": 7768,
+        "output_tokens": 1429,
+        "latency_ms": 16797.5,
+        "cost_usd": 0.04474,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Direct dividend capacity basket with quantified cap_usd and reallocable scope.\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Reallocable basket with cap_usd; action_scope=reallocable contributes to aggregate capacity.\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Quantified dividend/equity repurchase basket with cap_usd and cap_grower_pct.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source contributing to builder basket; feeds parent capacity calculation.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source (CNI component) feeding three-test aggregate.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source (EBITDA-FC component) feeding three-test aggregate.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding builder usage permission.\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Builder basket top-level permission; quantifiable dividend capacity component.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Intermediate aggregate of builder sub-sources; feeds builder usage permission.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Unlimited conditional dividend capacity; relevant to total quantifiable capacity question.\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Categorical dividend basket permitting tax distributions; part of total dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Overhead distributions; tangential to dividend capacity aggregation.\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Equity award repurchase basket; limited dividend relevance.\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Dividend permission for unrestricted subsidiary distributions; part of dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"RDP ratio basket; not directly dividend but may inform aggregate via reallocation context.\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder RDP basket; not directly dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing-specific RDP basket; irrelevant to dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded RDP basket; irrelevant to dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"JCrew blocker on unrestricted sub designation; unrelated to dividend capacity.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"ECF builder sub-source feeding three-test aggregate.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding builder usage permission.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding builder usage permission.\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Builder sub-source feeding builder usage permission.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP disposition exception; unrelated to dividend capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP license exception; unrelated to dividend capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Intercompany transfer exception; unrelated to dividend capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Immaterial IP exception; unrelated to dividend capacity.\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Fair value disposition exception; unrelated to dividend capacity.\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "The question asks for the total quantifiable dividend capacity under the restricted payments covenant, requiring identification and summation of all general_purpose baskets, while separately listing restricted_purpose, unlimited_conditional, and categorical baskets.",
+          "primary_norms_considered": [
+            "6e76ed06_general_rp_basket_permission",
+            "6e76ed06_builder_usage_permission",
+            "6e76ed06_ratio_rp_basket_permission",
+            "6e76ed06_management_equity_basket_permission",
+            "6e76ed06_tax_distribution_basket_permission",
+            "6e76ed06_holdco_overhead_basket_permission",
+            "6e76ed06_equity_award_permission",
+            "6e76ed06_unrestricted_sub_equity_distribution_permission"
+          ],
+          "analysis": "Step 1 \u2014 Identify capacity_category for each basket:\n\u2022 6e76ed06_general_rp_basket_permission (Section 6.06(j)): capacity_category = general_purpose; cap = greater of $130M and 100% of Consolidated EBITDA; capacity_composition = fungible.\n\u2022 6e76ed06_builder_usage_permission (Definition of Cumulative Amount): capacity_category = general_purpose; capacity_composition = computed_from_sources. The Cumulative Amount starts at the greater of $130M and 100% of Consolidated EBITDA (starter), then grows by the greatest of: (a) 50% of cumulative CNI, (b) Available Retained ECF Amount, or (c) 140% of Consolidated EBITDA (three-test aggregate), plus 100% of equity proceeds, retained asset sale proceeds, investment returns, and debt conversion amounts \u2014 all cumulative since the first day of the fiscal quarter in which the Closing Date occurs. The builder basket shares capacity with the builder RDP basket (6e76ed06_builder_rdp_basket_permission).\n\u2022 6e76ed06_ratio_rp_basket_permission (Section 6.06(o)): capacity_category = unlimited_conditional; unlimited if First Lien Leverage Ratio \u2264 5.75x on a Pro Forma Basis OR no-worse test satisfied. Not a fixed dollar amount.\n\u2022 6e76ed06_management_equity_basket_permission (Section 6.06(b)): capacity_category = restricted_purpose; annual cap = greater of $20M and 15% of Consolidated EBITDA; restricted to management equity repurchases; carryforward permitted.\n\u2022 6e76ed06_tax_distribution_basket_permission (Section 6.06(c)): capacity_category = restricted_purpose; categorical (no fixed dollar cap in data); restricted to tax distributions.\n\u2022 6e76ed06_holdco_overhead_basket_permission (Section 6.06(k)): capacity_category = restricted_purpose; categorical (no fixed dollar cap); restricted to overhead/public company costs.\n\u2022 6e76ed06_equity_award_permission (Section 6.06(d)): capacity_category = restricted_purpose; covers cashless exercise/tax withholding only.\n\u2022 6e76ed06_unrestricted_sub_equity_distribution_permission (Section 6.06(p)): capacity_category = categorical; no dollar cap; covers unsub equity/asset distributions.\n\nStep 2 \u2014 Sum general_purpose baskets. Two general_purpose RP baskets exist: (1) the general RP basket at $130M / 100% EBITDA (Section 6.06(j)) and (2) the builder basket (Cumulative Amount). The general_rp_basket has capacity_composition = fungible; the builder_basket has capacity_composition = computed_from_sources. No shares_capacity_pool link between them is indicated, so they are independent pools. The general RDP basket (Section 6.09(a)(I), $130M / 100% EBITDA) and builder RDP basket (Section 6.09(a)(A)) are RDP baskets, not RP baskets for dividends \u2014 they are part of the restricted debt payment covenant hierarchy, not the dividend-capacity total.\n\nStep 3 \u2014 Fixed-dollar quantifiable minimum: General RP basket floor = $130M. Builder basket starter floor = $130M (before cumulative growth sources). These are independent pools, so minimum quantifiable general_purpose dividend capacity = $130M (general RP basket) + $130M (builder basket starter, before accretion) = $260M fixed floor, with both growing with Consolidated EBITDA and the builder growing further with cumulative CNI, ECF, equity proceeds, etc.\n\nStep 4 \u2014 Restricted_purpose baskets (not added to general total): Management equity basket = greater of $20M / 15% EBITDA annually (with carryforward). Tax distribution and holdco overhead baskets are categorical with no fixed cap in the data.\n\nStep 5 \u2014 Unlimited_conditional: ratio basket is unlimited if First Lien Leverage Ratio \u2264 5.75x pro forma (or no-worse), so not quantifiable to a fixed dollar amount.",
+          "interactions": "The general RP basket (6e76ed06_general_rp_basket_permission) and the builder basket (6e76ed06_builder_usage_permission) are both general_purpose but have no shares_capacity_pool link, so they are independent and additive. The builder basket is also shared with the builder RDP basket (6e76ed06_builder_rdp_basket_permission, Section 6.09(a)(A)), meaning RDP usage reduces builder basket capacity available for dividends. The builder basket's computed_from_sources structure means its actual capacity is variable and accretes over time. No defeaters are present in the data.",
+          "conclusion": "The minimum quantifiable fixed-floor dividend capacity from general_purpose baskets is $260M ($130M from the general RP basket under Section 6.06(j) plus a $130M starter in the builder basket/Cumulative Amount), both growing with Consolidated EBITDA and the builder further accreting with cumulative earnings and other sources. Additionally, up to the greater of $20M and 15% of Consolidated EBITDA per year is available for management equity repurchases (restricted_purpose), and unlimited capacity is available under the ratio basket if First Lien Leverage Ratio is \u2264 5.75x pro forma."
+        },
+        "answer": "The total minimum quantifiable dividend capacity from general_purpose baskets is $260M (fixed floor), comprised of two independent pools: (1) the general RP basket capped at the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period [Section 6.06(j), p.196]; and (2) the builder basket (Cumulative Amount) with a starter amount of the greater of $130,000,000 and 100% of Consolidated EBITDA, which accretes further by (among other sources) the greatest of 50% of cumulative Consolidated Net Income, Available Retained ECF Amount, and 140% of Consolidated EBITDA, plus 100% of equity proceeds and other items since the first fiscal quarter of the Closing Date [Definition of Cumulative Amount, p.32] \u2014 noting that the builder basket is shared with the builder RDP basket [Section 6.09(a)(A), p.199] so RDP usage reduces available capacity. Separately, the management equity basket provides up to the greater of $20,000,000 and 15% of Consolidated EBITDA per year (with carryforward) solely for management equity repurchases [Section 6.06(b), p.195]; tax distributions and holdco overhead distributions are categorical baskets with no fixed dollar cap in the extracted data [Sections 6.06(c) and 6.06(k)]; and the ratio basket provides unlimited dividend capacity if First Lien Leverage Ratio is \u2264 5.75x pro forma (or on a no-worse basis) [Section 6.06(o), p.198].",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "section": "6.06(j)",
+            "page": 196,
+            "quote": "additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "section": "Definition of Cumulative Amount",
+            "page": 32,
+            "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "section": "6.09(a)(A)",
+            "page": 199,
+            "quote": "to the extent not prohibited by any applicable Intercreditor Agreement...with the Cumulative Amount"
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "section": "6.06(b)",
+            "page": 195,
+            "quote": "payments to Holdings...to repurchase or redeem Qualified Capital Stock...held by current or former officers, directors, consultants or employees"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "section": "6.06(o)",
+            "page": 198,
+            "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio...for the most recently ended Test Period"
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "section": "6.06(c)",
+            "page": 196,
+            "quote": "for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group"
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "section": "6.06(k)",
+            "page": 197,
+            "quote": "distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses...of Holdings or any direct or indirect parent of Holdings"
+          }
+        ],
+        "input_tokens": 23138,
+        "output_tokens": 2837,
+        "latency_ms": 45938.6,
+        "cost_usd": 0.11197,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"The question asks for the total quantifiable dividend capacity under the restricted payments covenant, requiring identification and summation of all general_purpose baskets, while separately listing restricted_purpose, unlimited_conditional, and categorical baskets.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_general_rp_basket_permission\",\n      \"6e76ed06_builder_usage_permission\",\n      \"6e76ed06_ratio_rp_basket_permission\",\n      \"6e76ed06_management_equity_basket_permission\",\n      \"6e76ed06_tax_distribution_basket_permission\",\n      \"6e76ed06_holdco_overhead_basket_permission\",\n      \"6e76ed06_equity_award_permission\",\n      \"6e76ed06_unrestricted_sub_equity_distribution_permission\"\n    ],\n    \"analysis\": \"Step 1 \u2014 Identify capacity_category for each basket:\\n\u2022 6e76ed06_general_rp_basket_permission (Section 6.06(j)): capacity_category = general_purpose; cap = greater of $130M and 100% of Consolidated EBITDA; capacity_composition = fungible.\\n\u2022 6e76ed06_builder_usage_permission (Definition of Cumulative Amount): capacity_category = general_purpose; capacity_composition = computed_from_sources. The Cumulative Amount starts at the greater of $130M and 100% of Consolidated EBITDA (starter), then grows by the greatest of: (a) 50% of cumulative CNI, (b) Available Retained ECF Amount, or (c) 140% of Consolidated EBITDA (three-test aggregate), plus 100% of equity proceeds, retained asset sale proceeds, investment returns, and debt conversion amounts \u2014 all cumulative since the first day of the fiscal quarter in which the Closing Date occurs. The builder basket shares capacity with the builder RDP basket (6e76ed06_builder_rdp_basket_permission).\\n\u2022 6e76ed06_ratio_rp_basket_permission (Section 6.06(o)): capacity_category = unlimited_conditional; unlimited if First Lien Leverage Ratio \u2264 5.75x on a Pro Forma Basis OR no-worse test satisfied. Not a fixed dollar amount.\\n\u2022 6e76ed06_management_equity_basket_permission (Section 6.06(b)): capacity_category = restricted_purpose; annual cap = greater of $20M and 15% of Consolidated EBITDA; restricted to management equity repurchases; carryforward permitted.\\n\u2022 6e76ed06_tax_distribution_basket_permission (Section 6.06(c)): capacity_category = restricted_purpose; categorical (no fixed dollar cap in data); restricted to tax distributions.\\n\u2022 6e76ed06_holdco_overhead_basket_permission (Section 6.06(k)): capacity_category = restricted_purpose; categorical (no fixed dollar cap); restricted to overhead/public company costs.\\n\u2022 6e76ed06_equity_award_permission (Section 6.06(d)): capacity_category = restricted_purpose; covers cashless exercise/tax withholding only.\\n\u2022 6e76ed06_unrestricted_sub_equity_distribution_permission (Section 6.06(p)): capacity_category = categorical; no dollar cap; covers unsub equity/asset distributions.\\n\\nStep 2 \u2014 Sum general_purpose baskets. Two general_purpose RP baskets exist: (1) the general RP basket at $130M / 100% EBITDA (Section 6.06(j)) and (2) the builder basket (Cumulative Amount). The general_rp_basket has capacity_composition = fungible; the builder_basket has capacity_composition = computed_from_sources. No shares_capacity_pool link between them is indicated, so they are independent pools. The general RDP basket (Section 6.09(a)(I), $130M / 100% EBITDA) and builder RDP basket (Section 6.09(a)(A)) are RDP baskets, not RP baskets for dividends \u2014 they are part of the restricted debt payment covenant hierarchy, not the dividend-capacity total.\\n\\nStep 3 \u2014 Fixed-dollar quantifiable minimum: General RP basket floor = $130M. Builder basket starter floor = $130M (before cumulative growth sources). These are independent pools, so minimum quantifiable general_purpose dividend capacity = $130M (general RP basket) + $130M (builder basket starter, before accretion) = $260M fixed floor, with both growing with Consolidated EBITDA and the builder growing further with cumulative CNI, ECF, equity proceeds, etc.\\n\\nStep 4 \u2014 Restricted_purpose baskets (not added to general total): Management equity basket = greater of $20M / 15% EBITDA annually (with carryforward). Tax distribution and holdco overhead baskets are categorical with no fixed cap in the data.\\n\\nStep 5 \u2014 Unlimited_conditional: ratio basket is unlimited if First Lien Leverage Ratio \u2264 5.75x pro forma (or no-worse), so not quantifiable to a fixed dollar amount.\",\n    \"interactions\": \"The general RP basket (6e76ed06_general_rp_basket_permission) and the builder basket (6e76ed06_builder_usage_permission) are both general_purpose but have no shares_capacity_pool link, so they are independent and additive. The builder basket is also shared with the builder RDP basket (6e76ed06_builder_rdp_basket_permission, Section 6.09(a)(A)), meaning RDP usage reduces builder basket capacity available for dividends. The builder basket's computed_from_sources structure means its actual capacity is variable and accretes over time. No defeaters are present in the data.\",\n    \"conclusion\": \"The minimum quantifiable fixed-floor dividend capacity from general_purpose baskets is $260M ($130M from the general RP basket under Section 6.06(j) plus a $130M starter in the builder basket/Cumulative Amount), both growing with Consolidated EBITDA and the builder further accreting with cumulative earnings and other sources. Additionally, up to the greater of $20M and 15% of Consolidated EBITDA per year is available for management equity repurchases (restricted_purpose), and unlimited capacity is available under the ratio basket if First Lien Leverage Ratio is \u2264 5.75x pro forma.\"\n  },\n  \"answer\": \"The total minimum quantifiable dividend capacity from general_purpose baskets is $260M (fixed floor), comprised of two independent pools: (1) the general RP basket capped at the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period [Section 6.06(j), p.196]; and (2) the builder basket (Cumulative Amount) with a starter amount of the greater of $130,000,000 and 100% of Consolidated EBITDA, which accretes further by (among other sources) the greatest of 50% of cumulative Consolidated Net Income, Available Retained ECF Amount, and 140% of Consolidated EBITDA, plus 100% of equity proceeds and other items since the first fiscal quarter of the Closing Date [Definition of Cumulative Amount, p.32] \u2014 noting that the builder basket is shared with the builder RDP basket [Section 6.09(a)(A), p.199] so RDP usage reduces available capacity. Separately, the management equity basket provides up to the greater of $20,000,000 and 15% of Consolidated EBITDA per year (with carryforward) solely for management equity repurchases [Section 6.06(b), p.195]; tax distributions and holdco overhead distributions are categorical baskets with no fixed dollar cap in the extracted data [Sections 6.06(c) and 6.06(k)]; and the ratio basket provides unlimited dividend capacity if First Lien Leverage Ratio is \u2264 5.75x pro forma (or on a no-worse basis) [Section 6.06(o), p.198].\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_general_rp_basket_permission\",\n      \"section\": \"6.06(j)\",\n      \"page\": 196,\n      \"quote\": \"additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_usage_permission\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_starter\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_cni\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_source_ebitda_fc\",\n      \"section\": \"Definition of Cumulative Amount\",\n      \"page\": 32,\n      \"quote\": \"\\\"Cumulative Amount\\\" shall mean, on any date of determination (the \\\"Reference Date\\\"), the sum of (without duplication):\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_builder_rdp_basket_permission\",\n      \"section\": \"6.09(a)(A)\",\n      \"page\": 199,\n      \"quote\": \"to the extent not prohibited by any applicable Intercreditor Agreement...with the Cumulative Amount\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_management_equity_basket_permission\",\n      \"section\": \"6.06(b)\",\n      \"page\": 195,\n      \"quote\": \"payments to Holdings...to repurchase or redeem Qualified Capital Stock...held by current or former officers, directors, consultants or employees\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_ratio_rp_basket_permission\",\n      \"section\": \"6.06(o)\",\n      \"page\": 198,\n      \"quote\": \"unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio...for the most recently ended Test Period\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_tax_distribution_basket_permission\",\n      \"section\": \"6.06(c)\",\n      \"page\": 196,\n      \"quote\": \"for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\",\n      \"section\": \"6.06(k)\",\n      \"page\": 197,\n      \"quote\": \"distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses...of Holdings or any direct or indirect parent of Holdings\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 62742.2,
+      "total_cost_usd": 0.15671,
+      "question_id": "duck_creek_q5",
+      "gold_answer": "$520m (or 409.9% of EBITDA) plus all assets that do not secure the Loans and all non-EBITDA producing assets. RP starter: $130m/100% EBITDA. General RP basket: $130m/100% EBITDA. General prepayment of debt basket: $130m/100% EBITDA. General investment basket: $130m/100% EBITDA.",
+      "category": "total_capacity",
+      "requires_entities": [
+        "general_rp_basket",
+        "builder_basket",
+        "general_rdp_basket",
+        "general_investment_basket",
+        "basket_reallocation"
+      ]
+    },
+    {
+      "question": "If the Borrower owns an asset/business division that has assets worth $200m, but EBITDA of such business is negative, can the Borrower dividend the asset/business division to shareholders if the First Lien Net Leverage Ratio is 6.0x?",
+      "deal_id": "6e76ed06",
+      "model": "claude-sonnet-4-6",
+      "route_result": {
+        "covenant_type": "both",
+        "matched_categories": [
+          {
+            "id": "G",
+            "name": "Ratio-Based Dividend Basket"
+          },
+          {
+            "id": "L",
+            "name": "Asset Sale Proceeds & Sweeps"
+          },
+          {
+            "id": "DI6",
+            "name": "Ratio Tests"
+          },
+          {
+            "id": "F",
+            "name": "Builder Basket / Cumulative Amount"
+          },
+          {
+            "id": "JC1",
+            "name": "J.Crew Tier 1 - Structural Analysis"
+          },
+          {
+            "id": "N",
+            "name": "Dividend Capacity Calculation"
+          },
+          {
+            "id": "A",
+            "name": "Dividend Restrictions - General Structure"
+          },
+          {
+            "id": "C",
+            "name": "Management Equity Basket"
+          },
+          {
+            "id": "DI1",
+            "name": "DI Core Structure"
+          },
+          {
+            "id": "DI10",
+            "name": "Cross-Covenant Links"
+          },
+          {
+            "id": "DI11",
+            "name": "Capacity Calculation"
+          },
+          {
+            "id": "DI12",
+            "name": "Vulnerabilities"
+          },
+          {
+            "id": "DI2",
+            "name": "Incremental Facility"
+          },
+          {
+            "id": "DI5",
+            "name": "Permitted Debt Baskets"
+          },
+          {
+            "id": "DI9",
+            "name": "Liens Correlation"
+          },
+          {
+            "id": "E",
+            "name": "Equity Awards"
+          },
+          {
+            "id": "J",
+            "name": "Unrestricted Subsidiaries"
+          },
+          {
+            "id": "K",
+            "name": "J.Crew Blocker"
+          },
+          {
+            "id": "MFN2",
+            "name": "Facility & Debt Scope"
+          },
+          {
+            "id": "MFN6",
+            "name": "Loopholes & Weaknesses"
+          },
+          {
+            "id": "P",
+            "name": "Unrestricted Subsidiary Distribution Basket"
+          },
+          {
+            "id": "T",
+            "name": "RDP Baskets"
+          }
+        ],
+        "is_specific": false,
+        "question_ids": [
+          "rp_g1",
+          "rp_g2",
+          "rp_g3",
+          "rp_g4",
+          "rp_g5",
+          "rp_g6",
+          "rp_g7",
+          "rp_g8",
+          "rp_g9",
+          "rp_g10",
+          "rp_g11",
+          "rp_g12",
+          "rp_l1",
+          "rp_l2",
+          "rp_l3",
+          "rp_l4",
+          "rp_l5",
+          "rp_l6",
+          "rp_l7",
+          "rp_l8",
+          "rp_l9",
+          "rp_l10",
+          "rp_l11",
+          "rp_l12",
+          "rp_l13",
+          "rp_l14",
+          "rp_l15",
+          "rp_l16",
+          "rp_l17",
+          "rp_l18",
+          "rp_l19",
+          "rp_l20",
+          "rp_l21",
+          "rp_l22",
+          "rp_l23",
+          "di_f1",
+          "di_f2",
+          "di_f3",
+          "di_f4",
+          "di_f5",
+          "di_f6",
+          "di_f7",
+          "di_f8",
+          "di_f9",
+          "di_f10",
+          "di_f11",
+          "di_f12",
+          "di_el_leverage_tiers",
+          "rp_f1",
+          "rp_f2",
+          "rp_f3",
+          "rp_f4",
+          "rp_f5",
+          "rp_f6",
+          "rp_f7",
+          "rp_f8",
+          "rp_f9",
+          "rp_f10",
+          "rp_f11",
+          "rp_f12",
+          "rp_f13",
+          "rp_f14",
+          "rp_f15",
+          "rp_f16",
+          "rp_f17",
+          "rp_f18",
+          "rp_f19",
+          "rp_f20",
+          "rp_f21",
+          "rp_f22",
+          "rp_f23",
+          "rp_f24",
+          "rp_f25",
+          "rp_f26",
+          "rp_f27",
+          "rp_f28",
+          "rp_f29",
+          "jc_t1_01",
+          "jc_t1_02",
+          "jc_t1_03",
+          "jc_t1_04",
+          "jc_t1_05",
+          "jc_t1_06",
+          "jc_t1_07",
+          "jc_t1_08",
+          "jc_t1_09",
+          "jc_t1_10",
+          "jc_t1_11",
+          "jc_t1_12",
+          "jc_t1_13",
+          "jc_t1_14",
+          "jc_t1_15",
+          "jc_t1_16",
+          "jc_t1_17",
+          "jc_t1_18",
+          "jc_t1_19",
+          "jc_t1_20",
+          "jc_t1_21",
+          "jc_t1_22",
+          "jc_t1_23",
+          "jc_t1_24",
+          "jc_t1_25",
+          "jc_t1_26",
+          "jc_t1_27",
+          "jc_t1_28",
+          "jc_t1_29",
+          "jc_t1_30",
+          "jc_t1_31",
+          "jc_t1_32",
+          "jc_t1_33",
+          "jc_t1_34",
+          "rp_n1",
+          "rp_n2",
+          "rp_n3",
+          "rp_n4",
+          "rp_n5",
+          "rp_n6",
+          "rp_n0",
+          "rp_a1",
+          "rp_a2",
+          "rp_a3",
+          "rp_c1",
+          "rp_c2",
+          "rp_c3",
+          "rp_c4",
+          "rp_c5",
+          "rp_c6",
+          "rp_c7",
+          "rp_c8",
+          "rp_c9",
+          "di_a1",
+          "di_a2",
+          "di_a3",
+          "di_a4",
+          "di_a5",
+          "di_a6",
+          "di_a7",
+          "di_j1",
+          "di_j2",
+          "di_j3",
+          "di_j4",
+          "di_j5",
+          "di_j6",
+          "di_j7",
+          "di_j8",
+          "di_k1",
+          "di_k2",
+          "di_k3",
+          "di_k4",
+          "di_k5",
+          "di_k6",
+          "di_k7",
+          "di_k8",
+          "di_l1",
+          "di_l2",
+          "di_l3",
+          "di_l4",
+          "di_l5",
+          "di_l6",
+          "di_l7",
+          "di_l8",
+          "di_l9",
+          "di_l10",
+          "di_b0",
+          "di_b1",
+          "di_b2",
+          "di_b3",
+          "di_b4",
+          "di_b5",
+          "di_b6",
+          "di_b7",
+          "di_b8",
+          "di_b9",
+          "di_b10",
+          "di_b11",
+          "di_b12",
+          "di_b13",
+          "di_b14",
+          "di_b15",
+          "di_b16",
+          "di_b17",
+          "di_b18",
+          "di_b19",
+          "di_b20",
+          "di_b21",
+          "di_b22",
+          "di_b23",
+          "di_b24",
+          "di_e_ca_0",
+          "di_e_ca_1",
+          "di_e_rd_0",
+          "di_e_rd_1",
+          "di_e_gb_0",
+          "di_e_gb_1",
+          "di_e_gb_2",
+          "di_e_acq_0",
+          "di_e_acq_1",
+          "di_e_cl_0",
+          "di_e_cl_1",
+          "di_e_pm_0",
+          "di_e_ic_0",
+          "di_e_ic_1",
+          "di_e_ref_0",
+          "di_e_ref_1",
+          "di_e_hdg_0",
+          "di_e_hdg_1",
+          "di_e_lc_0",
+          "di_e_slb_0",
+          "di_e_slb_1",
+          "di_e_fs_0",
+          "di_e_fs_1",
+          "di_e_eo_0",
+          "di_e_wc_0",
+          "di_e_wc_1",
+          "di_e_cd_0",
+          "di_e_cd_1",
+          "di_e_ng_0",
+          "di_e_ng_1",
+          "di_i1",
+          "di_i2",
+          "di_i3",
+          "di_i4",
+          "di_i5",
+          "di_i6",
+          "di_i7",
+          "di_i8",
+          "rp_e1",
+          "rp_e2",
+          "rp_e3",
+          "rp_e4",
+          "rp_e5",
+          "rp_e6",
+          "rp_e7",
+          "rp_e8",
+          "rp_e9",
+          "rp_j1",
+          "rp_j2",
+          "rp_j3",
+          "rp_j4",
+          "rp_j5",
+          "rp_k1",
+          "rp_k2",
+          "rp_k3",
+          "rp_k4",
+          "rp_k5",
+          "rp_k6",
+          "rp_k7",
+          "rp_k8",
+          "rp_k9",
+          "rp_k10",
+          "rp_k11",
+          "rp_k12",
+          "rp_k13",
+          "mfn_08",
+          "mfn_09",
+          "mfn_10",
+          "mfn_11",
+          "mfn_12",
+          "mfn_13",
+          "mfn_14",
+          "mfn_15",
+          "mfn_16",
+          "mfn_17",
+          "mfn_44",
+          "mfn_39",
+          "mfn_40",
+          "mfn_41",
+          "mfn_42",
+          "rp_p1",
+          "rp_p2",
+          "rp_p3",
+          "rp_p4",
+          "rp_p5",
+          "rp_p6",
+          "rp_p7",
+          "rp_t1",
+          "rp_t2",
+          "rp_t3",
+          "rp_t4",
+          "rp_t5",
+          "rp_t6",
+          "rp_t7",
+          "rp_t8",
+          "rp_t9",
+          "rp_t10",
+          "rp_t11",
+          "rp_t12",
+          "rp_t13",
+          "rp_t14",
+          "rp_t15",
+          "rp_t16",
+          "rp_t17",
+          "rp_t18",
+          "rp_t19",
+          "rp_t20",
+          "rp_t21",
+          "rp_t22",
+          "rp_t23",
+          "rp_t24",
+          "rp_t25",
+          "rp_t26",
+          "rp_t27"
+        ]
+      },
+      "fetched_norm_count": 23,
+      "fetched_defeater_count": 5,
+      "stage1": {
+        "classifications": [
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "General cash dividend basket; question concerns asset/division dividend at 6.0x ratio"
+          },
+          {
+            "norm_id": "6e76ed06_general_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Debt prepayment basket; irrelevant to dividend of asset/business division"
+          },
+          {
+            "norm_id": "6e76ed06_management_equity_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Management equity repurchase basket; not relevant to asset dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_starter",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; question is about ratio basket, not builder capacity"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_cni",
+            "verdict": "SKIP",
+            "rationale": "Builder CNI sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ebitda_fc",
+            "verdict": "SKIP",
+            "rationale": "Builder EBITDA sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_usage_permission",
+            "verdict": "SKIP",
+            "rationale": "Builder basket usage; question is about ratio test at 6.0x"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source aggregate; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "verdict": "PRIMARY",
+            "rationale": "Directly governs unlimited dividends conditioned on First Lien Leverage Ratio test"
+          },
+          {
+            "norm_id": "6e76ed06_tax_distribution_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Tax distribution basket; irrelevant to asset/division dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Holdco overhead basket; irrelevant to asset/division dividend"
+          },
+          {
+            "norm_id": "6e76ed06_equity_award_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity award repurchase; irrelevant to asset/division dividend"
+          },
+          {
+            "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+            "verdict": "SUPPLEMENTARY",
+            "rationale": "Alternative path if asset placed in unrestricted sub before dividend"
+          },
+          {
+            "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Ratio debt prepayment basket; irrelevant to dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Builder debt prepayment basket; irrelevant to dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Refinancing debt prepayment basket; irrelevant to dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+            "verdict": "SKIP",
+            "rationale": "Equity-funded debt prepayment; irrelevant to dividend question"
+          },
+          {
+            "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+            "verdict": "SKIP",
+            "rationale": "JCrew IP blocker; concerns unrestricted sub designation, not dividends"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_ecf",
+            "verdict": "SKIP",
+            "rationale": "Builder ECF sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_investment_returns",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not relevant to ratio basket question"
+          },
+          {
+            "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+            "verdict": "SKIP",
+            "rationale": "Builder sub-source; not relevant to ratio basket question"
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+            "verdict": "SKIP",
+            "rationale": "JCrew IP exception; irrelevant to dividend of business division"
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+            "verdict": "SKIP",
+            "rationale": "IP license exception; irrelevant to dividend question"
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+            "verdict": "SKIP",
+            "rationale": "Intercompany transfer exception; irrelevant to dividend question"
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+            "verdict": "SKIP",
+            "rationale": "Immaterial IP exception; irrelevant to dividend question"
+          },
+          {
+            "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+            "verdict": "SKIP",
+            "rationale": "Fair value disposition exception; irrelevant to dividend question"
+          }
+        ],
+        "primary_count": 1,
+        "supplementary_count": 2,
+        "skip_count": 25,
+        "input_tokens": 7819,
+        "output_tokens": 1415,
+        "latency_ms": 15510.1,
+        "cost_usd": 0.04468,
+        "raw_response": "```json\n{\"classifications\": [\n  {\"norm_id\": \"6e76ed06_general_rp_basket_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"General cash dividend basket; question concerns asset/division dividend at 6.0x ratio\"},\n  {\"norm_id\": \"6e76ed06_general_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Debt prepayment basket; irrelevant to dividend of asset/business division\"},\n  {\"norm_id\": \"6e76ed06_management_equity_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Management equity repurchase basket; not relevant to asset dividend question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_starter\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; question is about ratio basket, not builder capacity\"},\n  {\"norm_id\": \"6e76ed06_builder_source_cni\", \"verdict\": \"SKIP\", \"rationale\": \"Builder CNI sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ebitda_fc\", \"verdict\": \"SKIP\", \"rationale\": \"Builder EBITDA sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_equity_proceeds\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_usage_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Builder basket usage; question is about ratio test at 6.0x\"},\n  {\"norm_id\": \"6e76ed06_builder_source_three_test_aggregate\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source aggregate; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_ratio_rp_basket_permission\", \"verdict\": \"PRIMARY\", \"rationale\": \"Directly governs unlimited dividends conditioned on First Lien Leverage Ratio test\"},\n  {\"norm_id\": \"6e76ed06_tax_distribution_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Tax distribution basket; irrelevant to asset/division dividend question\"},\n  {\"norm_id\": \"6e76ed06_holdco_overhead_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Holdco overhead basket; irrelevant to asset/division dividend\"},\n  {\"norm_id\": \"6e76ed06_equity_award_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity award repurchase; irrelevant to asset/division dividend\"},\n  {\"norm_id\": \"6e76ed06_unrestricted_sub_equity_distribution_permission\", \"verdict\": \"SUPPLEMENTARY\", \"rationale\": \"Alternative path if asset placed in unrestricted sub before dividend\"},\n  {\"norm_id\": \"6e76ed06_ratio_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Ratio debt prepayment basket; irrelevant to dividend question\"},\n  {\"norm_id\": \"6e76ed06_builder_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Builder debt prepayment basket; irrelevant to dividend question\"},\n  {\"norm_id\": \"6e76ed06_refinancing_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Refinancing debt prepayment basket; irrelevant to dividend question\"},\n  {\"norm_id\": \"6e76ed06_equity_funded_rdp_basket_permission\", \"verdict\": \"SKIP\", \"rationale\": \"Equity-funded debt prepayment; irrelevant to dividend question\"},\n  {\"norm_id\": \"6e76ed06_jcrew_blocker_prohibition\", \"verdict\": \"SKIP\", \"rationale\": \"JCrew IP blocker; concerns unrestricted sub designation, not dividends\"},\n  {\"norm_id\": \"6e76ed06_builder_source_ecf\", \"verdict\": \"SKIP\", \"rationale\": \"Builder ECF sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_retained_asset_sale_proceeds\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_investment_returns\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not relevant to ratio basket question\"},\n  {\"norm_id\": \"6e76ed06_builder_source_other_debt_conversion\", \"verdict\": \"SKIP\", \"rationale\": \"Builder sub-source; not relevant to ratio basket question\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_ordinary_course_exception\", \"verdict\": \"SKIP\", \"rationale\": \"JCrew IP exception; irrelevant to dividend of business division\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_nonexclusive_license_exception\", \"verdict\": \"SKIP\", \"rationale\": \"IP license exception; irrelevant to dividend question\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_intercompany_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Intercompany transfer exception; irrelevant to dividend question\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_immaterial_ip_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Immaterial IP exception; irrelevant to dividend question\"},\n  {\"defeater_id\": \"6e76ed06_jcrew_fair_value_exception\", \"verdict\": \"SKIP\", \"rationale\": \"Fair value disposition exception; irrelevant to dividend question\"}\n]}\n```"
+      },
+      "stage2": {
+        "reasoning": {
+          "issue": "Whether the Borrower can dividend a $200m asset/business division (with negative EBITDA) to shareholders when the First Lien Net Leverage Ratio is 6.0x, focusing on which RP baskets are available.",
+          "primary_norms_considered": [
+            "6e76ed06_ratio_rp_basket_permission",
+            "6e76ed06_general_rp_basket_permission",
+            "6e76ed06_unrestricted_sub_equity_distribution_permission"
+          ],
+          "analysis": "Three baskets are potentially relevant:\n\n1. RATIO BASKET (Section 6.06(o), norm 6e76ed06_ratio_rp_basket_permission): Permits unlimited dividends (including of a business_division per the scope_edges) on a Pro Forma Basis if the First Lien Leverage Ratio is no greater than the GREATER OF (x) 5.75x or (y) the ratio WITHOUT giving effect to the transaction (no-worse test). At a current ratio of 6.0x pre-transaction, condition (x) fails (6.0x > 5.75x). However, the 'no-worse test' (condition_root_1, predicate: pro_forma_no_worse|||first_lien_net_leverage) must be examined. The asset being dividended has NEGATIVE EBITDA. Removing a negative-EBITDA asset from the consolidated group on a pro forma basis INCREASES consolidated EBITDA (the denominator increases), which DECREASES the First Lien Leverage Ratio. Therefore, the pro forma ratio after the dividend will be LOWER than the pre-transaction ratio of 6.0x. The no-worse test asks whether the pro forma ratio is no greater than the ratio WITHOUT giving effect to the transaction (i.e., 6.0x). Since removing negative EBITDA improves leverage, the pro forma ratio will be \u2264 6.0x \u2014 the no-worse test IS SATISFIED. The condition tree is an OR, so satisfying either branch is sufficient. The ratio basket is therefore AVAILABLE.\n\n2. GENERAL BASKET (Section 6.06(j), norm 6e76ed06_general_rp_basket_permission): Permits dividends up to the greater of $130m or 100% of Consolidated EBITDA, unconditioned on leverage. However, this basket covers 'equity_interest' as the object class per its v3 attrs but the scope of the general_rp_basket has partial_applicability=false, and the source_text references making dividends 'to Holdings and/or Holdings' direct or indirect equity holders.' This basket is available as a fallback up to its cap ($130m or 100% EBITDA), but $200m in assets likely exceeds this cap unless EBITDA is sufficiently large, and the basket measures aggregate dollar usage, not FMV of distributed assets. Its availability is subject to available capacity.\n\n3. UNSUB DISTRIBUTION BASKET (Section 6.06(p)): Only applies if the asset/division is held by an Unrestricted Subsidiary \u2014 not directly applicable here unless the division is first dropped into an Unrestricted Sub (which would require a separate investment using available capacity, and the unsub_designation has a $40m cap per the designation entity).\n\nConclusion: The ratio basket under 6.06(o) is the key available pathway via the no-worse test, because dividending a negative-EBITDA business improves the pro forma leverage ratio below the pre-transaction 6.0x level.",
+          "interactions": "The ratio basket condition tree is an OR of two atomic conditions: (1) pro forma ratio \u2264 5.75x (fails at 6.0x pre-transaction), and (2) no-worse test \u2014 pro forma ratio \u2264 ratio without giving effect to the transaction (6.0x). Since the dividend removes negative EBITDA, the pro forma ratio improves below 6.0x, satisfying condition (2). The general basket (6.06(j)) is independent capacity that could cover smaller distributions without a leverage test. No defeaters are present in the data.",
+          "conclusion": "The Borrower CAN dividend the $200m negative-EBITDA asset/business division to shareholders at a 6.0x First Lien Net Leverage Ratio, because the no-worse test prong of the ratio basket under Section 6.06(o) is satisfied: removing a negative-EBITDA asset improves the pro forma leverage ratio below the pre-transaction 6.0x level, meeting the OR condition."
+        },
+        "answer": "Yes, the Borrower can dividend the $200m asset/business division at a 6.0x First Lien Net Leverage Ratio, primarily through the ratio basket under Section 6.06(o) [p. 198]. While the absolute 5.75x threshold is not met (6.0x > 5.75x), Section 6.06(o) contains an OR condition: the basket is also available if the pro forma First Lien Leverage Ratio (after giving effect to the dividend) is no greater than the ratio WITHOUT giving effect to the transaction (i.e., the 'no-worse test'). Because the business division has negative EBITDA, dividending it removes negative EBITDA from the consolidated denominator, which INCREASES consolidated EBITDA and thereby DECREASES the pro forma leverage ratio below 6.0x \u2014 satisfying the no-worse test. As a fallback, the general basket under Section 6.06(j) [p. 196] provides additional capacity up to the greater of $130m or 100% of Consolidated EBITDA without any leverage condition, though this may not cover the full $200m value depending on available capacity and how the distribution is measured.",
+        "citations": [
+          {
+            "norm_id": "6e76ed06_ratio_rp_basket_permission",
+            "section": "6.06(o)",
+            "page": 198,
+            "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis)"
+          },
+          {
+            "norm_id": "6e76ed06_general_rp_basket_permission",
+            "section": "6.06(j)",
+            "page": 196,
+            "quote": "additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+          }
+        ],
+        "input_tokens": 14149,
+        "output_tokens": 1620,
+        "latency_ms": 29567.7,
+        "cost_usd": 0.06675,
+        "raw_response": "```json\n{\n  \"reasoning\": {\n    \"issue\": \"Whether the Borrower can dividend a $200m asset/business division (with negative EBITDA) to shareholders when the First Lien Net Leverage Ratio is 6.0x, focusing on which RP baskets are available.\",\n    \"primary_norms_considered\": [\n      \"6e76ed06_ratio_rp_basket_permission\",\n      \"6e76ed06_general_rp_basket_permission\",\n      \"6e76ed06_unrestricted_sub_equity_distribution_permission\"\n    ],\n    \"analysis\": \"Three baskets are potentially relevant:\\n\\n1. RATIO BASKET (Section 6.06(o), norm 6e76ed06_ratio_rp_basket_permission): Permits unlimited dividends (including of a business_division per the scope_edges) on a Pro Forma Basis if the First Lien Leverage Ratio is no greater than the GREATER OF (x) 5.75x or (y) the ratio WITHOUT giving effect to the transaction (no-worse test). At a current ratio of 6.0x pre-transaction, condition (x) fails (6.0x > 5.75x). However, the 'no-worse test' (condition_root_1, predicate: pro_forma_no_worse|||first_lien_net_leverage) must be examined. The asset being dividended has NEGATIVE EBITDA. Removing a negative-EBITDA asset from the consolidated group on a pro forma basis INCREASES consolidated EBITDA (the denominator increases), which DECREASES the First Lien Leverage Ratio. Therefore, the pro forma ratio after the dividend will be LOWER than the pre-transaction ratio of 6.0x. The no-worse test asks whether the pro forma ratio is no greater than the ratio WITHOUT giving effect to the transaction (i.e., 6.0x). Since removing negative EBITDA improves leverage, the pro forma ratio will be \u2264 6.0x \u2014 the no-worse test IS SATISFIED. The condition tree is an OR, so satisfying either branch is sufficient. The ratio basket is therefore AVAILABLE.\\n\\n2. GENERAL BASKET (Section 6.06(j), norm 6e76ed06_general_rp_basket_permission): Permits dividends up to the greater of $130m or 100% of Consolidated EBITDA, unconditioned on leverage. However, this basket covers 'equity_interest' as the object class per its v3 attrs but the scope of the general_rp_basket has partial_applicability=false, and the source_text references making dividends 'to Holdings and/or Holdings' direct or indirect equity holders.' This basket is available as a fallback up to its cap ($130m or 100% EBITDA), but $200m in assets likely exceeds this cap unless EBITDA is sufficiently large, and the basket measures aggregate dollar usage, not FMV of distributed assets. Its availability is subject to available capacity.\\n\\n3. UNSUB DISTRIBUTION BASKET (Section 6.06(p)): Only applies if the asset/division is held by an Unrestricted Subsidiary \u2014 not directly applicable here unless the division is first dropped into an Unrestricted Sub (which would require a separate investment using available capacity, and the unsub_designation has a $40m cap per the designation entity).\\n\\nConclusion: The ratio basket under 6.06(o) is the key available pathway via the no-worse test, because dividending a negative-EBITDA business improves the pro forma leverage ratio below the pre-transaction 6.0x level.\",\n    \"interactions\": \"The ratio basket condition tree is an OR of two atomic conditions: (1) pro forma ratio \u2264 5.75x (fails at 6.0x pre-transaction), and (2) no-worse test \u2014 pro forma ratio \u2264 ratio without giving effect to the transaction (6.0x). Since the dividend removes negative EBITDA, the pro forma ratio improves below 6.0x, satisfying condition (2). The general basket (6.06(j)) is independent capacity that could cover smaller distributions without a leverage test. No defeaters are present in the data.\",\n    \"conclusion\": \"The Borrower CAN dividend the $200m negative-EBITDA asset/business division to shareholders at a 6.0x First Lien Net Leverage Ratio, because the no-worse test prong of the ratio basket under Section 6.06(o) is satisfied: removing a negative-EBITDA asset improves the pro forma leverage ratio below the pre-transaction 6.0x level, meeting the OR condition.\"\n  },\n  \"answer\": \"Yes, the Borrower can dividend the $200m asset/business division at a 6.0x First Lien Net Leverage Ratio, primarily through the ratio basket under Section 6.06(o) [p. 198]. While the absolute 5.75x threshold is not met (6.0x > 5.75x), Section 6.06(o) contains an OR condition: the basket is also available if the pro forma First Lien Leverage Ratio (after giving effect to the dividend) is no greater than the ratio WITHOUT giving effect to the transaction (i.e., the 'no-worse test'). Because the business division has negative EBITDA, dividending it removes negative EBITDA from the consolidated denominator, which INCREASES consolidated EBITDA and thereby DECREASES the pro forma leverage ratio below 6.0x \u2014 satisfying the no-worse test. As a fallback, the general basket under Section 6.06(j) [p. 196] provides additional capacity up to the greater of $130m or 100% of Consolidated EBITDA without any leverage condition, though this may not cover the full $200m value depending on available capacity and how the distribution is measured.\",\n  \"citations\": [\n    {\n      \"norm_id\": \"6e76ed06_ratio_rp_basket_permission\",\n      \"section\": \"6.06(o)\",\n      \"page\": 198,\n      \"quote\": \"unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis)\"\n    },\n    {\n      \"norm_id\": \"6e76ed06_general_rp_basket_permission\",\n      \"section\": \"6.06(j)\",\n      \"page\": 196,\n      \"quote\": \"additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period\"\n    }\n  ]\n}\n```"
+      },
+      "total_latency_ms": 45080.6,
+      "total_cost_usd": 0.11143,
+      "question_id": "duck_creek_q6",
+      "gold_answer": "Yes, because the Ratio RP basket 6.06(o) permits such transaction as long as the First Lien Net Leverage Ratio, even if above 5.75x, is no worse.",
+      "category": "ratio_basket_application",
+      "requires_entities": [
+        "ratio_basket"
+      ]
+    }
+  ]
+}

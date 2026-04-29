@@ -378,3 +378,67 @@ TYPEDB_DATABASE=valence_v4 \
 ```
 
 Output JSON timestamps the run; archive in this directory.
+
+## Phase G outcome (2026-04-29)
+
+Phase G ("synthesis architecture diagnostic") landed in 6 commits on
+`v4-deontic`. Total spend ~$1.60 — $0.85 (Commit 1 diagnostic) +
+$0.15 (Commit 3 verification) + $0.75 (Commit 5 eval).
+
+### Final lawyer_dc_rp regression (post-Phase-G)
+
+Eval JSON: `lawyer_dc_rp_20260429T150437Z.json`.
+
+| Q | Pre-D2 | Post-D2 | Post-E | Post-G | Notes |
+|---|---|---|---|---|---|
+| Q1 | PASS | PASS | PASS | PASS | builder_rdp_basket_permission now cited (Phase G payload sort effect) |
+| Q2 | PASS | PASS | PASS | PASS | unchanged |
+| Q3 | PARTIAL | PARTIAL | PARTIAL | PARTIAL | Phase G payload sort surfaces "shared general-purpose pool" framing; tailored carveouts still not enumerated |
+| Q4 | PARTIAL | PARTIAL (richer) | PARTIAL (data richer) | PARTIAL | 2.10(c)(iv)/6.05(z) still not enumerated by name; mechanism (a)/(c)-attribute-level per Phase G commit 1 diagnostic |
+| Q5 | PARTIAL | PARTIAL (richer) | PARTIAL | PARTIAL | builder_rdp_basket_permission now cited; conclusion still $260M (general_rdp not summed); Phase G commit 1 confirmed mechanism (c) data positioning, bounded fix in commit 3 didn't fully reproduce V4 probe behavior |
+| Q6 | PASS | PASS | PASS | PASS | unchanged |
+
+**Score: 3 PASS / 3 PARTIAL** — same headline as Phase E. Phase G's
+bounded payload-sort fix changed citation patterns without changing
+pass/fail outcomes. This is the expected "outcomes are evidence not
+target" Phase G framing.
+
+### Architectural deliverables
+
+- **Mechanism (c) data positioning confirmed for Q5**
+  (`docs/v4_synthesis_architecture.md`). Stage 2's citation behavior
+  is sensitive to payload position; the architecture's declared
+  authority hierarchy doesn't hold uniformly under default ordering.
+- **Adaptation review** (`docs/v4_synthesis_adaptation_review.md`)
+  categorizes the v3-to-v4 pattern adaptation: Stage 1 fits with
+  iteration distance; Stage 2 has structural mismatch + iteration
+  distance; v3 entity bridge is iteration distance; authority
+  hierarchy under conflict is structural mismatch.
+- **Bounded fix applied** (`fetch_norm_context` payload sort by
+  `action_scope: 'reallocable'` first). Aggregate eval shows Q1 cites
+  RDP (improvement), Q3 cites RDP, Q5 cites builder_rdp_basket_permission
+  (different RDP norm). Sort changed patterns without flipping pass/
+  fail.
+- **Entity inventory** (`docs/v4_entity_inventory.md`) — 85 of 198
+  schema entity types extracted on Duck Creek; 2 RP-relevant true
+  gaps (general_investment_basket, amendment_threshold);
+  completeness definition for future extraction work.
+
+### Phase H scope candidates (out of Phase G)
+
+1. **Generalized relevance scoring.** Per-question relevance score
+   over all norms, ordering payload by score. The bounded sort in
+   Phase G doesn't address Q4 carveout enumeration or fully
+   reproduce the V4 probe; a question-aware score would.
+2. **Stage 2 must-cite layer.** Adding a structured directive to
+   Stage 2's payload listing norms that MUST appear in citations,
+   independent of payload position.
+3. **Wholesale v3-to-v4 vocab rewrite for synthesis_guidance.**
+   Phase D2 commit 3 did category N; remaining 17 categories are
+   per-category iterative work.
+4. **`general_investment_basket` re-extraction.** Phase C deferred;
+   re-extraction window opportunity.
+5. **V5 attribute-level probe for Q4.** Test whether elevating
+   asset_sale_sweep carveout flags out of nested attribute position
+   surfaces 2.10(c)(iv)/6.05(z) by name. Disambiguates Q4 between
+   (a) and attribute-level (c).
