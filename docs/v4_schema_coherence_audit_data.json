@@ -1,0 +1,4913 @@
+{
+  "db": "valence_v4",
+  "summary": {
+    "entity_type_count": 198,
+    "relation_type_count": 102,
+    "attribute_type_count": 676
+  },
+  "entities": {
+    "acquisition_basket": {
+      "instance_count": 0
+    },
+    "action_class": {
+      "instance_count": -1
+    },
+    "agent_party": {
+      "instance_count": 1
+    },
+    "amendment_threshold": {
+      "instance_count": 0
+    },
+    "arithmetic_value_source": {
+      "instance_count": 0
+    },
+    "asset_sale_sweep": {
+      "instance_count": 1
+    },
+    "attribute_emission": {
+      "instance_count": 354
+    },
+    "attribute_existence_criterion": {
+      "instance_count": 0
+    },
+    "attribute_provenance": {
+      "instance_count": 0
+    },
+    "attribute_value_criterion": {
+      "instance_count": 11
+    },
+    "basket_capacity_class": {
+      "instance_count": 34
+    },
+    "benchmark": {
+      "instance_count": 0
+    },
+    "blocker_binding_entity": {
+      "instance_count": 0
+    },
+    "blocker_carveout_type": {
+      "instance_count": 0
+    },
+    "blocker_exception": {
+      "instance_count": -1
+    },
+    "blocker_prohibition_type": {
+      "instance_count": 0
+    },
+    "blocker_timing": {
+      "instance_count": 0
+    },
+    "borrower_party": {
+      "instance_count": 1
+    },
+    "builder_basket": {
+      "instance_count": 1
+    },
+    "builder_rdp_basket": {
+      "instance_count": 1
+    },
+    "builder_reduction_type": {
+      "instance_count": 0
+    },
+    "business_division": {
+      "instance_count": 1
+    },
+    "capital_lease_basket": {
+      "instance_count": 0
+    },
+    "cash": {
+      "instance_count": 1
+    },
+    "classification_field_config": {
+      "instance_count": 3
+    },
+    "comparison_set": {
+      "instance_count": 0
+    },
+    "concatenation_value_source": {
+      "instance_count": 45
+    },
+    "concept": {
+      "instance_count": -1
+    },
+    "condition": {
+      "instance_count": 3
+    },
+    "condition_builder_spec": {
+      "instance_count": 5
+    },
+    "condition_template": {
+      "instance_count": 3
+    },
+    "conditional_value_source": {
+      "instance_count": 0
+    },
+    "contribution_basket": {
+      "instance_count": 0
+    },
+    "covered_entity_type": {
+      "instance_count": 0
+    },
+    "covered_person": {
+      "instance_count": 0
+    },
+    "credit_agreement_basket": {
+      "instance_count": 0
+    },
+    "cross_covenant_mapping": {
+      "instance_count": 0
+    },
+    "deal": {
+      "instance_count": 1
+    },
+    "deal_id_value_source": {
+      "instance_count": 45
+    },
+    "debt_condition_type": {
+      "instance_count": 0
+    },
+    "default_type": {
+      "instance_count": 0
+    },
+    "defeater": {
+      "instance_count": 5
+    },
+    "defeater_template": {
+      "instance_count": 6
+    },
+    "definition_analysis": {
+      "instance_count": -1
+    },
+    "deontic_mapping": {
+      "instance_count": 15
+    },
+    "designate_unrestricted_subsidiary": {
+      "instance_count": 1
+    },
+    "designation_condition_type": {
+      "instance_count": 0
+    },
+    "di_basket": {
+      "instance_count": -1
+    },
+    "di_facility_type": {
+      "instance_count": 0
+    },
+    "di_lien_priority": {
+      "instance_count": 0
+    },
+    "di_provision": {
+      "instance_count": 0
+    },
+    "dividend_definition_element": {
+      "instance_count": 0
+    },
+    "document": {
+      "instance_count": 0
+    },
+    "document_segment_type": {
+      "instance_count": 21
+    },
+    "earnout_basket": {
+      "instance_count": 0
+    },
+    "emitted_norm_role_filler": {
+      "instance_count": 152
+    },
+    "entity_type_criterion": {
+      "instance_count": 30
+    },
+    "equity_award_basket": {
+      "instance_count": 1
+    },
+    "equity_award_type": {
+      "instance_count": 0
+    },
+    "equity_funded_rdp_basket": {
+      "instance_count": 1
+    },
+    "equity_interest": {
+      "instance_count": 1
+    },
+    "event_class": {
+      "instance_count": 1
+    },
+    "event_instance": {
+      "instance_count": 0
+    },
+    "exempt_sale_type": {
+      "instance_count": 0
+    },
+    "expected_norm_kind": {
+      "instance_count": 14
+    },
+    "extraction_metadata": {
+      "instance_count": 0
+    },
+    "facility_prong": {
+      "instance_count": 0
+    },
+    "fair_value_exception": {
+      "instance_count": 1
+    },
+    "fee_exclusion": {
+      "instance_count": 0
+    },
+    "foreign_subsidiary_basket": {
+      "instance_count": 0
+    },
+    "general_basket": {
+      "instance_count": 0
+    },
+    "general_investment_basket": {
+      "instance_count": 0
+    },
+    "general_rdp_basket": {
+      "instance_count": 1
+    },
+    "general_rp_basket": {
+      "instance_count": 1
+    },
+    "gold_question": {
+      "instance_count": 18
+    },
+    "governance_concept": {
+      "instance_count": 0
+    },
+    "hedging_basket": {
+      "instance_count": 0
+    },
+    "holdco_equity": {
+      "instance_count": 1
+    },
+    "holdco_overhead_basket": {
+      "instance_count": 1
+    },
+    "holdings_party": {
+      "instance_count": 1
+    },
+    "ied_basket": {
+      "instance_count": 0
+    },
+    "immaterial_ip_exception": {
+      "instance_count": 1
+    },
+    "incremental_basket": {
+      "instance_count": 0
+    },
+    "incremental_facility": {
+      "instance_count": 0
+    },
+    "instrument_class": {
+      "instance_count": -1
+    },
+    "intercompany_basket": {
+      "instance_count": 0
+    },
+    "intercompany_dividend_permission": {
+      "instance_count": 1
+    },
+    "intercompany_exception": {
+      "instance_count": 1
+    },
+    "intercompany_recipient_type": {
+      "instance_count": 0
+    },
+    "investment_basket": {
+      "instance_count": 0
+    },
+    "investment_basket_type": {
+      "instance_count": 0
+    },
+    "investment_pathway": {
+      "instance_count": 6
+    },
+    "investment_provision": {
+      "instance_count": 0
+    },
+    "ip_definition": {
+      "instance_count": 0
+    },
+    "ip_inclusion_type": {
+      "instance_count": 0
+    },
+    "ip_type": {
+      "instance_count": 0
+    },
+    "jcrew_blocker": {
+      "instance_count": 1
+    },
+    "lc_basket": {
+      "instance_count": 0
+    },
+    "leverage_tier": {
+      "instance_count": 0
+    },
+    "license_back_exception": {
+      "instance_count": 0
+    },
+    "lien_priority": {
+      "instance_count": 0
+    },
+    "lien_release_mechanics": {
+      "instance_count": 0
+    },
+    "linked_via_relation_criterion": {
+      "instance_count": 0
+    },
+    "literal_boolean_value_source": {
+      "instance_count": 11
+    },
+    "literal_double_value_source": {
+      "instance_count": 0
+    },
+    "literal_long_value_source": {
+      "instance_count": 9
+    },
+    "literal_string_value_source": {
+      "instance_count": 400
+    },
+    "loan_party": {
+      "instance_count": 1
+    },
+    "loophole_type": {
+      "instance_count": 0
+    },
+    "make_dividend_payment": {
+      "instance_count": 1
+    },
+    "make_intercompany_payment": {
+      "instance_count": 1
+    },
+    "make_investment": {
+      "instance_count": 1
+    },
+    "make_restricted_payment": {
+      "instance_count": -1
+    },
+    "make_tax_distribution": {
+      "instance_count": 1
+    },
+    "management_equity_basket": {
+      "instance_count": 1
+    },
+    "match_criterion": {
+      "instance_count": -1
+    },
+    "match_criterion_group": {
+      "instance_count": 1
+    },
+    "material_definition_method": {
+      "instance_count": 0
+    },
+    "material_intellectual_property": {
+      "instance_count": 1
+    },
+    "material_threshold_basis": {
+      "instance_count": 0
+    },
+    "materiality_definition": {
+      "instance_count": 0
+    },
+    "mfn_exclusion": {
+      "instance_count": 0
+    },
+    "mfn_freebie_basket": {
+      "instance_count": 0
+    },
+    "mfn_provision": {
+      "instance_count": 0
+    },
+    "mfn_sunset_provision": {
+      "instance_count": 0
+    },
+    "mfn_yield_definition": {
+      "instance_count": 0
+    },
+    "no_default_basket": {
+      "instance_count": 0
+    },
+    "non_guarantor_basket": {
+      "instance_count": 0
+    },
+    "nonexclusive_license_exception": {
+      "instance_count": 1
+    },
+    "norm": {
+      "instance_count": 23
+    },
+    "norm_template": {
+      "instance_count": 25
+    },
+    "object_class": {
+      "instance_count": -1
+    },
+    "ontology_category": {
+      "instance_count": 18
+    },
+    "ontology_question": {
+      "instance_count": 238
+    },
+    "ordinary_course_exception": {
+      "instance_count": 1
+    },
+    "overhead_cost_type": {
+      "instance_count": 0
+    },
+    "party": {
+      "instance_count": -1
+    },
+    "pay_holdco_overhead": {
+      "instance_count": 1
+    },
+    "pay_subordinated_debt": {
+      "instance_count": 1
+    },
+    "predicate_specifier": {
+      "instance_count": 2
+    },
+    "produced_norm_id_value_source": {
+      "instance_count": 0
+    },
+    "produced_norm_role_filler": {
+      "instance_count": 0
+    },
+    "projection_rule": {
+      "instance_count": 30
+    },
+    "protected_asset_type": {
+      "instance_count": 0
+    },
+    "protection_type": {
+      "instance_count": 0
+    },
+    "provision": {
+      "instance_count": -1
+    },
+    "purchase_money_basket": {
+      "instance_count": 0
+    },
+    "qualification": {
+      "instance_count": 0
+    },
+    "ratio_basket": {
+      "instance_count": 1
+    },
+    "ratio_debt_basket": {
+      "instance_count": 0
+    },
+    "ratio_rdp_basket": {
+      "instance_count": 1
+    },
+    "ratio_required_basket": {
+      "instance_count": 0
+    },
+    "ratio_secured_basket": {
+      "instance_count": 0
+    },
+    "ratio_test_type": {
+      "instance_count": 0
+    },
+    "ratio_unsecured_basket": {
+      "instance_count": 0
+    },
+    "rdp_basket": {
+      "instance_count": -1
+    },
+    "rdp_payment_type": {
+      "instance_count": 0
+    },
+    "reallocation_reduction_type": {
+      "instance_count": 0
+    },
+    "reallocation_target": {
+      "instance_count": 0
+    },
+    "refinancing_basket": {
+      "instance_count": 0
+    },
+    "refinancing_rdp_basket": {
+      "instance_count": 1
+    },
+    "relation_template": {
+      "instance_count": 152
+    },
+    "repurchase_equity": {
+      "instance_count": 1
+    },
+    "repurchase_trigger": {
+      "instance_count": 0
+    },
+    "required_lenders_party": {
+      "instance_count": 1
+    },
+    "restricted_sub_equity": {
+      "instance_count": 1
+    },
+    "restricted_sub_party": {
+      "instance_count": 1
+    },
+    "role_assignment": {
+      "instance_count": 304
+    },
+    "role_filler": {
+      "instance_count": -1
+    },
+    "rp_basket": {
+      "instance_count": -1
+    },
+    "rp_provision": {
+      "instance_count": 1
+    },
+    "sale_leaseback_basket": {
+      "instance_count": 0
+    },
+    "segment_norm_expectation": {
+      "instance_count": 7
+    },
+    "source_citation": {
+      "instance_count": 0
+    },
+    "state_predicate": {
+      "instance_count": 22
+    },
+    "static_lookup_role_filler": {
+      "instance_count": 152
+    },
+    "subordinated_debt_instrument": {
+      "instance_count": 1
+    },
+    "subtype_criterion": {
+      "instance_count": 0
+    },
+    "sunset_type": {
+      "instance_count": 0
+    },
+    "sweep_tier": {
+      "instance_count": 3
+    },
+    "tax_distribution_basket": {
+      "instance_count": 1
+    },
+    "tax_group_type": {
+      "instance_count": 0
+    },
+    "transaction_cost_type": {
+      "instance_count": 0
+    },
+    "transfer_definition": {
+      "instance_count": 0
+    },
+    "transfer_inclusion_type": {
+      "instance_count": 0
+    },
+    "transfer_material_intellectual_property": {
+      "instance_count": 1
+    },
+    "transfer_type": {
+      "instance_count": 0
+    },
+    "unrestricted_sub_equity": {
+      "instance_count": 1
+    },
+    "unrestricted_sub_party": {
+      "instance_count": 1
+    },
+    "unrestricted_subsidiary_equity_or_assets": {
+      "instance_count": 1
+    },
+    "unsub_designation": {
+      "instance_count": 1
+    },
+    "unsub_distribution_basket": {
+      "instance_count": 1
+    },
+    "unsub_distribution_condition": {
+      "instance_count": 0
+    },
+    "v3_attribute_value_source": {
+      "instance_count": 158
+    },
+    "value_source": {
+      "instance_count": -1
+    },
+    "violation_consequent": {
+      "instance_count": 0
+    },
+    "working_capital_basket": {
+      "instance_count": 0
+    },
+    "yield_component": {
+      "instance_count": 0
+    }
+  },
+  "relations": {
+    "answer_has_citation": {
+      "instance_count": 0
+    },
+    "answer_has_qualification": {
+      "instance_count": 0
+    },
+    "arithmetic_has_left_operand": {
+      "instance_count": 0
+    },
+    "arithmetic_has_right_operand": {
+      "instance_count": 0
+    },
+    "atomic_condition_references_predicate": {
+      "instance_count": 2
+    },
+    "attribute_emission_uses_value": {
+      "instance_count": 354
+    },
+    "basket_permits_lien": {
+      "instance_count": 0
+    },
+    "basket_reallocates_to": {
+      "instance_count": 2
+    },
+    "basket_reduces_basket": {
+      "instance_count": 0
+    },
+    "basket_requires_condition": {
+      "instance_count": 0
+    },
+    "basket_uses_ratio_test": {
+      "instance_count": 0
+    },
+    "blocker_covers_ip_type": {
+      "instance_count": 0
+    },
+    "blocker_has_exception": {
+      "instance_count": 5
+    },
+    "builder_spec_uses_predicate": {
+      "instance_count": 5
+    },
+    "category_has_question": {
+      "instance_count": 233
+    },
+    "category_hierarchy": {
+      "instance_count": 0
+    },
+    "comparison_includes_deal": {
+      "instance_count": 0
+    },
+    "concatenation_has_ordered_part": {
+      "instance_count": 135
+    },
+    "concept_applicability": {
+      "instance_count": 0
+    },
+    "concept_hierarchy": {
+      "instance_count": 0
+    },
+    "condition_has_child": {
+      "instance_count": 2
+    },
+    "condition_references_predicate": {
+      "instance_count": 104
+    },
+    "condition_template_has_child": {
+      "instance_count": 2
+    },
+    "conditional_has_else_branch": {
+      "instance_count": 0
+    },
+    "conditional_has_test": {
+      "instance_count": 0
+    },
+    "conditional_has_then_branch": {
+      "instance_count": 0
+    },
+    "criterion_group_has_member": {
+      "instance_count": 3
+    },
+    "criterion_requires_linked_match": {
+      "instance_count": 0
+    },
+    "criterion_uses_comparison_value": {
+      "instance_count": 11
+    },
+    "deal_has_document": {
+      "instance_count": 0
+    },
+    "deal_has_provision": {
+      "instance_count": 1
+    },
+    "defeater_has_condition": {
+      "instance_count": 0
+    },
+    "defeats": {
+      "instance_count": 5
+    },
+    "di_feeds_rp_builder": {
+      "instance_count": 0
+    },
+    "di_provision_links_mfn": {
+      "instance_count": 0
+    },
+    "di_provision_links_rp": {
+      "instance_count": 0
+    },
+    "di_shares_capacity_pool": {
+      "instance_count": 0
+    },
+    "entity_has_child": {
+      "instance_count": -1
+    },
+    "event_provides_proceeds_to_norm": {
+      "instance_count": 1
+    },
+    "event_targets_instrument": {
+      "instance_count": 0
+    },
+    "event_targets_party": {
+      "instance_count": 0
+    },
+    "has_amendment_threshold": {
+      "instance_count": 0
+    },
+    "has_provenance": {
+      "instance_count": 0
+    },
+    "incremental_permits_facility": {
+      "instance_count": 0
+    },
+    "incremental_triggers_mfn": {
+      "instance_count": 0
+    },
+    "mapping_targets_action": {
+      "instance_count": 20
+    },
+    "mapping_targets_object": {
+      "instance_count": 26
+    },
+    "norm_binds_subject": {
+      "instance_count": 2138
+    },
+    "norm_contributes_to_capacity": {
+      "instance_count": 9
+    },
+    "norm_extracted_from": {
+      "instance_count": 14
+    },
+    "norm_has_condition": {
+      "instance_count": 1
+    },
+    "norm_has_violation_consequent": {
+      "instance_count": 0
+    },
+    "norm_held_by": {
+      "instance_count": 0
+    },
+    "norm_in_segment": {
+      "instance_count": 344
+    },
+    "norm_provides_carryback_to": {
+      "instance_count": 0
+    },
+    "norm_provides_carryforward_to": {
+      "instance_count": 0
+    },
+    "norm_reallocates_capacity_from": {
+      "instance_count": 0
+    },
+    "norm_scopes_action": {
+      "instance_count": 2650
+    },
+    "norm_scopes_instrument": {
+      "instance_count": 630
+    },
+    "norm_scopes_object": {
+      "instance_count": 1048
+    },
+    "norm_serves_question": {
+      "instance_count": 0
+    },
+    "predicate_specifier_uses_value": {
+      "instance_count": 1
+    },
+    "produced_by_rule": {
+      "instance_count": 28
+    },
+    "produced_norm_filler_references_template": {
+      "instance_count": 0
+    },
+    "produced_norm_reference": {
+      "instance_count": 0
+    },
+    "provision_cross_reference": {
+      "instance_count": 0
+    },
+    "provision_has_answer": {
+      "instance_count": 221
+    },
+    "provision_has_asset_sale_sweep": {
+      "instance_count": 1
+    },
+    "provision_has_basket": {
+      "instance_count": 8
+    },
+    "provision_has_blocker": {
+      "instance_count": 1
+    },
+    "provision_has_definition": {
+      "instance_count": 0
+    },
+    "provision_has_di_basket": {
+      "instance_count": 0
+    },
+    "provision_has_exclusion": {
+      "instance_count": 0
+    },
+    "provision_has_extracted_entity": {
+      "instance_count": -1
+    },
+    "provision_has_freebie": {
+      "instance_count": 0
+    },
+    "provision_has_incremental": {
+      "instance_count": 0
+    },
+    "provision_has_intercompany_permission": {
+      "instance_count": 1
+    },
+    "provision_has_leverage_tier": {
+      "instance_count": 0
+    },
+    "provision_has_lien_release": {
+      "instance_count": 0
+    },
+    "provision_has_pathway": {
+      "instance_count": 6
+    },
+    "provision_has_rdp_basket": {
+      "instance_count": 5
+    },
+    "provision_has_sunset": {
+      "instance_count": 0
+    },
+    "provision_has_sweep_tier": {
+      "instance_count": 3
+    },
+    "provision_has_unsub": {
+      "instance_count": 1
+    },
+    "provision_has_yield_def": {
+      "instance_count": 0
+    },
+    "question_annotates_attribute": {
+      "instance_count": 257
+    },
+    "question_targets_concept": {
+      "instance_count": 20
+    },
+    "question_targets_entity": {
+      "instance_count": 0
+    },
+    "question_targets_field": {
+      "instance_count": 141
+    },
+    "relation_template_assigns_role": {
+      "instance_count": 304
+    },
+    "relation_template_emits_edge_attribute": {
+      "instance_count": 27
+    },
+    "role_assignment_filled_by": {
+      "instance_count": 304
+    },
+    "rule_has_match_criterion": {
+      "instance_count": 39
+    },
+    "rule_produces_defeater_template": {
+      "instance_count": 6
+    },
+    "rule_produces_norm_template": {
+      "instance_count": 25
+    },
+    "shares_capacity_pool": {
+      "instance_count": 0
+    },
+    "static_lookup_uses_value": {
+      "instance_count": 152
+    },
+    "template_emits_attribute": {
+      "instance_count": 339
+    },
+    "template_emits_relation": {
+      "instance_count": 152
+    },
+    "template_emits_root_condition": {
+      "instance_count": 1
+    },
+    "tier_uses_ratio_test": {
+      "instance_count": 0
+    },
+    "value_source_has_default": {
+      "instance_count": 15
+    }
+  },
+  "attributes": {
+    "action_class_label": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        "designate_unrestricted_subsidiary",
+        "make_dividend_payment",
+        "make_intercompany_payment",
+        "make_investment",
+        "make_tax_distribution",
+        "pay_holdco_overhead",
+        "pay_subordinated_debt",
+        "repurchase_equity"
+      ]
+    },
+    "action_scope": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "general",
+        "reallocable",
+        "specific"
+      ]
+    },
+    "addback_cap_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "addbacks_capped": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "adjustment_scope": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "affected_lender_optout": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "agent_consent_nurd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "agent_discretion": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "aggregate_secured_lien_cap": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "aggregation_direction": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "add"
+      ]
+    },
+    "aggregation_function": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "greatest_of",
+        "sum"
+      ]
+    },
+    "amendment_consent_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "amendment_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "amortization_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "amortization_prohibited": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "analysis_category": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "analysis_detail": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "analysis_flag": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "analysis_value": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "annual_cap_pct_ebitda": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        15.0
+      ]
+    },
+    "annual_cap_usd": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        20000000.0
+      ]
+    },
+    "annual_de_minimis_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        0.3
+      ]
+    },
+    "annual_de_minimis_usd": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        40000000.0
+      ]
+    },
+    "annual_permits_carryforward": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "annual_uses_greater_of": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "answer_boolean": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "answer_date": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "answer_double": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        0.15,
+        0.3,
+        0.5,
+        1.0,
+        1.4,
+        130000000.0,
+        20000000.0,
+        5.75
+      ]
+    },
+    "answer_id": {
+      "instance_count": 221,
+      "distinct_value_count": 221,
+      "sample_distinct_values": [
+        "ans_6e76ed06_000ccc20",
+        "ans_6e76ed06_00211fde",
+        "ans_6e76ed06_006c64f3",
+        "ans_6e76ed06_0152cd8a",
+        "ans_6e76ed06_03608e3b",
+        "ans_6e76ed06_03e0a540",
+        "ans_6e76ed06_0408408e",
+        "ans_6e76ed06_0500b270"
+      ]
+    },
+    "answer_integer": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "answer_string": {
+      "instance_count": 52,
+      "distinct_value_count": 52,
+      "sample_distinct_values": [
+        "1.0",
+        "130000000",
+        "40000000",
+        "5.50x = 50% sweep",
+        "5.75x = 100% sweep",
+        "At the Applicable Date of Determination for the applicable Test Period",
+        "Available Retained ECF Amount: the portion of Excess Cash Flow, determined on a ",
+        "First Lien Leverage Ratio"
+      ]
+    },
+    "answer_type": {
+      "instance_count": 8,
+      "distinct_value_count": 8,
+      "sample_distinct_values": [
+        "boolean",
+        "currency",
+        "entity_list",
+        "integer",
+        "multiselect",
+        "number",
+        "percentage",
+        "string"
+      ]
+    },
+    "applicability_status": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "applies_when": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "arithmetic_operator": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "as_of_date": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "asset_proceeds_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "asset_proceeds_ratio_disposition": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "asset_proceeds_ratio_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "asset_proceeds_sweep_section": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "asset_sale_reloads_incremental": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "assigned_role_name": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        "action",
+        "contributor",
+        "defeated",
+        "defeater",
+        "instrument",
+        "norm",
+        "object",
+        "pool"
+      ]
+    },
+    "attributed_field_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "auto_lien_permission": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "auto_release_on_transfer": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "automatic_adjustment": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_amount_usd": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        130000000.0
+      ]
+    },
+    "basket_arbitrage_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_can_rebuild": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "basket_cap_pct_ebitda": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_cap_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_grower_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        100.0
+      ]
+    },
+    "basket_id": {
+      "instance_count": 13,
+      "distinct_value_count": 13,
+      "sample_distinct_values": [
+        "6e76ed06_rp_builder_basket",
+        "6e76ed06_rp_builder_rdp_basket",
+        "6e76ed06_rp_equity_award_basket",
+        "6e76ed06_rp_equity_funded_rdp_basket",
+        "6e76ed06_rp_general_rdp_basket",
+        "6e76ed06_rp_general_rp_basket",
+        "6e76ed06_rp_holdco_overhead_basket",
+        "6e76ed06_rp_management_equity_basket"
+      ]
+    },
+    "basket_reload_on_prepayment": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_splitting_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_stacking_risk_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "basket_type_name": {
+      "instance_count": 34,
+      "distinct_value_count": 34,
+      "sample_distinct_values": [
+        "acquisition_basket",
+        "builder_basket",
+        "builder_rdp_basket",
+        "capital_lease_basket",
+        "contribution_basket",
+        "credit_agreement_basket",
+        "earnout_basket",
+        "equity_award_basket"
+      ]
+    },
+    "benchmark_value_boolean_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "benchmark_value_double": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "bilateral_protection": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_borrower": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_borrower_only": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_guarantors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_holdings": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_loan_parties": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "binds_restricted_subs": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "blocker_eod_only": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "blocker_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06_rp_jcrew_blocker"
+      ]
+    },
+    "blocker_payment_bankruptcy_only": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "borrower_name": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Duck Creek Technologies, Inc."
+      ]
+    },
+    "bridge_to_term_loophole_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "builder_repayment_reloads_debt": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "can_be_manipulated": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "can_stack_with_other_baskets": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "can_stack_with_other_exclusions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cap_dollar_usd": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        130000000.0,
+        40000000.0
+      ]
+    },
+    "cap_grower_pct": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        100.0,
+        140.0,
+        15.0,
+        50.0
+      ]
+    },
+    "cap_grower_reference": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "consolidated_ebitda_ltm",
+        "consolidated_net_income",
+        "equity_proceeds_usd",
+        "excess_cash_flow"
+      ]
+    },
+    "cap_pct_total_assets": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cap_usd": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        130000000.0,
+        20000000.0
+      ]
+    },
+    "cap_uses_greater_of": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "capacity_aggregation_function": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "greatest_of",
+        "n_a"
+      ]
+    },
+    "capacity_category": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "categorical",
+        "general_purpose",
+        "restricted_purpose",
+        "unlimited_conditional"
+      ]
+    },
+    "capacity_composition": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "additive",
+        "categorical",
+        "computed_from_sources",
+        "fungible",
+        "n_a",
+        "unlimited_on_condition"
+      ]
+    },
+    "capacity_effect": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "additive"
+      ]
+    },
+    "capacity_pct_ebitda": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "capacity_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "carryback_years": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "carryforward_max_years": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "carryforward_permitted": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "carryforward_years": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "category_id": {
+      "instance_count": 18,
+      "distinct_value_count": 18,
+      "sample_distinct_values": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H"
+      ]
+    },
+    "checks_v3_attribute_name": {
+      "instance_count": 8,
+      "distinct_value_count": 8,
+      "sample_distinct_values": [
+        "has_asset_proceeds_source",
+        "has_cni_source",
+        "has_debt_conversion_source",
+        "has_ebitda_fc_source",
+        "has_ecf_source",
+        "has_equity_proceeds_source",
+        "has_investment_returns_source",
+        "has_starter_amount_source"
+      ]
+    },
+    "child_index": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "child_template_index": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        0,
+        1
+      ]
+    },
+    "citation_context": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "citation_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "classification_field_name": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "action_scope",
+        "capacity_composition",
+        "condition_structure"
+      ]
+    },
+    "cleaned_by_phase_c_commit_0": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "cni_is_primary_test": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cni_percentage": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        50.0
+      ]
+    },
+    "collateral_leakage_pattern_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "collateral_parity_required": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "comparison_baseline": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "comparison_operator": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "equals"
+      ]
+    },
+    "computed_from_sources": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "concept_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "condition_builder_name": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "no_eod_required",
+        "none",
+        "product_line_exemption_flattened",
+        "ratio_with_no_worse",
+        "unsub_material_ip_trigger"
+      ]
+    },
+    "condition_builder_spec_ref": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "none",
+        "ratio_with_no_worse",
+        "unsub_material_ip_trigger"
+      ]
+    },
+    "condition_id": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "6e76ed06_ratio_rp_basket_permission__cond_root",
+        "6e76ed06_ratio_rp_basket_permission__cond_root_0",
+        "6e76ed06_ratio_rp_basket_permission__cond_root_1"
+      ]
+    },
+    "condition_logic": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "condition_operator": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "atomic",
+        "or"
+      ]
+    },
+    "condition_operator_root": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "atomic",
+        "n_a",
+        "or"
+      ]
+    },
+    "condition_template_id": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "ct_conv_ratio_basket_c0",
+        "ct_conv_ratio_basket_c1",
+        "ct_conv_ratio_basket_root"
+      ]
+    },
+    "condition_topology": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "or_of_atomics"
+      ]
+    },
+    "condition_topology_emitted": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "atomic",
+        "or_of_and_of_atomics",
+        "or_of_atomics",
+        "unconditional"
+      ]
+    },
+    "condition_type_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "confidence": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "high"
+      ]
+    },
+    "consolidated_ebitda_ltm": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "context_entities": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "contribution_debt_builds_rp": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "contribution_multiplier": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "contribution_rp_dollar_for_dollar": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covenant_type": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "RP",
+        "rp"
+      ]
+    },
+    "coverage_scope": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_abandonment": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_admin_expenses": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_assets": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_assignment": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_audit_fees": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_cashless_exercise": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_clawback": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_combined_group": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_consolidated_group": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_consultants": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_contribution_to_capital": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_copyrights": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_customer_data": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_designation": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_director_fees": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_directors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_disregarded_entities": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_domain_names": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_employees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_equity_interests": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_estates": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_exclusive_licensing": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_forfeiture": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_franchise_taxes": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_indebtedness": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_insurance_premiums": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_ip": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_know_how": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_legal_fees": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_licenses_granted": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_licenses_received": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_management_fees": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_material_assets": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_net_settlement": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_non_renewal": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_nonexclusive_licensing": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_officers": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_patents": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_pledge": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_post_designation": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "covers_proceeds": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_sale": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_similar_groups": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_software": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_sponsor_employees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_tax_withholding": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "covers_trade_secrets": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_trademarks": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "covers_transfer": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "created_at": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cross_covenant_basket_sharing": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cross_reference_explanation": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "cross_reference_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "currency_matching_required": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "deal_amount": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "deal_currency": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "deal_date": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "deal_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06"
+      ]
+    },
+    "deal_name": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Duck Creek Technologies (DISCO Parent Inc.)"
+      ]
+    },
+    "deal_type": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "credit_agreement"
+      ]
+    },
+    "debt_lien_capacity_shared": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "default_action_scope_kind": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "general",
+        "reallocable",
+        "specific"
+      ]
+    },
+    "default_blocker_scope": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "default_condition": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "default_subject_role": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "borrower",
+        "borrower,loan_party",
+        "borrower,loan_party,restricted_sub"
+      ]
+    },
+    "default_value": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "defeater_id": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "6e76ed06_jcrew_fair_value_exception",
+        "6e76ed06_jcrew_immaterial_ip_exception",
+        "6e76ed06_jcrew_intercompany_exception",
+        "6e76ed06_jcrew_nonexclusive_license_exception",
+        "6e76ed06_jcrew_ordinary_course_exception"
+      ]
+    },
+    "defeater_name": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "Fair market value disposition requirement",
+        "Immaterial or obsolete property dispositions",
+        "Intercompany transfers within restricted group",
+        "Licenses and sublicenses of IP permitted under Section 6.02",
+        "Ordinary course IP dispositions"
+      ]
+    },
+    "defeater_template_id": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "dt_conv_fair_value_exception",
+        "dt_conv_immaterial_ip_exception",
+        "dt_conv_intercompany_exception",
+        "dt_conv_license_back_exception",
+        "dt_conv_nonexclusive_license_exception",
+        "dt_conv_ordinary_course_exception"
+      ]
+    },
+    "defeater_template_label": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "fair_value_exception -> defeater",
+        "immaterial_ip_exception -> defeater",
+        "intercompany_exception -> defeater",
+        "license_back_exception -> defeater",
+        "nonexclusive_license_exception -> defeater",
+        "ordinary_course_exception -> defeater"
+      ]
+    },
+    "defeater_type": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "exception"
+      ]
+    },
+    "defined_negatively": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "defined_term": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "definition_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "definition_source": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "denominator_formula": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "description": {
+      "instance_count": 165,
+      "distinct_value_count": 165,
+      "sample_distinct_values": [
+        "Atomic predicate: no_event_of_default_exists. For baskets whose permission is ga",
+        "Atomic predicate: unsub_would_own_or_license_material_ip_at_designation. The J.C",
+        "Cap as percentage of Consolidated EBITDA",
+        "Carve-outs permitting distribution of equity interests, indebtedness, and assets",
+        "Combination of weak blocker + permissive unrestricted sub rules",
+        "Declaration date, payment date, or most recent fiscal quarter",
+        "Declaration date, payment date, or most recent fiscal quarter for RDP",
+        "Depth-2 OR of two atomic leaves: (ratio \u2264 threshold) OR (pro_forma_no_worse). Pr"
+      ]
+    },
+    "designation_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06_rp_unsub_designation"
+      ]
+    },
+    "determined_by_board": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "di_covenant_exists": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "di_universe_field": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "debt_incurrence",
+        "definitions",
+        "incremental_facility",
+        "liens_covenant"
+      ]
+    },
+    "differentiates_fixed_floating": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "display_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "display_order": {
+      "instance_count": 180,
+      "distinct_value_count": 180,
+      "sample_distinct_values": [
+        1,
+        10,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ]
+    },
+    "distributions_can_cascade": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "document_hash": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "document_url": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "dollar_amount": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "dollar_amount_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "dollar_cap_usd": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        40000000.0
+      ]
+    },
+    "ebitda_fc_multiplier": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        140.0
+      ]
+    },
+    "ebitda_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ebitda_percentage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ecf_lookback_quarters": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ecf_retained_formula": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Available Retained ECF Amount: the portion of Excess Cash Flow, determined on a "
+      ]
+    },
+    "eligible_person_scope": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "current or former officers, directors, consultants or employees (or their respec"
+      ]
+    },
+    "emits_relation_type": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "defeats",
+        "norm_binds_subject",
+        "norm_contributes_to_capacity",
+        "norm_scopes_action",
+        "norm_scopes_instrument",
+        "norm_scopes_object"
+      ]
+    },
+    "emitted_attribute_name": {
+      "instance_count": 21,
+      "distinct_value_count": 21,
+      "sample_distinct_values": [
+        "action_scope",
+        "aggregation_direction",
+        "aggregation_function",
+        "cap_grower_pct",
+        "cap_grower_reference",
+        "cap_usd",
+        "cap_uses_greater_of",
+        "capacity_composition"
+      ]
+    },
+    "enumerated_on_schedule": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "equity_excludes_cure": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "equity_excludes_disqualified": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "equity_proceeds_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        100.0
+      ]
+    },
+    "estimated_taxes_permitted": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "event_class_description": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Disposition of borrower or restricted-subsidiary assets governed by Section 6.05"
+      ]
+    },
+    "event_class_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "asset_sale_event"
+      ]
+    },
+    "event_class_label": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "asset_sale_event"
+      ]
+    },
+    "event_instance_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exception_id": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "6e76ed06_rp_fair_value_exception_4",
+        "6e76ed06_rp_immaterial_ip_exception_3",
+        "6e76ed06_rp_intercompany_exception_2",
+        "6e76ed06_rp_nonexclusive_license_exception_1",
+        "6e76ed06_rp_ordinary_course_exception_0"
+      ]
+    },
+    "exception_name": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "Fair market value disposition requirement",
+        "Immaterial or obsolete property dispositions",
+        "Intercompany transfers within restricted group",
+        "Licenses and sublicenses of IP permitted under Section 6.02",
+        "Ordinary course IP dispositions"
+      ]
+    },
+    "excludes_abandonment": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_any_licensing": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_cure_contributions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_customer_data": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_disqualified_stock": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_exclusive_licensing": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_from_mfn": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_inbound_licenses": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_know_how": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_pledge": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_software": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "excludes_trade_secrets": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_cap_pct_ebitda": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_cap_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_conditions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_has_cap": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_scope": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exclusion_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exempt_below_threshold": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "exempt_casualty": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "exempt_non_collateral": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "exempt_ordinary_course": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "exempt_ratio_basket": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "exemption_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "exemption_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "existence_check": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "expected_max": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        1,
+        10,
+        2,
+        3,
+        30,
+        5
+      ]
+    },
+    "expected_min": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        0,
+        1,
+        20
+      ]
+    },
+    "extracted_at": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "extraction_batch_hint": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "extraction_context_sections": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "extraction_priority": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "extraction_prompt": {
+      "instance_count": 117,
+      "distinct_value_count": 117,
+      "sample_distinct_values": [
+        "Are Casualty Event proceeds (insurance recovery, condemnation awards) exempt fro",
+        "Are asset dispositions made under a leverage ratio basket exempt from the asset ",
+        "Are asset sales below a de minimis dollar threshold exempt from mandatory prepay",
+        "Are ordinary course asset sales/dispositions exempt from the asset sale mandator",
+        "Are sales/dispositions of non-Collateral assets exempt from the asset sale manda",
+        "Can unused annual aggregate de minimis amounts carry forward to subsequent fisca",
+        "Check for 'without duplication' or similar language ensuring that the same distr",
+        "Check if the Cumulative Amount / Available Amount definition includes 'cash divi"
+      ]
+    },
+    "extraction_section_hint": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "facility_type": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "term_loan"
+      ]
+    },
+    "facility_type_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "fc_multiplier": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "find_description": {
+      "instance_count": 21,
+      "distinct_value_count": 21,
+      "sample_distinct_values": [
+        "A SHORT provision (1-3 paragraphs) imposing a premium on repricing transactions ",
+        "Conditions that must be satisfied before loans are funded. Look for: 'Conditions",
+        "Events that trigger acceleration. Look for: 'Events of Default', 'each of the fo",
+        "How the agreement can be modified. Look for: 'Amendments', 'Waivers', 'no amendm",
+        "Maintenance financial ratio tests. Look for: 'Financial Covenant', 'Maximum Tota",
+        "Ongoing 'shall' obligations of the borrower. Look for: 'Affirmative Covenants', ",
+        "Restrictions on distributions to equity holders. Look for: 'shall not declare or",
+        "Restrictions on granting security interests. Look for: 'shall not create, incur,"
+      ]
+    },
+    "floor_value": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "free_and_clear_amount_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "free_and_clear_is_grower": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "free_and_clear_pct_ebitda": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "freebie_excluded_from_ratio": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "freebie_exempt_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "freebie_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "freebie_ratio_stacking_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "freebie_refresh_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "general_basket_addable": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "general_basket_amount_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "general_basket_has_lien_basket": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "group_combinator": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "or"
+      ]
+    },
+    "grower_basket_count": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "growth_start_anchor": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "closing_date_fiscal_quarter_start",
+        "not_applicable"
+      ]
+    },
+    "guarantor_parity_required": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_anti_duplication": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "has_asset_proceeds_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_cni_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_debt_conversion_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_dollar_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_ebitda_fc_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_ecf_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_equity_proceeds_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_investment_returns_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_multiple_tiers": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "has_no_worse_test": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_percentage_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_ratio_disposition_basket": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_sacred_rights": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_separate_secured_covenant": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_separate_unsecured_covenant": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_standalone_definition": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "has_starter_amount_source": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "has_sublimit_baskets": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "hypothetical_tax_rate": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_avoids_mfn_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_covenant_parity": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_junior_lien_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_maturity_restriction": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_permitted_forms": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_permitted_incurrors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_requires_intercreditor": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_shares_cap": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_triggers_mfn": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ied_unsecured_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_cash_dividends": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_commitment_fees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_debt_prepayments": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_distributions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_floor_benefit": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_guarantees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_investments": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_margin": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_noncash_at_fmv": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "includes_oid": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_other_fees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_share_buybacks": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "includes_upfront_fees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "incremental_has_lien_basket": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "incremental_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "indebtedness_definition_broad": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "individual_de_minimis_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        0.3
+      ]
+    },
+    "individual_de_minimis_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "individual_uses_greater_of": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "instrument_class_label": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "equity_interest",
+        "holdco_equity",
+        "material_intellectual_property",
+        "restricted_sub_equity",
+        "subordinated_debt_instrument",
+        "unrestricted_sub_equity"
+      ]
+    },
+    "intercompany_leakage_risk": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "intercompany_subordination_scope": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "interest_coverage_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_bidirectional": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "is_categorical": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "is_dollar_for_dollar": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_financial_test": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_grower": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_highest_tier": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "is_hypothetical": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_incremental": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_incurrence_test": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_mandatory": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_maximum": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_no_worse_pro_forma": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_per_annum": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "is_primary_test": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_required": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "is_revolving": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_sacred_right": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_structural": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_subjective": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_term": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_uncapped": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "is_unlimited": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "is_unlimited_if_met": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "jcrew_pattern_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "lct_max_concurrent": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "lct_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "lct_treatment_available": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "lender_participation_voluntary": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "leverage_ceiling": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "leverage_floor": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "leverage_threshold": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        5.5,
+        5.75
+      ]
+    },
+    "liens_covenant_section": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "literal_boolean_value": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "literal_double_value": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "literal_long_value": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "literal_string_value": {
+      "instance_count": 90,
+      "distinct_value_count": 90,
+      "sample_distinct_values": [
+        "",
+        "_builder_rdp_basket_permission",
+        "_builder_source_cni",
+        "_builder_source_ebitda_fc",
+        "_builder_source_ecf",
+        "_builder_source_investment_returns",
+        "_builder_source_other_debt_conversion",
+        "_builder_source_other_equity_proceeds"
+      ]
+    },
+    "lookback_period": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "lookback_quarters": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "lookup_attribute_name": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "action_class_label",
+        "instrument_class_label",
+        "norm_id",
+        "object_class_label",
+        "party_role"
+      ]
+    },
+    "lookup_entity_type": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "action_class",
+        "instrument_class",
+        "norm",
+        "object_class",
+        "party"
+      ]
+    },
+    "management_fee_recipient_scope": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Holdings or any direct or indirect parent of Holdings"
+      ]
+    },
+    "mapping_id": {
+      "instance_count": 49,
+      "distinct_value_count": 49,
+      "sample_distinct_values": [
+        "bcc_acquisition_basket",
+        "bcc_builder_basket",
+        "bcc_builder_rdp_basket",
+        "bcc_capital_lease_basket",
+        "bcc_contribution_basket",
+        "bcc_credit_agreement_basket",
+        "bcc_earnout_basket",
+        "bcc_equity_award_basket"
+      ]
+    },
+    "margin_only_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "market_price_affects_yield": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "matches_v3_entity_type": {
+      "instance_count": 21,
+      "distinct_value_count": 21,
+      "sample_distinct_values": [
+        "builder_basket",
+        "builder_rdp_basket",
+        "equity_award_basket",
+        "equity_funded_rdp_basket",
+        "fair_value_exception",
+        "general_investment_basket",
+        "general_rdp_basket",
+        "general_rp_basket"
+      ]
+    },
+    "matches_v3_subtype": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "matches_via_v3_relation_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "matches_via_v3_role": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "maturity_91_day_inside_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "maturity_inside_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "maturity_restriction_applies": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "max_first_lien_capacity_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "max_lien_priority": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "max_total_capacity_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "metadata_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_applies": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_de_minimis_amount": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_excludes_acquisitions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_excludes_arranger_fees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_excludes_fixed_rate": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_excludes_freebie": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_excludes_maturity_outside": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_exists": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_includes_floors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_includes_oid": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_includes_upfront_fees": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_maturity_exclusion_months": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_oid_amortization_years": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_sunset_expired": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_sunset_months": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_threshold_bps": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "mfn_universe_field": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "amendments_waivers",
+        "debt_incurrence",
+        "definitions",
+        "incremental_facility"
+      ]
+    },
+    "mfn_uses_all_in_yield": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "minimum_tranche_size": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "modality": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "permission",
+        "prohibition"
+      ]
+    },
+    "name": {
+      "instance_count": 39,
+      "distinct_value_count": 39,
+      "sample_distinct_values": [
+        "Affiliate Transactions",
+        "Affirmative Covenants",
+        "Amendments and Waivers",
+        "Asset Sale Proceeds & Sweeps",
+        "Asset Sales / Dispositions Covenant",
+        "Basket Reallocation",
+        "Builder Basket / Cumulative Amount",
+        "Conditions Precedent"
+      ]
+    },
+    "no_worse_is_uncapped": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "no_worse_test_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "no_worse_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "norm_id": {
+      "instance_count": 23,
+      "distinct_value_count": 23,
+      "sample_distinct_values": [
+        "6e76ed06_builder_rdp_basket_permission",
+        "6e76ed06_builder_source_cni",
+        "6e76ed06_builder_source_ebitda_fc",
+        "6e76ed06_builder_source_ecf",
+        "6e76ed06_builder_source_investment_returns",
+        "6e76ed06_builder_source_other_debt_conversion",
+        "6e76ed06_builder_source_other_equity_proceeds",
+        "6e76ed06_builder_source_retained_asset_sale_proceeds"
+      ]
+    },
+    "norm_kind": {
+      "instance_count": 27,
+      "distinct_value_count": 27,
+      "sample_distinct_values": [
+        "builder_basket_aggregate",
+        "builder_rdp_basket_permission",
+        "builder_source_cni",
+        "builder_source_ebitda_fc",
+        "builder_source_ecf",
+        "builder_source_investment_returns",
+        "builder_source_other",
+        "builder_source_retained_asset_sale_proceeds"
+      ]
+    },
+    "norm_template_id": {
+      "instance_count": 25,
+      "distinct_value_count": 25,
+      "sample_distinct_values": [
+        "nt_conv_builder_b_aggregate",
+        "nt_conv_builder_basket",
+        "nt_conv_builder_builder_source_cni",
+        "nt_conv_builder_builder_source_ebitda_fc",
+        "nt_conv_builder_builder_source_ecf",
+        "nt_conv_builder_builder_source_investment_returns",
+        "nt_conv_builder_builder_source_other_debt_conversion",
+        "nt_conv_builder_builder_source_other_equity_proceeds"
+      ]
+    },
+    "norm_template_label": {
+      "instance_count": 23,
+      "distinct_value_count": 23,
+      "sample_distinct_values": [
+        "builder_rdp_basket_permission",
+        "builder_source_cni",
+        "builder_source_ebitda_fc",
+        "builder_source_ecf",
+        "builder_source_investment_returns",
+        "builder_source_other",
+        "builder_source_retained_asset_sale_proceeds",
+        "builder_source_starter"
+      ]
+    },
+    "not_otherwise_applied": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "notional_cap_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "numerator_formula": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "object_class_label": {
+      "instance_count": 9,
+      "distinct_value_count": 9,
+      "sample_distinct_values": [
+        "business_division",
+        "cash",
+        "equity_interest",
+        "holdco_equity",
+        "material_intellectual_property",
+        "restricted_sub_equity",
+        "subordinated_debt_instrument",
+        "unrestricted_sub_equity"
+      ]
+    },
+    "object_class_multiselect": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "cash",
+        "cash,equity_interest",
+        "equity_interest",
+        "equity_interest,holdco_equity",
+        "unrestricted_subsidiary_equity_or_assets"
+      ]
+    },
+    "oid_amortization_method": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "oid_amortization_years": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "operator_comparison": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "at_or_below",
+        "greater_than"
+      ]
+    },
+    "outside_collateral_liens_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "page_count": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "partial_applicability": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "party_id": {
+      "instance_count": 7,
+      "distinct_value_count": 7,
+      "sample_distinct_values": [
+        "6e76ed06__agent",
+        "6e76ed06__borrower",
+        "6e76ed06__holdings",
+        "6e76ed06__loan_party",
+        "6e76ed06__required_lenders",
+        "6e76ed06__restricted_sub",
+        "6e76ed06__unrestricted_sub"
+      ]
+    },
+    "party_role": {
+      "instance_count": 7,
+      "distinct_value_count": 7,
+      "sample_distinct_values": [
+        "agent",
+        "borrower",
+        "holdings",
+        "loan_party",
+        "required_lenders",
+        "restricted_sub",
+        "unrestricted_sub"
+      ]
+    },
+    "pathway_id": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        "6e76ed06_rp_investment_pathway_0",
+        "6e76ed06_rp_investment_pathway_1",
+        "6e76ed06_rp_investment_pathway_2",
+        "6e76ed06_rp_investment_pathway_3",
+        "6e76ed06_rp_investment_pathway_4",
+        "6e76ed06_rp_investment_pathway_5"
+      ]
+    },
+    "pathway_source_type": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "loan_party",
+        "non_guarantor_rs"
+      ]
+    },
+    "pathway_target_type": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "non_guarantor_rs",
+        "unrestricted_sub"
+      ]
+    },
+    "pct_cap_assets": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "percentage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permission_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06_rp_intercompany_dividend_permission"
+      ]
+    },
+    "permits_product_line_exemption_2_10_c_iv": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "permits_refinancing_with_equity": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "permits_revolving": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_section_6_05_z_unlimited": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "permits_secured": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_term_loans": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_to_borrower": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_to_guarantors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_to_holdings": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_to_non_guarantor_subs": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permits_unsecured": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "permitted_premium_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "pool_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "predicate_slot": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "primary",
+        "secondary"
+      ]
+    },
+    "prepayments_includes_buybacks": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "prepayments_includes_junior": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "prepayments_prong_exists": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "priority_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "pro_forma_basis": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "pro_forma_includes_synergies": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "pro_forma_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "proceeds_flow_conditions": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "Net Cash Proceeds from asset sales subject to mandatory prepayment under Section"
+      ]
+    },
+    "proceeds_flow_kind": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "retained_after_sweep"
+      ]
+    },
+    "product_line_2_10_c_iv_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "projection_rule_description": {
+      "instance_count": 21,
+      "distinct_value_count": 21,
+      "sample_distinct_values": [
+        "Mechanically converted from deontic_mapping map_builder_basket. Scalar attribute",
+        "Mechanically converted from deontic_mapping map_builder_rdp_basket. Scalar attri",
+        "Mechanically converted from deontic_mapping map_equity_award_basket. Scalar attr",
+        "Mechanically converted from deontic_mapping map_equity_funded_rdp_basket. Scalar",
+        "Mechanically converted from deontic_mapping map_general_investment_basket. Scala",
+        "Mechanically converted from deontic_mapping map_general_rdp_basket. Scalar attri",
+        "Mechanically converted from deontic_mapping map_general_rp_basket. Scalar attrib",
+        "Mechanically converted from deontic_mapping map_holdco_overhead_basket. Scalar a"
+      ]
+    },
+    "projection_rule_id": {
+      "instance_count": 30,
+      "distinct_value_count": 30,
+      "sample_distinct_values": [
+        "rule_conv_builder_b_aggregate",
+        "rule_conv_builder_basket",
+        "rule_conv_builder_builder_source_cni",
+        "rule_conv_builder_builder_source_ebitda_fc",
+        "rule_conv_builder_builder_source_ecf",
+        "rule_conv_builder_builder_source_investment_returns",
+        "rule_conv_builder_builder_source_other_debt_conversion",
+        "rule_conv_builder_builder_source_other_equity_proceeds"
+      ]
+    },
+    "projection_rule_label": {
+      "instance_count": 30,
+      "distinct_value_count": 30,
+      "sample_distinct_values": [
+        "Phase C Commit 2 conv: builder_basket -> builder_usage_permission",
+        "Phase C Commit 2 conv: builder_rdp_basket -> builder_rdp_basket_permission",
+        "Phase C Commit 2 conv: equity_award_basket -> equity_award_permission",
+        "Phase C Commit 2 conv: equity_funded_rdp_basket -> equity_funded_rdp_basket_perm",
+        "Phase C Commit 2 conv: general_investment_basket -> general_investment_basket_pe",
+        "Phase C Commit 2 conv: general_rdp_basket -> general_rdp_basket_permission",
+        "Phase C Commit 2 conv: general_rp_basket -> general_rp_basket_permission",
+        "Phase C Commit 2 conv: holdco_overhead_basket -> holdco_overhead_basket_permissi"
+      ]
+    },
+    "proposed_amount_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "provision_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06_rp"
+      ]
+    },
+    "provision_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "provision_type_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "qualification_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "qualification_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "question_id": {
+      "instance_count": 256,
+      "distinct_value_count": 256,
+      "sample_distinct_values": [
+        "duck_creek_q1",
+        "duck_creek_q2",
+        "duck_creek_q3",
+        "duck_creek_q4",
+        "duck_creek_q5",
+        "duck_creek_q6",
+        "duck_creek_rp_q1",
+        "duck_creek_rp_q10"
+      ]
+    },
+    "question_number": {
+      "instance_count": 96,
+      "distinct_value_count": 96,
+      "sample_distinct_values": [
+        1,
+        10,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ]
+    },
+    "question_text": {
+      "instance_count": 255,
+      "distinct_value_count": 255,
+      "sample_distinct_values": [
+        "Are Casualty Event proceeds exempt from mandatory prepayment?",
+        "Are asset sales below the de minimis threshold exempt?",
+        "Are distributions received from Unrestricted Subsidiaries carved out from the Re",
+        "Are dividends truly unlimited if ratio is met?",
+        "Are estimated tax payments permitted?",
+        "Are intercompany dividends explicitly permitted?",
+        "Are non-Collateral asset sales exempt from mandatory prepayment?",
+        "Are non-cash distributions from Unrestricted Subsidiaries included (at fair mark"
+      ]
+    },
+    "rank": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_basket_avoids_sweep": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        false,
+        true
+      ]
+    },
+    "ratio_debt_has_lien_basket": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_disposition_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_exists": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_first_lien_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_test_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_total_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_prong_unlimited": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_snapshot_first_lien_net_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_snapshot_senior_secured_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_snapshot_total_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_test_type_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "ratio_threshold": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        5.75
+      ]
+    },
+    "ratio_type": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "First Lien Leverage Ratio"
+      ]
+    },
+    "ratios_first_ordering": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_defeasance": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_open_market_purchases": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_optional_payments": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_prepayments": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_redemptions": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rdp_includes_voluntary_payments": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reads_v3_attribute_name": {
+      "instance_count": 17,
+      "distinct_value_count": 17,
+      "sample_distinct_values": [
+        "annual_cap_pct_ebitda",
+        "annual_cap_usd",
+        "basket_amount_usd",
+        "basket_grower_pct",
+        "cap_uses_greater_of",
+        "capacity_composition",
+        "cni_percentage",
+        "confidence"
+      ]
+    },
+    "reallocation_amount_usd": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        130000000.0
+      ]
+    },
+    "reallocation_grower_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        1.0
+      ]
+    },
+    "reallocation_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reallocation_mechanism": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reallocation_source": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "Section 6.06(j) general RP basket",
+        "Section 6.09(a)(I) RDP basket"
+      ]
+    },
+    "rebuild_cap_formula": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rebuild_is_capped": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "rebuilds_builder_basket": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reclassification_automatic": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_bidirectional": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_limited": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_loophole_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_mfn_applies": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_requires_notice": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reclassification_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "redesignation_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "redesignation_returns_investment": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "redesignation_valuation_method": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "fair market value at time of redesignation, without any limitation as to the ori"
+      ]
+    },
+    "reduced_by_designation": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "reduced_by_investment_usage": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reduced_by_rdp_usage": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reduced_by_rp_usage": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reduces_investment_basket": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "reduces_source_basket": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reduction_direction": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reduction_is_dollar_for_dollar": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "reduction_is_permanent": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "reduction_while_outstanding_only": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "reference_period_kind": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "cumulative_since_anchor",
+        "ltm_at_test_date",
+        "not_applicable"
+      ]
+    },
+    "reference_predicate_label": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "first_lien_net_leverage"
+      ]
+    },
+    "reference_rate_changes_affect_yield": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "relation_template_id": {
+      "instance_count": 152,
+      "distinct_value_count": 152,
+      "sample_distinct_values": [
+        "rt_conv_b_aggregate_contributes_to",
+        "rt_conv_b_aggregate_norm_binds_subject_borrower",
+        "rt_conv_b_aggregate_norm_binds_subject_loan_party",
+        "rt_conv_b_aggregate_norm_scopes_action_make_dividend_payment",
+        "rt_conv_b_aggregate_norm_scopes_action_make_investment",
+        "rt_conv_b_aggregate_norm_scopes_action_pay_subordinated_debt",
+        "rt_conv_b_aggregate_norm_scopes_action_repurchase_equity",
+        "rt_conv_b_aggregate_norm_scopes_object_cash"
+      ]
+    },
+    "release_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "relevant_dimensions": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "D1,D2,D3,D4",
+        "D1,D2,D3,D4,D5,D6"
+      ]
+    },
+    "required_lenders_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "required_lenders_sufficient": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_agent_consent": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_all_lender_consent": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_all_lender_consent_for_ip": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_arms_length": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "requires_board_approval": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "requires_cash_common_equity": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "requires_context": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_covenant_parity": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_lender_consent": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_no_default": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_no_eod_only": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_no_increase_in_principal": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "requires_pro_forma_ratio": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_qualified_stock_only": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "requires_ratio_test": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_same_or_later_maturity": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "requires_same_or_lower_priority": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "requires_subordination": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_supermajority": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "requires_valid_designation": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "requires_wal_parity": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "restricts_borrower": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "restricts_guarantors": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "restricts_holdings": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "restricts_restricted_subs": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "retained_ecf_formula": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rp_to_debt_conversion_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "rp_universe_field": {
+      "instance_count": 7,
+      "distinct_value_count": 7,
+      "sample_distinct_values": [
+        "asset_sale_covenant",
+        "definitions",
+        "dividend_covenant",
+        "investment_covenant",
+        "pro_forma_mechanics",
+        "rdp_covenant",
+        "unsub_mechanics"
+      ]
+    },
+    "sacred_right_status": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sample_size": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "scope_limitation": {
+      "instance_count": 5,
+      "distinct_value_count": 5,
+      "sample_distinct_values": [
+        "Dispositions must be for fair market value as determined by the Borrowers in goo",
+        "Licenses and sublicenses of Intellectual Property otherwise permitted under Sect",
+        "Property that is in the reasonable business judgment of the Borrowers immaterial",
+        "Sales, licenses, sublicenses, transfers, abandonment, allowance to lapse or othe",
+        "Sales, transfers, leases and other dispositions to any Credit Party, to non-Cred"
+      ]
+    },
+    "section_6_05_z_threshold": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        6.0
+      ]
+    },
+    "section_reference": {
+      "instance_count": 29,
+      "distinct_value_count": 29,
+      "sample_distinct_values": [
+        "6.03(bb)",
+        "6.03(f)(iii)",
+        "6.03(s)",
+        "6.03(x)",
+        "6.03(y)",
+        "6.05(a)(y)",
+        "6.05(a)(z)",
+        "6.05(b)(i)"
+      ]
+    },
+    "segment_prefix_pattern": {
+      "instance_count": 8,
+      "distinct_value_count": 8,
+      "sample_distinct_values": [
+        "2.10",
+        "6.03",
+        "6.05",
+        "6.06",
+        "6.09",
+        "Definition",
+        "Pro Forma",
+        "Unrestricted Subsidiary"
+      ]
+    },
+    "segment_type_id": {
+      "instance_count": 21,
+      "distinct_value_count": 21,
+      "sample_distinct_values": [
+        "affirmative_covenants",
+        "amendments_waivers",
+        "commitments_and_loans",
+        "conditions_precedent",
+        "definitions",
+        "events_of_default",
+        "financial_covenants",
+        "incremental_facility"
+      ]
+    },
+    "sequence_index": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        0,
+        1,
+        2
+      ]
+    },
+    "serta_pattern_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "serves_role": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "shares_capacity": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "shares_with_rp_builder": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "source_entity_type": {
+      "instance_count": 15,
+      "distinct_value_count": 15,
+      "sample_distinct_values": [
+        "builder_basket",
+        "builder_rdp_basket",
+        "equity_award_basket",
+        "equity_funded_rdp_basket",
+        "general_investment_basket",
+        "general_rdp_basket",
+        "general_rp_basket",
+        "holdco_overhead_basket"
+      ]
+    },
+    "source_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "source_name": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "source_page": {
+      "instance_count": 25,
+      "distinct_value_count": 25,
+      "sample_distinct_values": [
+        0,
+        105,
+        106,
+        11,
+        12,
+        13,
+        187,
+        188
+      ]
+    },
+    "source_section": {
+      "instance_count": 74,
+      "distinct_value_count": 74,
+      "sample_distinct_values": [
+        "2.10(c)(i)",
+        "2.10(c)(iv)",
+        "6.03",
+        "6.03(f)",
+        "6.03(s)",
+        "6.03(y)",
+        "6.05(a)(y)",
+        "6.05(a)(z)"
+      ]
+    },
+    "source_text": {
+      "instance_count": 156,
+      "distinct_value_count": 156,
+      "sample_distinct_values": [
+        "\"Annual Asset Sale Threshold\" shall mean, for each fiscal year, the greater of (",
+        "\"Asset Sale\" shall mean any conveyance, sale, transfer or other disposition of a",
+        "\"Asset Sale\" shall mean any conveyance, sale, transfer or other disposition of a",
+        "\"Asset Sale\" shall mean any conveyance, sale, transfer or other disposition of a",
+        "\"Asset Sale\" shall mean any conveyance, sale, transfer or other disposition of a",
+        "\"Available Retained ECF Amount\" shall mean, at any date of determination, the po",
+        "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Dat",
+        "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Dat"
+      ]
+    },
+    "specifies_operator": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "at_or_below"
+      ]
+    },
+    "specifies_predicate_id": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "first_lien_net_leverage_at_or_below",
+        "pro_forma_no_worse|||first_lien_net_leverage"
+      ]
+    },
+    "specifies_reference_label": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "stacks_with_general_basket": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "stage1_picker_guidance": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "APPLY THIS RULE ONLY when the question explicitly asks for an aggregate/total di"
+      ]
+    },
+    "standalone_taxpayer_limit": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "start_date_language": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "the first day of the fiscal quarter in which the Closing Date occurs"
+      ]
+    },
+    "starter_dollar_amount": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        130000000.0
+      ]
+    },
+    "starter_ebitda_pct": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        100.0
+      ]
+    },
+    "starter_uses_greater_of": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "state_predicate_id": {
+      "instance_count": 22,
+      "distinct_value_count": 22,
+      "sample_distinct_values": [
+        "annual_aggregate_at_or_below|40000000.0|at_or_below|",
+        "base_capacity_will_be_unused_in_subsequent_year|||",
+        "board_approval_obtained|||",
+        "first_lien_net_leverage_above|5.5|greater_than|",
+        "first_lien_net_leverage_above|5.75|greater_than|",
+        "first_lien_net_leverage_at_or_below|5.5|at_or_below|",
+        "first_lien_net_leverage_at_or_below|5.75|at_or_below|",
+        "first_lien_net_leverage_at_or_below|6.0|at_or_below|"
+      ]
+    },
+    "state_predicate_label": {
+      "instance_count": 18,
+      "distinct_value_count": 18,
+      "sample_distinct_values": [
+        "annual_aggregate_at_or_below",
+        "base_capacity_will_be_unused_in_subsequent_year",
+        "board_approval_obtained",
+        "first_lien_net_leverage_above",
+        "first_lien_net_leverage_at_or_below",
+        "incurrence_test_satisfied",
+        "individual_proceeds_at_or_below",
+        "is_product_line_or_line_of_business_sale"
+      ]
+    },
+    "storage_value_type": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "structural_seniority_risk": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "subject_to_intercreditor": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "sunset_exists": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_period_months": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_resets_on_refi": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_tied_to_maturity": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_timing_loophole": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sunset_trigger_event": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "supermajority_threshold": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "sweep_exempt_ratio_threshold": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        5.5
+      ]
+    },
+    "sweep_id": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "6e76ed06_rp_asset_sale_sweep"
+      ]
+    },
+    "sweep_percentage": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        0.0,
+        0.5,
+        1.0
+      ]
+    },
+    "sweep_section_reference": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "synergies_require_expectation": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "synergy_cap_pct": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "synthesis_guidance": {
+      "instance_count": 18,
+      "distinct_value_count": 18,
+      "sample_distinct_values": [
+        "Category N covers dividend-capacity calculation under the v4 deontic-norm projec",
+        "Check equity_award_basket entity attributes for dollar caps, plan limitations, c",
+        "Check holdco_overhead_basket entity attributes for dollar cap, covered expenses,",
+        "Check intercompany_permission entities and scalar answers for upstream dividend ",
+        "Check management_equity_basket entity attributes for dollar caps, EBITDA percent",
+        "Check rdp_basket entities (refinancing, general, ratio, builder, equity-funded s",
+        "Check scalar answers about unrestricted subsidiary distribution mechanics, baske",
+        "Check scalar answers for subordinated debt payment restrictions, general prohibi"
+      ]
+    },
+    "target_attribute": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "target_attribute_name": {
+      "instance_count": 184,
+      "distinct_value_count": 184,
+      "sample_distinct_values": [
+        "_exists",
+        "annual_cap_pct_ebitda",
+        "annual_cap_usd",
+        "annual_de_minimis_pct",
+        "annual_de_minimis_usd",
+        "annual_permits_carryforward",
+        "annual_uses_greater_of",
+        "basket_amount_usd"
+      ]
+    },
+    "target_concept_type": {
+      "instance_count": 19,
+      "distinct_value_count": 19,
+      "sample_distinct_values": [
+        "blocker_binding_entity",
+        "blocker_timing",
+        "builder_reduction_type",
+        "covered_person",
+        "dividend_definition_element",
+        "equity_award_type",
+        "exempt_sale_type",
+        "intercompany_recipient_type"
+      ]
+    },
+    "target_entity_attribute": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "target_entity_type": {
+      "instance_count": 26,
+      "distinct_value_count": 26,
+      "sample_distinct_values": [
+        "amendment_threshold",
+        "asset_sale_sweep",
+        "basket_reallocates_to",
+        "blocker_exception",
+        "builder_basket",
+        "builder_rdp_basket",
+        "equity_award_basket",
+        "equity_funded_rdp_basket"
+      ]
+    },
+    "target_field_name": {
+      "instance_count": 140,
+      "distinct_value_count": 140,
+      "sample_distinct_values": [
+        "all_baskets_summary",
+        "asset_proceeds_can_fund_dividends",
+        "blocker_covers_designation",
+        "blocker_covers_ip",
+        "blocker_covers_licenses_granted",
+        "blocker_covers_licenses_received",
+        "blocker_covers_material_assets",
+        "blocker_covers_post_designation"
+      ]
+    },
+    "target_modality": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "permission",
+        "prohibition"
+      ]
+    },
+    "target_norm_kind": {
+      "instance_count": 15,
+      "distinct_value_count": 15,
+      "sample_distinct_values": [
+        "builder_rdp_basket_permission",
+        "builder_usage_permission",
+        "equity_award_permission",
+        "equity_funded_rdp_basket_permission",
+        "general_investment_basket_permission",
+        "general_rdp_basket_permission",
+        "general_rp_basket_permission",
+        "holdco_overhead_basket_permission"
+      ]
+    },
+    "target_operator": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "atomic",
+        "or"
+      ]
+    },
+    "target_relation_type": {
+      "instance_count": 4,
+      "distinct_value_count": 4,
+      "sample_distinct_values": [
+        "basket_reallocates_to",
+        "blocker_has_exception",
+        "provision_has_pathway",
+        "provision_has_sweep_tier"
+      ]
+    },
+    "target_topology": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "atomic",
+        "or_of_atomics"
+      ]
+    },
+    "tax_sharing_permitted": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        false
+      ]
+    },
+    "test_date_type": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        "At the Applicable Date of Determination for the applicable Test Period",
+        "as of the Applicable Date of Determination for the applicable Test Period"
+      ]
+    },
+    "threshold_bps": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "threshold_grower_pct": {
+      "instance_count": 2,
+      "distinct_value_count": 2,
+      "sample_distinct_values": [
+        15.0,
+        30.0
+      ]
+    },
+    "threshold_grower_reference": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        "consolidated_ebitda_ltm"
+      ]
+    },
+    "threshold_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "threshold_is_greater_of": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "threshold_value": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "threshold_value_double": {
+      "instance_count": 6,
+      "distinct_value_count": 6,
+      "sample_distinct_values": [
+        20000000.0,
+        40000000.0,
+        5.5,
+        5.75,
+        6.0,
+        6.25
+      ]
+    },
+    "threshold_value_double_secondary": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "threshold_value_string": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "tier_id": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "6e76ed06_rp_sweep_tier_0",
+        "6e76ed06_rp_sweep_tier_1",
+        "6e76ed06_rp_sweep_tier_2"
+      ]
+    },
+    "tier_number": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "total_freebie_capacity_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "total_mfn_exempt_capacity_usd": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "transaction_specific_waiver": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trapdoor_basket_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trigger_change_of_control": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trigger_death": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trigger_disability": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trigger_retirement": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "trigger_termination": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "triggers_for_ied": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "triggers_for_revolvers": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "triggers_for_term_loans": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "typicality": {
+      "instance_count": 3,
+      "distinct_value_count": 3,
+      "sample_distinct_values": [
+        "always",
+        "sometimes",
+        "usually"
+      ]
+    },
+    "ui_display_type": {
+      "instance_count": 8,
+      "distinct_value_count": 8,
+      "sample_distinct_values": [
+        "checkbox",
+        "currency",
+        "multiselect",
+        "number",
+        "number_input",
+        "pattern_flag",
+        "percentage",
+        "text_input"
+      ]
+    },
+    "unlimited_ratio_debt_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "unlimited_reclass_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "unsub_redesignation_permitted": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "unsub_unlimited_debt": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "updated_at": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_closing_ratio_alternative": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "uses_first_lien_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_fixed_charge_coverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_greater_of": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_greatest_of_tests": {
+      "instance_count": 1,
+      "distinct_value_count": 1,
+      "sample_distinct_values": [
+        true
+      ]
+    },
+    "uses_interest_coverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_senior_secured_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "uses_total_leverage": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "verbatim_text": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "vulnerability_notes": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "wal_restriction_applies": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "yield_def_id": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "yield_determination_authority": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "yield_exclusion_pattern_detected": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    },
+    "yield_recalculated_at_incurrence": {
+      "instance_count": 0,
+      "distinct_value_count": 0
+    }
+  }
+}
