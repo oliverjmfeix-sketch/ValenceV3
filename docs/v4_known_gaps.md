@@ -451,3 +451,69 @@ v3-relation matching (currently it handles only `entity_type` and
 **Revisit trigger:** first deal with non-empty `basket_reallocates_to`
 v3 data, OR explicit decision to re-author Duck Creek with reallocation
 edges in v3 extraction.
+
+## Phase F commit 3 — pre-Phase-F duplicate `provision_has_answer` instances
+
+Phase E commit 3 ran scalar extraction questions (rp_l24-rp_l27)
+against Duck Creek without idempotent storage; each call created a
+fresh `provision_has_answer` relation. The Phase F commit 1 upsert
+(`_upsert_relation_by_role_players`) prevents future duplicates BUT
+does not backfill-clean existing duplicates from prior runs.
+
+Phase F commit 2 audit verified:
+- `provision_has_answer` instance count: 221 on Duck Creek.
+- `question_id` distinct values: 256 across the schema; many fewer
+  populated on Duck Creek.
+- The 221 < 256 gap is benign (some questions returned null and
+  weren't stored), but some (provision, question) tuples may have
+  multiple `answer_id` values from pre-Phase-F runs.
+
+**Forward-only discipline (Phase F locked scope):** do not
+backfill-clean. Re-extraction would naturally consolidate via the
+new upsert. Currently no compelling reason to spend on re-extraction
+just for duplicate cleanup.
+
+**Symptom if encountered:** synthesis_v4's fetch returns the same
+norm/answer surfaced multiple times. Phase D2's verbatim and Phase E
+final eval both completed without surfaced duplicates, so the
+problem isn't observable today.
+
+**Revisit trigger:** synthesis-side surfaces duplicate citations or
+content that traces back to multiple `provision_has_answer` for
+the same (provision, question) tuple, OR a re-extraction window opens
+for any reason and incidental cleanup is opportunistic.
+
+## Phase F commit 3 — `event_governed_by_norm` schema-additive only;
+unpopulated until governance rules land
+
+`event_governed_by_norm` relation type added to
+`schema_v4_deontic.tql` per Phase B commit 3's deferral. The relation
+is queryable but has 0 instances. Phase E commit 4 chose to surface
+Q4 carveout state via `asset_sale_sweep` v3 attrs rather than promote
+to v4 norms, so no projection rules emit `event_governed_by_norm`
+edges yet.
+
+**Revisit trigger:** event-class governance phase (when
+sweep tiers / 6.05(z) / 2.10(c)(iv) become first-class v4 norms with
+their own projection rules), OR a synthesis-side need arises for
+explicit "norm X governs asset_sale_event" traversal.
+
+## Phase F commit 3 — `wire_reallocation_edges` upsert leaves the rest
+of `graph_storage.py` untouched
+
+Phase F commit 1 added the upsert helper and converted
+`store_scalar_answer`. Phase F commit 3 added a pre-delete pass to
+`wire_reallocation_edges`. The remaining `store_*` paths in
+`graph_storage.py` (`store_extraction`, `_store_entity_list`,
+`_store_single_entity`, etc.) still INSERT directly. These paths run
+under the broader `extract_covenant` flow, which is not currently
+exercised in incremental extraction; full extractions go through
+`delete_deal()` which clears state first.
+
+**Symptom:** running `extract_covenant` (full, not incremental)
+twice in succession against the same deal without `delete_deal()`
+between them would create duplicate entities for entity_list
+questions and duplicate `provision_has_extracted_entity` relations.
+
+**Revisit trigger:** when full re-extraction without `delete_deal()`
+becomes a use case (currently never the case).

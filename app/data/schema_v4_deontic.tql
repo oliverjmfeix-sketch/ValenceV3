@@ -351,9 +351,14 @@ attribute reduction_direction, value string;      # bidirectional | receiver_onl
 # equity_issuance_event, qualified_ipo_event, subsidiary_designation_event)
 # added when consumers need them.
 #
-# Pilot defers `event_governed_by_norm`: the source-side asset-sale norms
-# (sweep tiers, de minimis, 6.05(z) carve-out) are not yet authored in GT.
-# Once those land, governance edges complete the chain. See known-gaps.
+# Phase F commit 3 — `event_governed_by_norm` is now in the schema (added
+# below alongside event_provides_proceeds_to_norm). Phase E commit 2 set
+# up the substrate by adding 2.10(c)(iv) and 6.05(z) carveout flags on
+# asset_sale_sweep; a future event-class governance phase authors the
+# projection rules that EMIT v4 norms scoping asset_sale_event via this
+# relation. Until those rules land, the relation type is declared but
+# unpopulated — synthesis already reads carveout state via the
+# asset_sale_sweep entity attrs (Phase D2 commit 4 fetch path).
 entity event_class,
     owns event_class_id @key,
     owns event_class_label,
@@ -373,6 +378,14 @@ relation event_provides_proceeds_to_norm,
     owns proceeds_flow_conditions;
 event_class plays event_provides_proceeds_to_norm:proceeds_event;
 norm plays event_provides_proceeds_to_norm:proceeds_target_norm;
+
+# Phase F commit 3 — Phase B commit 3's deferred event-governance edge.
+# Schema-additive; populated by future event-class-governance phase rules.
+relation event_governed_by_norm,
+    relates governed_event,
+    relates governing_norm;
+event_class plays event_governed_by_norm:governed_event;
+norm plays event_governed_by_norm:governing_norm;
 
 attribute proceeds_flow_kind, value string;        # retained_after_sweep | declined_lender_payment | excluded_below_threshold
 attribute proceeds_flow_conditions, value string;  # free-text for pilot; structured tree post-pilot

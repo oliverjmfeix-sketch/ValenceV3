@@ -1418,7 +1418,15 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             self._ensure_cross_basket(cross_prov_id, prov_type, basket_type, basket_id, ref_item)
 
         # Phase B: Resolve all basket IDs and batch edge inserts
-        edge_queries = []
+        # Phase F commit 3 — idempotency. For each (source, target)
+        # tuple resolved, pre-delete any existing basket_reallocates_to
+        # relation matching that direction-specific tuple before
+        # inserting fresh. Without this, re-running rp_el_reallocations
+        # creates duplicate relations on every call. The delete + insert
+        # for a given tuple are paired so re-runs converge to the same
+        # graph state.
+        edge_queries: list[str] = []  # delete + insert query pairs, in order
+        seen_tuples: set[tuple[str, str, str, str]] = set()
         for item in raw_reallocation_items:
             if not isinstance(item, dict):
                 continue
@@ -1438,6 +1446,21 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
                 logger.warning(f"Could not resolve basket IDs: "
                              f"{source_type}({source_id}) -> {target_type}({target_id})")
                 continue
+
+            tuple_key = (source_type, source_id, target_type, target_id)
+            if tuple_key not in seen_tuples:
+                seen_tuples.add(tuple_key)
+                source_key_attr = self.get_key_attr_for_entity(source_type) or "basket_id"
+                target_key_attr = self.get_key_attr_for_entity(target_type) or "basket_id"
+                # Pre-delete any existing direction-specific relation
+                delete_query = f'''
+                    match
+                        $source isa {source_type}, has {source_key_attr} "{source_id}";
+                        $target isa {target_type}, has {target_key_attr} "{target_id}";
+                        $rel isa basket_reallocates_to, links (source_basket: $source, target_basket: $target);
+                    delete $rel;
+                '''
+                edge_queries.append(delete_query)
 
             query = self._build_reallocation_edge_query(
                 source_type, source_id, target_type, target_id, item
