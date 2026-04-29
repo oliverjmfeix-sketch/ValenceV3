@@ -1602,8 +1602,19 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
             # Introspect relation attributes from schema
             attr_types = self._get_relation_attr_types("basket_reallocates_to")
 
+            # Phase F commit 1: explicitly skip capacity_effect in the
+            # introspection loop. capacity_effect is structural metadata
+            # (hardcoded as "additive" below) and the LLM should NOT be
+            # supplying it. If both the loop AND the hardcoded line below
+            # add `has capacity_effect ...`, the resulting INSERT has two
+            # ownership clauses for the same single-valued attribute,
+            # which violates @card(0..1) the moment the relation is
+            # created. This was the Phase E commit 1 cardinality
+            # violation root cause.
             rel_attrs = []
             for attr_name, vtype in attr_types.items():
+                if attr_name == "capacity_effect":
+                    continue  # set explicitly below; LLM-provided value ignored
                 val = item.get(attr_name)
                 if val is None:
                     continue
@@ -2340,51 +2351,55 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         """
         answer_id = self._gen_id("ans")
 
-        attrs = [f'has answer_id "{answer_id}"']
+        # Build attribute clauses (without `has` prefix; the upsert helper
+        # adds it). Phase F commit 1 — switched to upsert by (provision,
+        # question) tuple via _upsert_relation_by_role_players. Re-running
+        # the same question for the same provision now updates rather than
+        # duplicates the answer relation.
+        attrs = [f'answer_id "{answer_id}"']
 
         # Use storage_value_type from TypeDB (SSoT) for routing;
         # fall back to isinstance checks for backwards compatibility
         svt = self._get_storage_value_type(question_id)
         if svt == "boolean":
-            attrs.append(f'has answer_boolean {str(bool(value)).lower()}')
+            attrs.append(f'answer_boolean {str(bool(value)).lower()}')
         elif svt == "double":
-            attrs.append(f'has answer_double {float(value)}')
+            attrs.append(f'answer_double {float(value)}')
         elif svt == "integer":
-            attrs.append(f'has answer_integer {int(value)}')
+            attrs.append(f'answer_integer {int(value)}')
         elif svt == "string":
-            attrs.append(f'has answer_string "{self._escape(str(value))}"')
+            attrs.append(f'answer_string "{self._escape(str(value))}"')
         elif isinstance(value, bool):
-            attrs.append(f'has answer_boolean {str(value).lower()}')
+            attrs.append(f'answer_boolean {str(value).lower()}')
         elif isinstance(value, int):
-            attrs.append(f'has answer_integer {value}')
+            attrs.append(f'answer_integer {value}')
         elif isinstance(value, float):
-            attrs.append(f'has answer_double {value}')
+            attrs.append(f'answer_double {value}')
         elif isinstance(value, str):
-            attrs.append(f'has answer_string "{self._escape(value)}"')
+            attrs.append(f'answer_string "{self._escape(value)}"')
         else:
-            attrs.append(f'has answer_string "{self._escape(str(value))}"')
+            attrs.append(f'answer_string "{self._escape(str(value))}"')
 
         if source_text:
-            attrs.append(f'has source_text "{self._escape(source_text[:2000])}"')
+            attrs.append(f'source_text "{self._escape(source_text[:2000])}"')
         if source_page is not None:
-            attrs.append(f'has source_page {source_page}')
+            attrs.append(f'source_page {source_page}')
         if source_section:
-            attrs.append(f'has source_section "{self._escape(source_section)}"')
+            attrs.append(f'source_section "{self._escape(source_section)}"')
         if confidence:
-            attrs.append(f'has confidence "{confidence}"')
+            attrs.append(f'confidence "{confidence}"')
 
-        attrs_str = ",\n                ".join(attrs)
-
-        query = f'''
-            match
-                $prov isa provision, has provision_id "{provision_id}";
-                $q isa ontology_question, has question_id "{question_id}";
-            insert
-                (provision: $prov, question: $q) isa provision_has_answer,
-                {attrs_str};
-        '''
-        self._execute_query(query)
-        logger.debug(f"Stored answer {answer_id}: {question_id} = {value}")
+        self._upsert_relation_by_role_players(
+            relation_type="provision_has_answer",
+            role_player_specs=[
+                {"role": "provision", "var": "$prov", "type": "provision",
+                 "key_attr": "provision_id", "key_value": provision_id},
+                {"role": "question", "var": "$q", "type": "ontology_question",
+                 "key_attr": "question_id", "key_value": question_id},
+            ],
+            attrs_clauses=attrs,
+        )
+        logger.debug(f"Stored (upsert) answer {answer_id}: {question_id} = {value}")
         return answer_id
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -2483,3 +2498,107 @@ Return ONLY the JSON object with {{"answers": [...]}}. No markdown, no explanati
         if not text:
             return ""
         return text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '')
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase F commit 1 — upsert helpers (storage idempotency)
+    # ─────────────────────────────────────────────────────────────────────────
+    # See docs/v4_storage_patterns.md for the empirical study of TypeDB 3.8
+    # `put` semantics that informed these helpers.
+    #
+    # Key findings:
+    # - `put` is idempotent for entities with @key (Probe 1)
+    # - `put` does NOT update attribute values; it adds them, violating
+    #   @card(0..1) when the new value differs from the old (Probe 2)
+    # - Match-delete-insert is the correct pattern for relation-by-role-tuple
+    #   uniqueness (Probe 3 alternative)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _upsert_relation_by_role_players(
+        self,
+        relation_type: str,
+        role_player_specs: list,
+        attrs_clauses: list,
+    ) -> None:
+        """Upsert a relation by its role-player tuple.
+
+        Deletes any existing relation matching the same role-player tuple
+        (and ALL its edge attributes — including @key/@unique attributes —
+        in one cascade), then inserts a fresh relation with the supplied
+        edge attributes. Both steps happen in a single WRITE transaction
+        so the operation is atomic.
+
+        Args:
+            relation_type: TypeDB relation type name (e.g., "provision_has_answer")
+            role_player_specs: list of dicts, one per role player:
+                {
+                    "role": "<role_name>",        # role name in this relation
+                    "var": "<typedb_var>",        # match variable, e.g. "$prov"
+                    "type": "<entity_type>",      # entity type (or supertype) for the match
+                    "key_attr": "<attr_name>",    # @key attribute name on the entity
+                    "key_value": "<value>",       # @key attribute value
+                }
+            attrs_clauses: list of TypeQL `has <attr> <value>` clauses (no
+                leading `has`, just the body — the helper adds `has` and
+                proper formatting). E.g., ['answer_id "ans_1"',
+                'answer_string "yes"', 'source_page 198'].
+
+        Result: graph state has exactly one relation of `relation_type`
+        between the specified role players, with the supplied edge
+        attributes. Re-running with the same input produces the same state.
+        """
+        # Build the match clause for role players
+        match_role_pattern = []
+        for rp in role_player_specs:
+            match_role_pattern.append(
+                f'{rp["var"]} isa {rp["type"]}, '
+                f'has {rp["key_attr"]} "{rp["key_value"]}";'
+            )
+        roles_in_relation = ", ".join(
+            f'{rp["role"]}: {rp["var"]}' for rp in role_player_specs
+        )
+
+        # Step 1: delete any existing relation with this role-player tuple.
+        # The `try` wrapper ensures the delete doesn't fail if no relation
+        # currently exists (e.g., first run).
+        delete_query = (
+            f"match\n"
+            f"  " + "\n  ".join(match_role_pattern) + "\n"
+            f"  $rel isa {relation_type}, links ({roles_in_relation});\n"
+            f"delete $rel;"
+        )
+
+        # Step 2: insert fresh relation with new attributes.
+        attrs_str = ""
+        if attrs_clauses:
+            attrs_str = ",\n    " + ",\n    ".join(f"has {c}" for c in attrs_clauses)
+        insert_query = (
+            f"match\n"
+            f"  " + "\n  ".join(match_role_pattern) + "\n"
+            f"insert\n"
+            f"  ({roles_in_relation}) isa {relation_type}{attrs_str};"
+        )
+
+        # Both queries in one transaction
+        tx = self.driver.transaction(self.db_name, TransactionType.WRITE)
+        try:
+            try:
+                tx.query(delete_query).resolve()
+            except Exception:
+                # Delete fails if no matching relation exists — that's fine
+                # for upsert semantics (first run). Recreate the transaction
+                # since failed query may have aborted it.
+                try:
+                    if tx.is_open():
+                        tx.close()
+                except Exception:
+                    pass
+                tx = self.driver.transaction(self.db_name, TransactionType.WRITE)
+            tx.query(insert_query).resolve()
+            tx.commit()
+        except Exception:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:
+                pass
+            raise
