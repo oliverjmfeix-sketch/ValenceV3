@@ -125,7 +125,7 @@ def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 # Stage 1 — entity filter
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_STAGE1_SYSTEM = """You are a legal data classifier. Given a question about a credit agreement and a list of extracted v4 norms (with their structured deontic information — modality, scope edges, conditions, defeats, contributes_to relations — plus the v3 entity each was extracted from), classify each norm into exactly one of three buckets:
+_STAGE1_SYSTEM_TEMPLATE = """You are a legal data classifier. Given a question about a credit agreement and a list of extracted v4 norms (with their structured deontic information — modality, scope edges, conditions, defeats, contributes_to relations — plus the v3 entity each was extracted from), classify each norm into exactly one of three buckets:
 
 PRIMARY — Core norms needed to directly answer the question. The norms whose attributes/conditions/scope a lawyer would cite verbatim. For a capacity question, PRIMARY includes every basket-permission norm whose cap_usd or cap_grower_pct contributes to the answer. For a ratio test question, PRIMARY is the ratio_rp_basket_permission norm. For a defeater/exception question, PRIMARY includes the defeater AND the norm it defeats.
 
@@ -134,15 +134,15 @@ SUPPLEMENTARY — Norms that might add qualifying detail, edge cases, sub-source
 SKIP — Norms clearly irrelevant to this specific question. Only choose SKIP when you are certain the norm has no bearing.
 
 Bias toward inclusion: when in doubt between PRIMARY and SUPPLEMENTARY, pick PRIMARY. When in doubt between SUPPLEMENTARY and SKIP, pick SUPPLEMENTARY.
-
+{picker_guidance_block}
 ## OUTPUT FORMAT — STRICT
 
 Return ONLY a JSON object with this shape, no surrounding prose:
 
-{"classifications": [
-  {"norm_id": "<exact norm_id from input>", "verdict": "PRIMARY|SUPPLEMENTARY|SKIP", "rationale": "<≤15 words>"},
+{{"classifications": [
+  {{"norm_id": "<exact norm_id from input>", "verdict": "PRIMARY|SUPPLEMENTARY|SKIP", "rationale": "<≤15 words>"}},
   ...
-]}
+]}}
 
 Constraints:
 - One entry per norm in the input. No additions, no omissions.
@@ -150,6 +150,24 @@ Constraints:
 - `rationale` is ≤15 words; the most decisive reason for the verdict. NOT a synthesis of the answer — just the classification reason.
 - Do NOT pre-answer the question. Do NOT explain how the data combines. That happens at Stage 2.
 """
+
+
+def _format_stage1_system(picker_guidance: str) -> str:
+    """Inject category-specific picker guidance into the Stage 1 system prompt.
+
+    When picker_guidance is empty, the {picker_guidance_block} placeholder
+    collapses to a blank line — the prompt is byte-equivalent to the pre-D2
+    version. When non-empty, the matched category's picker guidance lands
+    between the inclusion-bias paragraph and the OUTPUT FORMAT section.
+    """
+    if picker_guidance:
+        block = (
+            "\n## CATEGORY-SPECIFIC PICKER GUIDANCE\n\n"
+            f"{picker_guidance}\n"
+        )
+    else:
+        block = ""
+    return _STAGE1_SYSTEM_TEMPLATE.format(picker_guidance_block=block)
 
 
 def _build_stage1_norm_summary(norm: dict) -> dict:
@@ -238,8 +256,14 @@ class Stage1Result:
 
 
 def run_stage1(client: anthropic.Anthropic, model: str, question: str,
-                context: dict) -> Stage1Result:
-    """Stage 1 — strict-JSON classification of every norm + defeater."""
+                context: dict, picker_guidance: str = "") -> Stage1Result:
+    """Stage 1 — strict-JSON classification of every norm + defeater.
+
+    `picker_guidance` is category-specific PRIMARY/SUPPLEMENTARY bias
+    instructions sourced from the matched ontology_category's
+    `stage1_picker_guidance` attribute (via TopicRouter). When empty,
+    the system prompt is byte-equivalent to the pre-D2 baseline.
+    """
     norm_summaries = [_build_stage1_norm_summary(n) for n in context["norms"]]
     defeater_summaries = [
         _build_stage1_defeater_summary(d) for d in context["defeaters"]
@@ -257,11 +281,12 @@ def run_stage1(client: anthropic.Anthropic, model: str, question: str,
         f"## INPUT\n\n```json\n{json.dumps(payload, indent=2, default=str)}\n```"
     )
 
+    system_prompt = _format_stage1_system(picker_guidance)
     start = time.perf_counter()
     response = client.messages.create(
         model=model,
         max_tokens=4000,
-        system=_STAGE1_SYSTEM,
+        system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )
     latency_ms = (time.perf_counter() - start) * 1000
@@ -558,6 +583,10 @@ def synthesize_one_question(question: str, deal_id: str, db: str,
         rp_cats = [c for c in all_cats.values() if c.covenant_type.upper() == "RP"]
         guidance = router.get_synthesis_guidance(rp_cats)
 
+    # Stage 1 picker guidance — only from matched categories (no covenant-wide
+    # fallback; picker bias must be category-specific to be safe).
+    picker_guidance = router.get_stage1_picker_guidance(route.matched_categories)
+
     # Fetch norm context
     fetch_driver = connect_typedb()
     try:
@@ -568,7 +597,7 @@ def synthesize_one_question(question: str, deal_id: str, db: str,
     client = anthropic.Anthropic()
     overall_start = time.perf_counter()
 
-    s1 = run_stage1(client, model, question, context)
+    s1 = run_stage1(client, model, question, context, picker_guidance)
     s2 = run_stage2(client, model, question, context, s1, guidance)
 
     total_latency = (time.perf_counter() - overall_start) * 1000

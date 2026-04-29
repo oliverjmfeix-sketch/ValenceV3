@@ -31,6 +31,7 @@ class CategoryMetadata:
     target_fields: List[str] = field(default_factory=list)
     target_concept_types: List[str] = field(default_factory=list)
     synthesis_guidance: str = ""
+    stage1_picker_guidance: str = ""
     # Derived at load time from name + description
     keywords: Set[str] = field(default_factory=set)
 
@@ -130,7 +131,8 @@ class TopicRouter:
                         has name $cname;
                     try { $c has description $cdesc; };
                     try { $c has synthesis_guidance $sg; };
-                select $cid, $cname, $cdesc, $sg;
+                    try { $c has stage1_picker_guidance $spg; };
+                select $cid, $cname, $cdesc, $sg, $spg;
             """
             cat_result = tx.query(cat_query).resolve()
             for row in cat_result.as_concept_rows():
@@ -140,6 +142,7 @@ class TopicRouter:
                 cname = _safe_get_value(row, "cname", "")
                 cdesc = _safe_get_value(row, "cdesc", "")
                 sg = _safe_get_value(row, "sg", "")
+                spg = _safe_get_value(row, "spg", "")
 
                 # Build keyword set from name + description
                 keywords = _tokenize(cname) | _tokenize(cdesc)
@@ -150,6 +153,7 @@ class TopicRouter:
                     description=cdesc,
                     covenant_type="RP",  # default; derived from questions below
                     synthesis_guidance=sg,
+                    stage1_picker_guidance=spg,
                     keywords=keywords,
                 )
 
@@ -464,6 +468,22 @@ class TopicRouter:
                 parts.append(
                     f"### Category {cat.category_id}: {cat.name}\n\n"
                     f"{cat.synthesis_guidance}"
+                )
+        return "\n\n".join(parts)
+
+    def get_stage1_picker_guidance(self, matched_categories: List[CategoryMetadata]) -> str:
+        """Assemble stage1_picker_guidance from matched categories.
+
+        Returns concatenated picker guidance from all matched categories that
+        have stage1_picker_guidance set. Empty string when no matched category
+        carries the attribute — Stage 1 prompt placeholder degrades gracefully.
+        """
+        parts = []
+        for cat in matched_categories:
+            if cat.stage1_picker_guidance:
+                parts.append(
+                    f"### Category {cat.category_id}: {cat.name}\n\n"
+                    f"{cat.stage1_picker_guidance}"
                 )
         return "\n\n".join(parts)
 
