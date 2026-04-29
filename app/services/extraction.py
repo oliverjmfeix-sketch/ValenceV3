@@ -1304,17 +1304,27 @@ Return ONLY the JSON array."""
         extraction = ExtractionResponse(answers=all_answers)
         storage_result = storage.store_extraction(deal_id, provision_id, extraction)
 
-        # ── STEP 3.5: Post-extraction normalization (Phase C Commit 0a) ──
-        # Apply v3-data-quality fixups directly on stored entities so
-        # downstream consumers (projection, evaluation) see canonical
-        # values. Heuristics that previously lived in deontic_projection.py
-        # now run once at extraction time.
-        rewrites_count, modified_baskets = _normalize_v3_data(deal_id)
-        if rewrites_count:
-            logger.info(
-                f"Normalized {rewrites_count} v3 attribute values post-extraction "
-                f"({len(modified_baskets)} baskets touched)"
-            )
+        # ── STEP 3.5: Post-extraction normalization — DISABLED Phase H commit 5 ──
+        # The _normalize_v3_data function converts decimal-form fractions
+        # (e.g., 0.15 for 15%) to numeric percentage form (15.0 for 15%)
+        # for the attrs in v3_data_normalization._SCALE_COERCION_ATTRS.
+        # Phase H commit 5 locks Convention 1 as DECIMAL form (per
+        # docs/v4_attribute_conventions.md), so this conversion goes the
+        # WRONG direction for v4 and is now bypassed.
+        #
+        # The function remains in v3_data_normalization.py as historical
+        # context (Rule 5.2 concession from Phase C); it is no longer
+        # called by extraction. Future v3-pipeline callers (none exist
+        # today) could re-enable; v4 extractions use decimal form
+        # natively.
+        #
+        # Original call (preserved for git history visibility):
+        # rewrites_count, modified_baskets = _normalize_v3_data(deal_id)
+        # if rewrites_count:
+        #     logger.info(
+        #         f"Normalized {rewrites_count} v3 attribute values post-extraction "
+        #         f"({len(modified_baskets)} baskets touched)"
+        #     )
 
         # ── STEP 4: Build and return result ─────────────────────────────
         extraction_time = time.time() - start_time

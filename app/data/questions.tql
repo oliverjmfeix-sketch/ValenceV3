@@ -948,7 +948,7 @@ insert $q_f13 isa ontology_question,
     has question_text "What is the Fixed Charges multiplier in the EBITDA test (e.g., 140%)?",
     has answer_type "percentage",
     has display_order 13,
-    has extraction_prompt "If an EBITDA minus Fixed Charges test exists, what multiple of Fixed Charges is subtracted? Common values: 100%, 125%, 140%, 150%.";
+    has extraction_prompt "If an EBITDA minus Fixed Charges test exists, what multiple of Fixed Charges is subtracted? Look in the builder basket / Cumulative Amount definition for 'Consolidated EBITDA minus N% of Consolidated Fixed Charges' or similar phrasing. Common values: 100%, 125%, 140%, 150%. Return as a decimal fraction (e.g., 1.40 for 140%, 1.0 for 100%). If no such test exists, answer null.";
 
 insert $q_f14 isa ontology_question,
     has question_id "rp_f14",
@@ -1140,7 +1140,7 @@ insert $q_n2 isa ontology_question,
     has question_text "What is the grower percentage for the general RP basket?",
     has answer_type "percentage",
     has display_order 2,
-    has extraction_prompt "If the general RP basket uses a 'greater of' formula, what is the EBITDA or Total Assets percentage? For example, '100% of EBITDA' or '1.5% of Total Assets'.";
+    has extraction_prompt "If the general RP basket uses a 'greater of' formula combining a dollar amount with an EBITDA or Total Assets percentage, what is the percentage component? Look in the general RP basket clause for language like 'the greater of $X and Y% of Consolidated EBITDA' or 'the greater of $X and Y% of Total Assets'. Return as a decimal fraction (e.g., 1.0 for 100% of EBITDA, 0.015 for 1.5% of Total Assets). If no percentage component exists, answer null.";
 
 insert $q_n3 isa ontology_question,
     has question_id "rp_n3",

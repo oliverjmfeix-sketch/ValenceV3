@@ -1,32 +1,30 @@
 """
 Phase C — v3 data normalization.
-Phase F commit 5 status: DEPRECATING IN PHASE G.
+Phase H commit 5 status: NO LONGER CALLED by v4 extraction.
 
-Heuristics that compensate for v3 extraction inconsistency. Lives in
-its own module (decoupled from extraction.py's Anthropic SDK
-dependency). Originally also imported by the one-time fixup script
-phase_c_commit_0b_fixup.py — that script ran once on 2026-04 and was
-deleted in Commit 5; the module remains because extraction.py still
-imports `_normalize_v3_data` for live normalization.
+Historical context: heuristics that compensated for v3 extraction
+inconsistency. Lived in its own module (decoupled from extraction.py's
+Anthropic SDK dependency). Originally also imported by the one-time
+fixup script phase_c_commit_0b_fixup.py — that script ran once on
+2026-04 and was deleted in Commit 5.
 
-Currently handles scale coercion (fraction -> percentage) for grower-pct
-family attributes. Phase F commit 4's percentage convention chose
-decimal form (0.15 = 15%) as canonical; this function does the OPPOSITE
-(converts decimal to percentage form, e.g. 0.15 → 15.0) to match v3
-ground-truth YAML conventions written before the v4 percentage
-convention was settled. This is a Rule 5.2 concession — the function
-exists because extraction prompts produce one form, GT YAML expects
-another, and the v3 query path reads from this module's output.
+Phase H commit 5 LOCKED Convention 1 (percentage form) as decimal
+per docs/v4_attribute_conventions.md. This function converts
+decimal-form fractions to numeric percentage form (multiplies by
+100) for the attrs in _SCALE_COERCION_ATTRS — which goes the WRONG
+direction for v4. Phase H commit 5 disabled the call in
+extraction.py:1312-area; the module remains as historical context
+but is not invoked by v4 extraction.
 
-Phase G prompt-side resolution: extraction prompts for percentage
-attributes will produce decimal form directly (matching the v4
-convention), eliminating the conversion's purpose. At that point this
-function becomes dead code and can be removed.
+REVISIT TRIGGER: a v3-pipeline caller emerges that needs the
+decimal->numeric coercion (none exists today; phase_c_commit_0b_fixup.py
+is deleted), OR the Phase H Convention 1 lock gets reversed (would
+require re-auditing per Phase F/H methodology).
 
-REVISIT TRIGGER: Phase G extraction prompt updates land. Verify
-extraction emits decimal form for the _SCALE_COERCION_ATTRS list.
-Remove or empty this function with a "removed Phase G commit N"
-comment when the prompts produce canonical decimals.
+DELETION TRIGGER: when no caller has used this function for a full
+phase cycle (Phase H, I, J, K... whichever comes after Phase H).
+Removal is schema-additive-discipline-friendly: the function is
+not in the schema; deleting it is a code-only change.
 """
 from __future__ import annotations
 

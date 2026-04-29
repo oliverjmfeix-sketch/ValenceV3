@@ -8,7 +8,17 @@
 >
 > Survey data (Commit 2): `docs/v4_schema_coherence_audit_data.json`.
 
-## Convention 1 — Percentage values: decimal
+## Convention 1 — Percentage values: decimal (LOCKED Phase H commit 5)
+
+**Status:** Convention direction LOCKED as decimal per Phase H
+commit 5 audit finding. Phase F documented the convention with a
+"MIXED" flag; Phase H's broader survey (238 questions) showed
+that the explicit-enforcement prompts (rp_l20, rp_l22) all enforce
+decimal, while non-conforming prompts (rp_f13, rp_n2) lack
+enforcement entirely. Decimal is the dominant pattern in
+explicitly-conforming prompts; the lock formalizes this as the
+forward-looking convention. Phase H commit 5 updates the
+non-conforming prompts to enforce decimal explicitly.
 
 **Convention:** Percentage attributes store the value as a decimal
 fraction in the range `[0.0, 1.0]` (or, where >100% is meaningful for
