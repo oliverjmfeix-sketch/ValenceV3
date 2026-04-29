@@ -72,10 +72,35 @@ match $cat isa ontology_category, has category_id "M";
 insert $cat has synthesis_guidance "Check scalar answers about unrestricted subsidiary distribution mechanics, basket carve-outs for unsub dividends, and interaction with designation/re-designation rules. Note whether distributions from unsubs are subject to the general RP prohibition or have a categorical carve-out.";
 
 # Category N: Dividend Capacity Calculation
+# Phase D2 commit 3 — replaced with v4-aware content. The valence_v4 DB
+# carries this v4 form; valence (v3) keeps its own copy via init_schema.py
+# loading the original v3-era guidance. Future v3↔v4 sync should preserve
+# the divergence: v3 reasons over capacity_category; v4 reasons over
+# action_scope and capacity_composition.
 match $cat isa ontology_category, has category_id "N";
-insert $cat has synthesis_guidance "When answering about dividend capacity or the general RP basket: Check ALL basket entities for dollar amounts and grower formulas. Use capacity_category on each basket entity. Sum ONLY general_purpose baskets — show arithmetic explicitly. List restricted_purpose, unlimited_conditional, and categorical baskets separately. NEVER mix categories in the same total. If two baskets are connected by a shares_capacity_pool link, they share a single pool — count them ONCE at the larger cap. If NO shares_capacity_pool link exists between baskets, each general_purpose basket is independent capacity with its own cap. When basket_reallocates_to links appear, check capacity_effect: 'additive' = separate pools, sum them; 'fungible' = shared, take max.
+insert $cat has synthesis_guidance "Category N covers dividend-capacity calculation under the v4 deontic-norm projection. Capacity-aggregation answers should reason over v4 norm attributes directly:
 
-v4 capacity arithmetic (added Phase D2 Commit 2). When the question asks for an aggregate/total dividend capacity, enumerate each PRIMARY basket-permission norm by norm_id; list its cap_usd and cap_grower_pct (when present); then sum the contributions explicitly with arithmetic shown (e.g. $X + $Y + $Z = $TOTAL). To decide which baskets aggregate into a single pool vs. are independent capacity, use the v4 norm scalars: norms with capacity_composition: 'fungible' AND action_scope: 'reallocable' contribute to a shared aggregate (the same dollar of capacity can fund any of them); norms with action_scope: 'specific' or capacity_composition: 'standalone' are independent and must be listed separately, not summed into the aggregate. State EBITDA-grower components on a separate row (e.g. 'or 100% of LTM EBITDA per basket, whichever is greater'). Do NOT state the total without showing the per-basket breakdown.";
+CAPACITY ATTRIBUTES PER NORM:
+- cap_usd: fixed dollar cap (e.g. $130,000,000).
+- cap_grower_pct: EBITDA-grower component, used as 'greater of cap_usd and cap_grower_pct% of Consolidated EBITDA'.
+- action_scope: 'specific' | 'general' | 'reallocable'. 'reallocable' means the basket's unused capacity flows to other action types via cross-reference (e.g. an RDP basket's unused capacity reallocates to dividends under 6.06(j)).
+- capacity_composition: 'fungible' | 'additive' | 'computed_from_sources' | 'unlimited_on_condition' | 'categorical' | 'n_a' | 'standalone'. Describes the geometry of capacity combination, not the inclusion rule.
+- norm_kind: human-readable kind (e.g. 'general_rp_basket_permission', 'general_rdp_basket_permission'). Do NOT make inclusion decisions based on the substring 'rdp' or 'investment' in norm_kind — use action_scope.
+
+INCLUSION RULES FOR AGGREGATE CAPACITY:
+1. Every norm with action_scope: 'reallocable' contributes to the aggregate dividend capacity, regardless of which covenant it nominally serves. Sum these explicitly.
+2. Norms with action_scope: 'specific' that have a numeric cap_usd or cap_grower_pct AND name a dividend-relevant action are listed separately as restricted-purpose capacity (e.g. management_equity_basket_permission for officer/director repurchases).
+3. Norms with capacity_composition: 'computed_from_sources' (e.g. builder_usage_permission) have their fixed floor in the starter source (look up the contributing builder_source_starter norm via norm_contributes_to_capacity edges).
+4. Norms with capacity_composition: 'unlimited_on_condition' (e.g. ratio_rp_basket_permission) provide unlimited capacity contingent on a condition; list separately, do not include in the dollar sum.
+5. Norms with capacity_composition: 'categorical' or 'n_a' (e.g. tax_distribution_basket_permission, holdco_overhead_basket_permission, unrestricted_sub_equity_distribution_permission) are categorical permissions without a fixed dollar cap; list separately.
+6. shares_capacity_pool edge between two reallocable norms means their caps are NOT additive (the same dollar funds either) — count only the larger cap, not the sum. Absence of shares_capacity_pool means independent pools that ARE summed.
+
+ARITHMETIC FORMAT:
+Show the per-norm contribution explicitly:
+  norm_id [§section, p.page]: $cap_usd or cap_grower_pct% EBITDA
+List the reallocable+aggregate baskets, then sum: $X + $Y + $Z = $TOTAL.
+List restricted-purpose, unlimited-conditional, and categorical baskets separately, each with its own line and its own scope/condition.
+Do NOT state a total without the per-norm breakdown.";
 
 # Category P: Unsub Distribution Basket Carve-outs
 match $cat isa ontology_category, has category_id "P";

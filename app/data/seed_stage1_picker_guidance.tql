@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# seed_stage1_picker_guidance.tql
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-category Stage 1 picker bias for synthesis_v4. Loaded onto
+# `ontology_category.stage1_picker_guidance` (string attribute added by
+# Phase D2 commit 1; schema in app/data/schema_unified.tql §5).
+#
+# At runtime, TopicRouter.get_stage1_picker_guidance(matched_categories)
+# concatenates the guidance for every matched category and threads the
+# result into _STAGE1_SYSTEM via the {picker_guidance_block} placeholder
+# in app/services/synthesis_v4.py. Empty for an unrouted category =
+# empty block = byte-equivalent prompt to the pre-D2 baseline.
+#
+# Each entry should declare its scope explicitly ("APPLY THIS RULE ONLY
+# when…") because a single category may be matched by multiple
+# unrelated questions (e.g., category N — Dividend Capacity Calculation
+# — is matched by both Q5 capacity-aggregation and Q6 ratio-application
+# in lawyer_dc_rp). Without an explicit scope, picker bias for one
+# question class can regress another.
+#
+# Data path: this file IS NOT loaded by init_schema.py automatically.
+# Phase D2 lands the content via app/scripts/phase_d2_upsert_category_guidance.py
+# directly to the DB; this seed file mirrors the DB state for audit and
+# for future fresh-init scenarios where a loader is wired up.
+#
+# Categories without picker guidance are intentionally absent — empty
+# is the safe default.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Category N: Dividend Capacity Calculation
+# Phase D2 commit 3 — fixes Q5 (lawyer_dc_rp) Stage 1 miss on
+# general_rdp_basket_permission. Conditional opener prevents the rule
+# from applying to Q6 (which also matches category N).
+match $cat isa ontology_category, has category_id "N";
+insert $cat has stage1_picker_guidance "APPLY THIS RULE ONLY when the question explicitly asks for an aggregate/total dividend capacity (e.g., 'total dividend capacity', 'how much can be paid in dividends total', 'all baskets that contribute', 'quantifiable capacity'). DO NOT apply this rule to questions about a single norm's applicability (e.g., 'can the borrower do X under the ratio basket?', 'is action Y permitted given current leverage?').
+
+When the rule applies: mark every basket-permission norm with action_scope: 'reallocable' as PRIMARY, regardless of which covenant the basket nominally serves. RP, RDP, and investment baskets are all in scope when their action_scope is 'reallocable'. The 'reallocable' marker means the basket's unused capacity flows to dividends — for example, the general_rdp_basket_permission's unused $130M can be reallocated under 6.06(j) to fund dividends, so it contributes to the aggregate dividend capacity even though its norm_kind contains 'rdp'. Do NOT skip a basket-permission norm on the basis that its norm_kind contains 'rdp' or 'investment' or 'debt' — the schema's action_scope: 'reallocable' marker is authoritative for inclusion. The basket's capacity_composition ('fungible' vs. 'additive') describes the geometry of how the capacity combines but does not change the inclusion rule.";

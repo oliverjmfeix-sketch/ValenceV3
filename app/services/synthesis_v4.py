@@ -127,7 +127,7 @@ def _estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 
 _STAGE1_SYSTEM_TEMPLATE = """You are a legal data classifier. Given a question about a credit agreement and a list of extracted v4 norms (with their structured deontic information — modality, scope edges, conditions, defeats, contributes_to relations — plus the v3 entity each was extracted from), classify each norm into exactly one of three buckets:
 
-PRIMARY — Core norms needed to directly answer the question. The norms whose attributes/conditions/scope a lawyer would cite verbatim. For a capacity question, PRIMARY includes every basket-permission norm whose cap_usd or cap_grower_pct contributes to the answer. For a ratio test question, PRIMARY is the ratio_rp_basket_permission norm. For a defeater/exception question, PRIMARY includes the defeater AND the norm it defeats.
+PRIMARY — Core norms needed to directly answer the question. The norms whose attributes/conditions/scope a lawyer would cite verbatim. For a capacity-aggregation question (where the user asks for a total, sum, or aggregate of capacity across multiple norms), PRIMARY includes every basket-permission norm with action_scope: 'reallocable' OR with cap_usd / cap_grower_pct set, regardless of which covenant the norm nominally serves. The action_scope='reallocable' schema marker means the basket's unused capacity flows to other action types — for example, an RDP basket's unused capacity reallocates to dividends under cross-reference clauses — so RDP and investment baskets contribute to aggregate dividend capacity even when the question is phrased about dividends specifically. DO NOT skip a reallocable basket on the basis that its norm_kind contains 'rdp' or 'investment' or 'debt'; the schema's action_scope marker is authoritative for inclusion in capacity aggregation. For a single-norm-applicability question (where the user asks whether a specific action is permitted under a specific test or covenant), PRIMARY is the directly-applicable norm only — do NOT bring in unrelated reallocable baskets. For a ratio test question, PRIMARY is the ratio_rp_basket_permission norm. For a defeater/exception question, PRIMARY includes the defeater AND the norm it defeats.
 
 SUPPLEMENTARY — Norms that might add qualifying detail, edge cases, sub-source breakdowns, or context. Include builder sub-source norms (cni, ecf, ebitda_fc, starter, etc.) when the question is about builder-basket capacity — they feed into the parent norm via norm_contributes_to_capacity. Include norms that share covenant context even if not the direct answer.
 
@@ -497,20 +497,22 @@ def run_stage2(client: anthropic.Anthropic, model: str, question: str,
 
 def _extract_json_object(text: str) -> dict | None:
     """Extract the first balanced JSON object from text. Strips markdown
-    fences and pre/post prose."""
+    fences and pre/post prose. Uses json.JSONDecoder.raw_decode to parse
+    only up to the end of the first complete object — robust to trailing
+    prose or stray closing braces in commentary that follows the JSON."""
     if not text:
         return None
     # Strip markdown fences
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*\n?", "", text)
         text = re.sub(r"\n?```\s*$", "", text)
-    # Find first { and last } at top level
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         return None
+    decoder = json.JSONDecoder()
     try:
-        return json.loads(text[start:end + 1])
+        obj, _end_pos = decoder.raw_decode(text[start:])
+        return obj if isinstance(obj, dict) else None
     except json.JSONDecodeError as exc:
         logger.warning("JSON parse failed: %s", str(exc)[:120])
         return None
