@@ -30,8 +30,14 @@ import asyncio
 from anthropic import Anthropic, AsyncAnthropic
 
 from app.config import settings
-from app.services.pdf_parser import PDFParser, get_pdf_parser
+# pdf_parser import is lazy (deferred to ExtractionService.__init__ /
+# .parse_document) so that environments without PyMuPDF — e.g. the
+# Phase E CLI which fetches the universe from Railway and never parses
+# PDFs locally — can still import this module.
 from app.services.typedb_client import typedb_client
+
+if False:  # type-checking-only imports
+    from app.services.pdf_parser import PDFParser  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -210,13 +216,31 @@ class ExtractionService:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        parser: Optional[PDFParser] = None
+        parser: Optional["PDFParser"] = None  # noqa: F821
     ):
         key = api_key or settings.anthropic_api_key
         self.client = Anthropic(api_key=key)
         self.async_client = AsyncAnthropic(api_key=key)
         self.model = model or settings.claude_model
-        self.parser = parser or get_pdf_parser()
+        # Lazy PDF parser — only loaded when actually needed (parse_document /
+        # universe rebuild). The Phase E CLI fetches the universe from
+        # Railway and never parses PDFs locally, so PyMuPDF doesn't need to
+        # be installed in that environment.
+        if parser is not None:
+            self.parser = parser
+        else:
+            self._parser = None  # populated lazily in self.parser
+
+    @property
+    def parser(self):
+        if getattr(self, "_parser", None) is None:
+            from app.services.pdf_parser import get_pdf_parser
+            self._parser = get_pdf_parser()
+        return self._parser
+
+    @parser.setter
+    def parser(self, value):
+        self._parser = value
 
     # =========================================================================
     # UNIFIED UNIVERSE: get_or_build_universe (single entry point)
@@ -580,11 +604,22 @@ CRITICAL:
     # STEP 3: Load Questions from TypeDB (SSoT)
     # =========================================================================
 
-    def load_questions_by_category(self, covenant_type: str) -> Dict[str, List[Dict]]:
-        """Load questions from TypeDB grouped by category via category_has_question."""
+    def load_questions_by_category(
+        self,
+        covenant_type: str,
+        question_ids: Optional[List[str]] = None,
+    ) -> Dict[str, List[Dict]]:
+        """Load questions from TypeDB grouped by category via category_has_question.
+
+        When `question_ids` is non-None and non-empty, the result is filtered
+        in Python to only include questions whose question_id appears in the
+        list. Empty list returns an empty dict (no questions matched).
+        """
         if not typedb_client.driver:
             logger.warning("TypeDB not connected")
             return {}
+
+        qid_filter = set(question_ids) if question_ids is not None else None
 
         try:
             from typedb.driver import TransactionType
@@ -609,6 +644,8 @@ CRITICAL:
                     cat_name = _safe_get_value(row, "cname", "")
                     qid = _safe_get_value(row, "qid")
                     if not qid or not cat_id:
+                        continue
+                    if qid_filter is not None and qid not in qid_filter:
                         continue
 
                     if cat_id not in questions_by_cat:
@@ -1144,6 +1181,7 @@ Return ONLY the JSON array."""
         covenant_type: str,
         universe: CovenantUniverse,
         model: Optional[str] = None,
+        question_ids: Optional[List[str]] = None,
     ) -> 'ExtractionResult':
         """
         Unified extraction for any covenant type.
@@ -1154,6 +1192,15 @@ Return ONLY the JSON array."""
         4. Extract scalars (dynamic batching by token budget)
         5. Store everything to TypeDB
         6. Return unified result
+
+        Phase E commit 0: when `question_ids` is non-None, only the
+        listed questions run (filter applied in both scalar and
+        entity-list loaders). Empty list = no-op (no API calls).
+        IMPORTANT: the underlying `store_scalar_answer` insert path
+        does not dedupe; running the same question twice will create
+        duplicate `provision_has_answer` relations. The filter
+        restricts question scope but is not idempotent on its own —
+        idempotency is the caller's responsibility.
         """
         from app.services.graph_storage import GraphStorage
         from app.services.cost_tracker import ExtractionCostSummary
@@ -1167,17 +1214,57 @@ Return ONLY the JSON array."""
         logger.info(
             f"Unified extraction starting: deal={deal_id}, covenant={covenant_type}, "
             f"universe={len(universe.raw_text)} chars, model={model}"
+            + (f", question_ids={question_ids}" if question_ids is not None else "")
         )
+
+        if question_ids is not None and len(question_ids) == 0:
+            logger.info("Empty question_ids list — no questions to run, exiting early.")
+            return ExtractionResult(
+                deal_id=deal_id,
+                covenant_type=covenant_type,
+                provision_id=provision_id,
+                answers_stored=0,
+                entities_created=0,
+                extraction_time_seconds=time.time() - start_time,
+                universe_chars=len(universe.raw_text),
+                model_used=model,
+                total_cost_usd=0.0,
+                cost_breakdown={},
+                validated=universe.validated,
+            )
 
         cost_summary = ExtractionCostSummary(deal_id=deal_id)
 
         # Load questions from TypeDB (SSoT)
-        scalar_questions = self.load_questions_by_category(covenant_type)
-        entity_questions = self._load_entity_list_questions(covenant_type)
+        scalar_questions = self.load_questions_by_category(covenant_type, question_ids=question_ids)
+        entity_questions = self._load_entity_list_questions(covenant_type, question_ids=question_ids)
 
         total_scalar = sum(len(qs) for qs in scalar_questions.values())
         total_entity = len(entity_questions)
         logger.info(f"Loaded questions: {total_scalar} scalar, {total_entity} entity_list")
+
+        # Phase E commit 0: if a question_ids filter was supplied but produced
+        # zero matches, exit before touching the DB. Prevents an unnecessary
+        # provision-existence write and keeps the CLI's "verify with
+        # nonexistent id" smoke test as a no-op.
+        if question_ids is not None and total_scalar == 0 and total_entity == 0:
+            logger.info(
+                f"question_ids filter matched 0 questions (filter: {question_ids}). "
+                f"No extraction work to do."
+            )
+            return ExtractionResult(
+                deal_id=deal_id,
+                covenant_type=covenant_type,
+                provision_id=provision_id,
+                answers_stored=0,
+                entities_created=0,
+                extraction_time_seconds=time.time() - start_time,
+                universe_chars=len(universe.raw_text),
+                model_used=model,
+                total_cost_usd=0.0,
+                cost_breakdown={},
+                validated=universe.validated,
+            )
 
         # Ensure provision exists
         self._ensure_provision_exists_unified(deal_id, provision_id, covenant_type)
@@ -1430,15 +1517,24 @@ Return ONLY the JSON array."""
 
         return batches
 
-    def _load_entity_list_questions(self, covenant_type: str) -> List[Dict]:
+    def _load_entity_list_questions(
+        self,
+        covenant_type: str,
+        question_ids: Optional[List[str]] = None,
+    ) -> List[Dict]:
         """Load entity_list questions from TypeDB (no category relations).
 
         These questions have answer_type "entity_list" and include
         target_entity_type and target_relation_type attributes.
+
+        When `question_ids` is non-None and non-empty, the result is filtered
+        in Python to only include questions whose question_id is in the list.
         """
         if not typedb_client.driver:
             logger.warning("TypeDB not connected")
             return []
+
+        qid_filter = set(question_ids) if question_ids is not None else None
 
         try:
             from typedb.driver import TransactionType
@@ -1463,6 +1559,8 @@ Return ONLY the JSON array."""
                 for row in result.as_concept_rows():
                     qid = _safe_get_value(row, "qid")
                     if not qid:
+                        continue
+                    if qid_filter is not None and qid not in qid_filter:
                         continue
                     q = {
                         "question_id": qid,
@@ -1511,3 +1609,156 @@ extraction_service = ExtractionService()
 def get_extraction_service() -> ExtractionService:
     """Dependency injection for extraction service."""
     return extraction_service
+
+
+# =============================================================================
+# CLI ENTRY POINT (Phase E commit 0)
+# =============================================================================
+# Allows incremental extraction from outside the FastAPI surface — useful when
+# running new extraction questions against an existing extracted deal without
+# Railway / `delete_deal()`. Fetches the universe from the Railway API
+# (GET /{deal_id}/{covenant_type}-universe), constructs a minimal
+# CovenantUniverse with the raw_text populated, runs extract_covenant with
+# the question_ids filter, and writes results to the configured TypeDB
+# database (TYPEDB_DATABASE env var).
+#
+# Usage:
+#   TYPEDB_DATABASE=valence_v4 \
+#     C:/Users/olive/ValenceV3/.venv/Scripts/python.exe \
+#     -m app.services.extraction \
+#     --deal 6e76ed06 \
+#     --covenant-type RP \
+#     --question-ids rp_el_reallocations
+#
+# The CLI is intentionally simple — no `--force-rebuild` (universe is fetched
+# fresh from Railway each invocation), no batch-of-deals support. For one-shot
+# Phase E / Phase F-style data backfills.
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+    from pathlib import Path
+
+    # Load .env BEFORE creating any clients that read env vars
+    try:
+        from dotenv import load_dotenv
+        _env = Path("C:/Users/olive/ValenceV3/.env")
+        if _env.exists():
+            load_dotenv(_env, override=False)
+    except ImportError:
+        pass
+
+    parser = argparse.ArgumentParser(
+        description="Run extraction questions against an existing deal's universe.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--deal", required=True, help="Deal ID, e.g. 6e76ed06")
+    parser.add_argument("--covenant-type", default="RP",
+                        choices=["RP", "MFN", "DI"],
+                        help="Covenant type to extract (default: RP)")
+    parser.add_argument("--question-ids", default=None,
+                        help="Comma-separated question IDs to run. "
+                             "Empty/missing = run ALL questions for the covenant type. "
+                             "WARNING: running questions that already have answers in "
+                             "the deal will create duplicate provision_has_answer "
+                             "relations (insert path is not idempotent).")
+    parser.add_argument("--railway-base",
+                        default="https://valencev3-production.up.railway.app",
+                        help="Railway base URL for fetching the cached universe.")
+    parser.add_argument("--model", default=None,
+                        help="Override Anthropic model (default: settings.claude_model)")
+    args = parser.parse_args()
+
+    # Parse question_ids
+    if args.question_ids:
+        qids = [q.strip() for q in args.question_ids.split(",") if q.strip()]
+    else:
+        qids = None  # Run all (existing behavior)
+
+    # Connect TypeDB (uses settings, which reads env vars at config-load time;
+    # we re-instantiate Settings here to pick up post-load_dotenv env values)
+    from app.config import Settings
+    fresh_settings = Settings()
+    # Mutate the imported settings instance so all downstream references see
+    # the freshly-loaded values
+    settings.typedb_address = fresh_settings.typedb_address
+    settings.typedb_database = fresh_settings.typedb_database
+    settings.typedb_username = fresh_settings.typedb_username
+    settings.typedb_password = fresh_settings.typedb_password
+    settings.anthropic_api_key = fresh_settings.anthropic_api_key
+
+    # typedb_client also froze its state at module-load. Refresh it.
+    typedb_client.address = settings.normalized_typedb_address
+    typedb_client.database = settings.typedb_database
+
+    print(f"[cli] Target DB: {settings.typedb_database}", file=sys.stderr)
+    if not typedb_client.connect(raise_on_error=False):
+        print(f"[cli] TypeDB connect failed: {typedb_client.connection_error}",
+              file=sys.stderr)
+        sys.exit(2)
+
+    # Fresh ExtractionService with reloaded settings (the module-level
+    # `extraction_service` was instantiated at import time, possibly with
+    # empty keys)
+    svc = ExtractionService(
+        api_key=settings.anthropic_api_key,
+        model=args.model,
+    )
+
+    # Fetch universe from Railway
+    import urllib.request
+    import urllib.error
+    universe_url = (
+        f"{args.railway_base.rstrip('/')}/api/deals/"
+        f"{args.deal}/{args.covenant_type.lower()}-universe"
+    )
+    print(f"[cli] Fetching universe: {universe_url}", file=sys.stderr)
+    try:
+        with urllib.request.urlopen(universe_url, timeout=60) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        print(f"[cli] Universe fetch failed: HTTP {e.code} {e.reason}", file=sys.stderr)
+        sys.exit(2)
+    except Exception as e:
+        print(f"[cli] Universe fetch failed: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    text = data.get("text", "")
+    if not text:
+        print(f"[cli] Universe has empty text. Aborting.", file=sys.stderr)
+        sys.exit(2)
+    print(f"[cli] Universe loaded: {len(text)} chars, "
+          f"{len(data.get('sections', []))} sections", file=sys.stderr)
+
+    universe = CovenantUniverse(
+        covenant_type=args.covenant_type.upper(),
+        deal_id=args.deal,
+        raw_text=text,
+        validated=data.get("validated", True),
+    )
+
+    # Run extraction
+    if qids is None:
+        print(f"[cli] Running ALL questions for covenant {args.covenant_type}", file=sys.stderr)
+    else:
+        print(f"[cli] Running {len(qids)} filtered questions: {qids}", file=sys.stderr)
+
+    async def _run():
+        return await svc.extract_covenant(
+            deal_id=args.deal,
+            covenant_type=args.covenant_type,
+            universe=universe,
+            model=args.model,
+            question_ids=qids,
+        )
+
+    result = asyncio.run(_run())
+    print(f"[cli] Extraction complete:", file=sys.stderr)
+    print(f"  answers_stored:    {result.answers_stored}", file=sys.stderr)
+    print(f"  entities_created:  {result.entities_created}", file=sys.stderr)
+    print(f"  duration_seconds:  {result.extraction_time_seconds:.1f}", file=sys.stderr)
+    print(f"  total_cost_usd:    ${result.total_cost_usd:.4f}", file=sys.stderr)
+    print(f"  errors:            {len(result.errors)}", file=sys.stderr)
+    for err in result.errors[:5]:
+        print(f"    - {err}", file=sys.stderr)
+    sys.exit(0 if not result.errors else 1)
