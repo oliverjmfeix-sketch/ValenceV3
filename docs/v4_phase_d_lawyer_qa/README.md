@@ -66,6 +66,101 @@ needed.
 Q3 — `basket_reallocates_to` v3 relation has 0 instances on Duck Creek;
 no extraction question targets reallocation language directly. Phase E.
 
+## Phase E outcome (2026-04-29)
+
+Phase E ("extraction additions") landed in 6 commits on `v4-deontic`
+(`2d739c2` → `5ce642c` → `3428d48` → final eval). Total spend
+$4.32 — $1.84 commit 1 (rp_el_reallocations diagnostic) + $1.73
+commit 3 (carveout extraction) + $0.75 commit 5 (lawyer eval) +
+trivial commit-0 verification cost.
+
+### Final lawyer_dc_rp regression (post-Phase-E)
+
+Eval JSON: `lawyer_dc_rp_20260429T131018Z.json` in this directory.
+
+| Q | Pre-D2 | Post-D2 | Post-E | Notes |
+|---|---|---|---|---|
+| Q1 | PASS | PASS | PASS | — |
+| Q2 | PASS | PASS | PASS | — |
+| Q3 | PARTIAL | PARTIAL | PARTIAL | Reallocation extraction question existed pre-Phase-E (rp_el_reallocations from 2026-03-13). Re-running it surfaces 4 LLM-identified reallocation paths but storage fails (capacity_effect cardinality + general_investment_basket missing). Synthesis already covers RP↔RDP fungible reallocation via the action_scope marker; the v3 relation isn't strictly required. Tailored carveouts (intercompany, reorganization, IPO) remain unenumerated. |
+| Q4 | PARTIAL | PARTIAL (richer) | PARTIAL (data richer; surface unchanged) | Phase E populated 4 new carveout attrs on `asset_sale_sweep` (`permits_product_line_exemption_2_10_c_iv=true`, `permits_section_6_05_z_unlimited=true`, `section_6_05_z_threshold=6.0`, `product_line_2_10_c_iv_threshold=null`). Synthesis_guidance updated to instruct Stage 2 to surface these. Stage 2 still does not reference 2.10(c)(iv) or 6.05(z) in answers — same LLM-semantic-override pattern as Q5. |
+| Q5 | PARTIAL | PARTIAL (richer) | PARTIAL (unchanged) | Phase E doesn't address Q5; deferred. |
+| Q6 | PASS | PASS | PASS | — |
+
+**Score: 3 PASS / 3 PARTIAL** — same headline as Phase D2, but Q3
+diagnosis is now precise (storage-layer bugs + Phase C deferred entity)
+and Q4's data graph is richer (4 carveout attrs available, even if
+Stage 2 doesn't surface them).
+
+### What landed
+
+- **Commit 0** (`2d739c2`) — Incremental extraction infrastructure +
+  CLI on `extraction.py`. Adds optional `question_ids` filter to
+  `extract_covenant()` and a `__main__` block that fetches the
+  universe from Railway and runs only the listed question_ids
+  locally. Lazy PDF parser import (PyMuPDF not in local venv).
+- **Commit 1** (`e6f3d32`) — Diagnoses why Duck Creek has zero
+  `basket_reallocates_to` v3 entities. Finding: extraction question
+  exists; LLM identifies 4 paths; storage fails on
+  capacity_effect cardinality (RP↔RDP pair) and missing
+  general_investment_basket entity (Phase C deferred). Doc:
+  `docs/v4_phase_e/q3_reallocation_diagnosis.md`.
+- **Commit 2** (`62e2459`) — Schema-additive: 4 new attrs on
+  `asset_sale_sweep` for 2.10(c)(iv) and 6.05(z) carveouts.
+  Migration script + question loader. 4 new scalar questions
+  (`rp_l24`-`rp_l27`) authored + linked to category L + annotated.
+- **Commit 3** (`5ce642c`) — Incremental extraction run for
+  rp_l24-rp_l27. 3 of 4 attrs populated correctly on Duck Creek.
+  Cost: $1.73 (entity-list/scalar costs are higher than the Phase 1
+  estimate; revised projection in
+  `docs/v4_phase_e/q4_carveout_extraction_run.md`).
+- **Commit 4** (`3428d48`) — Category L synthesis_guidance extended
+  to instruct Stage 2 to surface the new carveout flags. Reframed
+  from the original plan: skipped projection-rule additions and the
+  deferred `event_governed_by_norm` relation (these would be
+  architectural enrichments without immediate Q4 closure benefit).
+- **Commit 5** (this commit) — Lawyer eval re-run + this outcome
+  section.
+
+### Residual gaps after Phase E (genuine Phase F / future-phase work)
+
+- **Q3 Stage 2 PASS** requires:
+  - Storage-layer fix for `basket_reallocates_to` capacity_effect
+    cardinality (Phase F).
+  - `general_investment_basket` v3 entity extraction (Phase C
+    deferred re-extraction window — gated on a deal worth re-running).
+- **Q4 Stage 2 PASS** requires Stage 2 to surface the now-available
+  2.10(c)(iv)/6.05(z) carveout flags. The data is in the v4 graph
+  (verified). Possible routes: more-directive synthesis_guidance
+  prose, OR promoting the carveouts to first-class v4 norms via
+  projection rules + adding the deferred `event_governed_by_norm`
+  relation type from Phase B Commit 3 (would let Stage 2 see them as
+  citable norms, not just attrs on a sub-entity). Phase F or a
+  dedicated event-class governance phase.
+- **Q4 `product_line_2_10_c_iv_threshold` LLM extraction quality** —
+  rp_l25 returned null on Duck Creek despite the gold answer
+  specifying 6.25x. Prompt iteration (Phase F) likely closes this.
+- **Q4 `individual_de_minimis_pct` extraction quality** — already
+  noted in Phase D2 outcome; carries forward.
+- **Q5 Stage 2 RDP-exclusion semantic override** — same as Phase D2
+  residual; not addressed by Phase E.
+
+### Cost-shape calibration
+
+The Phase 1 investigation estimated incremental extraction at
+$0.05/question. The Phase E reality:
+
+- Entity-list question (`rp_el_reallocations`): $1.84/question.
+- 4 scalar questions in a single batch: $0.43/question.
+
+The scalar batching mode runs each question against the full 446K-char
+universe per call when only a few are filtered. Phase F should consider
+narrowing the universe slice for incremental runs, or document this
+cost-shape so future Phase E-class plans don't underestimate.
+
+Total Phase E spend: $4.32, well below the strategy (a) full
+re-extraction cost (~$31).
+
 ## Eval run summary
 
 - **Eval set:** `lawyer_dc_rp` (6 questions, Duck Creek `6e76ed06`)
