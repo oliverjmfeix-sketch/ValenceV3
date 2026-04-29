@@ -6,6 +6,66 @@
 > each result. The categorization scopes Phases E (extraction additions)
 > and F (prompt iterations / fetch coverage extensions).
 
+## Phase rename note (2026-04-29)
+
+Per the agreed phase taxonomy, the work originally scoped under "Phase F"
+in this document is properly **Phase D2** — synthesis-side iteration on
+Phase D's foundation. Phase E remains extraction additions; Phase F
+remains extraction prompt improvements. In-tree filenames and commit
+messages for the synthesis-side work use the `phase_d2` prefix. The
+"Phase F scope" / "Phase E scope" sections below remain as authored
+for historical reference; the actual work landed on `v4-deontic` as
+five commits prefixed `v4: Phase D2 commit N — …` (a8849a1, b4995ff,
+345b46c, 7f79d90, 44aaab9).
+
+## Phase D2 outcome (2026-04-29)
+
+Final regression eval of `lawyer_dc_rp` against `valence_v4` with all
+five Phase D2 commits applied, model `claude-sonnet-4-6`:
+
+| Q | Category | Pre-D2 | Post-D2 | Notes |
+|---|---|---|---|---|
+| Q1 | builder_basket | PASS | PASS | unchanged |
+| Q2 | unsub_distribution | PASS | PASS | unchanged |
+| Q3 | reallocation | PARTIAL | PARTIAL | RP↔RDP fungible reallocation captured; tailored RDP carveouts (intercompany, reorganization, IPO) still not enumerated. Phase E extraction work. |
+| Q4 | asset_sale_proceeds | PARTIAL | PARTIAL (richer) | Sweep tiers (5.75x→100% / 5.5–5.75x→50% / ≤5.5x→0%) explicitly enumerated with section refs ✓; de minimis attempt present but `individual_de_minimis_pct` is mis-stored in v3 extraction (0.3 vs gold 0.15); 2.10(c)(iv) / 6.05(z) / non-collateral / casualty / ordinary-course still missing — Phase E. |
+| Q5 | total_capacity | PARTIAL | PARTIAL (richer) | Stage 1 PRIMARY picks rose from 12 → 13 (general_rdp_basket_permission flipped from SUPP/SKIP to PRIMARY) ✓; Stage 2 citations rose from 8 → 11; Stage 2 sum **still $260M** (Stage 2 LLM semantic-filter excludes RDP from dividend sum despite the v4 picker rule, despite the v4-aware synthesis_guidance). general_investment_basket re-extraction deferred per Phase C. |
+| Q6 | ratio_basket_application | PASS | PASS | unchanged; defensive conditional in picker guidance and the new single-norm-applicability case in PRIMARY definition both held. |
+
+**Score: 3 PASS / 3 PARTIAL.** The plan's 4 PASS / 2 PARTIAL target was not
+reached because Stage 2 continues to apply a semantic filter ("RDP basket
+= debt purpose, not dividend capacity") even when synthesis_guidance
+explicitly instructs otherwise. Both partials are visibly richer than the
+pre-D2 baseline.
+
+Cost / latency for the post-D2 run: **$0.74 total, 272s** (vs $0.60 / 267s
+pre-D2). Slight cost increase from longer prompts (added picker
+guidance + v4-aware synthesis_guidance + provision_level_entities in
+the Stage 2 payload). Per-question median: $0.12, ~45s.
+
+Eval JSON: `lawyer_dc_rp_20260429T110700Z.json` in this directory.
+
+### Residual gaps (Phase E candidates)
+
+Q5 — Stage 2 RDP-exclusion semantic override: closing this requires
+either (a) a Stage 2 prompt restructure that prevents the LLM from
+applying its own purpose-based filter, OR (b) re-extraction of v3 with
+capacity_category aligned to v4 reallocable scope. Both are outside
+Phase D2's scope.
+
+Q4 — sweep upstream mechanics (2.10(c)(iv) product-line carveout, 6.05(z)
+unlimited basket carveout, non-collateral, ordinary-course, casualty)
+are not authored as v4 norms today; the Q4 gold answer references them.
+Phase E extraction work.
+
+Q4 — `individual_de_minimis_pct` stored as 0.3 (30%) on Duck Creek's
+asset_sale_sweep entity; gold says 15%. `individual_de_minimis_usd` is
+null; gold says $20M. Re-extraction with corrected de_minimis values
+needed.
+
+Q3 — `basket_reallocates_to` v3 relation has 0 instances on Duck Creek;
+no extraction question targets reallocation language directly. Phase E.
+
 ## Eval run summary
 
 - **Eval set:** `lawyer_dc_rp` (6 questions, Duck Creek `6e76ed06`)
