@@ -631,6 +631,44 @@ def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
             norm_dict["extracted_from"] = extracted[nid]
         norms_out.append(norm_dict)
 
+    # Phase G commit 3 — payload sort by relevance.
+    #
+    # Stage 2's citation behavior is sensitive to norm position within
+    # context.norms (Phase G commit 1 V4 probe confirmed). Without a
+    # deliberate sort, the list returns in TypeDB query order, which
+    # is arbitrary and obscures the architecture's declared authority
+    # hierarchy (synthesis_guidance > LLM defaults).
+    #
+    # Sort key (lower = earlier in list, which the LLM weights more):
+    # 1. Norms with action_scope: 'reallocable' come first — these
+    #    are the load-bearing capacity contributors per the Phase D2
+    #    commit 3 picker guidance for category N. Reallocable norms
+    #    pool capacity across covenants and need to be visible to
+    #    Stage 2 for citation, not buried.
+    # 2. Norms with cap_usd or cap_grower_pct set (capacity-bearing)
+    #    come next — they're the secondary capacity floor.
+    # 3. Norms with capacity_composition: 'computed_from_sources'
+    #    (builder-style) come next — they have visible structure.
+    # 4. All other norms last (categorical, unlimited_on_condition,
+    #    standalone, etc.).
+    #
+    # The sort is stable: within each tier, original (TypeDB) order is
+    # preserved. This ensures the sort is deterministic and idempotent.
+    def _norm_sort_key(n: dict) -> int:
+        s = n.get("scalars", {}) or {}
+        action_scope = s.get("action_scope")
+        capacity_composition = s.get("capacity_composition")
+        cap_usd = s.get("cap_usd")
+        cap_grower = s.get("cap_grower_pct")
+        if action_scope == "reallocable":
+            return 0
+        if cap_usd is not None or cap_grower is not None:
+            return 1
+        if capacity_composition == "computed_from_sources":
+            return 2
+        return 3
+    norms_out.sort(key=_norm_sort_key)
+
     # Per-defeater dicts (no conditions tree per Phase C — defeaters
     # don't carry conditions in current rule corpus)
     defeaters_out: list[dict] = []
