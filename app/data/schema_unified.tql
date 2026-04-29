@@ -295,6 +295,11 @@ attribute exempt_ordinary_course, value boolean;
 attribute exempt_casualty, value boolean;
 attribute exempt_below_threshold, value boolean;
 attribute exempt_ratio_basket, value boolean;
+# Phase E commit 2 — Q4 upstream carveouts on asset_sale_sweep
+attribute permits_product_line_exemption_2_10_c_iv, value boolean;
+attribute product_line_2_10_c_iv_threshold, value double;
+attribute permits_section_6_05_z_unlimited, value boolean;
+attribute section_6_05_z_threshold, value double;
 
 # ── Builder basket source attrs (flattened onto builder_basket) ──────────────
 attribute has_starter_amount_source, value boolean;
@@ -969,6 +974,14 @@ entity asset_sale_sweep,
     owns exempt_casualty,
     owns exempt_below_threshold,
     owns exempt_ratio_basket,
+    # Phase E commit 2 — Q4 upstream carveouts (2.10(c)(iv) product-line
+    # exemption; 6.05(z) unlimited basket carveout). Both gate on a leverage
+    # threshold OR a no-worse pro forma test. See
+    # docs/v4_phase_d_lawyer_qa/README.md (Q4 residual gaps).
+    owns permits_product_line_exemption_2_10_c_iv,
+    owns product_line_2_10_c_iv_threshold,
+    owns permits_section_6_05_z_unlimited,
+    owns section_6_05_z_threshold,
     owns section_reference,
     owns source_page,
     owns source_text,

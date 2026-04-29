@@ -1307,6 +1307,51 @@ insert $q isa ontology_question,
     has extraction_prompt "Can unused annual aggregate de minimis amounts carry forward to subsequent fiscal years? Look for 'unused amounts may be carried forward' or 'aggregate amount shall be increased by unused amounts from prior fiscal years'. Answer true if carryforward is permitted.";
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PHASE E COMMIT 2: Q4 UPSTREAM CARVEOUTS — 2.10(c)(iv) and 6.05(z)
+# ═══════════════════════════════════════════════════════════════════════════════
+# These two carveouts are gold-answer references for Q4 (asset_sale_proceeds)
+# in lawyer_dc_rp. Both gate on a leverage threshold OR a no-worse pro forma
+# test (depth-2 condition tree). The no-worse branch is captured at the
+# operations layer rather than as a separate scalar attribute (existing
+# convention).
+
+insert $q isa ontology_question,
+    has question_id "rp_l24",
+    has question_text "Does Section 2.10(c)(iv) provide a product-line / line-of-business sale exemption?",
+    has description "Whether asset sales constituting a product line or line of business are exempt from mandatory prepayment if the leverage ratio test is satisfied",
+    has answer_type "boolean",
+    has display_order 124,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 2.10(c)(iv) (or analogous mandatory prepayment exemption) provide that proceeds from the sale of a product line, line of business, or substantially all of a product line are EXEMPT from the mandatory prepayment sweep, subject to a leverage ratio test (e.g., First Lien Leverage Ratio at or below a stated threshold) OR a pro forma no-worse test? Look in the mandatory prepayment carveouts for 'product line', 'line of business', or 'substantially all assets used in' language coupled with a ratio test. Answer true if such an exemption exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l25",
+    has question_text "What is the First Lien Leverage Ratio threshold for the Section 2.10(c)(iv) product-line exemption?",
+    has description "Numeric leverage threshold below which the product-line exemption applies",
+    has answer_type "number",
+    has display_order 125,
+    has covenant_type "RP",
+    has extraction_prompt "What is the First Lien Leverage Ratio threshold for the Section 2.10(c)(iv) product-line / line-of-business sale exemption from mandatory prepayment? E.g., if 'the First Lien Leverage Ratio is no greater than 6.25 to 1.00 on a Pro Forma Basis', answer 6.25. If the carveout exists but no specific ratio threshold is stated (only no-worse test), answer null. If the carveout does not exist, answer null.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l26",
+    has question_text "Does Section 6.05(z) provide an unlimited asset sale basket subject to a leverage ratio test?",
+    has description "Whether the asset sales covenant contains an unlimited dispositions basket conditioned on a First Lien Leverage Ratio test or no-worse pro forma test",
+    has answer_type "boolean",
+    has display_order 126,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 6.05(z) (or the last/highest-numbered clause of the asset sales / dispositions covenant) provide an UNLIMITED basket permitting any disposition subject to a First Lien Leverage Ratio test (e.g., 'so long as the First Lien Leverage Ratio is no greater than 6.00x on a Pro Forma Basis') OR a pro forma no-worse test? Distinguish from Section 2.10 product-line exemption — 6.05(z) is in the negative covenant 6.05 (asset sales prohibition) and grants permissibility, NOT a sweep exemption. Answer true if such an unlimited ratio-conditioned dispositions basket exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_l27",
+    has question_text "What is the First Lien Leverage Ratio threshold for the Section 6.05(z) unlimited basket?",
+    has description "Numeric leverage threshold below which 6.05(z) permits unlimited dispositions",
+    has answer_type "number",
+    has display_order 127,
+    has covenant_type "RP",
+    has extraction_prompt "What is the First Lien Leverage Ratio threshold for the Section 6.05(z) unlimited dispositions basket? E.g., if '6.05(z) permits any disposition so long as on a Pro Forma Basis the First Lien Leverage Ratio is no greater than 6.00 to 1.00', answer 6.00. If the basket exists but no specific ratio threshold is stated (only no-worse test), answer null. If the basket does not exist, answer null.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 2: RDP BASKETS — _exists questions
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1468,6 +1513,16 @@ insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l22";
 insert (category: $cat, question: $q) isa category_has_question;
 match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l23";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Phase E commit 2: Q4 upstream carveouts
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l24";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l25";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l26";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "L"; $q isa ontology_question, has question_id "rp_l27";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # Phase 2: RDP baskets (Category T)
