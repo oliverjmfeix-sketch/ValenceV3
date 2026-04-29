@@ -1639,12 +1639,20 @@ if __name__ == "__main__":
     import sys
     from pathlib import Path
 
-    # Load .env BEFORE creating any clients that read env vars
+    # Load .env BEFORE creating any clients that read env vars.
+    # The Claude Code shell sets ANTHROPIC_API_KEY="" (empty) which would
+    # block load_dotenv(override=False) from picking up the real key in
+    # .env. Use override=True, but preserve the CLI-supplied
+    # TYPEDB_DATABASE (.env's TYPEDB_DATABASE points to v3 valence; we want
+    # the user's CLI value to win for v4 work).
     try:
         from dotenv import load_dotenv
+        _cli_typedb_database = os.environ.get("TYPEDB_DATABASE")
         _env = Path("C:/Users/olive/ValenceV3/.env")
         if _env.exists():
-            load_dotenv(_env, override=False)
+            load_dotenv(_env, override=True)
+        if _cli_typedb_database:
+            os.environ["TYPEDB_DATABASE"] = _cli_typedb_database
     except ImportError:
         pass
 
