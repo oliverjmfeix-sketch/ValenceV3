@@ -1,0 +1,219 @@
+{
+  "question": "Determine the total amount of quantifiable dividend capacity.",
+  "stage1_primary_count": 5,
+  "stage1_supplementary_count": 15,
+  "stage1_skip_count": 8,
+  "stage1_classifications": [
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Builder basket directly contributes to total dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "action_scope=reallocable with cap_usd; contributes to aggregate dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Ratio RP basket permits unlimited dividends on condition; quantifiable capacity component."
+    },
+    {
+      "norm_id": "6e76ed06_management_equity_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Cap_usd set; additive dividend-related basket contributes to total."
+    },
+    {
+      "norm_id": "6e76ed06_tax_distribution_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Tax distribution basket; no quantifiable cap, restricted purpose."
+    },
+    {
+      "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Overhead basket; no quantifiable cap, restricted purpose."
+    },
+    {
+      "norm_id": "6e76ed06_equity_award_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Equity award basket; no cap, restricted purpose, conditional."
+    },
+    {
+      "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "No quantifiable cap; categorical basket for unrestricted sub distributions."
+    },
+    {
+      "norm_id": "6e76ed06_general_rdp_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "action_scope=reallocable with cap_usd; unused capacity flows to dividends."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Ratio RDP basket; action_scope=specific, not reallocable to dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_rdp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Builder RDP basket; action_scope=general but no cap_usd set."
+    },
+    {
+      "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Refinancing RDP; specific, no cap, not reallocable to dividends."
+    },
+    {
+      "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Equity-funded RDP; specific, no cap, not reallocable to dividends."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+      "verdict": "SKIP",
+      "rationale": "IP designation prohibition; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Aggregate sub-source feeding builder basket; supplementary context."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_starter",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Builder starter sub-source; contributes to builder basket capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_cni",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "CNI sub-source feeding builder basket; supplementary detail."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ecf",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "ECF sub-source feeding builder basket; supplementary detail."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ebitda_fc",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "EBITDA_FC sub-source feeding builder basket; supplementary detail."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Equity proceeds sub-source feeding builder basket; supplementary."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Asset sale proceeds sub-source feeding builder basket; supplementary."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_investment_returns",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Investment returns sub-source feeding builder basket; supplementary."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Debt conversion sub-source feeding builder basket; supplementary."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_ordinary_course_exception",
+      "verdict": "SKIP",
+      "rationale": "IP disposition exception; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+      "verdict": "SKIP",
+      "rationale": "IP license exception; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_intercompany_exception",
+      "verdict": "SKIP",
+      "rationale": "Intercompany transfer exception; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_immaterial_ip_exception",
+      "verdict": "SKIP",
+      "rationale": "Immaterial IP exception; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_fair_value_exception",
+      "verdict": "SKIP",
+      "rationale": "Fair value disposition exception; unrelated to dividend capacity."
+    }
+  ],
+  "stage2_citations": [
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "section": "6.06(o)",
+      "page": 198,
+      "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00 and (y) the First Lien Leverage Ratio...for the most recently ended Test Period"
+    },
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "section": "6.06(j)",
+      "page": 196,
+      "quote": "additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+    },
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_starter",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_management_equity_basket_permission",
+      "section": "6.06(b)",
+      "page": 195,
+      "quote": "payments to Holdings...to permit Holdings...to repurchase or redeem Qualified Capital Stock...held by current or former officers, directors, consultants or employees"
+    },
+    {
+      "norm_id": "6e76ed06_tax_distribution_basket_permission",
+      "section": "6.06(c)",
+      "page": 196,
+      "quote": "for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group"
+    },
+    {
+      "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+      "section": "6.06(k)",
+      "page": 197,
+      "quote": "distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses...of Holdings or any direct or indirect parent of Holdings, and (ii) Public Company Costs"
+    },
+    {
+      "norm_id": "6e76ed06_equity_award_permission",
+      "section": "6.06(d)",
+      "page": 196,
+      "quote": "repurchases of Equity Interests deemed to occur upon the exercise of stock options if the Equity Interests represent a portion of the exercise price or withholding tax thereof"
+    },
+    {
+      "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+      "section": "6.06(p)",
+      "page": 198,
+      "quote": "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary or the proceeds thereof"
+    }
+  ],
+  "stage2_citation_norm_ids": [
+    "6e76ed06_ratio_rp_basket_permission",
+    "6e76ed06_general_rp_basket_permission",
+    "6e76ed06_builder_usage_permission",
+    "6e76ed06_builder_source_starter",
+    "6e76ed06_management_equity_basket_permission",
+    "6e76ed06_tax_distribution_basket_permission",
+    "6e76ed06_holdco_overhead_basket_permission",
+    "6e76ed06_equity_award_permission",
+    "6e76ed06_unrestricted_sub_equity_distribution_permission"
+  ],
+  "stage2_answer": "The quantifiable dividend capacity consists of the following distinct pools: (1) **Unlimited conditional** \u2014 Section 6.06(o) [p.198]: unlimited dividends if, pro forma, First Lien Leverage Ratio \u2264 5.75x or the no-worse test is satisfied (no fixed dollar amount). (2) **General purpose \u2014 General RP Basket** \u2014 Section 6.06(j) [p.196]: the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period (fixed floor: $130M; grower: 100% LTM EBITDA). (3) **General purpose \u2014 Builder Basket (Cumulative Amount)** \u2014 Definition of Cumulative Amount [p.32]: a separate pool starting at the greater of $130,000,000 and 100% of Consolidated EBITDA, then growing by (among other things) 50% of cumulative Consolidated Net Income, available retained ECF, 100% of equity proceeds, retained asset sale proceeds, and investment returns \u2014 shared with RDP and investment baskets, reducing as used. (4) **Restricted purpose \u2014 Management Equity Basket** \u2014 Section 6.06(b) [p.195]: the greater of $20,000,000 per annum and 15% of Consolidated EBITDA (carryforward permitted), limited to equity repurchases from current/former officers, directors, consultants, or employees. (5) **Categorical (no fixed dollar cap)** \u2014 tax distributions (Section 6.06(c) [p.196], standalone taxpayer limit), holdco overhead/Public Company Costs (Section 6.06(k) [p.197]), cashless equity award repurchases (Section 6.06(d) [p.196]), and distributions of unrestricted subsidiary equity/assets/indebtedness (Section 6.06(p) [p.198]). The aggregate fixed-floor quantifiable capacity is at minimum $130M (general RP basket) + $130M (builder basket starter) + $20M/year (management equity basket) = **$280M in fixed-floor capacity**, with each basket's grower component (100% LTM EBITDA for the first two, 15% LTM EBITDA for the third) potentially yielding higher capacity depending on current EBITDA.",
+  "stage2_reasoning_conclusion": "Quantifiable fixed-floor dividend capacity totals at minimum $130M from the general RP basket (Section 6.06(j)) plus a separate $130M floor from the builder basket starter (Section Definition of Cumulative Amount), plus $20M/year from the management equity basket (Section 6.06(b)); additional capacity under the ratio basket is unlimited if First Lien Leverage Ratio \u2264 5.75x (or no-worse), while other baskets (tax, overhead, equity award, unsub distributions) are categorical with no fixed dollar caps.",
+  "stage2_reasoning_analysis": "Per Category G guidance, baskets must be classified by capacity_category and analyzed separately.\n\n**1. Unlimited Conditional (ratio basket) \u2014 Section 6.06(o):**\nNorm 6e76ed06_ratio_rp_basket_permission provides UNLIMITED dividend capacity, subject to pro forma First Lien Leverage Ratio \u2264 5.75x OR the no-worse test (pro forma ratio no worse than pre-transaction ratio). This is not a fixed dollar amount and is contingent on leverage. Not quantifiable as a fixed number.\n\n**2. General Purpose \u2014 Fixed/Grower Baskets (summable):**\n\n(a) Section 6.06(j) General RP Basket [6e76ed06_general_rp_basket_permission]: Greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period. Fixed floor = $130M.\n\n(b) Builder Basket / Cumulative Amount [6e76ed06_builder_usage_permission]: Computed from sources \u2014 starts at the greater of $130,000,000 and 100% of Consolidated EBITDA, then adds 50% of cumulative Consolidated Net Income, the greatest of Available Retained ECF Amount, 50% CNI, or 140% of Consolidated EBITDA (forward-looking component), plus 100% of equity proceeds, retained asset sale proceeds, investment returns, and debt conversion amounts. The fixed floor starter amount is $130M, but the total basket is inherently variable. Note: the builder basket is reduced by RDP and investment usage (shares capacity with Sections 6.09(a)(A) and 6.03(x)).\n\nBecause both baskets are general_purpose and fungible/additive, they each independently provide capacity (not summed together \u2014 they are separate baskets). The general RP basket floor is $130M; the builder basket floor is also $130M (starter), but these are separate pools.\n\n**3. Restricted Purpose \u2014 Fixed Cap Baskets:**\n\n(a) Management Equity Basket [6e76ed06_management_equity_basket_permission] \u2014 Section 6.06(b): Greater of $20,000,000 per annum and 15% of Consolidated EBITDA. Fixed floor = $20M/year, with carryforward permitted. Restricted to equity repurchases from officers/directors/employees.\n\n(b) Tax Distribution Basket [6e76ed06_tax_distribution_basket_permission] \u2014 Section 6.06(c): Categorical/variable (standalone taxpayer limit), no fixed dollar cap extractable from data.\n\n(c) Holdco Overhead Basket [6e76ed06_holdco_overhead_basket_permission] \u2014 Section 6.06(k): Categorical, no fixed dollar cap in extracted data.\n\n(d) Equity Award Basket [6e76ed06_equity_award_permission] \u2014 Section 6.06(d): Unlimited on condition (cashless exercise/tax withholding only), no fixed dollar cap.\n\n**4. Categorical (no fixed dollar cap):**\n\nUnrestricted Sub Distribution Basket [6e76ed06_unrestricted_sub_equity_distribution_permission] \u2014 Section 6.06(p): Categorical carve-out for distributions of unsub equity/assets/indebtedness; no dollar cap.",
+  "total_cost_usd": 0.155352
+}

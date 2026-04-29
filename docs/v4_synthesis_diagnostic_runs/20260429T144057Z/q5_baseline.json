@@ -1,0 +1,226 @@
+{
+  "question": "Determine the total amount of quantifiable dividend capacity.",
+  "stage1_primary_count": 10,
+  "stage1_supplementary_count": 9,
+  "stage1_skip_count": 9,
+  "stage1_classifications": [
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Builder basket permission directly contributes to dividend capacity aggregation."
+    },
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Reallocable basket with cap_usd; directly quantifies dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Unlimited conditional basket; not quantifiable without ratio test result."
+    },
+    {
+      "norm_id": "6e76ed06_management_equity_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Has cap_usd/cap_grower_pct; quantifiable dividend-adjacent capacity."
+    },
+    {
+      "norm_id": "6e76ed06_tax_distribution_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Categorical tax distribution; no fixed cap, not directly quantifiable."
+    },
+    {
+      "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Categorical overhead basket; no fixed cap amount."
+    },
+    {
+      "norm_id": "6e76ed06_equity_award_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Unlimited on condition; not independently quantifiable."
+    },
+    {
+      "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "No fixed cap; capacity depends on unrestricted subsidiary assets."
+    },
+    {
+      "norm_id": "6e76ed06_general_rdp_basket_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Reallocable basket with cap_usd; unused capacity flows to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "RDP ratio basket; specific, not reallocable, no quantifiable cap."
+    },
+    {
+      "norm_id": "6e76ed06_builder_rdp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Builder RDP sub-source; general scope but no standalone cap value."
+    },
+    {
+      "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Restricted-purpose refinancing basket; irrelevant to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Restricted-purpose equity-funded RDP; not relevant to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+      "verdict": "SKIP",
+      "rationale": "IP subsidiary designation prohibition; unrelated to dividend capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+      "verdict": "PRIMARY",
+      "rationale": "Aggregates builder sub-sources feeding into builder usage permission."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_starter",
+      "verdict": "PRIMARY",
+      "rationale": "Starter sub-source with cap_usd; directly feeds builder basket capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_cni",
+      "verdict": "PRIMARY",
+      "rationale": "CNI sub-source with cap_grower_pct; feeds builder basket capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ecf",
+      "verdict": "PRIMARY",
+      "rationale": "ECF sub-source feeding builder basket; relevant to total capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ebitda_fc",
+      "verdict": "PRIMARY",
+      "rationale": "EBITDA sub-source with cap_grower_pct; feeds builder basket capacity."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+      "verdict": "PRIMARY",
+      "rationale": "Equity proceeds sub-source with cap_grower_pct; feeds builder basket."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Asset sale proceeds sub-source; no fixed cap, variable amount."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_investment_returns",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Investment returns sub-source; no fixed cap, variable amount."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Debt conversion sub-source; no fixed cap, variable amount."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+      "verdict": "SKIP",
+      "rationale": "IP disposition exception; unrelated to dividend capacity question."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+      "verdict": "SKIP",
+      "rationale": "IP license exception; unrelated to dividend capacity question."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+      "verdict": "SKIP",
+      "rationale": "Intercompany transfer exception; unrelated to dividend capacity."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+      "verdict": "SKIP",
+      "rationale": "Immaterial IP exception; unrelated to dividend capacity question."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+      "verdict": "SKIP",
+      "rationale": "Fair value disposition exception; unrelated to dividend capacity."
+    }
+  ],
+  "stage2_citations": [
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "section": "6.06(j)",
+      "page": 196,
+      "quote": "additional Dividends may be made...in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA for the most recently ended Test Period"
+    },
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_starter",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_cni",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_management_equity_basket_permission",
+      "section": "6.06(b)",
+      "page": 195,
+      "quote": "payments to Holdings...to repurchase or redeem Qualified Capital Stock...held by current or former officers, directors, consultants or employees"
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "section": "6.06(o)",
+      "page": 198,
+      "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00"
+    },
+    {
+      "norm_id": "6e76ed06_tax_distribution_basket_permission",
+      "section": "6.06(c)",
+      "page": 196,
+      "quote": "for any taxable period for which Holdings, the Borrowers or any of their respective Subsidiaries are members of a consolidated, combined or similar income tax group"
+    },
+    {
+      "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+      "section": "6.06(k)",
+      "page": 197,
+      "quote": "distributions for (i) general corporate, administrative, compliance and other overhead and related costs, fees and expenses...of Holdings or any direct or indirect parent of Holdings"
+    },
+    {
+      "norm_id": "6e76ed06_equity_award_permission",
+      "section": "6.06(d)",
+      "page": 196,
+      "quote": "repurchases of Equity Interests deemed to occur upon the exercise of stock options if the Equity Interests represent a portion of the exercise price or withholding tax thereof"
+    },
+    {
+      "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+      "section": "6.06(p)",
+      "page": 198,
+      "quote": "the distribution, by dividend or otherwise, of shares of Equity Interests of, or Indebtedness owed to Holdings or a Restricted Subsidiary by, or any assets of, an Unrestricted Subsidiary"
+    }
+  ],
+  "stage2_citation_norm_ids": [
+    "6e76ed06_general_rp_basket_permission",
+    "6e76ed06_builder_usage_permission",
+    "6e76ed06_builder_source_starter",
+    "6e76ed06_builder_source_cni",
+    "6e76ed06_management_equity_basket_permission",
+    "6e76ed06_ratio_rp_basket_permission",
+    "6e76ed06_tax_distribution_basket_permission",
+    "6e76ed06_holdco_overhead_basket_permission",
+    "6e76ed06_equity_award_permission",
+    "6e76ed06_unrestricted_sub_equity_distribution_permission"
+  ],
+  "stage2_answer": "The total quantifiable hard-dollar floor for dividend capacity is $260,000,000, consisting of two independent general_purpose baskets: (1) the General RP Basket of the greater of $130,000,000 and 100% of LTM Consolidated EBITDA [Section 6.06(j), p. 196]; and (2) the Builder Basket (Cumulative Amount) with a starter floor of the greater of $130,000,000 and 100% of LTM Consolidated EBITDA, which also grows by 50% of cumulative Consolidated Net Income, retained ECF, 100% of equity proceeds, retained asset sale proceeds, investment returns, and debt conversion proceeds (greatest-of formula) since the first day of the fiscal quarter in which the Closing Date occurs [Definition of Cumulative Amount, p. 32]. Additionally, a restricted-purpose management equity basket permits up to the greater of $20,000,000 and 15% of LTM Consolidated EBITDA per annum (with carryforward) solely for equity repurchases from employees/officers/directors/consultants [Section 6.06(b), p. 195]. Separately, unlimited dividend capacity is available if pro forma First Lien Leverage Ratio is \u2264 5.75x (or no-worse test) [Section 6.06(o), p. 198], plus categorical/uncapped baskets for tax distributions [Section 6.06(c)], holdco overhead [Section 6.06(k)], cashless equity award settlements [Section 6.06(d)], and unrestricted subsidiary distributions [Section 6.06(p)] \u2014 none of which are quantifiable without current financial data.",
+  "stage2_reasoning_conclusion": "The total quantifiable hard-dollar floor for dividend capacity is $260,000,000, comprising two independent general_purpose baskets each with a $130MM floor (Section 6.06(j) and the Cumulative Amount starter), plus a restricted-purpose management equity basket with a $20MM annual floor. Additional capacity under the builder basket (50% CNI, retained ECF, 140% EBITDA, equity/asset proceeds, investment returns) and unlimited capacity under the ratio basket (Section 6.06(o), if First Lien Leverage \u2264 5.75x) are variable and cannot be quantified without current financial data.",
+  "stage2_reasoning_analysis": "Step 1 \u2014 Classify baskets by capacity_category:\n\nGENERAL PURPOSE (sum independently unless sharing a pool):\n(A) General RP Basket [6.06(j)]: greater of $130,000,000 and 100% of Consolidated EBITDA (LTM). capacity_composition = 'fungible' with no shares_capacity_pool link identified to the builder basket, so treated as independent capacity.\n(B) Builder Basket / Cumulative Amount [Definition of Cumulative Amount]: general_purpose, capacity_composition = 'computed_from_sources'. The basket starts on the first day of the fiscal quarter in which the Closing Date occurs and equals the greatest of: (i) the starter amount = greater of $130,000,000 and 100% of Consolidated EBITDA (LTM); PLUS cumulative 50% of Consolidated Net Income since anchor; PLUS retained ECF; PLUS equity proceeds (100%); PLUS retained asset sale proceeds; PLUS investment returns; PLUS debt conversion proceeds. The three-test aggregate (norm 6e76ed06_builder_source_three_test_aggregate) selects the greatest of the CNI, ECF, and EBITDA\u00d7140% components. Because the builder basket is time-dependent and variable, only the $130MM floor (starter amount) is immediately quantifiable as a hard dollar minimum. The EBITDA grower and other sources are variable. Note: the builder RDP basket (6.09(a)(A)) shares the Cumulative Amount (shares_with_rp_builder = true), so usage under RDP reduces builder RP capacity \u2014 no double count.\n\nStep 2 \u2014 Check for fungibility/shared pool between general RP basket and builder basket: No shares_capacity_pool link is present in the data between these two baskets; they are independent pools. Sum them.\n\nStep 3 \u2014 Quantifiable floor for general_purpose baskets:\n- General RP Basket: $130,000,000 floor (grower: 100% LTM EBITDA)\n- Builder Basket: $130,000,000 floor starter (grower: greatest-of formula including 50% CNI, retained ECF, 140% EBITDA, equity proceeds, asset proceeds, investment returns)\nHard dollar floor total: $130MM + $130MM = $260,000,000\n\nStep 4 \u2014 Restricted purpose:\n- Management equity basket [6.06(b)]: greater of $20,000,000 and 15% of Consolidated EBITDA per annum, with carryforward. Hard dollar floor = $20MM annually. Restricted to equity repurchases for employees/officers/directors/consultants.\n\nStep 5 \u2014 Unlimited conditional:\n- Ratio basket [6.06(o)]: unlimited if pro forma First Lien Leverage Ratio \u2264 5.75x (or no-worse test). Not quantifiable without financial data.\n\nStep 6 \u2014 Categorical (no dollar cap; condition-based):\n- Tax distributions [6.06(c)]: capped to standalone taxpayer liability \u2014 not quantifiable without tax data.\n- HoldCo overhead [6.06(k)]: no dollar cap stated \u2014 categorical/unlimited for actual overhead.\n- Equity award net settlement [6.06(d)]: unlimited for cashless exercise/tax withholding deemed repurchases.\n- Unrestricted sub distributions [6.06(p)]: categorical \u2014 distributable assets of unsubs, not quantifiable without asset data.",
+  "total_cost_usd": 0.152862
+}

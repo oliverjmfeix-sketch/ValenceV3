@@ -1,0 +1,191 @@
+{
+  "question": "Can any asset sale proceeds be used to make dividends?",
+  "stage1_primary_count": 2,
+  "stage1_supplementary_count": 11,
+  "stage1_skip_count": 15,
+  "stage1_classifications": [
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "verdict": "PRIMARY",
+      "rationale": "Builder basket permits dividends; asset sale proceeds feed into it."
+    },
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "General RP basket permits dividends but not asset-sale-proceeds specific."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Ratio basket permits dividends but not asset-sale-proceeds specific."
+    },
+    {
+      "norm_id": "6e76ed06_management_equity_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Equity repurchase only; unrelated to asset sale proceeds."
+    },
+    {
+      "norm_id": "6e76ed06_tax_distribution_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Tax distributions only; unrelated to asset sale proceeds."
+    },
+    {
+      "norm_id": "6e76ed06_holdco_overhead_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Overhead payments only; unrelated to asset sale proceeds."
+    },
+    {
+      "norm_id": "6e76ed06_equity_award_permission",
+      "verdict": "SKIP",
+      "rationale": "Equity repurchase on exercise; unrelated to asset sale proceeds."
+    },
+    {
+      "norm_id": "6e76ed06_unrestricted_sub_equity_distribution_permission",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Allows distributing unrestricted sub assets/proceeds as dividend."
+    },
+    {
+      "norm_id": "6e76ed06_general_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Debt payment basket; not dividend-related."
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Ratio debt payment basket; not dividend-related."
+    },
+    {
+      "norm_id": "6e76ed06_builder_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Builder debt payment basket; not dividend-related."
+    },
+    {
+      "norm_id": "6e76ed06_refinancing_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Refinancing debt basket; not dividend-related."
+    },
+    {
+      "norm_id": "6e76ed06_equity_funded_rdp_basket_permission",
+      "verdict": "SKIP",
+      "rationale": "Equity-funded debt payment; not dividend-related."
+    },
+    {
+      "norm_id": "6e76ed06_jcrew_blocker_prohibition",
+      "verdict": "SKIP",
+      "rationale": "IP transfer restriction; unrelated to asset sale proceeds for dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_three_test_aggregate",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Aggregates builder sub-sources feeding builder basket for dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_starter",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Starter amount feeds builder basket permitting dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_cni",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "CNI sub-source feeds builder basket permitting dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ecf",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "ECF sub-source feeds builder basket permitting dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_ebitda_fc",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "EBITDA sub-source feeds builder basket permitting dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_equity_proceeds",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Other equity proceeds sub-source feeds builder basket."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+      "verdict": "PRIMARY",
+      "rationale": "Directly names asset sale proceeds as builder basket source for dividends."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_investment_returns",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Investment returns sub-source feeds builder basket."
+    },
+    {
+      "norm_id": "6e76ed06_builder_source_other_debt_conversion",
+      "verdict": "SUPPLEMENTARY",
+      "rationale": "Debt conversion sub-source feeds builder basket."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_ordinary_course_exception",
+      "verdict": "SKIP",
+      "rationale": "Exception to IP transfer prohibition; unrelated to dividends."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_nonexclusive_license_exception",
+      "verdict": "SKIP",
+      "rationale": "Exception to IP transfer prohibition; unrelated to dividends."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_intercompany_exception",
+      "verdict": "SKIP",
+      "rationale": "Exception to IP transfer prohibition; unrelated to dividends."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_immaterial_ip_exception",
+      "verdict": "SKIP",
+      "rationale": "Exception to IP transfer prohibition; unrelated to dividends."
+    },
+    {
+      "defeater_id": "6e76ed06_jcrew_fair_value_exception",
+      "verdict": "SKIP",
+      "rationale": "Exception to IP transfer prohibition; unrelated to dividends."
+    }
+  ],
+  "stage2_citations": [
+    {
+      "norm_id": "6e76ed06_builder_source_retained_asset_sale_proceeds",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_builder_usage_permission",
+      "section": "Definition of Cumulative Amount",
+      "page": 32,
+      "quote": "\"Cumulative Amount\" shall mean, on any date of determination (the \"Reference Date\"), the sum of (without duplication):"
+    },
+    {
+      "norm_id": "6e76ed06_general_rp_basket_permission",
+      "section": "6.06(j)",
+      "page": 196,
+      "quote": "additional Dividends may be made, directly or indirectly, by any Group Member to Holdings and/or (without duplication) Holdings' direct or indirect equity holders in an aggregate amount not to exceed the greater of $130,000,000 and 100% of Consolidated EBITDA"
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "section": "6.06(o)",
+      "page": 198,
+      "quote": "unlimited additional Dividends; provided that on a Pro Forma Basis, the First Lien Leverage Ratio...shall be no greater than the greater of (x) 5.75 to 1.00"
+    },
+    {
+      "norm_id": "6e76ed06_ratio_rp_basket_permission",
+      "section": "Definition of Applicable Net Cash Proceeds Percentage, clause (a)",
+      "page": 32,
+      "quote": "100% if the First Lien Leverage Ratio...is greater than 5.75 to 1.00"
+    }
+  ],
+  "stage2_citation_norm_ids": [
+    "6e76ed06_builder_source_retained_asset_sale_proceeds",
+    "6e76ed06_builder_usage_permission",
+    "6e76ed06_general_rp_basket_permission",
+    "6e76ed06_ratio_rp_basket_permission",
+    "6e76ed06_ratio_rp_basket_permission"
+  ],
+  "stage2_answer": "Yes, asset sale proceeds can be used to make dividends through multiple pathways. First, the retained (non-swept) Net Cash Proceeds of asset sales feed into the Cumulative Amount as an additive source [Definition of Cumulative Amount, p. 32], and the builder basket explicitly permits dividends to be paid from that Cumulative Amount [Definition of Cumulative Amount, p. 32]; the amount retained (vs. swept) depends on the leverage-based sweep tiers \u2014 0% sweep (full retention) if First Lien Leverage Ratio \u2264 5.50x, 50% sweep if > 5.50x but \u2264 5.75x, and 100% sweep if > 5.75x [Definition of Applicable Net Cash Proceeds Percentage, clauses (a)\u2013(c)]. Second, the general RP basket (up to the greater of $130,000,000 and 100% of Consolidated EBITDA) and the ratio basket (unlimited if First Lien Leverage Ratio \u2264 5.75x pro forma, or no-worse test) permit dividends from any cash source, including asset sale proceeds, without a source-of-funds restriction [Section 6.06(j), p. 196; Section 6.06(o), p. 198].",
+  "stage2_reasoning_conclusion": "Yes \u2014 asset sale proceeds can be used to make dividends through at least two pathways: (1) the retained (non-swept) portion of asset sale Net Cash Proceeds builds the Cumulative Amount under the builder basket, which permits dividends; and (2) the general RP basket and ratio basket permit dividends from any source of funds up to their respective caps or leverage conditions.",
+  "stage2_reasoning_analysis": "The key mechanism is the builder basket (Cumulative Amount). Norm 6e76ed06_builder_source_retained_asset_sale_proceeds is a source component (child_index 6, additive) that feeds into the Cumulative Amount (6e76ed06_builder_usage_permission). The proceeds_flow edge confirms that Net Cash Proceeds from asset sales subject to mandatory prepayment under Section 2.10(c) flow into clause (f) of the Cumulative Amount when retained \u2014 specifically, the portion NOT required to be swept under the leverage-based tier mechanics. The sweep tier structure governs how much must be prepaid versus retained: (a) 100% sweep if First Lien Leverage Ratio > 5.75x; (b) 50% sweep if > 5.50x but \u2264 5.75x; (c) 0% sweep (i.e., full retention) if \u2264 5.50x. Only the retained (non-swept) portion of asset sale proceeds feeds the Cumulative Amount. Once in the Cumulative Amount, those proceeds can be used to make dividends under the builder basket permission (norm 6e76ed06_builder_usage_permission), which explicitly scopes make_dividend_payment. Separately, dividends can also be funded via the general RP basket (Section 6.06(j), up to the greater of $130M and 100% of Consolidated EBITDA) or the ratio basket (Section 6.06(o), unlimited if First Lien Leverage Ratio \u2264 5.75x pro forma). Those baskets are not limited to any particular source of funds \u2014 they are capacity-based, so any cash including asset sale proceeds could fund dividends drawn under those baskets. There are no defeaters in the data restricting use of asset sale proceeds for dividends specifically.",
+  "total_cost_usd": 0.12186000000000001
+}
