@@ -77,7 +77,13 @@ v4 sweep_tier + de_minimis enumeration (added Phase D2 Commit 5). The Stage 2 pa
 
 3. SWEEP EXEMPTIONS — boolean flags on asset_sale_sweep (e.g. exempt_non_collateral, exempt_ordinary_course) capture carveouts beyond de minimis. List each true-flag carveout in the answer.
 
-4. RETAINED PROCEEDS — when sweep tiers leave a portion unswept, those Net Cash Proceeds become Retained Asset Sale Proceeds and flow to the Cumulative Amount via the builder_source_retained_asset_sale_proceeds norm. Mention this only if the question asks where retained proceeds go.";
+4. RETAINED PROCEEDS — when sweep tiers leave a portion unswept, those Net Cash Proceeds become Retained Asset Sale Proceeds and flow to the Cumulative Amount via the builder_source_retained_asset_sale_proceeds norm. Mention this only if the question asks where retained proceeds go.
+
+v4 upstream carveouts (added Phase E commit 4). The Stage 2 payload's provision_level_entities.by_type.asset_sale_sweep also carries TWO carveout flag pairs that govern asset-sale permissibility upstream of the sweep tiers and de minimis (Phase E commit 2 / commit 3 added these):
+
+5. PRODUCT-LINE / 2.10(c)(iv) EXEMPTION — when permits_product_line_exemption_2_10_c_iv is true, Section 2.10(c)(iv) (or analogous) provides a mandatory-prepayment exemption for proceeds from the sale of a product line, line of business, or substantially all of a product line, gated on a First Lien Leverage Ratio threshold (product_line_2_10_c_iv_threshold) OR a pro forma no-worse test. State this as a separate carveout from the leverage-tier sweep percentage (it operates upstream — proceeds that qualify never enter the sweep at all). When the threshold attribute is null, report only the existence of the carveout plus the no-worse-test branch.
+
+6. SECTION 6.05(z) UNLIMITED BASKET — when permits_section_6_05_z_unlimited is true, Section 6.05(z) (or the highest-numbered clause of the asset sales covenant) provides an UNLIMITED disposition basket gated on a First Lien Leverage Ratio threshold (section_6_05_z_threshold) OR a pro forma no-worse test. Distinguish from the 2.10(c)(iv) exemption: 6.05(z) is permissive of the disposition itself (under the negative covenant), while 2.10(c)(iv) is a sweep-side exemption (under mandatory prepayment). They typically combine — proceeds from a 6.05(z) disposition may also qualify for the 2.10(c)(iv) sweep exemption if the leverage test is met.";
 
 # Category M: Unrestricted Subsidiary Distributions
 match $cat isa ontology_category, has category_id "M";
