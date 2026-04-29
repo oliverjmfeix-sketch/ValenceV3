@@ -207,3 +207,107 @@ discipline. Two paths:
 See `docs/v4_storage_patterns.md` for the patterns. Future
 extraction-side writes that don't go through these helpers are
 out-of-discipline and should be flagged.
+
+## Entity_list question pattern (architectural rationale)
+
+`entity_list` is one of 9 valid `answer_type` values, but it has a
+distinct architectural shape from scalar question types. This
+section documents the pattern and the SSoT division it preserves.
+
+### Shape comparison
+
+A SCALAR question (e.g., `rp_l24`):
+- Stores its target via two relations:
+  - `category_has_question` (links to ontology_category for routing)
+  - `question_annotates_attribute` (with `target_entity_type` +
+    `target_attribute_name` edge attrs — names which v3 entity attribute
+    the answer populates)
+- Answer is a single typed value (boolean, double, string, etc.)
+  stored in `provision_has_answer` with the matching `answer_*` typed
+  attribute.
+
+An ENTITY_LIST question (e.g., `rp_el_reallocations`):
+- Stores its target via two QUESTION-LEVEL attributes (not relations):
+  - `target_entity_type` (e.g., `"basket_reallocates_to"`)
+  - `target_relation_type` (e.g., `"basket_reallocates_to"` — same
+    name when the entity is itself a relation, or different when the
+    entity is connected to the provision via a different relation)
+- Answer is a list of dicts; each dict creates a new instance of
+  the target entity type with the listed attributes, plus a
+  `target_relation_type` instance linking it to the provision.
+- Does NOT use `category_has_question` (entity_list questions don't
+  route via category — they target a specific entity type
+  directly).
+
+### Why the difference is principled
+
+Both shapes preserve the SSoT division (graph stores domain content;
+Python orchestrates).
+
+- Scalars need category routing because the answer-targeting
+  decision (which v3 attribute does this populate?) is one decision
+  per question, encoded in a single relation. Category provides
+  semantic grouping for synthesis-side work (per-category
+  synthesis_guidance).
+- Entity_list answers create MANY entities per call. The targeting
+  decision (which entity type? which relation?) is a property of
+  the question itself, not of a specific answer. Encoding at the
+  question level lets the extraction pipeline create the right
+  entities without requiring per-answer routing logic in Python.
+  The 4 entity_list questions (rp_el_sweep_tiers, rp_el_pathways,
+  rp_el_reallocations, rp_el_exceptions) each target a distinct
+  entity type, and their target_entity_type / target_relation_type
+  attrs make this explicit graph-data, not Python branching.
+
+### What stays in Python (orchestration)
+
+- Looping over answers and calling the storage helper per item
+- Resolving role players (e.g., resolving basket_id strings to
+  actual entities for `basket_reallocates_to` relations)
+- Filtering invalid items (e.g., skipping reallocations whose
+  source/target basket can't be resolved)
+- Idempotent storage discipline (Phase F's upsert helpers)
+
+### What's in graph data (domain content)
+
+- The question text, prompt, and target shape (per-question attrs)
+- The category-question linkage (for scalar; absent for entity_list)
+- The question's annotation linkage (for scalar; absent for
+  entity_list)
+- The target entity type + relation type (for entity_list;
+  encoded as question attrs)
+
+### Validation enforcement
+
+The Phase H commit 3 validation utility
+(`phase_h_validate_extraction_questions.py`) treats the two shapes
+distinctly:
+
+- For SCALAR types: requires `category_has_question` linkage AND
+  (`question_annotates_attribute` OR `question_targets_field` OR
+  `question_targets_concept`).
+- For ENTITY_LIST: requires `target_entity_type` AND
+  `target_relation_type` attrs on the question itself; does NOT
+  require category linkage.
+
+Conformance verified at 99.2% on valence_v4 (only the 2 jc_t
+questions miss category linkage; both are scalar boolean type
+where the linkage absence is a real gap, not a design choice).
+
+## SSoT division summary
+
+| Concern | Lives in | Authority |
+|---|---|---|
+| Question text + prompt + target shape | `ontology_question` graph entity | Graph |
+| Category routing | `category_has_question` relation | Graph |
+| Scalar attribute-target binding | `question_annotates_attribute` relation | Graph |
+| Entity_list target-type binding | `target_entity_type` + `target_relation_type` attrs on question | Graph |
+| Per-question prompt iteration | upsert via Phase D2 pattern | Graph (data); Python (mechanics) |
+| Storage idempotency | `graph_storage._upsert_*` helpers | Python (mechanism); Phase F discipline doc (specification) |
+| Universe slicing | `extract_covenant` runtime (currently full) | Python (current); future: per-question or per-category attribute |
+| Convention enforcement | `extraction_prompt` content + `docs/v4_attribute_conventions.md` | Graph (per-question); Doc (canonical) |
+
+No SSoT violations found in Phase H's audit. The division is
+principled where it stands; future architecture changes (versioning
+attrs, universe-slice attrs, conformance-attestation attrs) would
+add to this table but are deferred to post-pilot.
