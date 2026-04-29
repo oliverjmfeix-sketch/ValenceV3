@@ -467,6 +467,72 @@ def fetch_produced_by_rule(driver, db: str, deal_id: str) -> dict[str, str]:
     return out
 
 
+def fetch_provision_entities(driver, db: str, deal_id: str) -> dict[str, Any]:
+    """Walk `(provision: $p, extracted: $e) isa provision_has_extracted_entity`
+    edges for the deal's rp_provision and return entities grouped by type.
+
+    Phase D2 commit 4 — surfaces provision-level entities (sweep_tier,
+    asset_sale_sweep, investment_pathway, unsub_designation, etc.) to
+    Stage 2 synthesis. These entities live one hop further out from norms
+    than fetch_norm_context's existing per-norm walk reaches; they're
+    properties of the provision, not a single norm's v3 source.
+
+    The schema's polymorphic role aliasing (each subtype's entity role
+    aliases to `extracted` on the abstract parent provision_has_extracted_entity)
+    lets a single query return all entity types.
+
+    Returns:
+        {
+          "rp_provision_id": "<deal_id>_rp",
+          "by_type": {
+            "sweep_tier": [{"entity_iid": ..., "attrs": {...}}, ...],
+            "asset_sale_sweep": [{...}],
+            "investment_pathway": [...],
+            "unsub_designation": [...],
+            ...
+          }
+        }
+    """
+    out_by_type: dict[str, list[dict]] = defaultdict(list)
+    rp_provision_id = f"{deal_id}_rp"
+    tx = driver.transaction(db, TransactionType.READ)
+    try:
+        # Polymorphic match: walks every subtype of provision_has_extracted_entity
+        # because role names are aliased to `extracted` on the abstract parent.
+        # Filter scope to the deal's rp_provision via provision_id contains.
+        q = (
+            f'match $p isa rp_provision, has provision_id $pid; '
+            f'$pid contains "{deal_id}"; '
+            f'$rel isa provision_has_extracted_entity, links (provision: $p, extracted: $e); '
+            f'$e isa! $etype; '
+            f'select $pid, $e, $etype;'
+        )
+        try:
+            r = tx.query(q).resolve()
+            for row in r.as_concept_rows():
+                e_iid = row.get("e").get_iid()
+                e_type = row.get("etype").get_label()
+                attrs = _all_attrs_of(tx, e_iid)
+                out_by_type[e_type].append({
+                    "entity_iid": e_iid,
+                    "attrs": attrs,
+                })
+        except Exception as exc:
+            logger.warning("provision_entities query: %s",
+                           str(exc).splitlines()[0][:160])
+    finally:
+        try:
+            if tx.is_open():
+                tx.close()
+        except Exception:
+            pass
+
+    return {
+        "rp_provision_id": rp_provision_id,
+        "by_type": dict(out_by_type),
+    }
+
+
 def fetch_proceeds_flows(driver, db: str, deal_id: str) -> list[dict]:
     """Returns list of {event_class_id, target_norm_id,
     proceeds_flow_kind, proceeds_flow_conditions} for
@@ -576,7 +642,9 @@ def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
         })
 
     proceeds = fetch_proceeds_flows(driver, db, deal_id)
+    provision_entities = fetch_provision_entities(driver, db, deal_id)
 
+    pe_by_type = provision_entities.get("by_type", {})
     summary = {
         "norm_count": len(norms_out),
         "defeater_count": len(defeaters_out),
@@ -585,12 +653,15 @@ def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
         "contributes_to_edges": len(contributes),
         "defeats_edges": len(defeats),
         "proceeds_flow_edges": len(proceeds),
+        "provision_entity_count": sum(len(v) for v in pe_by_type.values()),
+        "provision_entity_types": sorted(pe_by_type.keys()),
     }
     return {
         "deal_id": deal_id,
         "norms": norms_out,
         "defeaters": defeaters_out,
         "proceeds_flows": proceeds,
+        "provision_level_entities": provision_entities,
         "summary": summary,
     }
 

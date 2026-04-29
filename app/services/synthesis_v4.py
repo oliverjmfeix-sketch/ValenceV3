@@ -349,6 +349,12 @@ Defeaters are exceptions/carve-outs. Each defeater overrides specific norms via 
 
 Proceeds-flow edges (event_provides_proceeds_to_norm) connect agreement-level events (asset_sale_event) to norms that receive proceeds.
 
+`provision_level_entities` is a top-level block containing entities attached to the rp_provision (sweep_tier, asset_sale_sweep, investment_pathway, unsub_designation, etc.) with their full v3 attributes. These entities live one hop further out from norms — they are properties of the provision rather than a single norm's v3 source. Surface them alongside norm citations when relevant. Shape: `{{"by_type": {{"sweep_tier": [{{"entity_iid": "...", "attrs": {{...}}}}, ...], ...}}}}`. Notable entity types and the question classes that consume them:
+- `sweep_tier`: leverage threshold + sweep percentage tiers for asset-sale sweeps (Q4-class). Iterate the list, sort by `leverage_threshold` desc, cite each tier's `section_reference`.
+- `asset_sale_sweep`: per-deal sweep mechanics including de minimis carveouts. Look for `individual_de_minimis_usd`, `individual_de_minimis_pct`, `annual_de_minimis_usd`, `annual_de_minimis_pct` to enumerate the sweep-exemption thresholds.
+- `investment_pathway`: distinct pathways for investments to other entities (Q3-class reallocation context).
+- `unsub_designation`: requirements for unrestricted-subsidiary designation (Q2-class context).
+
 ## STRICT RULES
 
 1. CITATION REQUIRED — every factual claim must reference a norm_id, plus its section_reference and source_page when available.
@@ -450,6 +456,7 @@ def run_stage2(client: anthropic.Anthropic, model: str, question: str,
         "supplementary_norms": supplementary,
         "defeaters": primary_defeaters,
         "proceeds_flows": context.get("proceeds_flows", []),
+        "provision_level_entities": context.get("provision_level_entities", {}),
     }
     user_message = (
         f"## QUESTION\n\n{question}\n\n"
