@@ -35,3 +35,22 @@ match $cat isa ontology_category, has category_id "N";
 insert $cat has stage1_picker_guidance "APPLY THIS RULE ONLY when the question explicitly asks for an aggregate/total dividend capacity (e.g., 'total dividend capacity', 'how much can be paid in dividends total', 'all baskets that contribute', 'quantifiable capacity'). DO NOT apply this rule to questions about a single norm's applicability (e.g., 'can the borrower do X under the ratio basket?', 'is action Y permitted given current leverage?').
 
 When the rule applies: mark every basket-permission norm with action_scope: 'reallocable' as PRIMARY, regardless of which covenant the basket nominally serves. RP, RDP, and investment baskets are all in scope when their action_scope is 'reallocable'. The 'reallocable' marker means the basket's unused capacity flows to dividends — for example, the general_rdp_basket_permission's unused $130M can be reallocated under 6.06(j) to fund dividends, so it contributes to the aggregate dividend capacity even though its norm_kind contains 'rdp'. Do NOT skip a basket-permission norm on the basis that its norm_kind contains 'rdp' or 'investment' or 'debt' — the schema's action_scope: 'reallocable' marker is authoritative for inclusion. The basket's capacity_composition ('fungible' vs. 'additive') describes the geometry of how the capacity combines but does not change the inclusion rule.";
+
+# Category L: Asset Sale Proceeds & Sweeps
+# Phase I.4 commit 7 — recovers Q4 carveout naming (regressed in I.3 when
+# Stage 1's classifier interpreted scoped_actions=[make_investment] as
+# disqualifying). The unlimited_asset_sale_basket_permission and
+# sweep_exemption_product_line norms are LOAD-BEARING for asset-sale-
+# proceeds-as-dividends questions even though their scoped_actions
+# excludes 'make_dividend_payment'.
+match $cat isa ontology_category, has category_id "L";
+insert $cat has stage1_picker_guidance "APPLY THIS RULE ONLY when the question concerns asset-sale proceeds, mandatory prepayment sweeps, or asset-sale carveouts. Examples: 'can asset sale proceeds be used to make dividends', 'what is the sweep mechanic', 'are there carveouts to the asset sale sweep', 'how do retained proceeds become available for RP'.
+
+When the rule applies, mark the following norms as PRIMARY:
+- Every norm with norm_kind 'sweep_tier' (one per leverage tier).
+- Every norm with norm_kind 'unlimited_asset_sale_basket_permission' (the 6.05(z) carveout — even though scoped_actions=[make_investment], it IS load-bearing because asset-sale proceeds become reinvested cash → builder basket → dividends).
+- Every norm with norm_kind 'sweep_exemption_product_line' (the 2.10(c)(iv) carveout — same scoped_actions caveat applies).
+- Every norm with norm_kind 'sweep_exemption_de_minimis' (when projected).
+- The norm with norm_kind 'builder_source_retained_asset_sale_proceeds' (bridge to dividends via the Cumulative Amount).
+
+DO NOT classify any of these as SUPPLEMENTARY on the basis that their scoped_actions excludes 'make_dividend_payment'. The asset-sale → reinvestment → builder → dividends path is a STANDARD pattern in credit agreements and the v4 norms surface this path explicitly. The lawyer-facing answer must enumerate each carveout by norm_id + section reference. Mark general dividend baskets (general_rp_basket_permission, ratio_rp_basket_permission, builder_usage_permission) as SUPPLEMENTARY for asset-sale-specific questions — they receive proceeds but are NOT asset-sale-specific provisions.";

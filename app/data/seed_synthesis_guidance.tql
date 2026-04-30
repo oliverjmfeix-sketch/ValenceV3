@@ -52,8 +52,30 @@ match $cat isa ontology_category, has category_id "H";
 insert $cat has synthesis_guidance "Check holdco_overhead_basket entity attributes for dollar cap, covered expenses, and whether amount is per annum or aggregate. Note whether the basket covers advisory fees, management fees, and/or overhead expenses.";
 
 # Category I: Reallocation
+# Phase I.4 commit 7 — rewrote in v4 vocab. Reasons over action_scope
+# and shares_capacity_pool, replacing v3 basket_reallocation entity refs.
 match $cat isa ontology_category, has category_id "I";
-insert $cat has synthesis_guidance "When answering about reallocation paths: Check basket_reallocation entities and basket_reallocates_to link edges between baskets. Each link has relation_attributes showing dollar amounts, section references, and capacity_effect. Follow the typed edges to show which baskets flow capacity to which other baskets. Include direction, dollar amounts, and whether reduction is dollar-for-dollar or while-outstanding-only. For cross-covenant baskets (investment, RDP), note when capacity crosses covenant boundaries.";
+insert $cat has synthesis_guidance "Category I covers reallocation of capacity across baskets and across covenants under the v4 deontic-norm projection.
+
+KEY V4 ATTRS:
+- action_scope on each norm: 'specific' (only its declared purpose), 'general' (broad but no cross-covenant flow), or 'reallocable' (capacity flows to other covenants/actions). The 'reallocable' marker is the load-bearing signal for Category I questions.
+- norm_kind identifies the basket (e.g., 'general_rp_basket_permission', 'general_rdp_basket_permission', 'general_investment_basket_permission').
+- shares_capacity_pool relation between two norms means they share a single pool (drawing from one reduces the other dollar-for-dollar). ABSENCE of this relation between two reallocable norms with matching caps means INDEPENDENT additive pools — both caps add to total capacity.
+
+REALLOCATION PATHWAYS (RP / RDP / Investment) in standard credit agreements:
+(a) general_rp_basket_permission [§6.06(j)] reallocable; flows to RDP under 6.09(a) AND to investments under 6.03(y).
+(b) general_rdp_basket_permission [§6.09(a)(I)] reallocable; flows back to RP via cross-reference language ('amounts available under 6.09(a)' permitted under 6.06).
+(c) general_investment_basket_permission [§6.03(y)] reallocable; sized as 'greater of $X / Y% EBITDA, plus the aggregate amounts available under 6.09(a)' — RDP capacity inflates the investment basket's cap.
+
+CROSS-COVENANT FUNGIBILITY: Two reallocable norms in different covenants at the SAME cap (e.g., both $130M / 100% EBITDA) WITHOUT a shares_capacity_pool link act as INDEPENDENT pools — total reallocable capacity is the SUM, not the larger of the two.
+
+ANSWER STRUCTURE:
+- Enumerate every reallocable basket-pair by norm_id + section reference + dollar cap.
+- State whether each pair shares a pool or is independent (cite the absence/presence of shares_capacity_pool).
+- Show the directional flow: 'A → B', 'A ← B', or 'A ↔ B'.
+- Quote the cross-reference language from source_text where available.
+
+TAILORED CARVEOUTS (intercompany, reorganization, IPO): Check the available norms list for tailored norm_kinds (e.g., 'intercompany_rdp_permission', 'reorganization_rp_permission'). If the v4 graph doesn't carry them as separate norms for this deal, state: 'Tailored carveouts may exist in the document but are not yet captured as separate v4 norms.' Do NOT fabricate carveouts not present in the data.";
 
 # Category J: Unrestricted Subsidiaries
 match $cat isa ontology_category, has category_id "J";
@@ -64,26 +86,37 @@ match $cat isa ontology_category, has category_id "K";
 insert $cat has synthesis_guidance "When answering about J.Crew blockers, IP protection, unrestricted subsidiary risk, or covenant loopholes, structure the answer as: BLOCKER PROVISION — State whether the blocker exists, quote it verbatim, cite the page. WHAT IT COVERS — State scope ONCE. What actions are prohibited, who is bound, what assets are protected, when it applies. A blocker covering only Intellectual Property (not broader material assets) is STANDARD MARKET PRACTICE — do not frame IP-only coverage as a gap. DEFINITION QUALITY — For each key definition, state: defined inline, by cross-reference, or not defined. Frame by practical impact. INVESTMENT PATHWAYS — ALWAYS include if pathway entity data is available. Show investment caps, hop chains, whether baskets stack or rebuild. If blocker binds ALL Restricted Subs, note this CLOSES the chain pathway. AMENDMENT VULNERABILITY — State the SPECIFIC amendment threshold from the entity data. 'Not a sacred right' alone is insufficient. LIEN RELEASE INTERACTION — CONNECT lien release to blocker: explain WHY automatic lien release matters for collateral protection. SYNTHESIS — End with 2-3 sentences connecting findings with cause-and-effect relationships. No subjective risk ratings. FORMATTING: Do NOT use 'Tier 1/2/3' labels. Do NOT frame IP-only coverage as a gap. ALWAYS include pathways if available. ALWAYS state amendment thresholds. ALWAYS connect lien release to blocker.";
 
 # Category L: Asset Sale Proceeds & Sweeps
-# Phase D2 commit 5 — appended v4 enumeration guidance for the new
-# provision_level_entities block (sweep_tier and asset_sale_sweep).
+# Phase I.4 commit 7 — rewrote to lead with v4 governance norms (Phase I.2
+# emitted unlimited_asset_sale_basket_permission, sweep_exemption_product_line,
+# sweep_tier_*pct via projection_rule_executor.emit_asset_sale_governance_norms).
+# v3 attrs retained as fallback only.
 match $cat isa ontology_category, has category_id "L";
-insert $cat has synthesis_guidance "Check sweep_tier entities for percentage tiers, step-down thresholds, and reinvestment periods. Check sweep_exemption entities for carve-outs from sweep obligations. Check de_minimis_threshold entity for dollar amounts below which sweeps are not required. Present sweep tiers in order from highest to lowest percentage. Note reinvestment period length and whether it resets.
+insert $cat has synthesis_guidance "Category L covers asset-sale-proceeds questions under the v4 deontic-norm projection. The load-bearing analytical units are v4 norms; the v3 attrs on provision_level_entities.by_type.asset_sale_sweep / sweep_tier remain as fallback substrate.
 
-v4 sweep_tier + de_minimis enumeration (added Phase D2 Commit 5). The Stage 2 payload includes a top-level provision_level_entities.by_type block. When a question concerns asset-sale proceeds:
+KEY V4 NORMS FOR THIS CATEGORY (cite by norm_id + source_section):
 
-1. SWEEP TIERS — when provision_level_entities.by_type.sweep_tier is present, enumerate every tier entry. Each tier carries attributes leverage_threshold (numeric), sweep_percentage (fraction; multiply by 100 for percent display), and section_reference. Sort by leverage_threshold descending. State each tier explicitly in the answer, e.g. 'At First Lien Leverage Ratio above 5.75x: 100% of Net Cash Proceeds swept [Definition of Applicable Net Cash Proceeds Percentage, clause (a)]; between 5.50x and 5.75x: 50%; at or below 5.50x: 0%.' Always cite the section_reference for each tier.
+1. SWEEP TIER OBLIGATIONS (norm_kind: 'sweep_tier', modality: 'obligation'). Three norms per typical credit agreement (sweep_tier_100pct / sweep_tier_50pct / sweep_tier_0pct). Each tier's source_text states the leverage threshold and sweep percentage (e.g. '100% if First Lien Leverage Ratio > 5.75x'). LOAD-BEARING for any retained-proceeds question — quote each tier's threshold and percentage.
 
-2. DE MINIMIS THRESHOLDS — when provision_level_entities.by_type.asset_sale_sweep is present, examine its attrs for de_minimis carveouts. Look for individual_de_minimis_usd, individual_de_minimis_pct, annual_de_minimis_usd, annual_de_minimis_pct, individual_uses_greater_of, annual_uses_greater_of, annual_permits_carryforward. Percentages are stored as fractions (0.15 = 15%; 0.30 = 30%). State both individual-transaction and annual carveouts explicitly with their dollar and percentage thresholds, e.g. 'Asset sales below de minimis thresholds are exempt from the sweep: individually, the greater of $20M or 15% of Consolidated EBITDA per transaction; in the aggregate, the greater of $40M or 30% of Consolidated EBITDA per fiscal year.' If a specific dollar attribute is absent (e.g. individual_de_minimis_usd is null), report only the populated half (e.g. just the percentage threshold) — do not invent a dollar floor.
+2. UNLIMITED ASSET SALE BASKET PERMISSION (norm_kind: 'unlimited_asset_sale_basket_permission', modality: 'permission', section 6.05(z)). The v4 projection of the 6.05(z) unlimited-disposition basket. Even though scoped_actions=[make_investment] (asset-sale proceeds become reinvested cash that ultimately funds dividends via builder), this norm IS load-bearing for any 'asset sale proceeds for dividends' or 'unlimited dispositions' question. Cite by norm_id; quote source_section ('6.05(z)') and the leverage-test condition from source_text.
 
-3. SWEEP EXEMPTIONS — boolean flags on asset_sale_sweep (e.g. exempt_non_collateral, exempt_ordinary_course) capture carveouts beyond de minimis. List each true-flag carveout in the answer.
+3. SWEEP EXEMPTION — PRODUCT LINE (norm_kind: 'sweep_exemption_product_line', modality: 'permission', section 2.10(c)(iv)). Exempts product-line dispositions from the mandatory prepayment sweep. Cite by norm_id; state the section reference explicitly ('Section 2.10(c)(iv)'), the exemption mechanic, and the leverage-test condition.
 
-4. RETAINED PROCEEDS — when sweep tiers leave a portion unswept, those Net Cash Proceeds become Retained Asset Sale Proceeds and flow to the Cumulative Amount via the builder_source_retained_asset_sale_proceeds norm. Mention this only if the question asks where retained proceeds go.
+4. SWEEP EXEMPTION — DE MINIMIS (norm_kind: 'sweep_exemption_de_minimis'). When projected, exempts asset sales below dollar/EBITDA-pct thresholds. Cite by norm_id; state the dollar+EBITDA-pct threshold pairs (individual + annual). May not be projected for all deals — check the available norms before citing.
 
-v4 upstream carveouts (added Phase E commit 4). The Stage 2 payload's provision_level_entities.by_type.asset_sale_sweep also carries TWO carveout flag pairs that govern asset-sale permissibility upstream of the sweep tiers and de minimis (Phase E commit 2 / commit 3 added these):
+5. RETAINED ASSET SALE PROCEEDS BUILDER SOURCE (norm_kind: 'builder_source_retained_asset_sale_proceeds'). Bridge norm: takes proceeds NOT swept (after sweep tiers + exemptions) into the Cumulative Amount. Always cite together with the sweep mechanics so the reader sees: 'asset sale proceeds → sweep applied → retained portion → builder basket → dividends'.
 
-5. PRODUCT-LINE / 2.10(c)(iv) EXEMPTION — when permits_product_line_exemption_2_10_c_iv is true, Section 2.10(c)(iv) (or analogous) provides a mandatory-prepayment exemption for proceeds from the sale of a product line, line of business, or substantially all of a product line, gated on a First Lien Leverage Ratio threshold (product_line_2_10_c_iv_threshold) OR a pro forma no-worse test. State this as a separate carveout from the leverage-tier sweep percentage (it operates upstream — proceeds that qualify never enter the sweep at all). When the threshold attribute is null, report only the existence of the carveout plus the no-worse-test branch.
+ANSWER STRUCTURE (asset-sale-proceeds-as-dividends questions):
 
-6. SECTION 6.05(z) UNLIMITED BASKET — when permits_section_6_05_z_unlimited is true, Section 6.05(z) (or the highest-numbered clause of the asset sales covenant) provides an UNLIMITED disposition basket gated on a First Lien Leverage Ratio threshold (section_6_05_z_threshold) OR a pro forma no-worse test. Distinguish from the 2.10(c)(iv) exemption: 6.05(z) is permissive of the disposition itself (under the negative covenant), while 2.10(c)(iv) is a sweep-side exemption (under mandatory prepayment). They typically combine — proceeds from a 6.05(z) disposition may also qualify for the 2.10(c)(iv) sweep exemption if the leverage test is met.";
+(a) Sweep mechanic: cite each sweep_tier norm by norm_id; quote leverage threshold + percentage from source_text.
+(b) Carveout exemptions: cite unlimited_asset_sale_basket_permission AND sweep_exemption_product_line BOTH by norm_id and section reference. These two carveouts (6.05(z) and 2.10(c)(iv)) are the most-asked-about features in lawyer-facing asset-sale analysis. DO NOT omit either when present in the available norms; do NOT collapse them into 'various exemptions'.
+(c) Path to dividends: cite builder_source_retained_asset_sale_proceeds; explain the flow into the Cumulative Amount.
+
+V3 ATTR FALLBACK (use ONLY if the corresponding v4 norm is absent):
+- de minimis: individual_de_minimis_usd / pct, annual_de_minimis_usd / pct (fractions: 0.15 = 15%; 0.30 = 30%).
+- carveout flags: exempt_non_collateral, exempt_ordinary_course, permits_section_6_05_z_unlimited, permits_product_line_exemption_2_10_c_iv (booleans).
+- threshold attrs: section_6_05_z_threshold, product_line_2_10_c_iv_threshold.
+
+If the v3 attribute is null OR if a v4 norm is also present for the same provision, prefer the v4 norm. Do not invent dollar floors; report only populated values.";
 
 # Category M: Unrestricted Subsidiary Distributions
 match $cat isa ontology_category, has category_id "M";
@@ -118,7 +151,20 @@ Show the per-norm contribution explicitly:
   norm_id [§section, p.page]: $cap_usd or cap_grower_pct% EBITDA
 List the reallocable+aggregate baskets, then sum: $X + $Y + $Z = $TOTAL.
 List restricted-purpose, unlimited-conditional, and categorical baskets separately, each with its own line and its own scope/condition.
-Do NOT state a total without the per-norm breakdown.";
+Do NOT state a total without the per-norm breakdown.
+
+REALLOCABLE-RDP CONTRIBUTION TO DIVIDEND FLOOR (Phase I.4 commit 7):
+
+When computing aggregate dividend capacity, every reallocable basket-permission norm contributes to the floor regardless of which covenant it nominally serves. The general_rdp_basket_permission's cap (e.g. greater of $130M or 100% EBITDA) IS part of the dividend floor when fungible with the general_rp_basket_permission. Two reallocable norms with the same cap and NO shares_capacity_pool link between them are INDEPENDENT additive pools — both caps are summed.
+
+Concrete pattern (Duck Creek and similar deals):
+  general_rp_basket_permission        [§6.06(j),    p.196]:  $130M  (action_scope: reallocable)
+  general_rdp_basket_permission       [§6.09(a)(I), p.200]:  $130M  (action_scope: reallocable; reallocates to RP via 6.06(j) cross-reference)
+  builder_source_starter              [Cumulative Amount]:    $130M  (independent pool)
+  ────────────────────────────────────────────────────────────────────────
+  Minimum fixed-dollar dividend floor:                          $390M
+
+Do NOT stop at $260M when general_rdp_basket_permission has action_scope: 'reallocable' AND there is no shares_capacity_pool link to the RP basket. The 'reallocable' marker IS the authoritative inclusion signal — applied uniformly across covenants. State the addition explicitly, including the RDP basket's contribution, as part of the per-norm breakdown.";
 
 # Category P: Unsub Distribution Basket Carve-outs
 match $cat isa ontology_category, has category_id "P";
