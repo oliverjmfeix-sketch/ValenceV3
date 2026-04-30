@@ -1,0 +1,158 @@
+# Phase I commit 3 — asset-sale governance norms + event_governed_by_norm edges.
+#
+# Authors 5 v4 norms (3 sweep_tier obligations + 2 carveout permissions) and
+# attaches event_governed_by_norm edges to the deal-agnostic asset_sale_event
+# entity. These norms close the chain from asset_sale_event → governing norm
+# that was deferred per Phase B/C/F (`event_governed_by_norm` schema landed
+# Phase F, populated nowhere until now).
+#
+# Substitution: <deal_id> is replaced at load time by
+# emit_asset_sale_governance_norms() in projection_rule_executor.py.
+#
+# Match-insert pattern: each block matches the deal's rp_provision +
+# (sweep_tier | asset_sale_sweep) v3 entity, plus the action_class /
+# object_class primitives + party for subject binding, then inserts the v4
+# norm + scope edges (subject/action/object) + event_governed_by_norm edge.
+# Match returning 0 rows is silent (per emit_asset_sale_proceeds_flows
+# precedent).
+#
+# Carveout norms (6.05(z), 2.10(c)(iv)) include attribute filters on
+# asset_sale_sweep so the norm only emits when the corresponding boolean
+# flag is true on this deal's extraction (Phase E commit 2 added these
+# flags). Sweep tier norms emit unconditionally for each of the 3
+# extracted sweep_tier entities.
+#
+# Norm specs are taken from app/data/duck_creek_rp_ground_truth.yaml so
+# A4 round_trip_check matches the (norm_kind, modality, action, object)
+# 4-tuple. Source text excerpted from GT. Subject roles per GT:
+#   - sweep_tier_*pct: borrower
+#   - 6.05(z) / 2.10(c)(iv): borrower + loan_party
+# Subject is bound via norm_binds_subject (required by A1_structural).
+#
+# Schema-additive only: no new attributes, no schema changes.
+
+# ─── (1) sweep_tier_100pct: > 5.75x leverage → 100% mandatory sweep ────────────
+match
+  $p isa rp_provision, has provision_id "<deal_id>_rp";
+  $st isa sweep_tier, has tier_id "<deal_id>_rp_sweep_tier_0";
+  (provision: $p, tier: $st) isa provision_has_sweep_tier;
+  $a isa! pay_subordinated_debt;
+  $oc isa! cash;
+  $borrower isa borrower_party, has party_id "<deal_id>__borrower";
+  $e isa event_class, has event_class_id "asset_sale_event";
+insert
+  $n isa norm,
+    has norm_id "<deal_id>_sweep_tier_100pct",
+    has norm_kind "sweep_tier",
+    has modality "obligation",
+    has capacity_composition "n_a",
+    has action_scope "specific",
+    has source_section "Definition of Applicable Net Cash Proceeds Percentage, clause (a)",
+    has source_page 5,
+    has source_text "(a) 100% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.75 to 1.00";
+  (norm: $n, subject: $borrower) isa norm_binds_subject;
+  (norm: $n, action: $a) isa norm_scopes_action;
+  (norm: $n, object: $oc) isa norm_scopes_object;
+  (governed_event: $e, governing_norm: $n) isa event_governed_by_norm;
+
+# ─── (2) sweep_tier_50pct: 5.50x < ratio ≤ 5.75x → 50% mandatory sweep ─────────
+match
+  $p isa rp_provision, has provision_id "<deal_id>_rp";
+  $st isa sweep_tier, has tier_id "<deal_id>_rp_sweep_tier_1";
+  (provision: $p, tier: $st) isa provision_has_sweep_tier;
+  $a isa! pay_subordinated_debt;
+  $oc isa! cash;
+  $borrower isa borrower_party, has party_id "<deal_id>__borrower";
+  $e isa event_class, has event_class_id "asset_sale_event";
+insert
+  $n isa norm,
+    has norm_id "<deal_id>_sweep_tier_50pct",
+    has norm_kind "sweep_tier",
+    has modality "obligation",
+    has capacity_composition "n_a",
+    has action_scope "specific",
+    has source_section "Definition of Applicable Net Cash Proceeds Percentage, clause (b)",
+    has source_page 5,
+    has source_text "(b) 50% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is greater than 5.50 to 1.00 but less than or equal to 5.75 to 1.00";
+  (norm: $n, subject: $borrower) isa norm_binds_subject;
+  (norm: $n, action: $a) isa norm_scopes_action;
+  (norm: $n, object: $oc) isa norm_scopes_object;
+  (governed_event: $e, governing_norm: $n) isa event_governed_by_norm;
+
+# ─── (3) sweep_tier_0pct: ≤ 5.50x leverage → no sweep ──────────────────────────
+match
+  $p isa rp_provision, has provision_id "<deal_id>_rp";
+  $st isa sweep_tier, has tier_id "<deal_id>_rp_sweep_tier_2";
+  (provision: $p, tier: $st) isa provision_has_sweep_tier;
+  $a isa! pay_subordinated_debt;
+  $oc isa! cash;
+  $borrower isa borrower_party, has party_id "<deal_id>__borrower";
+  $e isa event_class, has event_class_id "asset_sale_event";
+insert
+  $n isa norm,
+    has norm_id "<deal_id>_sweep_tier_0pct",
+    has norm_kind "sweep_tier",
+    has modality "obligation",
+    has capacity_composition "n_a",
+    has action_scope "specific",
+    has source_section "Definition of Applicable Net Cash Proceeds Percentage, clause (c)",
+    has source_page 6,
+    has source_text "(c) 0% if the First Lien Leverage Ratio for the most recently ended Test Period as of the Applicable Date of Determination, on a Pro Forma Basis (after giving effect to any such mandatory Asset Sale prepayment assuming a 100% Applicable Net Cash Proceeds Percentage), is less than or equal to 5.50 to 1.00";
+  (norm: $n, subject: $borrower) isa norm_binds_subject;
+  (norm: $n, action: $a) isa norm_scopes_action;
+  (norm: $n, object: $oc) isa norm_scopes_object;
+  (governed_event: $e, governing_norm: $n) isa event_governed_by_norm;
+
+# ─── (4) unlimited_asset_sale_basket_permission: 6.05(z) ratio-gated unlimited ─
+# Only emits when permits_section_6_05_z_unlimited == true on this deal.
+match
+  $p isa rp_provision, has provision_id "<deal_id>_rp";
+  $sweep isa asset_sale_sweep, has permits_section_6_05_z_unlimited true;
+  (provision: $p, sweep: $sweep) isa provision_has_asset_sale_sweep;
+  $a isa! make_investment;
+  $oc isa! cash;
+  $borrower isa borrower_party, has party_id "<deal_id>__borrower";
+  $lp isa loan_party, has party_id "<deal_id>__loan_party";
+  $e isa event_class, has event_class_id "asset_sale_event";
+insert
+  $n isa norm,
+    has norm_id "<deal_id>_unlimited_asset_sale_basket_permission",
+    has norm_kind "unlimited_asset_sale_basket_permission",
+    has modality "permission",
+    has capacity_composition "unlimited_on_condition",
+    has action_scope "specific",
+    has source_section "6.05(z)",
+    has source_page 189,
+    has source_text "unlimited additional sales or dispositions; provided that on a Pro Forma Basis, the First Lien Leverage Ratio for the most recently ended Test Period prior to the Applicable Date of Determination shall be no greater than the greater of (x) 6.00 to 1.00 and (y) the First Lien Leverage Ratio (determined without giving effect to the Subject Transactions on a Pro Forma Basis) for the most recently ended Test Period prior to the Applicable Date of Determination";
+  (norm: $n, subject: $borrower) isa norm_binds_subject;
+  (norm: $n, subject: $lp) isa norm_binds_subject;
+  (norm: $n, action: $a) isa norm_scopes_action;
+  (norm: $n, object: $oc) isa norm_scopes_object;
+  (governed_event: $e, governing_norm: $n) isa event_governed_by_norm;
+
+# ─── (5) sweep_exemption_product_line: 2.10(c)(iv) product-line carveout ───────
+# Only emits when permits_product_line_exemption_2_10_c_iv == true.
+match
+  $p isa rp_provision, has provision_id "<deal_id>_rp";
+  $sweep isa asset_sale_sweep, has permits_product_line_exemption_2_10_c_iv true;
+  (provision: $p, sweep: $sweep) isa provision_has_asset_sale_sweep;
+  $a isa! make_investment;
+  $oc isa! cash;
+  $borrower isa borrower_party, has party_id "<deal_id>__borrower";
+  $lp isa loan_party, has party_id "<deal_id>__loan_party";
+  $e isa event_class, has event_class_id "asset_sale_event";
+insert
+  $n isa norm,
+    has norm_id "<deal_id>_sweep_exemption_product_line",
+    has norm_kind "sweep_exemption_product_line",
+    has modality "permission",
+    has capacity_composition "unlimited_on_condition",
+    has action_scope "specific",
+    has source_section "2.10(c)(iv)",
+    has source_page 106,
+    has source_text "no such prepayment shall be required under this clause (c) with respect to any Net Cash Proceeds of any Asset Sale if (A) such Asset Sale is a disposition of all or substantially all of a product line or line of business identified by the Borrowers to the Administrative Agent from time to time, and (B) the First Lien Leverage Ratio computed on a Pro Forma Basis is less than or equal to the greater of (x) 6.25 to 1.00 and (y) the First Lien Leverage Ratio for the most recently ended Test Period";
+  (norm: $n, subject: $borrower) isa norm_binds_subject;
+  (norm: $n, subject: $lp) isa norm_binds_subject;
+  (norm: $n, action: $a) isa norm_scopes_action;
+  (norm: $n, object: $oc) isa norm_scopes_object;
+  (governed_event: $e, governing_norm: $n) isa event_governed_by_norm;

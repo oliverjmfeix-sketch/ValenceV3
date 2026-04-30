@@ -1349,6 +1349,18 @@ def execute_rule(driver, db_name: str, rule_id: str, deal_id: str,
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ASSET_SALE_PROCEEDS_SEED = REPO_ROOT / "app" / "data" / "asset_sale_proceeds_seed.tql"
+ASSET_SALE_GOVERNANCE_SEED = REPO_ROOT / "app" / "data" / "asset_sale_governance_seed.tql"
+
+# norm_ids the governance seed authors. Used by the helper for idempotent
+# delete-before-insert and by clear_v4_projection_for_deal to clean up
+# event_governed_by_norm + scope edges before deleting the norm.
+_GOVERNANCE_NORM_ID_SUFFIXES = (
+    "_sweep_tier_100pct",
+    "_sweep_tier_50pct",
+    "_sweep_tier_0pct",
+    "_unlimited_asset_sale_basket_permission",
+    "_sweep_exemption_product_line",
+)
 
 
 def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
@@ -1411,6 +1423,16 @@ def clear_v4_projection_for_deal(driver, db_name: str, deal_id: str) -> dict:
               $n isa norm, has norm_id $nid;
               $nid contains "{nid_pattern}";
               $r isa event_provides_proceeds_to_norm, links (proceeds_target_norm: $n);
+            delete $r;
+        '''),
+        # Phase I.2 — event_governed_by_norm relations don't auto-cascade
+        # when the governing norm is deleted, same as the proceeds-flow
+        # relations above. Clean up explicitly.
+        ("event_governed_by_norm", f'''
+            match
+              $n isa norm, has norm_id $nid;
+              $nid contains "{nid_pattern}";
+              $r isa event_governed_by_norm, links (governing_norm: $n);
             delete $r;
         '''),
         # Now the entity deletes.
@@ -1604,6 +1626,149 @@ def emit_asset_sale_proceeds_flows(driver, db_name: str, deal_id: str) -> int:
     return inserted
 
 
+def emit_asset_sale_governance_norms(driver, db_name: str, deal_id: str) -> int:
+    """Phase I.2 — Author 5 v4 norms (3 sweep_tier + 2 carveouts) and
+    attach event_governed_by_norm edges to asset_sale_event for `deal_id`.
+
+    The seed (asset_sale_governance_seed.tql) has 5 match-insert blocks.
+    Each block uses match-conditional patterns so blocks emit only when
+    the relevant v3 substrate exists on this deal:
+      - sweep_tier blocks need the corresponding sweep_tier v3 entity
+      - 6.05(z) carveout needs permits_section_6_05_z_unlimited=true
+      - 2.10(c)(iv) carveout needs permits_product_line_exemption_2_10_c_iv=true
+
+    Idempotent: this helper FIRST deletes any prior governance norms
+    matching `_GOVERNANCE_NORM_ID_SUFFIXES` for the deal (and their
+    norm_scopes_action / norm_scopes_object / event_governed_by_norm
+    edges) BEFORE running the seed inserts. This makes re-runs safe
+    without requiring a full clear_v4_projection_for_deal pass.
+
+    Returns the count of norms actually inserted (5 if all blocks match;
+    fewer if v3 substrate is partial).
+    """
+    if not ASSET_SALE_GOVERNANCE_SEED.exists():
+        logger.warning(
+            "asset_sale_governance_seed.tql not found at %s; skipping",
+            ASSET_SALE_GOVERNANCE_SEED,
+        )
+        return 0
+
+    # Step 1 — idempotent cleanup. Delete prior governance norms +
+    # their edges. norm_scopes_action / norm_scopes_object DO cascade
+    # when the norm is deleted (per existing behavior of the 23
+    # baseline norms), so we delete them explicitly anyway to be
+    # defensive.
+    target_norm_ids = [f"{deal_id}{suffix}" for suffix in _GOVERNANCE_NORM_ID_SUFFIXES]
+    cleanup_queries = []
+    for nid in target_norm_ids:
+        cleanup_queries.extend([
+            (f"egn[{nid}]", f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  $r isa event_governed_by_norm, links (governing_norm: $n);
+                delete $r;
+            '''),
+            (f"nbs[{nid}]", f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  $r isa norm_binds_subject, links (norm: $n);
+                delete $r;
+            '''),
+            (f"nsa[{nid}]", f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  $r isa norm_scopes_action, links (norm: $n);
+                delete $r;
+            '''),
+            (f"nso[{nid}]", f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                  $r isa norm_scopes_object, links (norm: $n);
+                delete $r;
+            '''),
+            (f"norm[{nid}]", f'''
+                match
+                  $n isa norm, has norm_id "{nid}";
+                delete $n;
+            '''),
+        ])
+    for label, q in cleanup_queries:
+        wtx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            wtx.query(q).resolve()
+            wtx.commit()
+        except Exception as exc:  # noqa: BLE001
+            if wtx.is_open():
+                wtx.close()
+            # Match-with-no-rows is silent in 3.x; this catches genuine errors.
+            msg = str(exc).splitlines()[0][:160]
+            if "no rows" not in msg.lower() and "0 rows" not in msg.lower():
+                logger.debug(
+                    "governance cleanup %s: %s", label, msg,
+                )
+
+    # Step 2 — load and run the seed.
+    seed_text = ASSET_SALE_GOVERNANCE_SEED.read_text(encoding="utf-8")
+    blocks: list[str] = []
+    current: list[str] = []
+    for line in seed_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+            continue
+        current.append(line)
+    if current:
+        blocks.append("\n".join(current))
+
+    def _count_governance_norms(driver, db_name) -> int:
+        tx = driver.transaction(db_name, TransactionType.READ)
+        try:
+            try:
+                # Count event_governed_by_norm edges as a proxy for
+                # governance norms emitted (each block emits exactly 1
+                # edge). Cleaner than counting norms by suffix.
+                r = tx.query(
+                    'match $r isa event_governed_by_norm; select $r;'
+                ).resolve()
+                return len(list(r.as_concept_rows()))
+            except Exception:
+                return 0
+        finally:
+            try:
+                if tx.is_open():
+                    tx.close()
+            except Exception:
+                pass
+
+    before = _count_governance_norms(driver, db_name)
+    attempted = 0
+    for block in blocks:
+        if "match" not in block or "insert" not in block:
+            continue
+        rendered = block.replace("<deal_id>", deal_id)
+        attempted += 1
+        wtx = driver.transaction(db_name, TransactionType.WRITE)
+        try:
+            wtx.query(rendered).resolve()
+            wtx.commit()
+        except Exception as exc:  # noqa: BLE001
+            if wtx.is_open():
+                wtx.close()
+            logger.warning(
+                "asset_sale_governance_seed: block raised exception: %s",
+                str(exc).splitlines()[0][:160],
+            )
+    after = _count_governance_norms(driver, db_name)
+    inserted = max(0, after - before)
+    logger.info(
+        "asset_sale_governance_seed: %d/%d blocks emitted (deal=%s)",
+        inserted, attempted, deal_id,
+    )
+    return inserted
+
+
 def project_deal(driver, db_name: str, deal_id: str,
                   dry_run: bool = False) -> ExecutionReport:
     """Project all v3 entities for a deal into v4 norms via rule-based
@@ -1645,6 +1810,18 @@ def project_deal(driver, db_name: str, deal_id: str,
                 "project_deal: emitted %d event_provides_proceeds_to_norm "
                 "edges from seed", proceeds,
             )
+        # Phase I.2 — author asset-sale governance norms + event_governed_by_norm
+        # edges. Same templated-seed pattern as proceeds_flows; runs after the
+        # main projection so the rp_provision and v3 sweep_tier / asset_sale_sweep
+        # entities are guaranteed to be present.
+        governance = emit_asset_sale_governance_norms(driver, db_name, deal_id)
+        if governance:
+            logger.info(
+                "project_deal: emitted %d asset-sale governance norm(s) + "
+                "event_governed_by_norm edge(s) from seed", governance,
+            )
+            aggregate.norms_emitted += governance
+            aggregate.relations_emitted += governance
 
     logger.info(
         "project_deal: aggregate matches=%d norms_emitted=%d relations_emitted=%d "
