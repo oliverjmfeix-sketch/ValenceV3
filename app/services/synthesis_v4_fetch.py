@@ -39,11 +39,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 
@@ -575,7 +576,109 @@ def fetch_proceeds_flows(driver, db: str, deal_id: str) -> list[dict]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase I.3 — generalized relevance scoring with question awareness.
+# Replaces Phase G commit 3's bounded action_scope-only sort. The score
+# combines the original Phase G tier-1 markers (action_scope, capacity
+# attrs, capacity_composition) with question-keyword overlap and
+# matched-category alignment. Sort by descending score; sort is stable
+# so within-tier original (TypeDB) order is preserved.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_RELEVANCE_STOPWORDS = frozenset({
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "has", "have",
+    "had", "do", "does", "did", "will", "would", "shall", "should", "may",
+    "might", "must", "can", "could", "this", "that", "these", "those", "and",
+    "or", "but", "not", "of", "in", "to", "for", "with", "on", "at", "by",
+    "as", "from", "into", "any", "all", "such", "if", "no", "yes",
+})
+
+
+def _relevance_tokenize(text: str) -> set[str]:
+    """Tokenize text for relevance scoring (lowercase, drop short/stop words).
+
+    Splits on non-alphanumeric AND on underscore so that snake_case
+    norm_kinds like `unlimited_asset_sale_basket_permission` produce
+    individual tokens {unlimited, asset, sale, basket, permission}
+    that can match keywords like 'asset' or 'sale' from the question.
+    """
+    if not text:
+        return set()
+    words = re.findall(r"[a-z][a-z0-9]+", text.lower())
+    return {w for w in words if len(w) >= 3 and w not in _RELEVANCE_STOPWORDS}
+
+
+def _compute_norm_relevance_score(
+    norm: dict,
+    question: str = "",
+    category_keywords: Optional[set[str]] = None,
+) -> float:
+    """Per-norm relevance score in [0.0, ~1.0]. Higher = more relevant.
+
+    Components (deterministic; no randomness):
+      - Tier-1 capacity markers (preserves Phase G commit 3 priority,
+        slightly damped so a strong question+category match can outrank):
+          action_scope == 'reallocable'         -> +0.25
+          action_scope == 'general'             -> +0.12
+          cap_usd or cap_grower_pct present     -> +0.12
+          capacity_composition == 'computed_from_sources' -> +0.08
+      - Question keyword overlap (capped):
+          tokens(question) ∩ tokens(norm_kind + source_section
+            + source_text[:400]) -> +0.10 per match, capped at +0.40
+      - Category keyword alignment (capped):
+          tokens(norm_kind + source_section) ∩ category_keywords
+            -> +0.10 per match, capped at +0.30
+
+    Total upper bound ≈ 1.0; in practice norms cluster in [0.0, 0.6].
+    """
+    s = norm.get("scalars", {}) or {}
+    score = 0.0
+
+    action_scope = s.get("action_scope")
+    if action_scope == "reallocable":
+        score += 0.25
+    elif action_scope == "general":
+        score += 0.12
+
+    cap_usd = s.get("cap_usd")
+    cap_grower = s.get("cap_grower_pct")
+    if cap_usd is not None or cap_grower is not None:
+        score += 0.12
+
+    capacity_composition = s.get("capacity_composition")
+    if capacity_composition == "computed_from_sources":
+        score += 0.08
+
+    if question:
+        q_tokens = _relevance_tokenize(question)
+        norm_text = " ".join([
+            str(s.get("norm_kind", "")),
+            str(s.get("source_section", "")),
+            str(s.get("source_text", ""))[:400],
+        ])
+        n_tokens = _relevance_tokenize(norm_text)
+        overlap = len(q_tokens & n_tokens)
+        score += min(0.40, overlap * 0.10)
+
+    if category_keywords:
+        norm_meta = " ".join([
+            str(s.get("norm_kind", "")),
+            str(s.get("source_section", "")),
+        ])
+        nm_tokens = _relevance_tokenize(norm_meta)
+        cat_overlap = len(nm_tokens & category_keywords)
+        score += min(0.30, cat_overlap * 0.10)
+
+    return score
+
+
+def fetch_norm_context(
+    driver,
+    db: str,
+    deal_id: str,
+    question: str = "",
+    category_keywords: Optional[set[str]] = None,
+) -> dict[str, Any]:
     """Top-level fetch. Returns a structured dict:
         {
           "deal_id": "...",
@@ -584,6 +687,11 @@ def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
           "proceeds_flows": [...],
           "summary": {<aggregate counts for sanity>}
         }
+
+    Norms are sorted by descending relevance score
+    (`_compute_norm_relevance_score`). When `question` and
+    `category_keywords` are absent (legacy callers), the score reduces
+    to Phase G's tier-1 markers, preserving the bounded sort behavior.
     """
     norms_raw = fetch_norms(driver, db, deal_id)
     scope = fetch_scope_edges(driver, db, deal_id)
@@ -631,43 +739,24 @@ def fetch_norm_context(driver, db: str, deal_id: str) -> dict[str, Any]:
             norm_dict["extracted_from"] = extracted[nid]
         norms_out.append(norm_dict)
 
-    # Phase G commit 3 — payload sort by relevance.
+    # Phase I.3 — generalized relevance scoring with question awareness.
+    # Replaces Phase G commit 3's bounded action_scope-only tier sort.
+    # Score combines tier-1 markers (action_scope, cap_usd/grower,
+    # capacity_composition), question keyword overlap, and matched-
+    # category alignment. See _compute_norm_relevance_score above.
     #
-    # Stage 2's citation behavior is sensitive to norm position within
-    # context.norms (Phase G commit 1 V4 probe confirmed). Without a
-    # deliberate sort, the list returns in TypeDB query order, which
-    # is arbitrary and obscures the architecture's declared authority
-    # hierarchy (synthesis_guidance > LLM defaults).
+    # When question/category_keywords are empty (legacy callers like the
+    # CLI smoke test), the score reduces to the original tier-1 markers,
+    # so the bounded sort behavior is preserved approximately.
     #
-    # Sort key (lower = earlier in list, which the LLM weights more):
-    # 1. Norms with action_scope: 'reallocable' come first — these
-    #    are the load-bearing capacity contributors per the Phase D2
-    #    commit 3 picker guidance for category N. Reallocable norms
-    #    pool capacity across covenants and need to be visible to
-    #    Stage 2 for citation, not buried.
-    # 2. Norms with cap_usd or cap_grower_pct set (capacity-bearing)
-    #    come next — they're the secondary capacity floor.
-    # 3. Norms with capacity_composition: 'computed_from_sources'
-    #    (builder-style) come next — they have visible structure.
-    # 4. All other norms last (categorical, unlimited_on_condition,
-    #    standalone, etc.).
-    #
-    # The sort is stable: within each tier, original (TypeDB) order is
-    # preserved. This ensures the sort is deterministic and idempotent.
-    def _norm_sort_key(n: dict) -> int:
-        s = n.get("scalars", {}) or {}
-        action_scope = s.get("action_scope")
-        capacity_composition = s.get("capacity_composition")
-        cap_usd = s.get("cap_usd")
-        cap_grower = s.get("cap_grower_pct")
-        if action_scope == "reallocable":
-            return 0
-        if cap_usd is not None or cap_grower is not None:
-            return 1
-        if capacity_composition == "computed_from_sources":
-            return 2
-        return 3
-    norms_out.sort(key=_norm_sort_key)
+    # Sort by descending score. Python's sort is stable, so within-tier
+    # ties preserve original (TypeDB) order — deterministic, idempotent.
+    norms_out.sort(
+        key=lambda n: _compute_norm_relevance_score(
+            n, question=question, category_keywords=category_keywords,
+        ),
+        reverse=True,
+    )
 
     # Per-defeater dicts (no conditions tree per Phase C — defeaters
     # don't carry conditions in current rule corpus)

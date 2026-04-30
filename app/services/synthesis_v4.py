@@ -615,10 +615,21 @@ def synthesize_one_question(question: str, deal_id: str, db: str,
     # fallback; picker bias must be category-specific to be safe).
     picker_guidance = router.get_stage1_picker_guidance(route.matched_categories)
 
+    # Phase I.3 — collect category keywords for the relevance-scoring
+    # sort. Empty when no categories matched (defensive); the fetch
+    # falls back to Phase G's tier-1 markers in that case.
+    category_keywords: set[str] = set()
+    for cat in route.matched_categories:
+        category_keywords |= getattr(cat, "keywords", set())
+
     # Fetch norm context
     fetch_driver = connect_typedb()
     try:
-        context = fetch_norm_context(fetch_driver, db, deal_id)
+        context = fetch_norm_context(
+            fetch_driver, db, deal_id,
+            question=question,
+            category_keywords=category_keywords if category_keywords else None,
+        )
     finally:
         fetch_driver.close()
 
