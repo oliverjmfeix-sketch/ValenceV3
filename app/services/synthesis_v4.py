@@ -364,6 +364,12 @@ Proceeds-flow edges (event_provides_proceeds_to_norm) connect agreement-level ev
 5. VERIFY — every claim must trace to a norm attribute or condition predicate. Booleans-true are findings, not possibilities — don't hedge with "may" or "potentially" when the data is clear.
 6. CONDITIONS — when a norm has a condition_tree, mention the conditions inline (e.g., "subject to first lien net leverage ≤ 6.25x").
 
+## MUST-CITE LIST — STAGE 1 PRIMARY AUTHORITY
+
+The payload includes a `must_cite_norm_ids` array, derived from Stage 1's PRIMARY classification. Every norm_id in that array MUST appear BOTH in `reasoning.primary_norms_considered` AND in the `citations` array.
+
+If a must-cite norm does not contribute to your reasoning, still cite it with `quote: "(noted; not load-bearing for this question)"` and a short rationale entry in `primary_norms_considered`. Do not silently drop it. This makes Stage 1's selection auditable and enforces the architecture's authority hierarchy across questions where LLM attention defaults would otherwise override the picker.
+
 ## CATEGORY-SPECIFIC ANALYSIS GUIDANCE (from human-authored synthesis_guidance)
 
 {category_guidance}
@@ -396,6 +402,7 @@ class Stage2Result:
     reasoning: dict[str, Any] = field(default_factory=dict)
     answer: str = ""
     citations: list[dict] = field(default_factory=list)
+    must_cite_norm_ids: list[str] = field(default_factory=list)
     raw_response: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
@@ -450,8 +457,17 @@ def run_stage2(client: anthropic.Anthropic, model: str, question: str,
         or d["defeater_id"] in stage1.supplementary_norm_ids
     ]
 
+    # Must-cite layer (I.1): every norm Stage 1 classified as PRIMARY must
+    # appear in Stage 2's reasoning.primary_norms_considered AND citations.
+    # Initial scope: all primary_norm_ids. Sorted for determinism.
+    must_cite_norm_ids = sorted(
+        nid for nid in stage1.primary_norm_ids
+        if any(n["norm_id"] == nid for n in context["norms"])
+    )
+
     payload = {
         "question": question,
+        "must_cite_norm_ids": must_cite_norm_ids,
         "primary_norms": primary,
         "supplementary_norms": supplementary,
         "defeaters": primary_defeaters,
@@ -482,6 +498,7 @@ def run_stage2(client: anthropic.Anthropic, model: str, question: str,
 
     result = Stage2Result(
         raw_response=raw,
+        must_cite_norm_ids=must_cite_norm_ids,
         input_tokens=response.usage.input_tokens,
         output_tokens=response.usage.output_tokens,
         latency_ms=latency_ms,
@@ -553,6 +570,7 @@ class SynthesisResult:
             "stage1": {
                 "classifications": self.stage1.classifications,
                 "primary_count": len(self.stage1.primary_norm_ids),
+                "primary_norm_ids": sorted(self.stage1.primary_norm_ids),
                 "supplementary_count": len(self.stage1.supplementary_norm_ids),
                 "skip_count": len(self.stage1.skip_norm_ids),
                 "input_tokens": self.stage1.input_tokens,
@@ -565,6 +583,7 @@ class SynthesisResult:
                 "reasoning": self.stage2.reasoning,
                 "answer": self.stage2.answer,
                 "citations": self.stage2.citations,
+                "must_cite_norm_ids": self.stage2.must_cite_norm_ids,
                 "input_tokens": self.stage2.input_tokens,
                 "output_tokens": self.stage2.output_tokens,
                 "latency_ms": round(self.stage2.latency_ms, 1),
