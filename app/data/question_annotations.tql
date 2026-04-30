@@ -1224,6 +1224,38 @@ insert (question: $q) isa question_annotates_attribute,
     has target_entity_type "asset_sale_sweep",
     has target_attribute_name "section_6_05_z_threshold";
 
+# ── Phase I.5: tailored RDP carveouts on general_rdp_basket ──────────────────
+
+match $q isa ontology_question, has question_id "rp_t28";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "permits_intercompany_rdp_carveout";
+
+match $q isa ontology_question, has question_id "rp_t29";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "intercompany_rdp_carveout_threshold";
+
+match $q isa ontology_question, has question_id "rp_t30";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "permits_reorganization_rdp_carveout";
+
+match $q isa ontology_question, has question_id "rp_t31";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "reorganization_rdp_carveout_threshold";
+
+match $q isa ontology_question, has question_id "rp_t32";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "permits_ipo_rdp_carveout";
+
+match $q isa ontology_question, has question_id "rp_t33";
+insert (question: $q) isa question_annotates_attribute,
+    has target_entity_type "general_rdp_basket",
+    has target_attribute_name "ipo_rdp_carveout_threshold";
+
 # ── Phase 2: RDP baskets (_exists) ───────────────────────────────────────────
 
 match $q isa ontology_question, has question_id "rp_t22";

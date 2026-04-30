@@ -1331,7 +1331,19 @@ insert $q isa ontology_question,
     has answer_type "number",
     has display_order 125,
     has covenant_type "RP",
-    has extraction_prompt "What is the First Lien Leverage Ratio threshold for the Section 2.10(c)(iv) product-line / line-of-business sale exemption from mandatory prepayment? E.g., if 'the First Lien Leverage Ratio is no greater than 6.25 to 1.00 on a Pro Forma Basis', answer 6.25. If the carveout exists but no specific ratio threshold is stated (only no-worse test), answer null. If the carveout does not exist, answer null.";
+    has extraction_prompt "Phase I.5 iteration. The Section 2.10(c)(iv) product-line / line-of-business sale exemption from mandatory prepayment is gated on a leverage test that often takes a COMPOUND form. Extract the HARD numeric First Lien Leverage Ratio component:
+
+1) Simple form 'the First Lien Leverage Ratio is no greater than 6.25 to 1.00 on a Pro Forma Basis' -> answer 6.25.
+
+2) Compound form 'less than or equal to the greater of (x) 6.25 to 1.00 and (y) the First Lien Leverage Ratio for the most recently ended Test Period (determined without giving effect to the Subject Transactions on a Pro Forma Basis)' -> answer 6.25 (the (x) hard component; the (y) branch is the no-worse test, captured separately).
+
+3) Compound form 'less than or equal to the greater of (x) 6.00 to 1.00 and (y) closing First Lien Leverage Ratio' -> answer 6.00.
+
+4) Pure no-worse test only (no hard numeric anchor) -> answer null.
+
+5) Carveout does not exist -> answer null.
+
+The answer must be the (x) hard ratio component (a double, e.g., 6.25). Do not return the no-worse-test (y) language. Do not return null when a hard (x) component is present even if a (y) no-worse alternative is also stated.";
 
 insert $q isa ontology_question,
     has question_id "rp_l26",
@@ -1412,6 +1424,71 @@ insert $q isa ontology_question,
     has display_order 227,
     has covenant_type "RP",
     has extraction_prompt "Does the agreement specify amendment and waiver voting thresholds for the Restricted Payments covenant? Look in the amendments/modifications section for Required Lenders threshold, supermajority requirements, and sacred rights. Answer true if any voting threshold provisions exist.";
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE I.5: TAILORED RDP CARVEOUTS — Q3 lawyer eval gap
+# ═══════════════════════════════════════════════════════════════════════════════
+# The lawyer Q3 gold answer enumerates "tailored baskets available for
+# Restricted Debt Payments which may or may not be available for reallocation,
+# including intercompany debt payments and payments in connection with a
+# reorganization or IPO". Six new questions capture (a) presence of each
+# carveout as a separately-stated permission and (b) any leverage-ratio
+# threshold. Annotated to general_rdp_basket. Schema-additive only;
+# populated when post-pilot re-extraction runs.
+
+insert $q isa ontology_question,
+    has question_id "rp_t28",
+    has question_text "Does Section 6.09(a) include a separately-stated intercompany RDP carveout?",
+    has description "Whether intercompany debt payments (loans/notes between borrower and restricted subsidiaries) are a separately-stated RDP permission",
+    has answer_type "boolean",
+    has display_order 228,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 6.09(a) (or the equivalent Restricted Debt Payments covenant) include a separately-stated permission for intercompany Restricted Debt Payments — that is, prepayments, redemptions, or repurchases of subordinated indebtedness owed by the Borrower or a Restricted Subsidiary to another Loan Party / Restricted Subsidiary? Look for 'intercompany Indebtedness', 'intercompany subordinated debt', or 'Restricted Debt Payments by a Loan Party to another Loan Party'. Distinguish from the general RDP basket (rp_t9 / general_rdp_basket) — this carveout is a SEPARATE permission. Answer true if such a separately-stated intercompany carveout exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t29",
+    has question_text "What is the First Lien Leverage Ratio threshold for the intercompany RDP carveout?",
+    has description "Numeric leverage threshold below which the intercompany RDP carveout applies",
+    has answer_type "number",
+    has display_order 229,
+    has covenant_type "RP",
+    has extraction_prompt "What is the First Lien Leverage Ratio threshold (the hard numeric component) gating the intercompany RDP carveout? E.g., for 'no greater than 5.50 to 1.00 on a Pro Forma Basis', answer 5.50. For a compound test 'less than or equal to the greater of (x) 6.00 to 1.00 and (y) the closing First Lien Leverage Ratio', answer 6.00 (the (x) hard component). If the carveout has no leverage-test gate (always available), answer null. If only a no-worse pro forma test (no hard ratio), answer null. If the carveout does not exist, answer null.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t30",
+    has question_text "Does Section 6.09(a) include a separately-stated reorganization-related RDP carveout?",
+    has description "Whether RDPs in connection with a reorganization (e.g., debt-for-equity exchange, plan of reorganization) are a separately-stated permission",
+    has answer_type "boolean",
+    has display_order 230,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 6.09(a) (or the equivalent Restricted Debt Payments covenant) include a separately-stated permission for reorganization-related Restricted Debt Payments — that is, prepayments or repurchases of subordinated debt in connection with a reorganization, restructuring, debt-for-equity exchange, or plan of reorganization? Look for 'in connection with a reorganization', 'pursuant to a plan of reorganization', or 'debt-for-equity exchange'. Distinguish from the equity-funded RDP basket (rp_t26) — reorganization may include non-equity consideration. Answer true if such a separately-stated reorganization carveout exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t31",
+    has question_text "What is the First Lien Leverage Ratio threshold for the reorganization RDP carveout?",
+    has description "Numeric leverage threshold below which the reorganization RDP carveout applies",
+    has answer_type "number",
+    has display_order 231,
+    has covenant_type "RP",
+    has extraction_prompt "What is the First Lien Leverage Ratio threshold gating the reorganization RDP carveout? E.g., for 'no greater than 5.50 to 1.00 on a Pro Forma Basis', answer 5.50. For a compound test ('greater of (x) ... and (y) ...'), answer the (x) hard component. If the carveout has no leverage-test gate, answer null. If only a no-worse pro forma test, answer null. If the carveout does not exist, answer null.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t32",
+    has question_text "Does Section 6.09(a) include a separately-stated IPO-related RDP carveout?",
+    has description "Whether RDPs in connection with a Qualified IPO or post-IPO transaction are a separately-stated permission",
+    has answer_type "boolean",
+    has display_order 232,
+    has covenant_type "RP",
+    has extraction_prompt "Does Section 6.09(a) (or the equivalent Restricted Debt Payments covenant) include a separately-stated permission for IPO-related Restricted Debt Payments — that is, RDPs made in connection with, or with the proceeds of, a Qualified IPO, post-IPO transaction, or initial public offering? Look for 'in connection with a Qualified IPO', 'with the proceeds of an initial public offering', or 'post-IPO Restricted Debt Payment'. Distinguish from a general post-IPO basket that covers RP not RDP. Answer true if such a separately-stated IPO-RDP carveout exists.";
+
+insert $q isa ontology_question,
+    has question_id "rp_t33",
+    has question_text "What is the First Lien Leverage Ratio threshold for the IPO RDP carveout?",
+    has description "Numeric leverage threshold below which the IPO RDP carveout applies",
+    has answer_type "number",
+    has display_order 233,
+    has covenant_type "RP",
+    has extraction_prompt "What is the First Lien Leverage Ratio threshold gating the IPO-related RDP carveout? E.g., for 'no greater than 5.75 to 1.00 on a Pro Forma Basis', answer 5.75. For a compound test, answer the hard (x) component. If the carveout has no leverage-test gate, answer null. If only a no-worse test, answer null. If the carveout does not exist, answer null.";
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 4: BUILDER BASKET SOURCE FLAGS — scalar attrs on builder_basket
@@ -1539,6 +1616,20 @@ insert (category: $cat, question: $q) isa category_has_question;
 
 # Phase 3: Amendment threshold (Category T)
 match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t27";
+insert (category: $cat, question: $q) isa category_has_question;
+
+# Phase I.5: Tailored RDP carveouts (Category T) — 6 questions for Q3 lawyer eval gap
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t28";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t29";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t30";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t31";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t32";
+insert (category: $cat, question: $q) isa category_has_question;
+match $cat isa ontology_category, has category_id "T"; $q isa ontology_question, has question_id "rp_t33";
 insert (category: $cat, question: $q) isa category_has_question;
 
 # Phase 4: Builder basket sources (Category F)

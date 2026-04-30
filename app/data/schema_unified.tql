@@ -301,6 +301,17 @@ attribute product_line_2_10_c_iv_threshold, value double;
 attribute permits_section_6_05_z_unlimited, value boolean;
 attribute section_6_05_z_threshold, value double;
 
+# Phase I.5 — Q3 tailored RDP carveouts on general_rdp_basket. Each
+# boolean answers "is this a separately-stated RDP permission in
+# Section 6.09(a) (or analogous)?". Each *_threshold answers "what
+# leverage threshold gates the carveout, if any" (null if none).
+attribute permits_intercompany_rdp_carveout, value boolean;
+attribute intercompany_rdp_carveout_threshold, value double;
+attribute permits_reorganization_rdp_carveout, value boolean;
+attribute reorganization_rdp_carveout_threshold, value double;
+attribute permits_ipo_rdp_carveout, value boolean;
+attribute ipo_rdp_carveout_threshold, value double;
+
 # ── Builder basket source attrs (flattened onto builder_basket) ──────────────
 attribute has_starter_amount_source, value boolean;
 attribute has_cni_source, value boolean;
@@ -1079,9 +1090,20 @@ entity refinancing_rdp_basket sub rdp_basket,
     owns subject_to_intercreditor;
 
 # T9: Fixed dollar basket — general RDP capacity
+# Phase I.5 — Q3 tailored carveouts (intercompany, reorganization, IPO RDP).
+# Each carveout pair captures: (a) presence as a separately-stated permission
+# in Section 6.09(a) (or analogous) and (b) leverage-ratio threshold if any.
+# Reallocation behavior is independent — these carveouts may or may not
+# also flow back to RP under 6.06(j) depending on cross-reference language.
 entity general_rdp_basket sub rdp_basket,
     owns basket_amount_usd,
-    owns basket_grower_pct;
+    owns basket_grower_pct,
+    owns permits_intercompany_rdp_carveout,
+    owns intercompany_rdp_carveout_threshold,
+    owns permits_reorganization_rdp_carveout,
+    owns reorganization_rdp_carveout_threshold,
+    owns permits_ipo_rdp_carveout,
+    owns ipo_rdp_carveout_threshold;
 
 # T12: Ratio-based unlimited — leverage test unlocks unlimited RDP
 entity ratio_rdp_basket sub rdp_basket,
